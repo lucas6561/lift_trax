@@ -1,6 +1,13 @@
-use clap::{Parser, Subcommand};
-use rusqlite::{params, Connection};
 use chrono::Utc;
+use clap::{Parser, Subcommand};
+
+mod database;
+mod models;
+mod sqlite_db;
+
+use database::Database;
+use models::Lift;
+use sqlite_db::SqliteDb;
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -31,76 +38,30 @@ enum Commands {
     },
 }
 
-struct Lift {
-    date: String,
-    exercise: String,
-    weight: f32,
-    reps: i32,
-}
-
-fn init_db(conn: &Connection) -> rusqlite::Result<()> {
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS lifts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT NOT NULL,
-            exercise TEXT NOT NULL,
-            weight REAL NOT NULL,
-            reps INTEGER NOT NULL
-        )",
-        [],
-    )?;
-    Ok(())
-}
-
-fn main() -> rusqlite::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    let conn = Connection::open("lifts.db")?;
-    init_db(&conn)?;
+    let db: Box<dyn Database> = Box::new(SqliteDb::new("lifts.db")?);
     match cli.command {
-        Commands::Add { exercise, weight, reps, date } => {
+        Commands::Add {
+            exercise,
+            weight,
+            reps,
+            date,
+        } => {
             let date = date.unwrap_or_else(|| Utc::now().date_naive().to_string());
-            conn.execute(
-                "INSERT INTO lifts (date, exercise, weight, reps) VALUES (?1, ?2, ?3, ?4)",
-                params![date, exercise, weight, reps],
-            )?;
+            let lift = Lift {
+                date,
+                exercise,
+                weight,
+                reps,
+            };
+            db.add_lift(&lift)?;
             println!("Lift added.");
         }
         Commands::List { exercise } => {
-            match exercise {
-                Some(ex) => {
-                    let mut stmt = conn.prepare(
-                        "SELECT date, exercise, weight, reps FROM lifts WHERE exercise = ?1 ORDER BY date DESC",
-                    )?;
-                    let lifts = stmt.query_map(params![ex], |row| {
-                        Ok(Lift {
-                            date: row.get(0)?,
-                            exercise: row.get(1)?,
-                            weight: row.get(2)?,
-                            reps: row.get(3)?,
-                        })
-                    })?;
-                    for lift in lifts {
-                        let l = lift?;
-                        println!("{}: {} - {} lbs x {}", l.date, l.exercise, l.weight, l.reps);
-                    }
-                }
-                None => {
-                    let mut stmt = conn.prepare(
-                        "SELECT date, exercise, weight, reps FROM lifts ORDER BY date DESC",
-                    )?;
-                    let lifts = stmt.query_map([], |row| {
-                        Ok(Lift {
-                            date: row.get(0)?,
-                            exercise: row.get(1)?,
-                            weight: row.get(2)?,
-                            reps: row.get(3)?,
-                        })
-                    })?;
-                    for lift in lifts {
-                        let l = lift?;
-                        println!("{}: {} - {} lbs x {}", l.date, l.exercise, l.weight, l.reps);
-                    }
-                }
+            let lifts = db.list_lifts(exercise.as_deref())?;
+            for l in lifts {
+                println!("{}: {} - {} lbs x {}", l.date, l.exercise, l.weight, l.reps);
             }
         }
     }
