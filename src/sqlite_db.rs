@@ -1,7 +1,7 @@
 //! SQLite-backed implementation of the [`Database`] trait.
 
 use chrono::NaiveDate;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params, types::Type};
 
 use crate::{
     database::{Database, DbResult},
@@ -48,7 +48,8 @@ impl SqliteDb {
         )?;
         let iter = stmt.query_map(params![lift_id], |row| {
             let date_str: String = row.get(0)?;
-            let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")?;
+            let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, Type::Text, Box::new(e)))?;
             Ok(LiftExecution {
                 date,
                 sets: row.get(1)?,
