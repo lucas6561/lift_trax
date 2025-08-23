@@ -1101,6 +1101,7 @@ dependencies = [
  "clap",
  "eframe",
  "rusqlite",
+ "winapi",
 ]
 
 [[package]]
