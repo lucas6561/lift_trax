@@ -1,0 +1,197 @@
+use chrono::{NaiveDate, Utc};
+use eframe::{Frame, NativeOptions, egui};
+
+use crate::{
+    database::Database,
+    models::{Lift, LiftExecution},
+    sqlite_db::SqliteDb,
+};
+
+/// Run the GUI application.
+pub fn run_gui(db_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let db = SqliteDb::new(db_path)?;
+    let app = GuiApp::new(db);
+    let options = NativeOptions::default();
+    eframe::run_native("Lift Trax", options, Box::new(|_cc| Box::new(app)))?;
+    Ok(())
+}
+
+struct GuiApp {
+    db: SqliteDb,
+    // form fields
+    exercise: String,
+    weight: String,
+    reps: String,
+    sets: String,
+    date: String,
+    rpe: String,
+    muscles: String,
+    // data display
+    lifts: Vec<Lift>,
+    // error message
+    error: Option<String>,
+}
+
+impl GuiApp {
+    fn new(db: SqliteDb) -> Self {
+        let mut app = Self {
+            db,
+            exercise: String::new(),
+            weight: String::new(),
+            reps: String::new(),
+            sets: String::new(),
+            date: String::new(),
+            rpe: String::new(),
+            muscles: String::new(),
+            lifts: Vec::new(),
+            error: None,
+        };
+        app.refresh_lifts();
+        app
+    }
+
+    fn refresh_lifts(&mut self) {
+        match self.db.list_lifts(None) {
+            Ok(l) => self.lifts = l,
+            Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+
+    fn add_execution(&mut self) {
+        let weight: f32 = match self.weight.parse() {
+            Ok(w) => w,
+            Err(_) => {
+                self.error = Some("Invalid weight".into());
+                return;
+            }
+        };
+        let reps: i32 = match self.reps.parse() {
+            Ok(r) => r,
+            Err(_) => {
+                self.error = Some("Invalid reps".into());
+                return;
+            }
+        };
+        let sets: i32 = match self.sets.parse() {
+            Ok(s) => s,
+            Err(_) => {
+                self.error = Some("Invalid sets".into());
+                return;
+            }
+        };
+        let date = if self.date.trim().is_empty() {
+            Utc::now().date_naive()
+        } else {
+            match NaiveDate::parse_from_str(&self.date, "%Y-%m-%d") {
+                Ok(d) => d,
+                Err(_) => {
+                    self.error = Some("Invalid date".into());
+                    return;
+                }
+            }
+        };
+        let rpe = if self.rpe.trim().is_empty() {
+            None
+        } else {
+            match self.rpe.parse::<f32>() {
+                Ok(r) => Some(r),
+                Err(_) => {
+                    self.error = Some("Invalid RPE".into());
+                    return;
+                }
+            }
+        };
+        let muscles: Vec<String> = if self.muscles.trim().is_empty() {
+            Vec::new()
+        } else {
+            self.muscles
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect()
+        };
+        let exec = LiftExecution {
+            date,
+            sets,
+            reps,
+            weight,
+            rpe,
+        };
+        if let Err(e) = self.db.add_lift_execution(&self.exercise, &muscles, &exec) {
+            self.error = Some(e.to_string());
+        } else {
+            self.exercise.clear();
+            self.weight.clear();
+            self.reps.clear();
+            self.sets.clear();
+            self.date.clear();
+            self.rpe.clear();
+            self.muscles.clear();
+            self.error = None;
+            self.refresh_lifts();
+        }
+    }
+}
+
+impl eframe::App for GuiApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Add Lift Execution");
+            ui.horizontal(|ui| {
+                ui.label("Exercise:");
+                ui.text_edit_singleline(&mut self.exercise);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Weight:");
+                ui.text_edit_singleline(&mut self.weight);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Reps:");
+                ui.text_edit_singleline(&mut self.reps);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Sets:");
+                ui.text_edit_singleline(&mut self.sets);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Date (YYYY-MM-DD):");
+                ui.text_edit_singleline(&mut self.date);
+            });
+            ui.horizontal(|ui| {
+                ui.label("RPE:");
+                ui.text_edit_singleline(&mut self.rpe);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Muscles (comma-separated):");
+                ui.text_edit_singleline(&mut self.muscles);
+            });
+            if ui.button("Add").clicked() {
+                self.add_execution();
+            }
+            if let Some(err) = &self.error {
+                ui.colored_label(egui::Color32::RED, err);
+            }
+            ui.separator();
+            ui.heading("Recorded Lifts");
+            for lift in &self.lifts {
+                let title = if lift.muscles.is_empty() {
+                    lift.name.clone()
+                } else {
+                    format!("{} ({})", lift.name, lift.muscles.join(", "))
+                };
+                ui.collapsing(title, |ui| {
+                    if lift.executions.is_empty() {
+                        ui.label("no records");
+                    } else {
+                        for exec in &lift.executions {
+                            let rpe = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                            ui.label(format!(
+                                "{}: {} sets x {} reps @ {} lbs{}",
+                                exec.date, exec.sets, exec.reps, exec.weight, rpe
+                            ));
+                        }
+                    }
+                });
+            }
+        });
+    }
+}
