@@ -101,8 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Gui => {
-            drop(db); // GUI manages its own connection
-            gui::run_gui("lifts.db")?;
+            gui::run_gui(db)?;
         }
     }
     Ok(())

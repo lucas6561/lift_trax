@@ -4,12 +4,10 @@ use eframe::{Frame, NativeOptions, egui};
 use crate::{
     database::Database,
     models::{Lift, LiftExecution},
-    sqlite_db::SqliteDb,
 };
 
-/// Run the GUI application.
-pub fn run_gui(db_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let db = SqliteDb::new(db_path)?;
+/// Run the GUI application using the provided database implementation.
+pub fn run_gui(db: Box<dyn Database>) -> Result<(), Box<dyn std::error::Error>> {
     let app = GuiApp::new(db);
     let options = NativeOptions::default();
     eframe::run_native("Lift Trax", options, Box::new(|_cc| Box::new(app)))?;
@@ -17,7 +15,7 @@ pub fn run_gui(db_path: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 struct GuiApp {
-    db: SqliteDb,
+    db: Box<dyn Database>,
     // form fields
     exercise: String,
     weight: String,
@@ -33,7 +31,7 @@ struct GuiApp {
 }
 
 impl GuiApp {
-    fn new(db: SqliteDb) -> Self {
+    fn new(db: Box<dyn Database>) -> Self {
         let mut app = Self {
             db,
             exercise: String::new(),
