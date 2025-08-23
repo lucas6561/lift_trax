@@ -4,6 +4,7 @@ use chrono::{NaiveDate, Utc};
 use clap::{Parser, Subcommand};
 
 mod database;
+mod gui;
 mod models;
 mod sqlite_db;
 
@@ -46,6 +47,8 @@ enum Commands {
         #[arg(long)]
         exercise: Option<String>,
     },
+    /// Launch graphical interface
+    Gui,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -96,6 +99,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
+        }
+        Commands::Gui => {
+            drop(db); // GUI manages its own connection
+            gui::run_gui("lifts.db")?;
         }
     }
     Ok(())
