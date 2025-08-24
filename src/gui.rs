@@ -19,6 +19,7 @@ struct GuiApp {
     db: Box<dyn Database>,
     // form fields
     weight: String,
+    weight_unit: WeightUnit,
     reps: String,
     sets: String,
     date: String,
@@ -38,6 +39,7 @@ impl GuiApp {
         let mut app = Self {
             db,
             weight: String::new(),
+            weight_unit: WeightUnit::POUNDS,
             reps: String::new(),
             sets: String::new(),
             date: String::new(),
@@ -69,7 +71,7 @@ impl GuiApp {
 
     fn add_execution(&mut self) {
         let weight: Weight = match self.weight.parse::<f64>() {
-            Ok(w) => Weight::new(WeightUnit::POUNDS, w),
+            Ok(w) => Weight::new(self.weight_unit, w),
             Err(_) => {
                 self.error = Some("Invalid weight".into());
                 return;
@@ -192,6 +194,15 @@ impl eframe::App for GuiApp {
             ui.horizontal(|ui| {
                 ui.label("Weight:");
                 ui.text_edit_singleline(&mut self.weight);
+                egui::ComboBox::from_id_source("weight_unit")
+                    .selected_text(match self.weight_unit {
+                        WeightUnit::POUNDS => "lb",
+                        WeightUnit::KILOGRAMS => "kg",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.weight_unit, WeightUnit::POUNDS, "lb");
+                        ui.selectable_value(&mut self.weight_unit, WeightUnit::KILOGRAMS, "kg");
+                    });
             });
             ui.horizontal(|ui| {
                 ui.label("Reps:");
