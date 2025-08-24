@@ -17,13 +17,15 @@ pub fn run_gui(db: Box<dyn Database>) -> Result<(), Box<dyn std::error::Error>> 
 struct GuiApp {
     db: Box<dyn Database>,
     // form fields
-    exercise: String,
     weight: String,
     reps: String,
     sets: String,
     date: String,
     rpe: String,
-    muscles: String,
+    selected_lift: Option<usize>,
+    show_new_lift: bool,
+    new_lift_name: String,
+    new_lift_muscles: String,
     // data display
     lifts: Vec<Lift>,
     // error message
@@ -34,13 +36,15 @@ impl GuiApp {
     fn new(db: Box<dyn Database>) -> Self {
         let mut app = Self {
             db,
-            exercise: String::new(),
             weight: String::new(),
             reps: String::new(),
             sets: String::new(),
             date: String::new(),
             rpe: String::new(),
-            muscles: String::new(),
+            selected_lift: None,
+            show_new_lift: false,
+            new_lift_name: String::new(),
+            new_lift_muscles: String::new(),
             lifts: Vec::new(),
             error: None,
         };
@@ -50,7 +54,14 @@ impl GuiApp {
 
     fn refresh_lifts(&mut self) {
         match self.db.list_lifts(None) {
-            Ok(l) => self.lifts = l,
+            Ok(l) => {
+                self.lifts = l;
+                if self.lifts.is_empty() {
+                    self.selected_lift = None;
+                } else if self.selected_lift.map_or(true, |i| i >= self.lifts.len()) {
+                    self.selected_lift = Some(0);
+                }
+            }
             Err(e) => self.error = Some(e.to_string()),
         }
     }
@@ -99,14 +110,6 @@ impl GuiApp {
                 }
             }
         };
-        let muscles: Vec<String> = if self.muscles.trim().is_empty() {
-            Vec::new()
-        } else {
-            self.muscles
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .collect()
-        };
         let exec = LiftExecution {
             date,
             sets,
@@ -114,18 +117,51 @@ impl GuiApp {
             weight,
             rpe,
         };
-        if let Err(e) = self.db.add_lift_execution(&self.exercise, &muscles, &exec) {
-            self.error = Some(e.to_string());
+        if let Some(idx) = self.selected_lift {
+            let lift = &self.lifts[idx];
+            if let Err(e) = self.db.add_lift_execution(&lift.name, &lift.muscles, &exec) {
+                self.error = Some(e.to_string());
+            } else {
+                self.weight.clear();
+                self.reps.clear();
+                self.sets.clear();
+                self.date.clear();
+                self.rpe.clear();
+                self.error = None;
+                self.refresh_lifts();
+            }
         } else {
-            self.exercise.clear();
-            self.weight.clear();
-            self.reps.clear();
-            self.sets.clear();
-            self.date.clear();
-            self.rpe.clear();
-            self.muscles.clear();
-            self.error = None;
-            self.refresh_lifts();
+            self.error = Some("No lift selected".into());
+        }
+    }
+
+    fn create_lift(&mut self) {
+        let name = self.new_lift_name.trim();
+        if name.is_empty() {
+            self.error = Some("Lift name required".into());
+            return;
+        }
+        let muscles: Vec<String> = if self.new_lift_muscles.trim().is_empty() {
+            Vec::new()
+        } else {
+            self.new_lift_muscles
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect()
+        };
+        let name_owned = name.to_string();
+        match self.db.add_lift(&name_owned, &muscles) {
+            Ok(_) => {
+                self.show_new_lift = false;
+                self.new_lift_name.clear();
+                self.new_lift_muscles.clear();
+                self.error = None;
+                self.refresh_lifts();
+                if let Some(idx) = self.lifts.iter().position(|l| l.name == name_owned) {
+                    self.selected_lift = Some(idx);
+                }
+            }
+            Err(e) => self.error = Some(e.to_string()),
         }
     }
 }
@@ -135,8 +171,22 @@ impl eframe::App for GuiApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Add Lift Execution");
             ui.horizontal(|ui| {
-                ui.label("Exercise:");
-                ui.text_edit_singleline(&mut self.exercise);
+                ui.label("Lift:");
+                let selected = self
+                    .selected_lift
+                    .and_then(|i| self.lifts.get(i))
+                    .map(|l| l.name.as_str())
+                    .unwrap_or("Select lift");
+                egui::ComboBox::from_id_source("lift_select")
+                    .selected_text(selected)
+                    .show_ui(ui, |ui| {
+                        for (i, lift) in self.lifts.iter().enumerate() {
+                            ui.selectable_value(&mut self.selected_lift, Some(i), &lift.name);
+                        }
+                    });
+                if ui.button("New Lift").clicked() {
+                    self.show_new_lift = true;
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Weight:");
@@ -158,15 +208,31 @@ impl eframe::App for GuiApp {
                 ui.label("RPE:");
                 ui.text_edit_singleline(&mut self.rpe);
             });
-            ui.horizontal(|ui| {
-                ui.label("Muscles (comma-separated):");
-                ui.text_edit_singleline(&mut self.muscles);
-            });
             if ui.button("Add").clicked() {
                 self.add_execution();
             }
             if let Some(err) = &self.error {
                 ui.colored_label(egui::Color32::RED, err);
+            }
+            if self.show_new_lift {
+                ui.separator();
+                ui.heading("Create New Lift");
+                ui.horizontal(|ui| {
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut self.new_lift_name);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Muscles (comma-separated):");
+                    ui.text_edit_singleline(&mut self.new_lift_muscles);
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Create").clicked() {
+                        self.create_lift();
+                    }
+                    if ui.button("Cancel").clicked() {
+                        self.show_new_lift = false;
+                    }
+                });
             }
             ui.separator();
             ui.heading("Recorded Lifts");
