@@ -1,6 +1,7 @@
 //! Core data structures representing lifts and their execution history.
 
 use chrono::NaiveDate;
+use crate::weight::Weight;
 
 /// A weight-lifting movement tracked by the application.
 #[derive(Debug)]
@@ -25,7 +26,7 @@ pub struct LiftExecution {
     /// Repetitions per set.
     pub reps: i32,
     /// Weight used in pounds.
-    pub weight: f32,
+    pub weight: Weight,
     /// Optional rating of perceived exertion.
     pub rpe: Option<f32>,
 }

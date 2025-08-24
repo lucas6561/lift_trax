@@ -1,6 +1,7 @@
 use chrono::{NaiveDate, Utc};
 use eframe::{Frame, NativeOptions, egui};
 
+use crate::weight::{Weight, WeightUnit};
 use crate::{
     database::Database,
     models::{Lift, LiftExecution},
@@ -67,8 +68,8 @@ impl GuiApp {
     }
 
     fn add_execution(&mut self) {
-        let weight: f32 = match self.weight.parse() {
-            Ok(w) => w,
+        let weight: Weight = match self.weight.parse::<f64>() {
+            Ok(w) => Weight::new(WeightUnit::POUNDS, w),
             Err(_) => {
                 self.error = Some("Invalid weight".into());
                 return;
@@ -249,7 +250,7 @@ impl eframe::App for GuiApp {
                         for exec in &lift.executions {
                             let rpe = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
                             ui.label(format!(
-                                "{}: {} sets x {} reps @ {} lbs{}",
+                                "{}: {} sets x {} reps @ {} {}",
                                 exec.date, exec.sets, exec.reps, exec.weight, rpe
                             ));
                         }
