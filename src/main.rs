@@ -7,10 +7,12 @@ mod database;
 mod gui;
 mod models;
 mod sqlite_db;
+mod weight;
 
 use database::Database;
 use models::LiftExecution;
 use sqlite_db::SqliteDb;
+use crate::weight::{Weight, WeightUnit};
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -26,7 +28,7 @@ enum Commands {
         /// Exercise name
         exercise: String,
         /// Weight lifted
-        weight: f32,
+        weight: String,
         /// Number of reps
         reps: i32,
         /// Number of sets
@@ -68,11 +70,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(d) => NaiveDate::parse_from_str(&d, "%Y-%m-%d")?,
                 None => Utc::now().date_naive(),
             };
+            let real_weight: Weight = match weight.parse::<f64>() {
+                Ok(w) => Weight::new(WeightUnit::POUNDS, w),
+                Err(_) => {
+                    panic!("Something went terribly wrong!");
+                },
+            };
             let exec = LiftExecution {
                 date,
                 sets,
                 reps,
-                weight,
+                weight: real_weight,
                 rpe,
             };
             db.add_lift_execution(&exercise, &muscles, &exec)?;
@@ -93,7 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     for exec in l.executions {
                         let rpe_str = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
                         println!(
-                            "  - {}: {} sets x {} reps @ {} lbs{}",
+                            "  - {}: {} sets x {} reps @ {:?} lbs{}",
                             exec.date, exec.sets, exec.reps, exec.weight, rpe_str
                         );
                     }

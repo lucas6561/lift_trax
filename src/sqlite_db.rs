@@ -3,6 +3,7 @@
 use chrono::NaiveDate;
 use rusqlite::{Connection, OptionalExtension, params, types::Type};
 
+use crate::weight::{Weight, WeightUnit};
 use crate::{
     database::{Database, DbResult},
     models::{Lift, LiftExecution},
@@ -38,7 +39,7 @@ impl SqliteDb {
                 date,
                 sets: row.get(1)?,
                 reps: row.get(2)?,
-                weight: row.get(3)?,
+                weight: Weight::new(WeightUnit::POUNDS, row.get(3)?),
                 rpe: row.get(4)?,
             })
         })?;
@@ -128,7 +129,7 @@ impl Database for SqliteDb {
                 execution.date.to_string(),
                 execution.sets,
                 execution.reps,
-                execution.weight,
+                execution.weight.pounds(),
                 execution.rpe
             ],
         )?;
