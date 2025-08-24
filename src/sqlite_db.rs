@@ -8,6 +8,9 @@ use crate::{
     models::{Lift, LiftExecution},
 };
 
+/// Current database schema version.
+const DB_VERSION: i32 = 1;
+
 /// Database persisted to a SQLite file.
 pub struct SqliteDb {
     conn: Connection,
@@ -17,6 +20,40 @@ impl SqliteDb {
     /// Open (or create) a SQLite database at `path`.
     pub fn new(path: &str) -> DbResult<Self> {
         let conn = Connection::open(path)?;
+        init_db(&conn)?;
+        Ok(Self { conn })
+    }
+
+    /// Load all execution records for `lift_id`, newest first.
+    fn fetch_executions(&self, lift_id: i32) -> DbResult<Vec<LiftExecution>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT date, sets, reps, weight, rpe FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC",
+        )?;
+        let iter = stmt.query_map(params![lift_id], |row| {
+            let date_str: String = row.get(0)?;
+            let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(0, Type::Text, Box::new(e))
+            })?;
+            Ok(LiftExecution {
+                date,
+                sets: row.get(1)?,
+                reps: row.get(2)?,
+                weight: row.get(3)?,
+                rpe: row.get(4)?,
+            })
+        })?;
+        let mut executions = Vec::new();
+        for exec in iter {
+            executions.push(exec?);
+        }
+        Ok(executions)
+    }
+}
+
+/// Initialize the database schema and ensure it matches the expected version.
+fn init_db(conn: &Connection) -> DbResult<()> {
+    let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    if user_version == 0 {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS lifts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,32 +75,21 @@ impl SqliteDb {
             )",
             [],
         )?;
-        Ok(Self { conn })
+        conn.pragma_update(None, "user_version", &DB_VERSION)?;
+    } else if user_version < DB_VERSION {
+        run_migrations(conn, user_version)?;
     }
+    Ok(())
+}
 
-    /// Load all execution records for `lift_id`, newest first.
-    fn fetch_executions(&self, lift_id: i32) -> DbResult<Vec<LiftExecution>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT date, sets, reps, weight, rpe FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC",
-        )?;
-        let iter = stmt.query_map(params![lift_id], |row| {
-            let date_str: String = row.get(0)?;
-            let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, Type::Text, Box::new(e)))?;
-            Ok(LiftExecution {
-                date,
-                sets: row.get(1)?,
-                reps: row.get(2)?,
-                weight: row.get(3)?,
-                rpe: row.get(4)?,
-            })
-        })?;
-        let mut executions = Vec::new();
-        for exec in iter {
-            executions.push(exec?);
-        }
-        Ok(executions)
+/// Apply migrations from a previous schema version to [`DB_VERSION`].
+fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
+    match from_version {
+        // No migrations defined yet.
+        _ => {}
     }
+    conn.pragma_update(None, "user_version", &DB_VERSION)?;
+    Ok(())
 }
 
 impl Database for SqliteDb {
