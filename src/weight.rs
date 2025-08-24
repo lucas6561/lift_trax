@@ -31,7 +31,9 @@ impl Weight {
         self.pounds
     }
 
+    #[allow(dead_code)]
     pub fn kilograms(&self) -> f64 {
         self.pounds / POUNDS_PER_KILOGRAMS
     }
 }
+
