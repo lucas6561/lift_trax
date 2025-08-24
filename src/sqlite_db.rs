@@ -93,6 +93,15 @@ fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
 }
 
 impl Database for SqliteDb {
+    fn add_lift(&self, name: &str, muscles: &[String]) -> DbResult<()> {
+        let muscles_str = muscles.join(",");
+        self.conn.execute(
+            "INSERT INTO lifts (name, muscles) VALUES (?1, ?2)",
+            params![name, muscles_str],
+        )?;
+        Ok(())
+    }
+
     fn add_lift_execution(
         &self,
         name: &str,
