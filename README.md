@@ -79,7 +79,9 @@ cargo run -- list --help
 ## Data Storage
 
 The tool creates a `lifts.db` SQLite file in the current directory to store all
-entries. Deleting this file removes all recorded lifts.
+entries. The database schema is versioned using SQLite's `user_version` pragma
+so that future releases can migrate existing data. Deleting this file removes
+all recorded lifts.
 
 ## Data Model
 
