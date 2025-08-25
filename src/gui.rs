@@ -1,10 +1,10 @@
 use chrono::{NaiveDate, Utc};
 use eframe::{Frame, NativeOptions, egui};
 
-use crate::weight::{Weight, WeightUnit};
+use crate::weight::Weight;
 use crate::{
     database::Database,
-    models::{Lift, LiftExecution},
+    models::{Lift, LiftExecution, LiftRegion},
 };
 
 /// Run the GUI application using the provided database implementation.
@@ -19,7 +19,6 @@ struct GuiApp {
     db: Box<dyn Database>,
     // form fields
     weight: String,
-    weight_unit: WeightUnit,
     reps: String,
     sets: String,
     date: String,
@@ -27,6 +26,7 @@ struct GuiApp {
     selected_lift: Option<usize>,
     show_new_lift: bool,
     new_lift_name: String,
+    new_lift_region: LiftRegion,
     // data display
     lifts: Vec<Lift>,
     // error message
@@ -38,7 +38,6 @@ impl GuiApp {
         let mut app = Self {
             db,
             weight: String::new(),
-            weight_unit: WeightUnit::POUNDS,
             reps: String::new(),
             sets: String::new(),
             date: String::new(),
@@ -46,6 +45,7 @@ impl GuiApp {
             selected_lift: None,
             show_new_lift: false,
             new_lift_name: String::new(),
+            new_lift_region: LiftRegion::UPPER,
             lifts: Vec::new(),
             error: None,
         };
@@ -68,8 +68,8 @@ impl GuiApp {
     }
 
     fn add_execution(&mut self) {
-        let weight: Weight = match self.weight.parse::<f64>() {
-            Ok(w) => Weight::new(self.weight_unit, w),
+        let weight: Weight = match self.weight.parse() {
+            Ok(w) => w,
             Err(_) => {
                 self.error = Some("Invalid weight".into());
                 return;
@@ -143,7 +143,7 @@ impl GuiApp {
             return;
         }
         let name_owned = name.to_string();
-        match self.db.add_lift(&name_owned) {
+        match self.db.add_lift(&name_owned, self.new_lift_region) {
             Ok(_) => {
                 self.show_new_lift = false;
                 self.new_lift_name.clear();
@@ -181,17 +181,8 @@ impl eframe::App for GuiApp {
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("Weight:");
+                ui.label("Weight or Bands:");
                 ui.text_edit_singleline(&mut self.weight);
-                egui::ComboBox::from_id_source("weight_unit")
-                    .selected_text(match self.weight_unit {
-                        WeightUnit::POUNDS => "lb",
-                        WeightUnit::KILOGRAMS => "kg",
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.weight_unit, WeightUnit::POUNDS, "lb");
-                        ui.selectable_value(&mut self.weight_unit, WeightUnit::KILOGRAMS, "kg");
-                    });
             });
             ui.horizontal(|ui| {
                 ui.label("Reps:");
@@ -223,6 +214,11 @@ impl eframe::App for GuiApp {
                     ui.text_edit_singleline(&mut self.new_lift_name);
                 });
                 ui.horizontal(|ui| {
+                    ui.label("Region:");
+                    ui.selectable_value(&mut self.new_lift_region, LiftRegion::UPPER, "Upper");
+                    ui.selectable_value(&mut self.new_lift_region, LiftRegion::LOWER, "Lower");
+                });
+                ui.horizontal(|ui| {
                     if ui.button("Create").clicked() {
                         self.create_lift();
                     }
@@ -234,7 +230,7 @@ impl eframe::App for GuiApp {
             ui.separator();
             ui.heading("Recorded Lifts");
             for lift in &self.lifts {
-                let title = lift.name.clone();
+                let title = format!("{} ({})", lift.name, lift.region);
                 ui.collapsing(title, |ui| {
                     if lift.executions.is_empty() {
                         ui.label("no records");

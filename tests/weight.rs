@@ -1,26 +1,34 @@
 #[path = "../src/weight.rs"]
 mod weight;
 
-use weight::{Weight, WeightUnit};
-
-const POUNDS_PER_KILOGRAMS: f64 = 2.20462;
+use weight::{BandColor, Weight};
 
 #[test]
-fn pounds_to_kilograms_conversion() {
-    let weight = Weight::new(WeightUnit::POUNDS, 220.0);
-    let expected = 220.0 / POUNDS_PER_KILOGRAMS;
-    assert!((weight.kilograms() - expected).abs() < 1e-6);
+fn parse_and_display_pounds() {
+    let w: Weight = "150.5".parse().unwrap();
+    assert_eq!(w.to_string(), "150.5 lb");
+    match w {
+        Weight::Pounds(p) => assert_eq!(p, 150.5),
+        _ => panic!("expected pounds"),
+    }
 }
 
 #[test]
-fn kilograms_to_pounds_conversion() {
-    let weight = Weight::new(WeightUnit::KILOGRAMS, 100.0);
-    let expected = 100.0 * POUNDS_PER_KILOGRAMS;
-    assert!((weight.pounds() - expected).abs() < 1e-6);
+fn parse_single_band() {
+    let w: Weight = "red".parse().unwrap();
+    assert_eq!(w.to_string(), "red");
+    match w {
+        Weight::Bands(ref b) => assert_eq!(b, &vec![BandColor::Red]),
+        _ => panic!("expected bands"),
+    }
 }
 
 #[test]
-fn display_formats_in_pounds() {
-    let weight = Weight::new(WeightUnit::POUNDS, 123.4);
-    assert_eq!(format!("{}", weight), "123.4 lb");
+fn parse_multiple_bands() {
+    let w: Weight = "red+blue".parse().unwrap();
+    assert_eq!(w.to_string(), "red+blue");
+    match w {
+        Weight::Bands(ref b) => assert_eq!(b, &vec![BandColor::Red, BandColor::Blue]),
+        _ => panic!("expected bands"),
+    }
 }
