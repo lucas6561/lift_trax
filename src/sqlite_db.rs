@@ -143,22 +143,25 @@ impl Database for SqliteDb {
                 .conn
                 .prepare("SELECT id, name, muscles FROM lifts WHERE name = ?1 ORDER BY name")?;
             let iter = stmt.query_map(params![n], |row| {
+                let id: i32 = row.get(0)?;
                 let muscles: String = row.get(2)?;
                 let muscles_vec = if muscles.is_empty() {
                     Vec::new()
                 } else {
                     muscles.split(',').map(|s| s.to_string()).collect()
                 };
-                Ok(Lift {
-                    id: row.get(0)?,
-                    name: row.get(1)?,
-                    muscles: muscles_vec,
-                    executions: Vec::new(),
-                })
+                Ok((
+                    id,
+                    Lift {
+                        name: row.get(1)?,
+                        muscles: muscles_vec,
+                        executions: Vec::new(),
+                    },
+                ))
             })?;
-            for lift in iter {
-                let mut lift = lift?;
-                lift.executions = self.fetch_executions(lift.id)?;
+            for row in iter {
+                let (id, mut lift) = row?;
+                lift.executions = self.fetch_executions(id)?;
                 lifts.push(lift);
             }
         } else {
@@ -166,22 +169,25 @@ impl Database for SqliteDb {
                 .conn
                 .prepare("SELECT id, name, muscles FROM lifts ORDER BY name")?;
             let iter = stmt.query_map([], |row| {
+                let id: i32 = row.get(0)?;
                 let muscles: String = row.get(2)?;
                 let muscles_vec = if muscles.is_empty() {
                     Vec::new()
                 } else {
                     muscles.split(',').map(|s| s.to_string()).collect()
                 };
-                Ok(Lift {
-                    id: row.get(0)?,
-                    name: row.get(1)?,
-                    muscles: muscles_vec,
-                    executions: Vec::new(),
-                })
+                Ok((
+                    id,
+                    Lift {
+                        name: row.get(1)?,
+                        muscles: muscles_vec,
+                        executions: Vec::new(),
+                    },
+                ))
             })?;
-            for lift in iter {
-                let mut lift = lift?;
-                lift.executions = self.fetch_executions(lift.id)?;
+            for row in iter {
+                let (id, mut lift) = row?;
+                lift.executions = self.fetch_executions(id)?;
                 lifts.push(lift);
             }
         }
