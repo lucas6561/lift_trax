@@ -1,13 +1,14 @@
 //! Core data structures representing lifts and their execution history.
 
-use chrono::NaiveDate;
 use crate::weight::Weight;
+use chrono::NaiveDate;
 
 /// A weight-lifting movement tracked by the application.
+///
+/// Lifts are uniquely identified by their [`name`]; any database identifiers
+/// are treated as internal implementation details.
 #[derive(Debug)]
 pub struct Lift {
-    /// Row identifier of the lift in the database.
-    pub id: i32,
     /// Name of the movement, e.g. "Bench".
     pub name: String,
     /// Muscles worked by this lift.
