@@ -39,9 +39,6 @@ enum Commands {
         /// Rating of perceived exertion
         #[arg(long)]
         rpe: Option<f32>,
-        /// Muscles worked by this lift
-        #[arg(long = "muscle")]
-        muscles: Vec<String>,
     },
     /// List recorded lifts
     List {
@@ -64,7 +61,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sets,
             date,
             rpe,
-            muscles,
         } => {
             let date = match date {
                 Some(d) => NaiveDate::parse_from_str(&d, "%Y-%m-%d")?,
@@ -83,18 +79,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 weight: real_weight,
                 rpe,
             };
-            db.add_lift_execution(&exercise, &muscles, &exec)?;
+            db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
         Commands::List { exercise } => {
             let lifts = db.list_lifts(exercise.as_deref())?;
             for l in lifts {
-                let muscle_str = if l.muscles.is_empty() {
-                    String::new()
-                } else {
-                    format!(" ({})", l.muscles.join(", "))
-                };
-                println!("{}{}", l.name, muscle_str);
+                println!("{}", l.name);
                 if l.executions.is_empty() {
                     println!("  - no records");
                 } else {

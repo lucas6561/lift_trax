@@ -27,7 +27,6 @@ struct GuiApp {
     selected_lift: Option<usize>,
     show_new_lift: bool,
     new_lift_name: String,
-    new_lift_muscles: String,
     // data display
     lifts: Vec<Lift>,
     // error message
@@ -47,7 +46,6 @@ impl GuiApp {
             selected_lift: None,
             show_new_lift: false,
             new_lift_name: String::new(),
-            new_lift_muscles: String::new(),
             lifts: Vec::new(),
             error: None,
         };
@@ -122,7 +120,7 @@ impl GuiApp {
         };
         if let Some(idx) = self.selected_lift {
             let lift = &self.lifts[idx];
-            if let Err(e) = self.db.add_lift_execution(&lift.name, &lift.muscles, &exec) {
+            if let Err(e) = self.db.add_lift_execution(&lift.name, &exec) {
                 self.error = Some(e.to_string());
             } else {
                 self.weight.clear();
@@ -144,20 +142,11 @@ impl GuiApp {
             self.error = Some("Lift name required".into());
             return;
         }
-        let muscles: Vec<String> = if self.new_lift_muscles.trim().is_empty() {
-            Vec::new()
-        } else {
-            self.new_lift_muscles
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .collect()
-        };
         let name_owned = name.to_string();
-        match self.db.add_lift(&name_owned, &muscles) {
+        match self.db.add_lift(&name_owned) {
             Ok(_) => {
                 self.show_new_lift = false;
                 self.new_lift_name.clear();
-                self.new_lift_muscles.clear();
                 self.error = None;
                 self.refresh_lifts();
                 if let Some(idx) = self.lifts.iter().position(|l| l.name == name_owned) {
@@ -234,10 +223,6 @@ impl eframe::App for GuiApp {
                     ui.text_edit_singleline(&mut self.new_lift_name);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Muscles (comma-separated):");
-                    ui.text_edit_singleline(&mut self.new_lift_muscles);
-                });
-                ui.horizontal(|ui| {
                     if ui.button("Create").clicked() {
                         self.create_lift();
                     }
@@ -249,11 +234,7 @@ impl eframe::App for GuiApp {
             ui.separator();
             ui.heading("Recorded Lifts");
             for lift in &self.lifts {
-                let title = if lift.muscles.is_empty() {
-                    lift.name.clone()
-                } else {
-                    format!("{} ({})", lift.name, lift.muscles.join(", "))
-                };
+                let title = lift.name.clone();
                 ui.collapsing(title, |ui| {
                     if lift.executions.is_empty() {
                         ui.label("no records");

@@ -11,8 +11,6 @@ use chrono::NaiveDate;
 pub struct Lift {
     /// Name of the movement, e.g. "Bench".
     pub name: String,
-    /// Muscles worked by this lift.
-    pub muscles: Vec<String>,
     /// Recorded executions of this lift, most recent first.
     pub executions: Vec<LiftExecution>,
 }

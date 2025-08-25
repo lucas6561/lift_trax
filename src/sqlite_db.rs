@@ -58,8 +58,7 @@ fn init_db(conn: &Connection) -> DbResult<()> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS lifts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                muscles TEXT NOT NULL
+                name TEXT NOT NULL UNIQUE
             )",
             [],
         )?;
@@ -94,11 +93,10 @@ fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
 }
 
 impl Database for SqliteDb {
-    fn add_lift(&self, name: &str, muscles: &[String]) -> DbResult<()> {
-        let muscles_str = muscles.join(",");
+    fn add_lift(&self, name: &str) -> DbResult<()> {
         self.conn.execute(
-            "INSERT INTO lifts (name, muscles) VALUES (?1, ?2)",
-            params![name, muscles_str],
+            "INSERT INTO lifts (name) VALUES (?1)",
+            params![name],
         )?;
         Ok(())
     }
@@ -106,7 +104,6 @@ impl Database for SqliteDb {
     fn add_lift_execution(
         &self,
         name: &str,
-        muscles: &[String],
         execution: &LiftExecution,
     ) -> DbResult<()> {
         let mut stmt = self.conn.prepare("SELECT id FROM lifts WHERE name = ?1")?;
@@ -114,10 +111,9 @@ impl Database for SqliteDb {
         let lift_id = match lift_id {
             Some(id) => id,
             None => {
-                let muscles_str = muscles.join(",");
                 self.conn.execute(
-                    "INSERT INTO lifts (name, muscles) VALUES (?1, ?2)",
-                    params![name, muscles_str],
+                    "INSERT INTO lifts (name) VALUES (?1, ?2)",
+                    params![name],
                 )?;
                 self.conn.last_insert_rowid() as i32
             }
@@ -141,20 +137,13 @@ impl Database for SqliteDb {
         if let Some(n) = name {
             let mut stmt = self
                 .conn
-                .prepare("SELECT id, name, muscles FROM lifts WHERE name = ?1 ORDER BY name")?;
+                .prepare("SELECT id, name FROM lifts WHERE name = ?1 ORDER BY name")?;
             let iter = stmt.query_map(params![n], |row| {
                 let id: i32 = row.get(0)?;
-                let muscles: String = row.get(2)?;
-                let muscles_vec = if muscles.is_empty() {
-                    Vec::new()
-                } else {
-                    muscles.split(',').map(|s| s.to_string()).collect()
-                };
                 Ok((
                     id,
                     Lift {
                         name: row.get(1)?,
-                        muscles: muscles_vec,
                         executions: Vec::new(),
                     },
                 ))
@@ -167,20 +156,13 @@ impl Database for SqliteDb {
         } else {
             let mut stmt = self
                 .conn
-                .prepare("SELECT id, name, muscles FROM lifts ORDER BY name")?;
+                .prepare("SELECT id, name FROM lifts ORDER BY name")?;
             let iter = stmt.query_map([], |row| {
                 let id: i32 = row.get(0)?;
-                let muscles: String = row.get(2)?;
-                let muscles_vec = if muscles.is_empty() {
-                    Vec::new()
-                } else {
-                    muscles.split(',').map(|s| s.to_string()).collect()
-                };
                 Ok((
                     id,
                     Lift {
                         name: row.get(1)?,
-                        muscles: muscles_vec,
                         executions: Vec::new(),
                     },
                 ))
