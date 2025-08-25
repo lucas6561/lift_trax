@@ -76,15 +76,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 weight: real_weight,
                 rpe,
             };
-            // Ensure the lift exists with a default region.
-            let _ = db.add_lift(&exercise, LiftRegion::UPPER);
+            // Ensure the lift exists with a default region and no main designation.
+            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None);
             db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
         Commands::List { exercise } => {
             let lifts = db.list_lifts(exercise.as_deref())?;
             for l in lifts {
-                println!("{} ({})", l.name, l.region);
+                let main_str = l
+                    .main
+                    .map(|m| format!(" [{}]", m))
+                    .unwrap_or_default();
+                println!("{} ({}){}", l.name, l.region, main_str);
                 if l.executions.is_empty() {
                     println!("  - no records");
                 } else {

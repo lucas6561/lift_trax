@@ -42,17 +42,30 @@ impl FromStr for BandColor {
     }
 }
 
-/// Weight used for a lift, either a numeric pound value or resistance bands.
+/// Units that can be selected when entering a raw weight.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WeightUnit {
+    Pounds,
+    Kilograms,
+}
+
+const POUNDS_PER_KILOGRAM: f64 = 2.20462;
+
+/// Weight used for a lift, either a numeric value (stored internally in
+/// pounds) or a combination of resistance bands.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Weight {
-    Pounds(f64),
+    /// Raw numeric weight. The value represents pounds regardless of the unit
+    /// originally entered by the user.
+    Raw(f64),
+    /// One or more resistance bands joined together.
     Bands(Vec<BandColor>),
 }
 
 impl fmt::Display for Weight {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Weight::Pounds(p) => write!(f, "{} lb", p),
+            Weight::Raw(p) => write!(f, "{} lb", p),
             Weight::Bands(bands) => {
                 let text = bands
                     .iter()
@@ -65,14 +78,33 @@ impl fmt::Display for Weight {
     }
 }
 
+impl Weight {
+    /// Construct a [`Weight::Raw`] value from a numeric input and unit.
+    pub fn from_unit(value: f64, unit: WeightUnit) -> Self {
+        match unit {
+            WeightUnit::Pounds => Weight::Raw(value),
+            WeightUnit::Kilograms => Weight::Raw(value * POUNDS_PER_KILOGRAM),
+        }
+    }
+}
+
 impl FromStr for Weight {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(p) = s.parse::<f64>() {
-            return Ok(Weight::Pounds(p));
+        let trimmed = s.trim().to_lowercase();
+        if let Some(stripped) = trimmed.strip_suffix("kg") {
+            let val: f64 = stripped.trim().parse().map_err(|_| "invalid weight")?;
+            return Ok(Weight::from_unit(val, WeightUnit::Kilograms));
         }
-        let bands: Result<Vec<BandColor>, _> = s
+        if let Some(stripped) = trimmed.strip_suffix("lb") {
+            let val: f64 = stripped.trim().parse().map_err(|_| "invalid weight")?;
+            return Ok(Weight::from_unit(val, WeightUnit::Pounds));
+        }
+        if let Ok(p) = trimmed.parse::<f64>() {
+            return Ok(Weight::Raw(p));
+        }
+        let bands: Result<Vec<BandColor>, _> = trimmed
             .split('+')
             .map(|b| b.trim().parse())
             .collect();

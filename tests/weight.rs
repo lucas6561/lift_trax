@@ -8,8 +8,8 @@ fn parse_and_display_pounds() {
     let w: Weight = "150.5".parse().unwrap();
     assert_eq!(w.to_string(), "150.5 lb");
     match w {
-        Weight::Pounds(p) => assert_eq!(p, 150.5),
-        _ => panic!("expected pounds"),
+        Weight::Raw(p) => assert_eq!(p, 150.5),
+        _ => panic!("expected raw weight"),
     }
 }
 
@@ -30,5 +30,14 @@ fn parse_multiple_bands() {
     match w {
         Weight::Bands(ref b) => assert_eq!(b, &vec![BandColor::Red, BandColor::Blue]),
         _ => panic!("expected bands"),
+    }
+}
+
+#[test]
+fn parse_kilograms() {
+    let w: Weight = "10kg".parse().unwrap();
+    match w {
+        Weight::Raw(p) => assert!((p - 22.0462).abs() < 1e-4),
+        _ => panic!("expected raw weight"),
     }
 }
