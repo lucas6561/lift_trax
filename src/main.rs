@@ -10,9 +10,9 @@ mod sqlite_db;
 mod weight;
 
 use database::Database;
-use models::LiftExecution;
+use models::{LiftExecution, LiftRegion};
 use sqlite_db::SqliteDb;
-use crate::weight::{Weight, WeightUnit};
+use crate::weight::Weight;
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -66,12 +66,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(d) => NaiveDate::parse_from_str(&d, "%Y-%m-%d")?,
                 None => Utc::now().date_naive(),
             };
-            let real_weight: Weight = match weight.parse::<f64>() {
-                Ok(w) => Weight::new(WeightUnit::POUNDS, w),
-                Err(_) => {
-                    panic!("Something went terribly wrong!");
-                },
-            };
+            let real_weight: Weight = weight
+                .parse()
+                .map_err(|_| "Invalid weight supplied")?;
             let exec = LiftExecution {
                 date,
                 sets,
@@ -79,20 +76,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 weight: real_weight,
                 rpe,
             };
+            // Ensure the lift exists with a default region and no main designation.
+            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None);
             db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
         Commands::List { exercise } => {
             let lifts = db.list_lifts(exercise.as_deref())?;
             for l in lifts {
-                println!("{}", l.name);
+                let main_str = l
+                    .main
+                    .map(|m| format!(" [{}]", m))
+                    .unwrap_or_default();
+                println!("{} ({}){}", l.name, l.region, main_str);
                 if l.executions.is_empty() {
                     println!("  - no records");
                 } else {
                     for exec in l.executions {
                         let rpe_str = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
                         println!(
-                            "  - {}: {} sets x {} reps @ {:?} lbs{}",
+                            "  - {}: {} sets x {} reps @ {}{}",
                             exec.date, exec.sets, exec.reps, exec.weight, rpe_str
                         );
                     }

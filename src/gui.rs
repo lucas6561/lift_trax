@@ -4,7 +4,7 @@ use eframe::{Frame, NativeOptions, egui};
 use crate::weight::{Weight, WeightUnit};
 use crate::{
     database::Database,
-    models::{Lift, LiftExecution},
+    models::{Lift, LiftExecution, LiftRegion, MainLift},
 };
 
 /// Run the GUI application using the provided database implementation.
@@ -18,8 +18,10 @@ pub fn run_gui(db: Box<dyn Database>) -> Result<(), Box<dyn std::error::Error>> 
 struct GuiApp {
     db: Box<dyn Database>,
     // form fields
-    weight: String,
+    weight_value: String,
+    band_value: String,
     weight_unit: WeightUnit,
+    weight_mode: WeightMode,
     reps: String,
     sets: String,
     date: String,
@@ -27,18 +29,28 @@ struct GuiApp {
     selected_lift: Option<usize>,
     show_new_lift: bool,
     new_lift_name: String,
+    new_lift_region: LiftRegion,
+    new_lift_main: Option<MainLift>,
     // data display
     lifts: Vec<Lift>,
     // error message
     error: Option<String>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum WeightMode {
+    Weight,
+    Bands,
+}
+
 impl GuiApp {
     fn new(db: Box<dyn Database>) -> Self {
         let mut app = Self {
             db,
-            weight: String::new(),
-            weight_unit: WeightUnit::POUNDS,
+            weight_value: String::new(),
+            band_value: String::new(),
+            weight_unit: WeightUnit::Pounds,
+            weight_mode: WeightMode::Weight,
             reps: String::new(),
             sets: String::new(),
             date: String::new(),
@@ -46,6 +58,8 @@ impl GuiApp {
             selected_lift: None,
             show_new_lift: false,
             new_lift_name: String::new(),
+            new_lift_region: LiftRegion::UPPER,
+            new_lift_main: None,
             lifts: Vec::new(),
             error: None,
         };
@@ -68,12 +82,24 @@ impl GuiApp {
     }
 
     fn add_execution(&mut self) {
-        let weight: Weight = match self.weight.parse::<f64>() {
-            Ok(w) => Weight::new(self.weight_unit, w),
-            Err(_) => {
-                self.error = Some("Invalid weight".into());
-                return;
+        let weight = match self.weight_mode {
+            WeightMode::Weight => {
+                let val: f64 = match self.weight_value.parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        self.error = Some("Invalid weight".into());
+                        return;
+                    }
+                };
+                Weight::from_unit(val, self.weight_unit)
             }
+            WeightMode::Bands => match self.band_value.parse::<Weight>() {
+                Ok(w) => w,
+                Err(_) => {
+                    self.error = Some("Invalid bands".into());
+                    return;
+                }
+            },
         };
         let reps: i32 = match self.reps.parse() {
             Ok(r) => r,
@@ -123,7 +149,8 @@ impl GuiApp {
             if let Err(e) = self.db.add_lift_execution(&lift.name, &exec) {
                 self.error = Some(e.to_string());
             } else {
-                self.weight.clear();
+                self.weight_value.clear();
+                self.band_value.clear();
                 self.reps.clear();
                 self.sets.clear();
                 self.date.clear();
@@ -143,10 +170,14 @@ impl GuiApp {
             return;
         }
         let name_owned = name.to_string();
-        match self.db.add_lift(&name_owned) {
+        match self
+            .db
+            .add_lift(&name_owned, self.new_lift_region, self.new_lift_main)
+        {
             Ok(_) => {
                 self.show_new_lift = false;
                 self.new_lift_name.clear();
+                 self.new_lift_main = None;
                 self.error = None;
                 self.refresh_lifts();
                 if let Some(idx) = self.lifts.iter().position(|l| l.name == name_owned) {
@@ -181,18 +212,33 @@ impl eframe::App for GuiApp {
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("Weight:");
-                ui.text_edit_singleline(&mut self.weight);
-                egui::ComboBox::from_id_source("weight_unit")
-                    .selected_text(match self.weight_unit {
-                        WeightUnit::POUNDS => "lb",
-                        WeightUnit::KILOGRAMS => "kg",
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.weight_unit, WeightUnit::POUNDS, "lb");
-                        ui.selectable_value(&mut self.weight_unit, WeightUnit::KILOGRAMS, "kg");
-                    });
+                ui.label("Input:");
+                ui.selectable_value(&mut self.weight_mode, WeightMode::Weight, "Weight");
+                ui.selectable_value(&mut self.weight_mode, WeightMode::Bands, "Bands");
             });
+            match self.weight_mode {
+                WeightMode::Weight => {
+                    ui.horizontal(|ui| {
+                        ui.label("Weight:");
+                        ui.text_edit_singleline(&mut self.weight_value);
+                        egui::ComboBox::from_id_source("weight_unit")
+                            .selected_text(match self.weight_unit {
+                                WeightUnit::Pounds => "lb",
+                                WeightUnit::Kilograms => "kg",
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
+                                ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                            });
+                    });
+                }
+                WeightMode::Bands => {
+                    ui.horizontal(|ui| {
+                        ui.label("Bands:");
+                        ui.text_edit_singleline(&mut self.band_value);
+                    });
+                }
+            }
             ui.horizontal(|ui| {
                 ui.label("Reps:");
                 ui.text_edit_singleline(&mut self.reps);
@@ -223,6 +269,43 @@ impl eframe::App for GuiApp {
                     ui.text_edit_singleline(&mut self.new_lift_name);
                 });
                 ui.horizontal(|ui| {
+                    ui.label("Region:");
+                    ui.selectable_value(&mut self.new_lift_region, LiftRegion::UPPER, "Upper");
+                    ui.selectable_value(&mut self.new_lift_region, LiftRegion::LOWER, "Lower");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Main:");
+                    egui::ComboBox::from_id_source("main_lift")
+                        .selected_text(
+                            self.new_lift_main
+                                .map(|m| m.to_string())
+                                .unwrap_or_else(|| "None".to_string()),
+                        )
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.new_lift_main, None, "None");
+                            ui.selectable_value(
+                                &mut self.new_lift_main,
+                                Some(MainLift::BenchPress),
+                                "Bench Press",
+                            );
+                            ui.selectable_value(
+                                &mut self.new_lift_main,
+                                Some(MainLift::OverheadPress),
+                                "Overhead Press",
+                            );
+                            ui.selectable_value(
+                                &mut self.new_lift_main,
+                                Some(MainLift::Squat),
+                                "Squat",
+                            );
+                            ui.selectable_value(
+                                &mut self.new_lift_main,
+                                Some(MainLift::Deadlift),
+                                "Deadlift",
+                            );
+                        });
+                });
+                ui.horizontal(|ui| {
                     if ui.button("Create").clicked() {
                         self.create_lift();
                     }
@@ -234,7 +317,10 @@ impl eframe::App for GuiApp {
             ui.separator();
             ui.heading("Recorded Lifts");
             for lift in &self.lifts {
-                let title = lift.name.clone();
+                let mut title = format!("{} ({})", lift.name, lift.region);
+                if let Some(m) = lift.main {
+                    title.push_str(&format!(" [{}]", m));
+                }
                 ui.collapsing(title, |ui| {
                     if lift.executions.is_empty() {
                         ui.label("no records");

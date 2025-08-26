@@ -1,16 +1,17 @@
 //! SQLite-backed implementation of the [`Database`] trait.
 
 use chrono::NaiveDate;
-use rusqlite::{Connection, OptionalExtension, params, types::Type};
+use rusqlite::{params, Connection, OptionalExtension, types::Type};
+use std::str::FromStr;
 
-use crate::weight::{Weight, WeightUnit};
+use crate::weight::Weight;
 use crate::{
     database::{Database, DbResult},
-    models::{Lift, LiftExecution},
+    models::{Lift, LiftExecution, LiftRegion, MainLift},
 };
 
 /// Current database schema version.
-const DB_VERSION: i32 = 1;
+const DB_VERSION: i32 = 3;
 
 /// Database persisted to a SQLite file.
 pub struct SqliteDb {
@@ -35,11 +36,12 @@ impl SqliteDb {
             let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
                 rusqlite::Error::FromSqlConversionFailure(0, Type::Text, Box::new(e))
             })?;
+            let weight_str: String = row.get(3)?;
             Ok(LiftExecution {
                 date,
                 sets: row.get(1)?,
                 reps: row.get(2)?,
-                weight: Weight::new(WeightUnit::POUNDS, row.get(3)?),
+                weight: Weight::from_str(&weight_str).unwrap_or(Weight::Raw(0.0)),
                 rpe: row.get(4)?,
             })
         })?;
@@ -58,7 +60,9 @@ fn init_db(conn: &Connection) -> DbResult<()> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS lifts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE
+                name TEXT NOT NULL UNIQUE,
+                region TEXT NOT NULL,
+                main_lift TEXT
             )",
             [],
         )?;
@@ -69,7 +73,7 @@ fn init_db(conn: &Connection) -> DbResult<()> {
                 date TEXT NOT NULL,
                 sets INTEGER NOT NULL,
                 reps INTEGER NOT NULL,
-                weight REAL NOT NULL,
+                weight TEXT NOT NULL,
                 rpe REAL,
                 FOREIGN KEY(lift_id) REFERENCES lifts(id)
             )",
@@ -85,7 +89,16 @@ fn init_db(conn: &Connection) -> DbResult<()> {
 /// Apply migrations from a previous schema version to [`DB_VERSION`].
 fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
     match from_version {
-        // No migrations defined yet.
+        1 => {
+            conn.execute("ALTER TABLE lifts ADD COLUMN region TEXT NOT NULL DEFAULT 'UPPER'", [])?;
+            conn.execute("ALTER TABLE lift_records RENAME COLUMN weight TO weight_old", [])?;
+            conn.execute("ALTER TABLE lift_records ADD COLUMN weight TEXT NOT NULL DEFAULT '0'", [])?;
+            conn.execute("UPDATE lift_records SET weight = weight_old", [])?;
+            conn.execute("ALTER TABLE lift_records DROP COLUMN weight_old", [])?;
+        }
+        2 => {
+            conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
+        }
         _ => {}
     }
     conn.pragma_update(None, "user_version", &DB_VERSION)?;
@@ -93,10 +106,10 @@ fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
 }
 
 impl Database for SqliteDb {
-    fn add_lift(&self, name: &str) -> DbResult<()> {
+    fn add_lift(&self, name: &str, region: LiftRegion, main: Option<MainLift>) -> DbResult<()> {
         self.conn.execute(
-            "INSERT INTO lifts (name) VALUES (?1)",
-            params![name],
+            "INSERT INTO lifts (name, region, main_lift) VALUES (?1, ?2, ?3)",
+            params![name, region.to_string(), main.map(|m| m.to_string())],
         )?;
         Ok(())
     }
@@ -111,11 +124,7 @@ impl Database for SqliteDb {
         let lift_id = match lift_id {
             Some(id) => id,
             None => {
-                self.conn.execute(
-                    "INSERT INTO lifts (name) VALUES (?1, ?2)",
-                    params![name],
-                )?;
-                self.conn.last_insert_rowid() as i32
+                return Err("lift not found".into());
             }
         };
         self.conn.execute(
@@ -125,7 +134,7 @@ impl Database for SqliteDb {
                 execution.date.to_string(),
                 execution.sets,
                 execution.reps,
-                execution.weight.pounds(),
+                execution.weight.to_string(),
                 execution.rpe
             ],
         )?;
@@ -137,13 +146,24 @@ impl Database for SqliteDb {
         if let Some(n) = name {
             let mut stmt = self
                 .conn
-                .prepare("SELECT id, name FROM lifts WHERE name = ?1 ORDER BY name")?;
+                .prepare(
+                    "SELECT id, name, region, main_lift FROM lifts WHERE name = ?1 ORDER BY name",
+                )?;
             let iter = stmt.query_map(params![n], |row| {
                 let id: i32 = row.get(0)?;
+                let region_str: String = row.get(2)?;
+                let region = LiftRegion::from_str(&region_str).unwrap_or(LiftRegion::UPPER);
+                let main_str: Option<String> = row.get(3)?;
+                let main = match main_str {
+                    Some(m) => MainLift::from_str(&m).ok(),
+                    None => None,
+                };
                 Ok((
                     id,
                     Lift {
                         name: row.get(1)?,
+                        region,
+                        main,
                         executions: Vec::new(),
                     },
                 ))
@@ -156,13 +176,22 @@ impl Database for SqliteDb {
         } else {
             let mut stmt = self
                 .conn
-                .prepare("SELECT id, name FROM lifts ORDER BY name")?;
+                .prepare("SELECT id, name, region, main_lift FROM lifts ORDER BY name")?;
             let iter = stmt.query_map([], |row| {
                 let id: i32 = row.get(0)?;
+                let region_str: String = row.get(2)?;
+                let region = LiftRegion::from_str(&region_str).unwrap_or(LiftRegion::UPPER);
+                let main_str: Option<String> = row.get(3)?;
+                let main = match main_str {
+                    Some(m) => MainLift::from_str(&m).ok(),
+                    None => None,
+                };
                 Ok((
                     id,
                     Lift {
                         name: row.get(1)?,
+                        region,
+                        main,
                         executions: Vec::new(),
                     },
                 ))
