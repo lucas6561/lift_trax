@@ -33,13 +33,13 @@ cargo run -- add <EXERCISE> <WEIGHT> <REPS> <SETS> [--date YYYY-MM-DD] [--rpe RP
 * `<SETS>` – number of sets performed
 * `--date` – optional date, defaults to today's date
 * `--rpe` – optional rating of perceived exertion
-* `--muscle` – muscles worked by this lift; repeat flag for multiple values
+* `--muscle` – muscles worked by this lift; repeat flag for multiple values. Valid values include `BICEP`, `TRICEP`, `NECK`, `LAT`, `QUAD`, `HAMSTRING`, `CALF`, `LOWER_BACK`, `CHEST`, `FOREARM`, `REAR_DELT`, `FRONT_DELT`, `SHOULDER`, `CORE`, `GLUTE`, and `TRAP`.
 
 Examples:
 
 ```bash
 cargo run -- add Bench 225 5 3
-cargo run -- add Squat 315 3 5 --date 2024-05-20 --rpe 8.5 --muscle quads --muscle glutes
+cargo run -- add Squat 315 3 5 --date 2024-05-20 --rpe 8.5 --muscle QUAD --muscle GLUTE
 ```
 
 ### List lifts
@@ -61,7 +61,7 @@ cargo run -- list --exercise Bench
 The output is formatted as:
 
 ```
-Bench (chest, triceps)
+Bench (UPPER) [CHEST, TRICEP]
   - 2024-05-20: 3 sets x 5 reps @ 225 lbs RPE 8.5
   - 2024-05-15: 3 sets x 5 reps @ 220 lbs
 ```

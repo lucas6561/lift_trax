@@ -199,7 +199,7 @@ impl GuiApp {
         let name_owned = name.to_string();
         match self
             .db
-            .add_lift(&name_owned, self.new_lift_region, self.new_lift_main)
+            .add_lift(&name_owned, self.new_lift_region, self.new_lift_main, &[])
         {
             Ok(_) => {
                 self.show_new_lift = false;
@@ -227,6 +227,7 @@ impl GuiApp {
             name,
             self.edit_lift_region,
             self.edit_lift_main,
+            &[],
         ) {
             self.error = Some(e.to_string());
         } else {

@@ -11,7 +11,7 @@ mod weight;
 
 use crate::weight::Weight;
 use database::Database;
-use models::{LiftExecution, LiftRegion};
+use models::{LiftExecution, LiftRegion, Muscle};
 use sqlite_db::SqliteDb;
 
 #[derive(Parser)]
@@ -39,6 +39,9 @@ enum Commands {
         /// Rating of perceived exertion
         #[arg(long)]
         rpe: Option<f32>,
+        /// Muscles targeted by this lift
+        #[arg(long = "muscle", value_enum)]
+        muscles: Vec<Muscle>,
     },
     /// List recorded lifts
     List {
@@ -61,6 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sets,
             date,
             rpe,
+            muscles,
         } => {
             let date = match date {
                 Some(d) => NaiveDate::parse_from_str(&d, "%Y-%m-%d")?,
@@ -76,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rpe,
             };
             // Ensure the lift exists with a default region and no main designation.
-            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None);
+            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None, &muscles);
             db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
@@ -84,7 +88,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let lifts = db.list_lifts(exercise.as_deref())?;
             for l in lifts {
                 let main_str = l.main.map(|m| format!(" [{}]", m)).unwrap_or_default();
-                println!("{} ({}){}", l.name, l.region, main_str);
+                let muscles_str = if l.muscles.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " [{}]",
+                        l.muscles
+                            .iter()
+                            .map(|m| m.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                };
+                println!("{} ({}){}{}", l.name, l.region, main_str, muscles_str);
                 if l.executions.is_empty() {
                     println!("  - no records");
                 } else {
