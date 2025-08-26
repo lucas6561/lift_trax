@@ -9,10 +9,10 @@ mod models;
 mod sqlite_db;
 mod weight;
 
+use crate::weight::Weight;
 use database::Database;
 use models::{LiftExecution, LiftRegion};
 use sqlite_db::SqliteDb;
-use crate::weight::Weight;
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -66,10 +66,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(d) => NaiveDate::parse_from_str(&d, "%Y-%m-%d")?,
                 None => Utc::now().date_naive(),
             };
-            let real_weight: Weight = weight
-                .parse()
-                .map_err(|_| "Invalid weight supplied")?;
+            let real_weight: Weight = weight.parse().map_err(|_| "Invalid weight supplied")?;
             let exec = LiftExecution {
+                id: None,
                 date,
                 sets,
                 reps,
@@ -84,10 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::List { exercise } => {
             let lifts = db.list_lifts(exercise.as_deref())?;
             for l in lifts {
-                let main_str = l
-                    .main
-                    .map(|m| format!(" [{}]", m))
-                    .unwrap_or_default();
+                let main_str = l.main.map(|m| format!(" [{}]", m)).unwrap_or_default();
                 println!("{} ({}){}", l.name, l.region, main_str);
                 if l.executions.is_empty() {
                     println!("  - no records");

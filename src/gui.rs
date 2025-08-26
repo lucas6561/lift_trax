@@ -31,6 +31,19 @@ struct GuiApp {
     new_lift_name: String,
     new_lift_region: LiftRegion,
     new_lift_main: Option<MainLift>,
+    editing_lift: Option<usize>,
+    edit_lift_name: String,
+    edit_lift_region: LiftRegion,
+    edit_lift_main: Option<MainLift>,
+    editing_exec: Option<(usize, usize)>,
+    edit_weight_value: String,
+    edit_band_value: String,
+    edit_weight_unit: WeightUnit,
+    edit_weight_mode: WeightMode,
+    edit_reps: String,
+    edit_sets: String,
+    edit_date: String,
+    edit_rpe: String,
     // data display
     lifts: Vec<Lift>,
     // error message
@@ -60,6 +73,19 @@ impl GuiApp {
             new_lift_name: String::new(),
             new_lift_region: LiftRegion::UPPER,
             new_lift_main: None,
+            editing_lift: None,
+            edit_lift_name: String::new(),
+            edit_lift_region: LiftRegion::UPPER,
+            edit_lift_main: None,
+            editing_exec: None,
+            edit_weight_value: String::new(),
+            edit_band_value: String::new(),
+            edit_weight_unit: WeightUnit::Pounds,
+            edit_weight_mode: WeightMode::Weight,
+            edit_reps: String::new(),
+            edit_sets: String::new(),
+            edit_date: String::new(),
+            edit_rpe: String::new(),
             lifts: Vec::new(),
             error: None,
         };
@@ -138,6 +164,7 @@ impl GuiApp {
             }
         };
         let exec = LiftExecution {
+            id: None,
             date,
             sets,
             reps,
@@ -177,7 +204,7 @@ impl GuiApp {
             Ok(_) => {
                 self.show_new_lift = false;
                 self.new_lift_name.clear();
-                 self.new_lift_main = None;
+                self.new_lift_main = None;
                 self.error = None;
                 self.refresh_lifts();
                 if let Some(idx) = self.lifts.iter().position(|l| l.name == name_owned) {
@@ -185,6 +212,106 @@ impl GuiApp {
                 }
             }
             Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+
+    fn save_lift_edit(&mut self, idx: usize) {
+        let current_name = self.lifts[idx].name.clone();
+        let name = self.edit_lift_name.trim();
+        if name.is_empty() {
+            self.error = Some("Lift name required".into());
+            return;
+        }
+        if let Err(e) = self.db.update_lift(
+            &current_name,
+            name,
+            self.edit_lift_region,
+            self.edit_lift_main,
+        ) {
+            self.error = Some(e.to_string());
+        } else {
+            self.editing_lift = None;
+            self.error = None;
+            self.refresh_lifts();
+        }
+    }
+
+    fn save_exec_edit(&mut self) {
+        if let Some((lift_idx, exec_idx)) = self.editing_exec {
+            let lift = &self.lifts[lift_idx];
+            let exec = &lift.executions[exec_idx];
+            let weight = match self.edit_weight_mode {
+                WeightMode::Weight => {
+                    let val: f64 = match self.edit_weight_value.parse() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.error = Some("Invalid weight".into());
+                            return;
+                        }
+                    };
+                    Weight::from_unit(val, self.edit_weight_unit)
+                }
+                WeightMode::Bands => match self.edit_band_value.parse::<Weight>() {
+                    Ok(w) => w,
+                    Err(_) => {
+                        self.error = Some("Invalid bands".into());
+                        return;
+                    }
+                },
+            };
+            let reps: i32 = match self.edit_reps.parse() {
+                Ok(r) => r,
+                Err(_) => {
+                    self.error = Some("Invalid reps".into());
+                    return;
+                }
+            };
+            let sets: i32 = match self.edit_sets.parse() {
+                Ok(s) => s,
+                Err(_) => {
+                    self.error = Some("Invalid sets".into());
+                    return;
+                }
+            };
+            let date = if self.edit_date.trim().is_empty() {
+                exec.date
+            } else {
+                match NaiveDate::parse_from_str(&self.edit_date, "%Y-%m-%d") {
+                    Ok(d) => d,
+                    Err(_) => {
+                        self.error = Some("Invalid date".into());
+                        return;
+                    }
+                }
+            };
+            let rpe = if self.edit_rpe.trim().is_empty() {
+                None
+            } else {
+                match self.edit_rpe.parse::<f32>() {
+                    Ok(r) => Some(r),
+                    Err(_) => {
+                        self.error = Some("Invalid RPE".into());
+                        return;
+                    }
+                }
+            };
+            let new_exec = LiftExecution {
+                id: exec.id,
+                date,
+                sets,
+                reps,
+                weight,
+                rpe,
+            };
+            if let Some(id) = exec.id {
+                if let Err(e) = self.db.update_lift_execution(id, &new_exec) {
+                    self.error = Some(e.to_string());
+                } else {
+                    self.editing_exec = None;
+                    self.error = None;
+                    self.refresh_lifts();
+                }
+            }
         }
     }
 }
@@ -227,8 +354,16 @@ impl eframe::App for GuiApp {
                                 WeightUnit::Kilograms => "kg",
                             })
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
-                                ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                                ui.selectable_value(
+                                    &mut self.weight_unit,
+                                    WeightUnit::Pounds,
+                                    "lb",
+                                );
+                                ui.selectable_value(
+                                    &mut self.weight_unit,
+                                    WeightUnit::Kilograms,
+                                    "kg",
+                                );
                             });
                     });
                 }
@@ -316,21 +451,191 @@ impl eframe::App for GuiApp {
             }
             ui.separator();
             ui.heading("Recorded Lifts");
-            for lift in &self.lifts {
-                let mut title = format!("{} ({})", lift.name, lift.region);
-                if let Some(m) = lift.main {
+            for i in 0..self.lifts.len() {
+                let lift = &self.lifts[i];
+                let name = lift.name.clone();
+                let region = lift.region;
+                let main = lift.main;
+                let mut title = format!("{} ({})", name, region);
+                if let Some(m) = main {
                     title.push_str(&format!(" [{}]", m));
                 }
+                let executions = lift.executions.clone();
                 ui.collapsing(title, |ui| {
-                    if lift.executions.is_empty() {
+                    if self.editing_lift == Some(i) {
+                        ui.horizontal(|ui| {
+                            ui.label("Name:");
+                            ui.text_edit_singleline(&mut self.edit_lift_name);
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Region:");
+                            ui.selectable_value(
+                                &mut self.edit_lift_region,
+                                LiftRegion::UPPER,
+                                "Upper",
+                            );
+                            ui.selectable_value(
+                                &mut self.edit_lift_region,
+                                LiftRegion::LOWER,
+                                "Lower",
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Main:");
+                            egui::ComboBox::from_id_source(format!("edit_main_{}", i))
+                                .selected_text(
+                                    self.edit_lift_main
+                                        .map(|m| m.to_string())
+                                        .unwrap_or_else(|| "None".to_string()),
+                                )
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(&mut self.edit_lift_main, None, "None");
+                                    ui.selectable_value(
+                                        &mut self.edit_lift_main,
+                                        Some(MainLift::BenchPress),
+                                        "Bench Press",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.edit_lift_main,
+                                        Some(MainLift::OverheadPress),
+                                        "Overhead Press",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.edit_lift_main,
+                                        Some(MainLift::Squat),
+                                        "Squat",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.edit_lift_main,
+                                        Some(MainLift::Deadlift),
+                                        "Deadlift",
+                                    );
+                                });
+                        });
+                        ui.horizontal(|ui| {
+                            if ui.button("Save").clicked() {
+                                self.save_lift_edit(i);
+                            }
+                            if ui.button("Cancel").clicked() {
+                                self.editing_lift = None;
+                            }
+                        });
+                    } else {
+                        if ui.button("Edit Lift").clicked() {
+                            self.editing_lift = Some(i);
+                            self.edit_lift_name = name.clone();
+                            self.edit_lift_region = region;
+                            self.edit_lift_main = main;
+                        }
+                    }
+                    if executions.is_empty() {
                         ui.label("no records");
                     } else {
-                        for exec in &lift.executions {
+                        for (j, exec) in executions.iter().enumerate() {
                             let rpe = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                            ui.label(format!(
-                                "{}: {} sets x {} reps @ {} {}",
-                                exec.date, exec.sets, exec.reps, exec.weight, rpe
-                            ));
+                            ui.horizontal(|ui| {
+                                ui.label(format!(
+                                    "{}: {} sets x {} reps @ {} {}",
+                                    exec.date, exec.sets, exec.reps, exec.weight, rpe
+                                ));
+                                if ui.button("Edit").clicked() {
+                                    self.editing_exec = Some((i, j));
+                                    match &exec.weight {
+                                        Weight::Raw(p) => {
+                                            self.edit_weight_mode = WeightMode::Weight;
+                                            self.edit_weight_unit = WeightUnit::Pounds;
+                                            self.edit_weight_value = format!("{}", p);
+                                            self.edit_band_value.clear();
+                                        }
+                                        Weight::Bands(_) => {
+                                            self.edit_weight_mode = WeightMode::Bands;
+                                            self.edit_band_value = exec.weight.to_string();
+                                            self.edit_weight_value.clear();
+                                        }
+                                    }
+                                    self.edit_sets = exec.sets.to_string();
+                                    self.edit_reps = exec.reps.to_string();
+                                    self.edit_date = exec.date.to_string();
+                                    self.edit_rpe =
+                                        exec.rpe.map(|r| r.to_string()).unwrap_or_default();
+                                }
+                            });
+                            if self.editing_exec == Some((i, j)) {
+                                ui.horizontal(|ui| {
+                                    ui.label("Input:");
+                                    ui.selectable_value(
+                                        &mut self.edit_weight_mode,
+                                        WeightMode::Weight,
+                                        "Weight",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.edit_weight_mode,
+                                        WeightMode::Bands,
+                                        "Bands",
+                                    );
+                                });
+                                match self.edit_weight_mode {
+                                    WeightMode::Weight => {
+                                        ui.horizontal(|ui| {
+                                            ui.label("Weight:");
+                                            ui.text_edit_singleline(&mut self.edit_weight_value);
+                                            egui::ComboBox::from_id_source(format!(
+                                                "edit_unit_{}_{}",
+                                                i, j
+                                            ))
+                                            .selected_text(match self.edit_weight_unit {
+                                                WeightUnit::Pounds => "lb",
+                                                WeightUnit::Kilograms => "kg",
+                                            })
+                                            .show_ui(
+                                                ui,
+                                                |ui| {
+                                                    ui.selectable_value(
+                                                        &mut self.edit_weight_unit,
+                                                        WeightUnit::Pounds,
+                                                        "lb",
+                                                    );
+                                                    ui.selectable_value(
+                                                        &mut self.edit_weight_unit,
+                                                        WeightUnit::Kilograms,
+                                                        "kg",
+                                                    );
+                                                },
+                                            );
+                                        });
+                                    }
+                                    WeightMode::Bands => {
+                                        ui.horizontal(|ui| {
+                                            ui.label("Bands:");
+                                            ui.text_edit_singleline(&mut self.edit_band_value);
+                                        });
+                                    }
+                                }
+                                ui.horizontal(|ui| {
+                                    ui.label("Reps:");
+                                    ui.text_edit_singleline(&mut self.edit_reps);
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Sets:");
+                                    ui.text_edit_singleline(&mut self.edit_sets);
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Date (YYYY-MM-DD):");
+                                    ui.text_edit_singleline(&mut self.edit_date);
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("RPE:");
+                                    ui.text_edit_singleline(&mut self.edit_rpe);
+                                });
+                                ui.horizontal(|ui| {
+                                    if ui.button("Save").clicked() {
+                                        self.save_exec_edit();
+                                    }
+                                    if ui.button("Cancel").clicked() {
+                                        self.editing_exec = None;
+                                    }
+                                });
+                            }
                         }
                     }
                 });

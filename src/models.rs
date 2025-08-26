@@ -86,8 +86,10 @@ impl FromStr for LiftRegion {
 }
 
 /// A single performance of a lift on a given day.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LiftExecution {
+    /// Database identifier for this execution record.
+    pub id: Option<i32>,
     /// Date the lift was performed.
     pub date: NaiveDate,
     /// Number of sets performed.
