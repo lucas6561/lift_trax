@@ -1,10 +1,11 @@
 use chrono::{NaiveDate, Utc};
+use clap::ValueEnum;
 use eframe::{Frame, NativeOptions, egui};
 
 use crate::weight::{Weight, WeightUnit};
 use crate::{
     database::Database,
-    models::{Lift, LiftExecution, LiftRegion, MainLift},
+    models::{Lift, LiftExecution, LiftRegion, MainLift, Muscle},
 };
 
 /// Run the GUI application using the provided database implementation.
@@ -31,10 +32,14 @@ struct GuiApp {
     new_lift_name: String,
     new_lift_region: LiftRegion,
     new_lift_main: Option<MainLift>,
+    new_lift_muscles: Vec<Muscle>,
+    new_muscle_select: Option<Muscle>,
     editing_lift: Option<usize>,
     edit_lift_name: String,
     edit_lift_region: LiftRegion,
     edit_lift_main: Option<MainLift>,
+    edit_lift_muscles: Vec<Muscle>,
+    edit_muscle_select: Option<Muscle>,
     editing_exec: Option<(usize, usize)>,
     edit_weight_value: String,
     edit_band_value: String,
@@ -73,10 +78,14 @@ impl GuiApp {
             new_lift_name: String::new(),
             new_lift_region: LiftRegion::UPPER,
             new_lift_main: None,
+            new_lift_muscles: Vec::new(),
+            new_muscle_select: None,
             editing_lift: None,
             edit_lift_name: String::new(),
             edit_lift_region: LiftRegion::UPPER,
             edit_lift_main: None,
+            edit_lift_muscles: Vec::new(),
+            edit_muscle_select: None,
             editing_exec: None,
             edit_weight_value: String::new(),
             edit_band_value: String::new(),
@@ -197,14 +206,18 @@ impl GuiApp {
             return;
         }
         let name_owned = name.to_string();
-        match self
-            .db
-            .add_lift(&name_owned, self.new_lift_region, self.new_lift_main, &[])
-        {
+        match self.db.add_lift(
+            &name_owned,
+            self.new_lift_region,
+            self.new_lift_main,
+            &self.new_lift_muscles,
+        ) {
             Ok(_) => {
                 self.show_new_lift = false;
                 self.new_lift_name.clear();
                 self.new_lift_main = None;
+                self.new_lift_muscles.clear();
+                self.new_muscle_select = None;
                 self.error = None;
                 self.refresh_lifts();
                 if let Some(idx) = self.lifts.iter().position(|l| l.name == name_owned) {
@@ -227,11 +240,13 @@ impl GuiApp {
             name,
             self.edit_lift_region,
             self.edit_lift_main,
-            &[],
+            &self.edit_lift_muscles,
         ) {
             self.error = Some(e.to_string());
         } else {
             self.editing_lift = None;
+            self.edit_lift_muscles.clear();
+            self.edit_muscle_select = None;
             self.error = None;
             self.refresh_lifts();
         }
@@ -442,26 +457,75 @@ impl eframe::App for GuiApp {
                         });
                 });
                 ui.horizontal(|ui| {
+                    ui.label("Muscles:");
+                    let mut remove_idx: Option<usize> = None;
+                    for (i, m) in self.new_lift_muscles.iter().enumerate() {
+                        ui.label(m.to_string());
+                        if ui.small_button("x").clicked() {
+                            remove_idx = Some(i);
+                        }
+                    }
+                    if let Some(i) = remove_idx {
+                        self.new_lift_muscles.remove(i);
+                    }
+                });
+                ui.horizontal(|ui| {
+                    egui::ComboBox::from_id_source("new_muscle_select")
+                        .selected_text(
+                            self.new_muscle_select
+                                .map(|m| m.to_string())
+                                .unwrap_or_else(|| "Select muscle".into()),
+                        )
+                        .show_ui(ui, |ui| {
+                            for m in Muscle::value_variants() {
+                                ui.selectable_value(
+                                    &mut self.new_muscle_select,
+                                    Some(*m),
+                                    m.to_string(),
+                                );
+                            }
+                        });
+                    if ui.button("Add").clicked() {
+                        if let Some(m) = self.new_muscle_select {
+                            if !self.new_lift_muscles.contains(&m) {
+                                self.new_lift_muscles.push(m);
+                            }
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
                     if ui.button("Create").clicked() {
                         self.create_lift();
                     }
                     if ui.button("Cancel").clicked() {
                         self.show_new_lift = false;
+                        self.new_lift_name.clear();
+                        self.new_lift_main = None;
+                        self.new_lift_muscles.clear();
+                        self.new_muscle_select = None;
                     }
                 });
             }
             ui.separator();
             ui.heading("Recorded Lifts");
             for i in 0..self.lifts.len() {
-                let lift = &self.lifts[i];
-                let name = lift.name.clone();
-                let region = lift.region;
-                let main = lift.main;
+                let name = self.lifts[i].name.clone();
+                let region = self.lifts[i].region;
+                let main = self.lifts[i].main;
+                let muscles = self.lifts[i].muscles.clone();
                 let mut title = format!("{} ({})", name, region);
                 if let Some(m) = main {
                     title.push_str(&format!(" [{}]", m));
                 }
-                let executions = lift.executions.clone();
+                if !muscles.is_empty() {
+                    let muscles_str = muscles
+                        .iter()
+                        .map(|m| m.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    title.push_str(&format!(" [{}]", muscles_str));
+                }
+                let executions = self.lifts[i].executions.clone();
                 ui.collapsing(title, |ui| {
                     if self.editing_lift == Some(i) {
                         ui.horizontal(|ui| {
@@ -514,11 +578,50 @@ impl eframe::App for GuiApp {
                                 });
                         });
                         ui.horizontal(|ui| {
+                            ui.label("Muscles:");
+                            let mut remove_idx: Option<usize> = None;
+                            for (j, m) in self.edit_lift_muscles.iter().enumerate() {
+                                ui.label(m.to_string());
+                                if ui.small_button("x").clicked() {
+                                    remove_idx = Some(j);
+                                }
+                            }
+                            if let Some(j) = remove_idx {
+                                self.edit_lift_muscles.remove(j);
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            egui::ComboBox::from_id_source(format!("edit_muscle_select_{}", i))
+                                .selected_text(
+                                    self.edit_muscle_select
+                                        .map(|m| m.to_string())
+                                        .unwrap_or_else(|| "Select muscle".into()),
+                                )
+                                .show_ui(ui, |ui| {
+                                    for m in Muscle::value_variants() {
+                                        ui.selectable_value(
+                                            &mut self.edit_muscle_select,
+                                            Some(*m),
+                                            m.to_string(),
+                                        );
+                                    }
+                                });
+                            if ui.button("Add").clicked() {
+                                if let Some(m) = self.edit_muscle_select {
+                                    if !self.edit_lift_muscles.contains(&m) {
+                                        self.edit_lift_muscles.push(m);
+                                    }
+                                }
+                            }
+                        });
+                        ui.horizontal(|ui| {
                             if ui.button("Save").clicked() {
                                 self.save_lift_edit(i);
                             }
                             if ui.button("Cancel").clicked() {
                                 self.editing_lift = None;
+                                self.edit_lift_muscles.clear();
+                                self.edit_muscle_select = None;
                             }
                         });
                     } else {
@@ -527,6 +630,8 @@ impl eframe::App for GuiApp {
                             self.edit_lift_name = name.clone();
                             self.edit_lift_region = region;
                             self.edit_lift_main = main;
+                            self.edit_lift_muscles = muscles.clone();
+                            self.edit_muscle_select = None;
                         }
                     }
                     if executions.is_empty() {
