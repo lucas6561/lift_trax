@@ -2,19 +2,19 @@
 
 use std::error::Error;
 
-use crate::models::{Lift, LiftExecution, LiftRegion, MainLift, Muscle};
+use crate::models::{Lift, LiftExecution, LiftRegion, LiftType, Muscle};
 
 /// Convenience result type for database operations.
 pub type DbResult<T> = Result<T, Box<dyn Error>>;
 
 /// Behavior required for storing and retrieving lift data.
 pub trait Database {
-    /// Create a new lift with the given name, region, optional main lift type, and muscles.
+    /// Create a new lift with the given name, region, optional lift type, and muscles.
     fn add_lift(
         &self,
         name: &str,
         region: LiftRegion,
-        main: Option<MainLift>,
+        main: Option<LiftType>,
         muscles: &[Muscle],
     ) -> DbResult<()>;
 
@@ -27,7 +27,7 @@ pub trait Database {
         current_name: &str,
         new_name: &str,
         region: LiftRegion,
-        main: Option<MainLift>,
+        main: Option<LiftType>,
         muscles: &[Muscle],
     ) -> DbResult<()>;
 

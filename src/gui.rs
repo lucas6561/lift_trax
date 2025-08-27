@@ -5,7 +5,7 @@ use eframe::{Frame, NativeOptions, egui};
 use crate::weight::{Weight, WeightUnit};
 use crate::{
     database::Database,
-    models::{Lift, LiftExecution, LiftRegion, MainLift, Muscle},
+    models::{Lift, LiftExecution, LiftRegion, LiftType, Muscle},
 };
 
 /// Run the GUI application using the provided database implementation.
@@ -31,13 +31,13 @@ struct GuiApp {
     show_new_lift: bool,
     new_lift_name: String,
     new_lift_region: LiftRegion,
-    new_lift_main: Option<MainLift>,
+    new_lift_main: Option<LiftType>,
     new_lift_muscles: Vec<Muscle>,
     new_muscle_select: Option<Muscle>,
     editing_lift: Option<usize>,
     edit_lift_name: String,
     edit_lift_region: LiftRegion,
-    edit_lift_main: Option<MainLift>,
+    edit_lift_main: Option<LiftType>,
     edit_lift_muscles: Vec<Muscle>,
     edit_muscle_select: Option<Muscle>,
     editing_exec: Option<(usize, usize)>,
@@ -436,23 +436,33 @@ impl eframe::App for GuiApp {
                             ui.selectable_value(&mut self.new_lift_main, None, "None");
                             ui.selectable_value(
                                 &mut self.new_lift_main,
-                                Some(MainLift::BenchPress),
+                                Some(LiftType::BenchPress),
                                 "Bench Press",
                             );
                             ui.selectable_value(
                                 &mut self.new_lift_main,
-                                Some(MainLift::OverheadPress),
+                                Some(LiftType::OverheadPress),
                                 "Overhead Press",
                             );
                             ui.selectable_value(
                                 &mut self.new_lift_main,
-                                Some(MainLift::Squat),
+                                Some(LiftType::Squat),
                                 "Squat",
                             );
                             ui.selectable_value(
                                 &mut self.new_lift_main,
-                                Some(MainLift::Deadlift),
+                                Some(LiftType::Deadlift),
                                 "Deadlift",
+                            );
+                            ui.selectable_value(
+                                &mut self.new_lift_main,
+                                Some(LiftType::Conditioning),
+                                "Conditioning",
+                            );
+                            ui.selectable_value(
+                                &mut self.new_lift_main,
+                                Some(LiftType::Accessory),
+                                "Accessory",
                             );
                         });
                 });
@@ -557,23 +567,33 @@ impl eframe::App for GuiApp {
                                     ui.selectable_value(&mut self.edit_lift_main, None, "None");
                                     ui.selectable_value(
                                         &mut self.edit_lift_main,
-                                        Some(MainLift::BenchPress),
+                                        Some(LiftType::BenchPress),
                                         "Bench Press",
                                     );
                                     ui.selectable_value(
                                         &mut self.edit_lift_main,
-                                        Some(MainLift::OverheadPress),
+                                        Some(LiftType::OverheadPress),
                                         "Overhead Press",
                                     );
                                     ui.selectable_value(
                                         &mut self.edit_lift_main,
-                                        Some(MainLift::Squat),
+                                        Some(LiftType::Squat),
                                         "Squat",
                                     );
                                     ui.selectable_value(
                                         &mut self.edit_lift_main,
-                                        Some(MainLift::Deadlift),
+                                        Some(LiftType::Deadlift),
                                         "Deadlift",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.edit_lift_main,
+                                        Some(LiftType::Conditioning),
+                                        "Conditioning",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.edit_lift_main,
+                                        Some(LiftType::Accessory),
+                                        "Accessory",
                                     );
                                 });
                         });
