@@ -2,8 +2,8 @@
 mod lift;
 #[path = "../../src/models/lift_region.rs"]
 mod lift_region;
-#[path = "../../src/models/main_lift.rs"]
-mod main_lift;
+#[path = "../../src/models/lift_type.rs"]
+mod lift_type;
 #[path = "../../src/models/muscle.rs"]
 mod muscle;
 #[path = "../../src/models/lift_execution.rs"]
@@ -12,7 +12,7 @@ mod lift_execution;
 use crate::weight::Weight;
 use lift::Lift;
 use lift_region::LiftRegion;
-use main_lift::MainLift;
+use lift_type::LiftType;
 use muscle::Muscle;
 use lift_execution::LiftExecution;
 use chrono::NaiveDate;
@@ -30,7 +30,7 @@ fn create_lift_with_execution() {
     let lift = Lift {
         name: "Squat".to_string(),
         region: LiftRegion::LOWER,
-        main: Some(MainLift::Squat),
+        main: Some(LiftType::Squat),
         muscles: vec![Muscle::Quad, Muscle::Glute],
         executions: vec![exec.clone()],
     };

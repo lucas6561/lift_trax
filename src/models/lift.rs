@@ -1,4 +1,4 @@
-use super::{LiftExecution, LiftRegion, MainLift, Muscle};
+use super::{LiftExecution, LiftRegion, LiftType, Muscle};
 
 /// A weight-lifting movement tracked by the application.
 ///
@@ -10,8 +10,8 @@ pub struct Lift {
     pub name: String,
     /// Whether this is an upper- or lower-body movement.
     pub region: LiftRegion,
-    /// Optional designation of a main lift type.
-    pub main: Option<MainLift>,
+    /// Optional designation of a lift type.
+    pub main: Option<LiftType>,
     /// Muscles primarily targeted by this lift.
     pub muscles: Vec<Muscle>,
     /// Recorded executions of this lift, most recent first.

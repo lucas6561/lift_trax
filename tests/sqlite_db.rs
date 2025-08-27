@@ -9,14 +9,14 @@ mod weight;
 
 use sqlite_db::SqliteDb;
 use database::Database;
-use models::{LiftRegion, MainLift, Muscle, LiftExecution};
+use models::{LiftRegion, LiftType, Muscle, LiftExecution};
 use weight::Weight;
 use chrono::NaiveDate;
 
 #[test]
 fn add_and_list_lift_with_execution() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Bench", LiftRegion::UPPER, Some(MainLift::BenchPress), &[Muscle::Chest])
+    db.add_lift("Bench", LiftRegion::UPPER, Some(LiftType::BenchPress), &[Muscle::Chest])
         .unwrap();
 
     let lifts = db.list_lifts(None).unwrap();

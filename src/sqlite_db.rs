@@ -7,7 +7,7 @@ use std::str::FromStr;
 use crate::weight::Weight;
 use crate::{
     database::{Database, DbResult},
-    models::{Lift, LiftExecution, LiftRegion, MainLift, Muscle},
+    models::{Lift, LiftExecution, LiftRegion, LiftType, Muscle},
 };
 
 /// Current database schema version.
@@ -127,7 +127,7 @@ impl Database for SqliteDb {
         &self,
         name: &str,
         region: LiftRegion,
-        main: Option<MainLift>,
+        main: Option<LiftType>,
         muscles: &[Muscle],
     ) -> DbResult<()> {
         let muscles_str = muscles
@@ -175,7 +175,7 @@ impl Database for SqliteDb {
         current_name: &str,
         new_name: &str,
         region: LiftRegion,
-        main: Option<MainLift>,
+        main: Option<LiftType>,
         muscles: &[Muscle],
     ) -> DbResult<()> {
         let muscles_str = muscles
@@ -223,7 +223,7 @@ impl Database for SqliteDb {
                 let region = LiftRegion::from_str(&region_str).unwrap_or(LiftRegion::UPPER);
                 let main_str: Option<String> = row.get(3)?;
                 let main = match main_str {
-                    Some(m) => MainLift::from_str(&m).ok(),
+                    Some(m) => LiftType::from_str(&m).ok(),
                     None => None,
                 };
                 let muscles_str: String = row.get(4)?;
@@ -261,7 +261,7 @@ impl Database for SqliteDb {
                 let region = LiftRegion::from_str(&region_str).unwrap_or(LiftRegion::UPPER);
                 let main_str: Option<String> = row.get(3)?;
                 let main = match main_str {
-                    Some(m) => MainLift::from_str(&m).ok(),
+                    Some(m) => LiftType::from_str(&m).ok(),
                     None => None,
                 };
                 let muscles_str: String = row.get(4)?;
