@@ -2,12 +2,13 @@
 
 use chrono::NaiveDate;
 use rusqlite::{Connection, OptionalExtension, params, types::Type};
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use crate::weight::Weight;
 use crate::{
     database::{Database, DbResult},
-    models::{Lift, LiftExecution, LiftRegion, LiftType, Muscle},
+    models::{Lift, LiftExecution, LiftRegion, LiftStats, LiftType, Muscle},
 };
 
 /// Current database schema version.
@@ -209,6 +210,49 @@ impl Database for SqliteDb {
             ],
         )?;
         Ok(())
+    }
+
+    fn lift_stats(&self, name: &str) -> DbResult<LiftStats> {
+        let lift_id: i32 = self.conn.query_row(
+            "SELECT id FROM lifts WHERE name = ?1",
+            params![name],
+            |row| row.get(0),
+        )?;
+        let last = self
+            .conn
+            .query_row(
+                "SELECT id, date, sets, reps, weight, rpe FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
+                params![lift_id],
+                |row| {
+                    let date_str: String = row.get(1)?;
+                    let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
+                    })?;
+                    let weight_str: String = row.get(4)?;
+                    Ok(LiftExecution {
+                        id: Some(row.get(0)?),
+                        date,
+                        sets: row.get(2)?,
+                        reps: row.get(3)?,
+                        weight: Weight::from_str(&weight_str).unwrap_or(Weight::Raw(0.0)),
+                        rpe: row.get(5)?,
+                    })
+                },
+            )
+            .optional()?;
+        let mut stmt = self.conn.prepare(
+            "SELECT reps, MAX(CAST(REPLACE(weight, ' lb', '') AS REAL)) FROM lift_records WHERE lift_id = ?1 AND weight LIKE '% lb' GROUP BY reps",
+        )?;
+        let iter = stmt.query_map(params![lift_id], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let mut best = BTreeMap::new();
+        for row in iter {
+            let (reps, weight): (i32, f64) = row?;
+            best.insert(reps, Weight::Raw(weight));
+        }
+        Ok(LiftStats {
+            last,
+            best_by_reps: best,
+        })
     }
 
     fn list_lifts(&self, name: Option<&str>) -> DbResult<Vec<Lift>> {

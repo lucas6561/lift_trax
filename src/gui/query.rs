@@ -1,0 +1,51 @@
+use eframe::egui;
+
+use super::GuiApp;
+
+impl GuiApp {
+    pub(super) fn tab_query(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Query Lift");
+        ui.horizontal(|ui| {
+            ui.label("Lift:");
+            let selected = self
+                .selected_lift
+                .and_then(|i| self.lifts.get(i))
+                .map(|l| l.name.as_str())
+                .unwrap_or("Select lift");
+            egui::ComboBox::from_id_source("query_lift_select")
+                .selected_text(selected)
+                .show_ui(ui, |ui| {
+                    for (i, lift) in self.lifts.iter().enumerate() {
+                        ui.selectable_value(&mut self.selected_lift, Some(i), &lift.name);
+                    }
+                });
+        });
+        if let Some(idx) = self.selected_lift {
+            let lift = &self.lifts[idx];
+            match self.db.lift_stats(&lift.name) {
+                Ok(stats) => {
+                    if let Some(last) = stats.last {
+                        let rpe = last.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                        ui.label(format!(
+                            "Last: {} sets x {} reps @ {}{} on {}",
+                            last.sets, last.reps, last.weight, rpe, last.date
+                        ));
+                    } else {
+                        ui.label("no records");
+                    }
+                    ui.separator();
+                    ui.heading("Best by reps");
+                    for (reps, weight) in stats.best_by_reps {
+                        ui.label(format!("{} reps: {}", reps, weight));
+                    }
+                }
+                Err(e) => {
+                    self.error = Some(e.to_string());
+                }
+            }
+        }
+        if let Some(err) = &self.error {
+            ui.colored_label(egui::Color32::RED, err);
+        }
+    }
+}

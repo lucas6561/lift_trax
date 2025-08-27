@@ -1,0 +1,298 @@
+use chrono::{NaiveDate, Utc};
+use clap::ValueEnum;
+use eframe::egui;
+
+use crate::models::{LiftExecution, LiftRegion, LiftType, Muscle};
+use crate::weight::{Weight, WeightUnit};
+
+use super::{GuiApp, WeightMode};
+
+impl GuiApp {
+    pub(super) fn tab_add(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        ui.heading("Add Lift Execution");
+        ui.horizontal(|ui| {
+            ui.label("Lift:");
+            let selected = self
+                .selected_lift
+                .and_then(|i| self.lifts.get(i))
+                .map(|l| l.name.as_str())
+                .unwrap_or("Select lift");
+            egui::ComboBox::from_id_source("lift_select")
+                .selected_text(selected)
+                .show_ui(ui, |ui| {
+                    for (i, lift) in self.lifts.iter().enumerate() {
+                        ui.selectable_value(&mut self.selected_lift, Some(i), &lift.name);
+                    }
+                });
+            if ui.button("New Lift").clicked() {
+                self.show_new_lift = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Input:");
+            ui.selectable_value(&mut self.weight_mode, WeightMode::Weight, "Weight");
+            ui.selectable_value(&mut self.weight_mode, WeightMode::Bands, "Bands");
+        });
+        match self.weight_mode {
+            WeightMode::Weight => {
+                ui.horizontal(|ui| {
+                    ui.label("Weight:");
+                    ui.text_edit_singleline(&mut self.weight_value);
+                    egui::ComboBox::from_id_source("weight_unit")
+                        .selected_text(match self.weight_unit {
+                            WeightUnit::Pounds => "lb",
+                            WeightUnit::Kilograms => "kg",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                        });
+                });
+            }
+            WeightMode::Bands => {
+                ui.horizontal(|ui| {
+                    ui.label("Bands:");
+                    ui.text_edit_singleline(&mut self.band_value);
+                });
+            }
+        }
+        ui.horizontal(|ui| {
+            ui.label("Reps:");
+            ui.text_edit_singleline(&mut self.reps);
+        });
+        ui.horizontal(|ui| {
+            ui.label("Sets:");
+            ui.text_edit_singleline(&mut self.sets);
+        });
+        ui.horizontal(|ui| {
+            ui.label("Date (YYYY-MM-DD):");
+            ui.text_edit_singleline(&mut self.date);
+        });
+        ui.horizontal(|ui| {
+            ui.label("RPE:");
+            ui.text_edit_singleline(&mut self.rpe);
+        });
+        if ui.button("Add").clicked() {
+            self.add_execution();
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && !self.show_new_lift {
+            self.add_execution();
+        }
+        if let Some(err) = &self.error {
+            ui.colored_label(egui::Color32::RED, err);
+        }
+        if self.show_new_lift {
+            ui.separator();
+            ui.heading("Create New Lift");
+            ui.horizontal(|ui| {
+                ui.label("Name:");
+                ui.text_edit_singleline(&mut self.new_lift_name);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Region:");
+                ui.selectable_value(&mut self.new_lift_region, LiftRegion::UPPER, "Upper");
+                ui.selectable_value(&mut self.new_lift_region, LiftRegion::LOWER, "Lower");
+            });
+            ui.horizontal(|ui| {
+                ui.label("Main:");
+                egui::ComboBox::from_id_source("main_lift")
+                    .selected_text(
+                        self.new_lift_main
+                            .map(|m| m.to_string())
+                            .unwrap_or_else(|| "None".to_string()),
+                    )
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.new_lift_main, None, "None");
+                        ui.selectable_value(
+                            &mut self.new_lift_main,
+                            Some(LiftType::BenchPress),
+                            "Bench Press",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_lift_main,
+                            Some(LiftType::OverheadPress),
+                            "Overhead Press",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_lift_main,
+                            Some(LiftType::Squat),
+                            "Squat",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_lift_main,
+                            Some(LiftType::Deadlift),
+                            "Deadlift",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_lift_main,
+                            Some(LiftType::Conditioning),
+                            "Conditioning",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_lift_main,
+                            Some(LiftType::Accessory),
+                            "Accessory",
+                        );
+                    });
+            });
+            ui.horizontal(|ui| {
+                ui.label("Muscles:");
+                let mut remove_idx: Option<usize> = None;
+                for (i, m) in self.new_lift_muscles.iter().enumerate() {
+                    ui.label(m.to_string());
+                    if ui.small_button("x").clicked() {
+                        remove_idx = Some(i);
+                    }
+                }
+                if let Some(i) = remove_idx {
+                    self.new_lift_muscles.remove(i);
+                }
+            });
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_source("new_muscle_select")
+                    .selected_text(
+                        self.new_muscle_select
+                            .map(|m| m.to_string())
+                            .unwrap_or_else(|| "Select muscle".into()),
+                    )
+                    .show_ui(ui, |ui| {
+                        for m in Muscle::value_variants() {
+                            ui.selectable_value(&mut self.new_muscle_select, Some(*m), m.to_string());
+                        }
+                    });
+                if ui.button("Add").clicked() {
+                    if let Some(m) = self.new_muscle_select {
+                        if !self.new_lift_muscles.contains(&m) {
+                            self.new_lift_muscles.push(m);
+                        }
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                if ui.button("Create").clicked() {
+                    self.create_lift();
+                }
+                if ui.button("Cancel").clicked() {
+                    self.show_new_lift = false;
+                    self.new_lift_name.clear();
+                    self.new_lift_main = None;
+                    self.new_lift_muscles.clear();
+                    self.new_muscle_select = None;
+                }
+            });
+        }
+    }
+
+    fn add_execution(&mut self) {
+        let weight = match self.weight_mode {
+            WeightMode::Weight => {
+                let val: f64 = match self.weight_value.parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        self.error = Some("Invalid weight".into());
+                        return;
+                    }
+                };
+                Weight::from_unit(val, self.weight_unit)
+            }
+            WeightMode::Bands => match self.band_value.parse::<Weight>() {
+                Ok(w) => w,
+                Err(_) => {
+                    self.error = Some("Invalid bands".into());
+                    return;
+                }
+            },
+        };
+        let reps: i32 = match self.reps.parse() {
+            Ok(r) => r,
+            Err(_) => {
+                self.error = Some("Invalid reps".into());
+                return;
+            }
+        };
+        let sets: i32 = match self.sets.parse() {
+            Ok(s) => s,
+            Err(_) => {
+                self.error = Some("Invalid sets".into());
+                return;
+            }
+        };
+        let date = if self.date.trim().is_empty() {
+            Utc::now().date_naive()
+        } else {
+            match NaiveDate::parse_from_str(&self.date, "%Y-%m-%d") {
+                Ok(d) => d,
+                Err(_) => {
+                    self.error = Some("Invalid date".into());
+                    return;
+                }
+            }
+        };
+        let rpe = if self.rpe.trim().is_empty() {
+            None
+        } else {
+            match self.rpe.parse::<f32>() {
+                Ok(r) => Some(r),
+                Err(_) => {
+                    self.error = Some("Invalid RPE".into());
+                    return;
+                }
+            }
+        };
+        let exec = LiftExecution {
+            id: None,
+            date,
+            sets,
+            reps,
+            weight,
+            rpe,
+        };
+        if let Some(idx) = self.selected_lift {
+            let lift = &self.lifts[idx];
+            if let Err(e) = self.db.add_lift_execution(&lift.name, &exec) {
+                self.error = Some(e.to_string());
+            } else {
+                self.weight_value.clear();
+                self.band_value.clear();
+                self.reps.clear();
+                self.sets.clear();
+                self.date.clear();
+                self.rpe.clear();
+                self.error = None;
+                self.refresh_lifts();
+            }
+        } else {
+            self.error = Some("No lift selected".into());
+        }
+    }
+
+    fn create_lift(&mut self) {
+        let name = self.new_lift_name.trim();
+        if name.is_empty() {
+            self.error = Some("Lift name required".into());
+            return;
+        }
+        let name_owned = name.to_string();
+        match self.db.add_lift(
+            &name_owned,
+            self.new_lift_region,
+            self.new_lift_main,
+            &self.new_lift_muscles,
+        ) {
+            Ok(_) => {
+                self.show_new_lift = false;
+                self.new_lift_name.clear();
+                self.new_lift_main = None;
+                self.new_lift_muscles.clear();
+                self.new_muscle_select = None;
+                self.error = None;
+                self.refresh_lifts();
+                if let Some(idx) = self.lifts.iter().position(|l| l.name == name_owned) {
+                    self.selected_lift = Some(idx);
+                }
+            }
+            Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+}
+
