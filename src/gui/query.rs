@@ -1,8 +1,4 @@
-use std::collections::BTreeMap;
-
 use eframe::egui;
-
-use crate::weight::Weight;
 
 use super::GuiApp;
 
@@ -26,33 +22,26 @@ impl GuiApp {
         });
         if let Some(idx) = self.selected_lift {
             let lift = &self.lifts[idx];
-            if let Some(last) = lift.executions.first() {
-                let rpe = last.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                ui.label(format!(
-                    "Last: {} sets x {} reps @ {}{} on {}",
-                    last.sets, last.reps, last.weight, rpe, last.date
-                ));
-            } else {
-                ui.label("no records");
-            }
-            ui.separator();
-            ui.heading("Best by reps");
-            let mut best: BTreeMap<i32, Weight> = BTreeMap::new();
-            for exec in &lift.executions {
-                if let Weight::Raw(p) = exec.weight {
-                    best.entry(exec.reps)
-                        .and_modify(|w| {
-                            if let Weight::Raw(bp) = w {
-                                if p > *bp {
-                                    *w = exec.weight.clone();
-                                }
-                            }
-                        })
-                        .or_insert_with(|| exec.weight.clone());
+            match self.db.lift_stats(&lift.name) {
+                Ok(stats) => {
+                    if let Some(last) = stats.last {
+                        let rpe = last.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                        ui.label(format!(
+                            "Last: {} sets x {} reps @ {}{} on {}",
+                            last.sets, last.reps, last.weight, rpe, last.date
+                        ));
+                    } else {
+                        ui.label("no records");
+                    }
+                    ui.separator();
+                    ui.heading("Best by reps");
+                    for (reps, weight) in stats.best_by_reps {
+                        ui.label(format!("{} reps: {}", reps, weight));
+                    }
                 }
-            }
-            for (reps, weight) in best {
-                ui.label(format!("{} reps: {}", reps, weight));
+                Err(e) => {
+                    self.error = Some(e.to_string());
+                }
             }
         }
         if let Some(err) = &self.error {
@@ -60,4 +49,3 @@ impl GuiApp {
         }
     }
 }
-

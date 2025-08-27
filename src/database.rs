@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use crate::models::{Lift, LiftExecution, LiftRegion, LiftType, Muscle};
+use crate::models::{Lift, LiftExecution, LiftRegion, LiftStats, LiftType, Muscle};
 
 /// Convenience result type for database operations.
 pub type DbResult<T> = Result<T, Box<dyn Error>>;
@@ -33,6 +33,9 @@ pub trait Database {
 
     /// Update a recorded execution by id.
     fn update_lift_execution(&self, exec_id: i32, execution: &LiftExecution) -> DbResult<()>;
+
+    /// Retrieve summary statistics for a named lift.
+    fn lift_stats(&self, name: &str) -> DbResult<LiftStats>;
 
     /// Retrieve lifts with their recorded executions. Optionally filter by name.
     fn list_lifts(&self, name: Option<&str>) -> DbResult<Vec<Lift>>;
