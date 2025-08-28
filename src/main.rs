@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rpe,
             };
             // Ensure the lift exists with a default region and no main designation.
-            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None, &muscles);
+            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None, &muscles, "");
             db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
@@ -100,7 +100,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .join(", ")
                     )
                 };
-                println!("{} ({}){}{}", l.name, l.region, main_str, muscles_str);
+                let notes_str = if l.notes.is_empty() {
+                    String::new()
+                } else {
+                    format!(" - {}", l.notes)
+                };
+                println!(
+                    "{} ({}){}{}{}",
+                    l.name, l.region, main_str, muscles_str, notes_str
+                );
                 if l.executions.is_empty() {
                     println!("  - no records");
                 } else {

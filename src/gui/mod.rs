@@ -1,4 +1,4 @@
-use eframe::{egui, Frame, NativeOptions};
+use eframe::{Frame, NativeOptions, egui};
 
 use crate::weight::WeightUnit;
 use crate::{
@@ -42,12 +42,14 @@ struct GuiApp {
     new_lift_main: Option<LiftType>,
     new_lift_muscles: Vec<Muscle>,
     new_muscle_select: Option<Muscle>,
+    new_lift_notes: String,
     editing_lift: Option<usize>,
     edit_lift_name: String,
     edit_lift_region: LiftRegion,
     edit_lift_main: Option<LiftType>,
     edit_lift_muscles: Vec<Muscle>,
     edit_muscle_select: Option<Muscle>,
+    edit_lift_notes: String,
     editing_exec: Option<(usize, usize)>,
     edit_weight_value: String,
     edit_band_value: String,
@@ -87,12 +89,14 @@ impl GuiApp {
             new_lift_main: None,
             new_lift_muscles: Vec::new(),
             new_muscle_select: None,
+            new_lift_notes: String::new(),
             editing_lift: None,
             edit_lift_name: String::new(),
             edit_lift_region: LiftRegion::UPPER,
             edit_lift_main: None,
             edit_lift_muscles: Vec::new(),
             edit_muscle_select: None,
+            edit_lift_notes: String::new(),
             editing_exec: None,
             edit_weight_value: String::new(),
             edit_band_value: String::new(),
@@ -140,4 +144,3 @@ impl eframe::App for GuiApp {
         });
     }
 }
-

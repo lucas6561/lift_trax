@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Current database schema version.
-const DB_VERSION: i32 = 4;
+const DB_VERSION: i32 = 5;
 
 /// Database persisted to a SQLite file.
 pub struct SqliteDb {
@@ -65,7 +65,8 @@ fn init_db(conn: &Connection) -> DbResult<()> {
                 name TEXT NOT NULL UNIQUE,
                 region TEXT NOT NULL,
                 main_lift TEXT,
-                muscles TEXT NOT NULL
+                muscles TEXT NOT NULL,
+                notes TEXT NOT NULL DEFAULT ''
             )",
             [],
         )?;
@@ -107,13 +108,40 @@ fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
             )?;
             conn.execute("UPDATE lift_records SET weight = weight_old", [])?;
             conn.execute("ALTER TABLE lift_records DROP COLUMN weight_old", [])?;
+            conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
+            conn.execute(
+                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
+            conn.execute(
+                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
         }
         2 => {
             conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
+            conn.execute(
+                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
+            conn.execute(
+                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
         }
         3 => {
             conn.execute(
                 "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
+            conn.execute(
+                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
+        }
+        4 => {
+            conn.execute(
+                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
                 [],
             )?;
         }
@@ -130,6 +158,7 @@ impl Database for SqliteDb {
         region: LiftRegion,
         main: Option<LiftType>,
         muscles: &[Muscle],
+        notes: &str,
     ) -> DbResult<()> {
         let muscles_str = muscles
             .iter()
@@ -137,12 +166,13 @@ impl Database for SqliteDb {
             .collect::<Vec<_>>()
             .join(",");
         self.conn.execute(
-            "INSERT INTO lifts (name, region, main_lift, muscles) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO lifts (name, region, main_lift, muscles, notes) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
                 name,
                 region.to_string(),
                 main.map(|m| m.to_string()),
-                muscles_str
+                muscles_str,
+                notes
             ],
         )?;
         Ok(())
@@ -178,6 +208,7 @@ impl Database for SqliteDb {
         region: LiftRegion,
         main: Option<LiftType>,
         muscles: &[Muscle],
+        notes: &str,
     ) -> DbResult<()> {
         let muscles_str = muscles
             .iter()
@@ -185,12 +216,13 @@ impl Database for SqliteDb {
             .collect::<Vec<_>>()
             .join(",");
         self.conn.execute(
-            "UPDATE lifts SET name = ?1, region = ?2, main_lift = ?3, muscles = ?4 WHERE name = ?5",
+            "UPDATE lifts SET name = ?1, region = ?2, main_lift = ?3, muscles = ?4, notes = ?5 WHERE name = ?6",
             params![
                 new_name,
                 region.to_string(),
                 main.map(|m| m.to_string()),
                 muscles_str,
+                notes,
                 current_name
             ],
         )?;
@@ -259,7 +291,7 @@ impl Database for SqliteDb {
         let mut lifts = Vec::new();
         if let Some(n) = name {
             let mut stmt = self.conn.prepare(
-                "SELECT id, name, region, main_lift, muscles FROM lifts WHERE name = ?1 ORDER BY name",
+                "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE name = ?1 ORDER BY name",
             )?;
             let iter = stmt.query_map(params![n], |row| {
                 let id: i32 = row.get(0)?;
@@ -271,6 +303,7 @@ impl Database for SqliteDb {
                     None => None,
                 };
                 let muscles_str: String = row.get(4)?;
+                let notes: String = row.get(5)?;
                 let muscles = if muscles_str.is_empty() {
                     Vec::new()
                 } else {
@@ -286,6 +319,7 @@ impl Database for SqliteDb {
                         region,
                         main,
                         muscles,
+                        notes,
                         executions: Vec::new(),
                     },
                 ))
@@ -296,9 +330,9 @@ impl Database for SqliteDb {
                 lifts.push(lift);
             }
         } else {
-            let mut stmt = self
-                .conn
-                .prepare("SELECT id, name, region, main_lift, muscles FROM lifts ORDER BY name")?;
+            let mut stmt = self.conn.prepare(
+                "SELECT id, name, region, main_lift, muscles, notes FROM lifts ORDER BY name",
+            )?;
             let iter = stmt.query_map([], |row| {
                 let id: i32 = row.get(0)?;
                 let region_str: String = row.get(2)?;
@@ -309,6 +343,7 @@ impl Database for SqliteDb {
                     None => None,
                 };
                 let muscles_str: String = row.get(4)?;
+                let notes: String = row.get(5)?;
                 let muscles = if muscles_str.is_empty() {
                     Vec::new()
                 } else {
@@ -324,6 +359,7 @@ impl Database for SqliteDb {
                         region,
                         main,
                         muscles,
+                        notes,
                         executions: Vec::new(),
                     },
                 ))

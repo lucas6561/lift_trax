@@ -32,6 +32,7 @@ fn create_lift_with_execution() {
         region: LiftRegion::LOWER,
         main: Some(LiftType::Squat),
         muscles: vec![Muscle::Quad, Muscle::Glute],
+        notes: String::new(),
         executions: vec![exec.clone()],
     };
     assert_eq!(lift.name, "Squat");

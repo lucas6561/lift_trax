@@ -21,12 +21,14 @@ fn add_and_list_lift_with_execution() {
         LiftRegion::UPPER,
         Some(LiftType::BenchPress),
         &[Muscle::Chest],
+        "barbell",
     )
     .unwrap();
 
     let lifts = db.list_lifts(None).unwrap();
     assert_eq!(lifts.len(), 1);
     assert_eq!(lifts[0].name, "Bench");
+    assert_eq!(lifts[0].notes, "barbell");
 
     let exec = LiftExecution {
         id: None,
@@ -48,7 +50,8 @@ fn add_and_list_lift_with_execution() {
 #[test]
 fn lift_stats_provides_summary() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Squat", LiftRegion::LOWER, None, &[]).unwrap();
+    db.add_lift("Squat", LiftRegion::LOWER, None, &[], "")
+        .unwrap();
 
     let exec1 = LiftExecution {
         id: None,
