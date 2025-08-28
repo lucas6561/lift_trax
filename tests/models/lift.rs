@@ -1,21 +1,21 @@
 #[path = "../../src/models/lift.rs"]
 mod lift;
+#[path = "../../src/models/lift_execution.rs"]
+mod lift_execution;
 #[path = "../../src/models/lift_region.rs"]
 mod lift_region;
 #[path = "../../src/models/lift_type.rs"]
 mod lift_type;
 #[path = "../../src/models/muscle.rs"]
 mod muscle;
-#[path = "../../src/models/lift_execution.rs"]
-mod lift_execution;
 
 use crate::weight::Weight;
+use chrono::NaiveDate;
 use lift::Lift;
+use lift_execution::LiftExecution;
 use lift_region::LiftRegion;
 use lift_type::LiftType;
 use muscle::Muscle;
-use lift_execution::LiftExecution;
-use chrono::NaiveDate;
 
 #[test]
 fn create_lift_with_execution() {
@@ -26,12 +26,14 @@ fn create_lift_with_execution() {
         reps: 3,
         weight: Weight::Raw(200.0),
         rpe: None,
+        notes: String::new(),
     };
     let lift = Lift {
         name: "Squat".to_string(),
         region: LiftRegion::LOWER,
         main: Some(LiftType::Squat),
         muscles: vec![Muscle::Quad, Muscle::Glute],
+        notes: String::new(),
         executions: vec![exec.clone()],
     };
     assert_eq!(lift.name, "Squat");

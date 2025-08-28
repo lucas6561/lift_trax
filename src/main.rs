@@ -42,6 +42,9 @@ enum Commands {
         /// Muscles targeted by this lift
         #[arg(long = "muscle", value_enum)]
         muscles: Vec<Muscle>,
+        /// Free-form notes about this execution
+        #[arg(long)]
+        notes: Option<String>,
     },
     /// List recorded lifts
     List {
@@ -65,6 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             date,
             rpe,
             muscles,
+            notes,
         } => {
             let date = match date {
                 Some(d) => NaiveDate::parse_from_str(&d, "%Y-%m-%d")?,
@@ -78,9 +82,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 reps,
                 weight: real_weight,
                 rpe,
+                notes: notes.unwrap_or_default(),
             };
             // Ensure the lift exists with a default region and no main designation.
-            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None, &muscles);
+            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None, &muscles, "");
             db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
@@ -100,15 +105,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .join(", ")
                     )
                 };
-                println!("{} ({}){}{}", l.name, l.region, main_str, muscles_str);
+                let notes_str = if l.notes.is_empty() {
+                    String::new()
+                } else {
+                    format!(" - {}", l.notes)
+                };
+                println!(
+                    "{} ({}){}{}{}",
+                    l.name, l.region, main_str, muscles_str, notes_str
+                );
                 if l.executions.is_empty() {
                     println!("  - no records");
                 } else {
                     for exec in l.executions {
                         let rpe_str = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                        let notes_str = if exec.notes.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" - {}", exec.notes)
+                        };
                         println!(
-                            "  - {}: {} sets x {} reps @ {}{}",
-                            exec.date, exec.sets, exec.reps, exec.weight, rpe_str
+                            "  - {}: {} sets x {} reps @ {}{}{}",
+                            exec.date, exec.sets, exec.reps, exec.weight, rpe_str, notes_str
                         );
                     }
                 }

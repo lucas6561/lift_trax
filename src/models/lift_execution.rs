@@ -16,4 +16,6 @@ pub struct LiftExecution {
     pub weight: Weight,
     /// Optional rating of perceived exertion.
     pub rpe: Option<f32>,
+    /// Free-form notes about this execution.
+    pub notes: String,
 }

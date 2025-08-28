@@ -14,6 +14,8 @@ pub struct Lift {
     pub main: Option<LiftType>,
     /// Muscles primarily targeted by this lift.
     pub muscles: Vec<Muscle>,
+    /// Free-form notes about this lift.
+    pub notes: String,
     /// Recorded executions of this lift, most recent first.
     pub executions: Vec<LiftExecution>,
 }
