@@ -93,67 +93,55 @@ fn init_db(conn: &Connection) -> DbResult<()> {
 }
 
 /// Apply migrations from a previous schema version to [`DB_VERSION`].
-fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
-    match from_version {
-        1 => {
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN region TEXT NOT NULL DEFAULT 'UPPER'",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lift_records RENAME COLUMN weight TO weight_old",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lift_records ADD COLUMN weight TEXT NOT NULL DEFAULT '0'",
-                [],
-            )?;
-            conn.execute("UPDATE lift_records SET weight = weight_old", [])?;
-            conn.execute("ALTER TABLE lift_records DROP COLUMN weight_old", [])?;
-            conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
+fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
+    // Apply migrations sequentially so that every intermediate version is handled.
+    while from_version < DB_VERSION {
+        match from_version {
+            1 => {
+                // Version 1 stored weight as a numeric column and lacked lift metadata.
+                conn.execute(
+                    "ALTER TABLE lifts ADD COLUMN region TEXT NOT NULL DEFAULT 'UPPER'",
+                    [],
+                )?;
+                conn.execute(
+                    "ALTER TABLE lift_records RENAME COLUMN weight TO weight_old",
+                    [],
+                )?;
+                conn.execute(
+                    "ALTER TABLE lift_records ADD COLUMN weight TEXT NOT NULL DEFAULT '0'",
+                    [],
+                )?;
+                conn.execute("UPDATE lift_records SET weight = weight_old", [])?;
+                conn.execute("ALTER TABLE lift_records DROP COLUMN weight_old", [])?;
+            }
+            2 => {
+                // Add optional designation for a lift's main variant.
+                conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
+            }
+            3 => {
+                // Track muscles targeted by each lift.
+                conn.execute(
+                    "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
+                    [],
+                )?;
+            }
+            4 => {
+                // Free-form notes for lifts were introduced in version 5.
+                conn.execute(
+                    "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                    [],
+                )?;
+            }
+            5 => {
+                // Execution records also store notes starting with version 6.
+                conn.execute(
+                    "ALTER TABLE lift_records ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                    [],
+                )?;
+            }
+            _ => {}
         }
-        2 => {
-            conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        3 => {
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        4 => {
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        5 => {
-            conn.execute(
-                "ALTER TABLE lift_records ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        _ => {}
+        from_version += 1;
     }
     conn.pragma_update(None, "user_version", &DB_VERSION)?;
     Ok(())
