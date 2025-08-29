@@ -117,6 +117,10 @@ impl GuiApp {
                         }
                     });
                     ui.horizontal(|ui| {
+                        ui.label("Notes:");
+                        ui.text_edit_singleline(&mut self.edit_lift_notes);
+                    });
+                    ui.horizontal(|ui| {
                         if ui.button("Save").clicked() {
                             self.save_lift_edit(i);
                         }
@@ -124,6 +128,7 @@ impl GuiApp {
                             self.editing_lift = None;
                             self.edit_lift_muscles.clear();
                             self.edit_muscle_select = None;
+                            self.edit_lift_notes.clear();
                         }
                     });
                 } else {
@@ -145,18 +150,27 @@ impl GuiApp {
                             self.edit_lift_main = main;
                             self.edit_lift_muscles = muscles.clone();
                             self.edit_muscle_select = None;
+                            self.edit_lift_notes = self.lifts[i].notes.clone();
                         }
                     });
+                    if !self.lifts[i].notes.is_empty() {
+                        ui.label(format!("Notes: {}", self.lifts[i].notes));
+                    }
                 }
                 if executions.is_empty() {
                     ui.label("no records");
                 } else {
                     for (j, exec) in executions.iter().enumerate() {
                         let rpe = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                        let notes = if exec.notes.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" - {}", exec.notes)
+                        };
                         ui.horizontal(|ui| {
                             ui.label(format!(
-                                "{}: {} sets x {} reps @ {} {}",
-                                exec.date, exec.sets, exec.reps, exec.weight, rpe
+                                "{}: {} sets x {} reps @ {} {}{}",
+                                exec.date, exec.sets, exec.reps, exec.weight, rpe, notes
                             ));
                             if ui.button("Edit").clicked() {
                                 self.editing_exec = Some((i, j));
@@ -177,6 +191,7 @@ impl GuiApp {
                                 self.edit_reps = exec.reps.to_string();
                                 self.edit_date = exec.date.to_string();
                                 self.edit_rpe = exec.rpe.map(|r| r.to_string()).unwrap_or_default();
+                                self.edit_notes = exec.notes.clone();
                             }
                         });
                         if self.editing_exec == Some((i, j)) {
@@ -198,12 +213,17 @@ impl GuiApp {
                                     ui.horizontal(|ui| {
                                         ui.label("Weight:");
                                         ui.text_edit_singleline(&mut self.edit_weight_value);
-                                        egui::ComboBox::from_id_source(format!("edit_unit_{}_{}", i, j))
-                                            .selected_text(match self.edit_weight_unit {
-                                                WeightUnit::Pounds => "lb",
-                                                WeightUnit::Kilograms => "kg",
-                                            })
-                                            .show_ui(ui, |ui| {
+                                        egui::ComboBox::from_id_source(format!(
+                                            "edit_unit_{}_{}",
+                                            i, j
+                                        ))
+                                        .selected_text(match self.edit_weight_unit {
+                                            WeightUnit::Pounds => "lb",
+                                            WeightUnit::Kilograms => "kg",
+                                        })
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
                                                 ui.selectable_value(
                                                     &mut self.edit_weight_unit,
                                                     WeightUnit::Pounds,
@@ -214,7 +234,8 @@ impl GuiApp {
                                                     WeightUnit::Kilograms,
                                                     "kg",
                                                 );
-                                            });
+                                            },
+                                        );
                                     });
                                 }
                                 WeightMode::Bands => {
@@ -241,11 +262,16 @@ impl GuiApp {
                                 ui.text_edit_singleline(&mut self.edit_rpe);
                             });
                             ui.horizontal(|ui| {
+                                ui.label("Notes:");
+                                ui.text_edit_singleline(&mut self.edit_notes);
+                            });
+                            ui.horizontal(|ui| {
                                 if ui.button("Save").clicked() {
                                     self.save_exec_edit();
                                 }
                                 if ui.button("Cancel").clicked() {
                                     self.editing_exec = None;
+                                    self.edit_notes.clear();
                                 }
                             });
                         }
@@ -271,12 +297,14 @@ impl GuiApp {
             self.edit_lift_region,
             self.edit_lift_main,
             &self.edit_lift_muscles,
+            &self.edit_lift_notes,
         ) {
             self.error = Some(e.to_string());
         } else {
             self.editing_lift = None;
             self.edit_lift_muscles.clear();
             self.edit_muscle_select = None;
+            self.edit_lift_notes.clear();
             self.error = None;
             self.refresh_lifts();
         }
@@ -348,12 +376,14 @@ impl GuiApp {
                 reps,
                 weight,
                 rpe,
+                notes: self.edit_notes.clone(),
             };
             if let Some(id) = exec.id {
                 if let Err(e) = self.db.update_lift_execution(id, &new_exec) {
                     self.error = Some(e.to_string());
                 } else {
                     self.editing_exec = None;
+                    self.edit_notes.clear();
                     self.error = None;
                     self.refresh_lifts();
                 }
@@ -361,4 +391,3 @@ impl GuiApp {
         }
     }
 }
-

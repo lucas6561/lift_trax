@@ -72,6 +72,10 @@ impl GuiApp {
             ui.label("RPE:");
             ui.text_edit_singleline(&mut self.rpe);
         });
+        ui.horizontal(|ui| {
+            ui.label("Notes:");
+            ui.text_edit_singleline(&mut self.notes);
+        });
         if ui.button("Add").clicked() {
             self.add_execution();
         }
@@ -157,7 +161,11 @@ impl GuiApp {
                     )
                     .show_ui(ui, |ui| {
                         for m in Muscle::value_variants() {
-                            ui.selectable_value(&mut self.new_muscle_select, Some(*m), m.to_string());
+                            ui.selectable_value(
+                                &mut self.new_muscle_select,
+                                Some(*m),
+                                m.to_string(),
+                            );
                         }
                     });
                 if ui.button("Add").clicked() {
@@ -169,6 +177,10 @@ impl GuiApp {
                 }
             });
             ui.horizontal(|ui| {
+                ui.label("Notes:");
+                ui.text_edit_singleline(&mut self.new_lift_notes);
+            });
+            ui.horizontal(|ui| {
                 if ui.button("Create").clicked() {
                     self.create_lift();
                 }
@@ -178,6 +190,7 @@ impl GuiApp {
                     self.new_lift_main = None;
                     self.new_lift_muscles.clear();
                     self.new_muscle_select = None;
+                    self.new_lift_notes.clear();
                 }
             });
         }
@@ -246,6 +259,7 @@ impl GuiApp {
             reps,
             weight,
             rpe,
+            notes: self.notes.clone(),
         };
         if let Some(idx) = self.selected_lift {
             let lift = &self.lifts[idx];
@@ -258,6 +272,7 @@ impl GuiApp {
                 self.sets.clear();
                 self.date.clear();
                 self.rpe.clear();
+                self.notes.clear();
                 self.error = None;
                 self.refresh_lifts();
             }
@@ -278,6 +293,7 @@ impl GuiApp {
             self.new_lift_region,
             self.new_lift_main,
             &self.new_lift_muscles,
+            &self.new_lift_notes,
         ) {
             Ok(_) => {
                 self.show_new_lift = false;
@@ -285,6 +301,7 @@ impl GuiApp {
                 self.new_lift_main = None;
                 self.new_lift_muscles.clear();
                 self.new_muscle_select = None;
+                self.new_lift_notes.clear();
                 self.error = None;
                 self.refresh_lifts();
                 if let Some(idx) = self.lifts.iter().position(|l| l.name == name_owned) {
@@ -295,4 +312,3 @@ impl GuiApp {
         }
     }
 }
-

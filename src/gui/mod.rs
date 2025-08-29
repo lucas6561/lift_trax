@@ -1,4 +1,4 @@
-use eframe::{egui, Frame, NativeOptions};
+use eframe::{Frame, NativeOptions, egui};
 
 use crate::weight::WeightUnit;
 use crate::{
@@ -35,6 +35,7 @@ struct GuiApp {
     sets: String,
     date: String,
     rpe: String,
+    notes: String,
     selected_lift: Option<usize>,
     show_new_lift: bool,
     new_lift_name: String,
@@ -42,12 +43,14 @@ struct GuiApp {
     new_lift_main: Option<LiftType>,
     new_lift_muscles: Vec<Muscle>,
     new_muscle_select: Option<Muscle>,
+    new_lift_notes: String,
     editing_lift: Option<usize>,
     edit_lift_name: String,
     edit_lift_region: LiftRegion,
     edit_lift_main: Option<LiftType>,
     edit_lift_muscles: Vec<Muscle>,
     edit_muscle_select: Option<Muscle>,
+    edit_lift_notes: String,
     editing_exec: Option<(usize, usize)>,
     edit_weight_value: String,
     edit_band_value: String,
@@ -57,6 +60,7 @@ struct GuiApp {
     edit_sets: String,
     edit_date: String,
     edit_rpe: String,
+    edit_notes: String,
     lifts: Vec<Lift>,
     error: Option<String>,
 }
@@ -80,6 +84,7 @@ impl GuiApp {
             sets: String::new(),
             date: String::new(),
             rpe: String::new(),
+            notes: String::new(),
             selected_lift: None,
             show_new_lift: false,
             new_lift_name: String::new(),
@@ -87,12 +92,14 @@ impl GuiApp {
             new_lift_main: None,
             new_lift_muscles: Vec::new(),
             new_muscle_select: None,
+            new_lift_notes: String::new(),
             editing_lift: None,
             edit_lift_name: String::new(),
             edit_lift_region: LiftRegion::UPPER,
             edit_lift_main: None,
             edit_lift_muscles: Vec::new(),
             edit_muscle_select: None,
+            edit_lift_notes: String::new(),
             editing_exec: None,
             edit_weight_value: String::new(),
             edit_band_value: String::new(),
@@ -102,6 +109,7 @@ impl GuiApp {
             edit_sets: String::new(),
             edit_date: String::new(),
             edit_rpe: String::new(),
+            edit_notes: String::new(),
             lifts: Vec::new(),
             error: None,
         };
@@ -140,4 +148,3 @@ impl eframe::App for GuiApp {
         });
     }
 }
-
