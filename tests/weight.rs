@@ -54,3 +54,13 @@ fn parse_left_right() {
         _ => panic!("expected left/right raw weight"),
     }
 }
+
+#[test]
+fn parse_none() {
+    let w: Weight = "none".parse().unwrap();
+    assert_eq!(w.to_string(), "none");
+    match w {
+        Weight::None => {}
+        _ => panic!("expected none weight"),
+    }
+}

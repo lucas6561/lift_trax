@@ -227,7 +227,7 @@ fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
                     let weight_str: String = row.get(5)?;
                     let rpe: Option<f32> = row.get(6)?;
                     let notes: String = row.get(7)?;
-                    let weight = Weight::from_str(&weight_str).unwrap_or(Weight::Raw(0.0));
+                    let weight = Weight::from_str(&weight_str).unwrap_or(Weight::None);
                     let set = ExecutionSet {
                         metric: SetMetric::Reps(reps),
                         weight: weight.clone(),

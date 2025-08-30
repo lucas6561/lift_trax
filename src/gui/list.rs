@@ -212,6 +212,14 @@ impl GuiApp {
                                             self.edit_weight_left_value.clear();
                                             self.edit_weight_right_value.clear();
                                         }
+                                        Weight::None => {
+                                            self.edit_weight_mode = WeightMode::None;
+                                            self.edit_weight_value.clear();
+                                            self.edit_weight_left_value.clear();
+                                            self.edit_weight_right_value.clear();
+                                            self.edit_band_value.clear();
+                                            self.edit_band_select = None;
+                                        }
                                     }
                                     self.edit_sets = exec.sets.len().to_string();
                                     match first.metric {
@@ -252,6 +260,11 @@ impl GuiApp {
                                     &mut self.edit_weight_mode,
                                     WeightMode::Bands,
                                     "Bands",
+                                );
+                                ui.selectable_value(
+                                    &mut self.edit_weight_mode,
+                                    WeightMode::None,
+                                    "None",
                                 );
                             });
                             match self.edit_weight_mode {
@@ -368,6 +381,7 @@ impl GuiApp {
                                         }
                                     });
                                 }
+                                WeightMode::None => {}
                             }
                             ui.horizontal(|ui| {
                                 ui.label("Metric:");
@@ -501,6 +515,7 @@ impl GuiApp {
                     }
                     Weight::Bands(self.edit_band_value.clone())
                 }
+                WeightMode::None => Weight::None,
             };
             let metric_val: i32 = match self.edit_reps.parse() {
                 Ok(r) => r,

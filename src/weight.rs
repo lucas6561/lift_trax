@@ -65,6 +65,8 @@ pub enum Weight {
     RawLr { left: f64, right: f64 },
     /// One or more resistance bands joined together.
     Bands(Vec<BandColor>),
+    /// No weight used.
+    None,
 }
 
 impl fmt::Display for Weight {
@@ -80,6 +82,7 @@ impl fmt::Display for Weight {
                     .join("+");
                 write!(f, "{}", text)
             }
+            Weight::None => write!(f, "none"),
         }
     }
 }
@@ -110,6 +113,9 @@ impl FromStr for Weight {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let trimmed = s.trim().to_lowercase();
+        if trimmed.is_empty() || trimmed == "none" {
+            return Ok(Weight::None);
+        }
         if let Some((l_str, r_str)) = trimmed.split_once('|') {
             let parse_side = |side: &str| -> Result<f64, String> {
                 let side_trim = side.trim();
@@ -172,7 +178,7 @@ impl Weight {
         match self {
             Weight::Raw(p) => *p,
             Weight::RawLr { left, right } => left + right,
-            Weight::Bands(_) => 0.0,
+            Weight::Bands(_) | Weight::None => 0.0,
         }
     }
 }
