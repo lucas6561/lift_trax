@@ -2,7 +2,7 @@ use chrono::{NaiveDate, Utc};
 use clap::ValueEnum;
 use eframe::egui;
 
-use crate::models::{LiftExecution, LiftRegion, LiftType, Muscle};
+use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
 use super::{GuiApp, WeightMode};
@@ -328,13 +328,12 @@ impl GuiApp {
                 }
             }
         };
+        let set = ExecutionSet { reps, weight: weight.clone(), rpe };
+        let sets_vec = vec![set; sets as usize];
         let exec = LiftExecution {
             id: None,
             date,
-            sets,
-            reps,
-            weight,
-            rpe,
+            sets: sets_vec,
             notes: self.notes.clone(),
         };
         if let Some(idx) = self.selected_lift {

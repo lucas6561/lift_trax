@@ -8,11 +8,11 @@ use std::str::FromStr;
 use crate::weight::Weight;
 use crate::{
     database::{Database, DbResult},
-    models::{Lift, LiftExecution, LiftRegion, LiftStats, LiftType, Muscle},
+    models::{ExecutionSet, Lift, LiftExecution, LiftRegion, LiftStats, LiftType, Muscle},
 };
 
 /// Current database schema version.
-const DB_VERSION: i32 = 6;
+const DB_VERSION: i32 = 7;
 
 /// Database persisted to a SQLite file.
 pub struct SqliteDb {
@@ -30,22 +30,20 @@ impl SqliteDb {
     /// Load all execution records for `lift_id`, newest first.
     fn fetch_executions(&self, lift_id: i32) -> DbResult<Vec<LiftExecution>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, date, sets, reps, weight, rpe, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC",
+            "SELECT id, date, sets, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC",
         )?;
         let iter = stmt.query_map(params![lift_id], |row| {
             let date_str: String = row.get(1)?;
             let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
                 rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
             })?;
-            let weight_str: String = row.get(4)?;
+            let sets_json: String = row.get(2)?;
+            let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
             Ok(LiftExecution {
                 id: Some(row.get(0)?),
                 date,
-                sets: row.get(2)?,
-                reps: row.get(3)?,
-                weight: Weight::from_str(&weight_str).unwrap_or(Weight::Raw(0.0)),
-                rpe: row.get(5)?,
-                notes: row.get(6)?,
+                sets,
+                notes: row.get(3)?,
             })
         })?;
         let mut executions = Vec::new();
@@ -98,6 +96,9 @@ fn detect_version(conn: &Connection) -> DbResult<i32> {
     }
     if has_column(conn, "lift_records", "notes")? {
         v = 6;
+        if !has_column(conn, "lift_records", "reps")? {
+            v = 7;
+        }
     }
     Ok(v)
 }
@@ -123,10 +124,7 @@ fn init_db(conn: &Connection) -> DbResult<()> {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 lift_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
-                sets INTEGER NOT NULL,
-                reps INTEGER NOT NULL,
-                weight TEXT NOT NULL,
-                rpe REAL,
+                sets TEXT NOT NULL,
                 notes TEXT NOT NULL DEFAULT '',
                 FOREIGN KEY(lift_id) REFERENCES lifts(id)
             )",
@@ -194,6 +192,44 @@ fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
                     [],
                 )?;
             }
+            6 => {
+                // Migrate execution records to store set details as JSON.
+                conn.execute("ALTER TABLE lift_records RENAME TO lift_records_old", [])?;
+                conn.execute(
+                    "CREATE TABLE lift_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lift_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        sets TEXT NOT NULL,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                    )",
+                    [],
+                )?;
+                let mut stmt = conn.prepare(
+                    "SELECT id, lift_id, date, sets, reps, weight, rpe, notes FROM lift_records_old",
+                )?;
+                let mut rows = stmt.query([])?;
+                while let Some(row) = rows.next()? {
+                    let id: i32 = row.get(0)?;
+                    let lift_id: i32 = row.get(1)?;
+                    let date: String = row.get(2)?;
+                    let set_count: i32 = row.get(3)?;
+                    let reps: i32 = row.get(4)?;
+                    let weight_str: String = row.get(5)?;
+                    let rpe: Option<f32> = row.get(6)?;
+                    let notes: String = row.get(7)?;
+                    let weight = Weight::from_str(&weight_str).unwrap_or(Weight::Raw(0.0));
+                    let set = ExecutionSet { reps, weight: weight.clone(), rpe };
+                    let sets = vec![set; set_count as usize];
+                    let sets_json = serde_json::to_string(&sets)?;
+                    conn.execute(
+                        "INSERT INTO lift_records (id, lift_id, date, sets, notes) VALUES (?1, ?2, ?3, ?4, ?5)",
+                        params![id, lift_id, date, sets_json, notes],
+                    )?;
+                }
+                conn.execute("DROP TABLE lift_records_old", [])?;
+            }
             _ => {}
         }
         from_version += 1;
@@ -238,15 +274,13 @@ impl Database for SqliteDb {
                 return Err("lift not found".into());
             }
         };
+        let sets_json = serde_json::to_string(&execution.sets)?;
         self.conn.execute(
-            "INSERT INTO lift_records (lift_id, date, sets, reps, weight, rpe, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO lift_records (lift_id, date, sets, notes) VALUES (?1, ?2, ?3, ?4)",
             params![
                 lift_id,
                 execution.date.to_string(),
-                execution.sets,
-                execution.reps,
-                execution.weight.to_string(),
-                execution.rpe,
+                sets_json,
                 execution.notes
             ],
         )?;
@@ -282,14 +316,12 @@ impl Database for SqliteDb {
     }
 
     fn update_lift_execution(&self, exec_id: i32, execution: &LiftExecution) -> DbResult<()> {
+        let sets_json = serde_json::to_string(&execution.sets)?;
         self.conn.execute(
-            "UPDATE lift_records SET date = ?1, sets = ?2, reps = ?3, weight = ?4, rpe = ?5, notes = ?6 WHERE id = ?7",
+            "UPDATE lift_records SET date = ?1, sets = ?2, notes = ?3 WHERE id = ?4",
             params![
                 execution.date.to_string(),
-                execution.sets,
-                execution.reps,
-                execution.weight.to_string(),
-                execution.rpe,
+                sets_json,
                 execution.notes,
                 exec_id
             ],
@@ -306,34 +338,38 @@ impl Database for SqliteDb {
         let last = self
             .conn
             .query_row(
-                "SELECT id, date, sets, reps, weight, rpe, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
+                "SELECT id, date, sets, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
                 params![lift_id],
                 |row| {
                     let date_str: String = row.get(1)?;
                     let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
                     })?;
-                    let weight_str: String = row.get(4)?;
+                    let sets_json: String = row.get(2)?;
+                    let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
                     Ok(LiftExecution {
                         id: Some(row.get(0)?),
                         date,
-                        sets: row.get(2)?,
-                        reps: row.get(3)?,
-                        weight: Weight::from_str(&weight_str).unwrap_or(Weight::Raw(0.0)),
-                        rpe: row.get(5)?,
-                        notes: row.get(6)?,
+                        sets,
+                        notes: row.get(3)?,
                     })
                 },
             )
             .optional()?;
-        let mut stmt = self.conn.prepare(
-            "SELECT reps, MAX(CAST(REPLACE(weight, ' lb', '') AS REAL)) FROM lift_records WHERE lift_id = ?1 AND weight LIKE '% lb' GROUP BY reps",
-        )?;
-        let iter = stmt.query_map(params![lift_id], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT sets FROM lift_records WHERE lift_id = ?1")?;
+        let iter = stmt.query_map(params![lift_id], |row| row.get::<_, String>(0))?;
         let mut best = BTreeMap::new();
         for row in iter {
-            let (reps, weight): (i32, f64) = row?;
-            best.insert(reps, Weight::Raw(weight));
+            let sets_json = row?;
+            let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
+            for set in sets {
+                let entry = best.entry(set.reps).or_insert(set.weight.clone());
+                if set.weight.to_lbs() > entry.to_lbs() {
+                    *entry = set.weight;
+                }
+            }
         }
         Ok(LiftStats {
             last,

@@ -8,7 +8,7 @@ pub mod lift_type;
 pub mod muscle;
 
 pub use lift::Lift;
-pub use lift_execution::LiftExecution;
+pub use lift_execution::{ExecutionSet, LiftExecution};
 pub use lift_region::LiftRegion;
 pub use lift_stats::LiftStats;
 pub use lift_type::LiftType;
