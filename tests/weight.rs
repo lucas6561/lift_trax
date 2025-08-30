@@ -68,6 +68,13 @@ fn parse_left_right_with_units() {
 }
 
 #[test]
+fn parse_none() {
+    let w: Weight = "none".parse().unwrap();
+    assert_eq!(w, Weight::None);
+    assert_eq!(w.to_string(), "none");
+}
+
+#[test]
 fn invalid_weight_is_err() {
     let res: Result<Weight, _> = "unknown".parse();
     assert!(res.is_err());
