@@ -212,6 +212,16 @@ impl GuiApp {
                                             self.edit_weight_left_value.clear();
                                             self.edit_weight_right_value.clear();
                                         }
+                                        Weight::Accommodating { raw, .. } => {
+                                            // Treat accommodating resistance as a simple raw weight for editing
+                                            self.edit_weight_mode = WeightMode::Weight;
+                                            self.edit_weight_unit = WeightUnit::Pounds;
+                                            self.edit_weight_value = format!("{}", raw);
+                                            self.edit_weight_left_value.clear();
+                                            self.edit_weight_right_value.clear();
+                                            self.edit_band_value.clear();
+                                            self.edit_band_select = None;
+                                        }
                                         Weight::None => {
                                             self.edit_weight_mode = WeightMode::None;
                                             self.edit_weight_value.clear();

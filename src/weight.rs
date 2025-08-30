@@ -54,7 +54,8 @@ pub enum WeightUnit {
 const POUNDS_PER_KILOGRAM: f64 = 2.20462;
 
 /// Weight used for a lift, either a numeric value (stored internally in
-/// pounds), a separate left/right numeric value, or a combination of resistance
+/// pounds), a separate left/right numeric value, a combination of resistance
+/// bands, or a raw weight plus accommodating resistance such as chains or
 /// bands.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Weight {
@@ -66,6 +67,22 @@ pub enum Weight {
     /// Separate raw weights for the left and right side.
     RawLr { left: f64, right: f64 },
     /// One or more resistance bands joined together.
+    Bands(Vec<BandColor>),
+    /// Raw weight with additional accommodating resistance. The raw value
+    /// represents pounds on the bar, with the additional resistance provided by
+    /// either chains (specified in pounds) or bands (specified by color).
+    Accommodating {
+        raw: f64,
+        resistance: AccommodatingResist,
+    },
+}
+
+/// Extra resistance applied in an accommodating resistance setup.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AccommodatingResist {
+    /// Additional chain weight in pounds.
+    Chains(f64),
+    /// One or more resistance bands.
     Bands(Vec<BandColor>),
 }
 
@@ -83,6 +100,17 @@ impl fmt::Display for Weight {
                     .join("+");
                 write!(f, "{}", text)
             }
+            Weight::Accommodating { raw, resistance } => match resistance {
+                AccommodatingResist::Chains(c) => write!(f, "{}+{}c", raw, c),
+                AccommodatingResist::Bands(bands) => {
+                    let text = bands
+                        .iter()
+                        .map(|b| b.to_string())
+                        .collect::<Vec<_>>()
+                        .join("+");
+                    write!(f, "{}+{}", raw, text)
+                }
+            },
         }
     }
 }
@@ -155,6 +183,35 @@ impl Weight {
         let bands: Result<Vec<BandColor>, _> = s.split('+').map(|b| b.trim().parse()).collect();
         bands.map(Weight::Bands)
     }
+
+    /// Parse a raw weight with accommodating resistance. The expected format is
+    /// `raw+Xc` for chains or `raw+band(+band...)` for bands. All numeric values
+    /// are interpreted as pounds.
+    fn parse_accommodating(s: &str) -> Result<Self, String> {
+        let mut parts = s.split('+');
+        let raw_part = parts
+            .next()
+            .ok_or_else(|| "missing base weight".to_string())?;
+        let raw = Self::parse_side(raw_part)?;
+        let rest: Vec<&str> = parts.collect();
+        if rest.is_empty() {
+            return Err("missing accommodating resistance".to_string());
+        }
+        if rest.len() == 1 && rest[0].ends_with('c') {
+            let chain_str = rest[0].trim_end_matches('c');
+            let chain = Self::parse_side(chain_str)?;
+            Ok(Weight::Accommodating {
+                raw,
+                resistance: AccommodatingResist::Chains(chain),
+            })
+        } else {
+            let bands: Result<Vec<BandColor>, _> = rest.iter().map(|b| b.trim().parse()).collect();
+            bands.map(|b| Weight::Accommodating {
+                raw,
+                resistance: AccommodatingResist::Bands(b),
+            })
+        }
+    }
 }
 
 impl FromStr for Weight {
@@ -167,6 +224,10 @@ impl FromStr for Weight {
         }
         if trimmed.contains('|') {
             return Weight::parse_lr(&trimmed);
+        }
+        if trimmed.contains('+') {
+            return Weight::parse_accommodating(&trimmed)
+                .or_else(|_| Weight::parse_bands(&trimmed));
         }
         Weight::parse_with_unit(&trimmed).or_else(|_| Weight::parse_bands(&trimmed))
     }
@@ -199,6 +260,10 @@ impl Weight {
             Weight::Raw(p) => *p,
             Weight::RawLr { left, right } => left + right,
             Weight::Bands(_) => 0.0,
+            Weight::Accommodating { raw, resistance } => match resistance {
+                AccommodatingResist::Chains(c) => raw + c,
+                AccommodatingResist::Bands(_) => *raw,
+            },
         }
     }
 }
