@@ -56,36 +56,91 @@ impl SqliteDb {
     }
 }
 
+fn table_exists(conn: &Connection, table: &str) -> DbResult<bool> {
+    let exists: Option<String> = conn
+        .query_row(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?1",
+            params![table],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(exists.is_some())
+}
+
+fn has_column(conn: &Connection, table: &str, column: &str) -> DbResult<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn detect_version(conn: &Connection) -> DbResult<i32> {
+    if !table_exists(conn, "lifts")? {
+        return Ok(0);
+    }
+    let mut v = 1;
+    if has_column(conn, "lifts", "region")? {
+        v = 2;
+    }
+    if has_column(conn, "lifts", "main_lift")? {
+        v = 3;
+    }
+    if has_column(conn, "lifts", "muscles")? {
+        v = 4;
+    }
+    if has_column(conn, "lifts", "notes")? {
+        v = 5;
+    }
+    if has_column(conn, "lift_records", "notes")? {
+        v = 6;
+    }
+    Ok(v)
+}
+
 /// Initialize the database schema and ensure it matches the expected version.
 fn init_db(conn: &Connection) -> DbResult<()> {
     let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
     if user_version == 0 {
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS lifts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                region TEXT NOT NULL,
-                main_lift TEXT,
-                muscles TEXT NOT NULL,
-                notes TEXT NOT NULL DEFAULT ''
-            )",
-            [],
-        )?;
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS lift_records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                lift_id INTEGER NOT NULL,
-                date TEXT NOT NULL,
-                sets INTEGER NOT NULL,
-                reps INTEGER NOT NULL,
-                weight TEXT NOT NULL,
-                rpe REAL,
-                notes TEXT NOT NULL DEFAULT '',
-                FOREIGN KEY(lift_id) REFERENCES lifts(id)
-            )",
-            [],
-        )?;
-        conn.pragma_update(None, "user_version", &DB_VERSION)?;
+        if table_exists(conn, "lifts")? {
+            let from_version = detect_version(conn)?;
+            if from_version < DB_VERSION {
+                run_migrations(conn, from_version)?;
+            } else {
+                conn.pragma_update(None, "user_version", &DB_VERSION)?;
+            }
+        } else {
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS lifts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    region TEXT NOT NULL,
+                    main_lift TEXT,
+                    muscles TEXT NOT NULL,
+                    notes TEXT NOT NULL DEFAULT ''
+                )",
+                [],
+            )?;
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS lift_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lift_id INTEGER NOT NULL,
+                    date TEXT NOT NULL,
+                    sets INTEGER NOT NULL,
+                    reps INTEGER NOT NULL,
+                    weight TEXT NOT NULL,
+                    rpe REAL,
+                    notes TEXT NOT NULL DEFAULT '',
+                    FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                )",
+                [],
+            )?;
+            conn.pragma_update(None, "user_version", &DB_VERSION)?;
+        }
     } else if user_version < DB_VERSION {
         run_migrations(conn, user_version)?;
     }
@@ -93,67 +148,55 @@ fn init_db(conn: &Connection) -> DbResult<()> {
 }
 
 /// Apply migrations from a previous schema version to [`DB_VERSION`].
-fn run_migrations(conn: &Connection, from_version: i32) -> DbResult<()> {
-    match from_version {
-        1 => {
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN region TEXT NOT NULL DEFAULT 'UPPER'",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lift_records RENAME COLUMN weight TO weight_old",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lift_records ADD COLUMN weight TEXT NOT NULL DEFAULT '0'",
-                [],
-            )?;
-            conn.execute("UPDATE lift_records SET weight = weight_old", [])?;
-            conn.execute("ALTER TABLE lift_records DROP COLUMN weight_old", [])?;
-            conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
+fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
+    // Apply migrations sequentially so that every intermediate version is handled.
+    while from_version < DB_VERSION {
+        match from_version {
+            1 => {
+                // Version 1 stored weight as a numeric column and lacked lift metadata.
+                conn.execute(
+                    "ALTER TABLE lifts ADD COLUMN region TEXT NOT NULL DEFAULT 'UPPER'",
+                    [],
+                )?;
+                conn.execute(
+                    "ALTER TABLE lift_records RENAME COLUMN weight TO weight_old",
+                    [],
+                )?;
+                conn.execute(
+                    "ALTER TABLE lift_records ADD COLUMN weight TEXT NOT NULL DEFAULT '0'",
+                    [],
+                )?;
+                conn.execute("UPDATE lift_records SET weight = weight_old", [])?;
+                conn.execute("ALTER TABLE lift_records DROP COLUMN weight_old", [])?;
+            }
+            2 => {
+                // Add optional designation for a lift's main variant.
+                conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
+            }
+            3 => {
+                // Track muscles targeted by each lift.
+                conn.execute(
+                    "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
+                    [],
+                )?;
+            }
+            4 => {
+                // Free-form notes for lifts were introduced in version 5.
+                conn.execute(
+                    "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                    [],
+                )?;
+            }
+            5 => {
+                // Execution records also store notes starting with version 6.
+                conn.execute(
+                    "ALTER TABLE lift_records ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                    [],
+                )?;
+            }
+            _ => {}
         }
-        2 => {
-            conn.execute("ALTER TABLE lifts ADD COLUMN main_lift TEXT", [])?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        3 => {
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN muscles TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        4 => {
-            conn.execute(
-                "ALTER TABLE lifts ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        5 => {
-            conn.execute(
-                "ALTER TABLE lift_records ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        _ => {}
+        from_version += 1;
     }
     conn.pragma_update(None, "user_version", &DB_VERSION)?;
     Ok(())

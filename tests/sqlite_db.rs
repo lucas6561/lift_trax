@@ -12,6 +12,8 @@ use database::Database;
 use models::{LiftExecution, LiftRegion, LiftType, Muscle};
 use sqlite_db::SqliteDb;
 use weight::Weight;
+use rusqlite::Connection;
+
 
 #[test]
 fn add_and_list_lift_with_execution() {
@@ -92,4 +94,135 @@ fn lift_stats_provides_summary() {
     assert_eq!(last.weight.to_string(), "150 lb");
     assert_eq!(stats.best_by_reps.get(&5).unwrap().to_string(), "120 lb");
     assert_eq!(stats.best_by_reps.get(&3).unwrap().to_string(), "150 lb");
+}
+
+#[test]
+fn upgrades_legacy_database() {
+    let path = "test_legacy.db";
+    // remove any leftover file from previous runs
+    let _ = std::fs::remove_file(path);
+
+    // Simulate a v4 database lacking notes columns
+    {
+        let conn = Connection::open(path).unwrap();
+        conn.execute(
+            "CREATE TABLE lifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                region TEXT NOT NULL,
+                main_lift TEXT,
+                muscles TEXT NOT NULL DEFAULT ''
+            )",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "CREATE TABLE lift_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lift_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                sets INTEGER NOT NULL,
+                reps INTEGER NOT NULL,
+                weight TEXT NOT NULL,
+                rpe REAL,
+                FOREIGN KEY(lift_id) REFERENCES lifts(id)
+            )",
+            [],
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", &4).unwrap();
+    }
+
+    // Opening through SqliteDb should upgrade to the latest schema
+    let _db = SqliteDb::new(path).expect("db open");
+
+    let conn = Connection::open(path).unwrap();
+    let user_version: i32 = conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(user_version, 6);
+
+    let lift_cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(lifts)")
+        .unwrap()
+        .query_map([], |row| row.get(1))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(lift_cols.contains(&"notes".to_string()));
+
+    let record_cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(lift_records)")
+        .unwrap()
+        .query_map([], |row| row.get(1))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(record_cols.contains(&"notes".to_string()));
+
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn upgrades_unversioned_database() {
+    let path = "test_unversioned.db";
+    let _ = std::fs::remove_file(path);
+
+    {
+        let conn = Connection::open(path).unwrap();
+        conn.execute(
+            "CREATE TABLE lifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                region TEXT NOT NULL,
+                main_lift TEXT,
+                muscles TEXT NOT NULL DEFAULT ''
+            )",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "CREATE TABLE lift_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lift_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                sets INTEGER NOT NULL,
+                reps INTEGER NOT NULL,
+                weight TEXT NOT NULL,
+                rpe REAL,
+                FOREIGN KEY(lift_id) REFERENCES lifts(id)
+            )",
+            [],
+        )
+        .unwrap();
+        // leave user_version at default 0
+    }
+
+    let _db = SqliteDb::new(path).expect("db open");
+
+    let conn = Connection::open(path).unwrap();
+    let user_version: i32 = conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(user_version, 6);
+
+    let lift_cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(lifts)")
+        .unwrap()
+        .query_map([], |row| row.get(1))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(lift_cols.contains(&"notes".to_string()));
+
+    let record_cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(lift_records)")
+        .unwrap()
+        .query_map([], |row| row.get(1))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(record_cols.contains(&"notes".to_string()));
+
+    std::fs::remove_file(path).unwrap();
 }
