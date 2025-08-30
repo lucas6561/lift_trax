@@ -77,6 +77,11 @@ impl GuiApp {
                                     Some(LiftType::Accessory),
                                     "Accessory",
                                 );
+                                ui.selectable_value(
+                                    &mut self.edit_lift_main,
+                                    Some(LiftType::WarmUp),
+                                    "Warm Up",
+                                );
                             });
                     });
                     ui.horizontal(|ui| {
@@ -211,7 +216,8 @@ impl GuiApp {
                                     self.edit_sets = exec.sets.len().to_string();
                                     self.edit_reps = first.reps.to_string();
                                     self.edit_date = exec.date.to_string();
-                                    self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
+                                    self.edit_rpe =
+                                        first.rpe.map(|r| r.to_string()).unwrap_or_default();
                                     self.edit_notes = exec.notes.clone();
                                 }
                             }
@@ -493,7 +499,11 @@ impl GuiApp {
                     }
                 }
             };
-            let set = ExecutionSet { reps, weight: weight.clone(), rpe };
+            let set = ExecutionSet {
+                reps,
+                weight: weight.clone(),
+                rpe,
+            };
             let sets_vec = vec![set; sets as usize];
             let new_exec = LiftExecution {
                 id: exec.id,
