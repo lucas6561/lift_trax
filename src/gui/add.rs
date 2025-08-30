@@ -135,12 +135,12 @@ impl GuiApp {
                     MetricMode::Distance => "Feet:",
                 };
                 ui.horizontal(|ui| {
-                    ui.label(metric_label);
-                    ui.text_edit_singleline(&mut self.reps);
-                });
-                ui.horizontal(|ui| {
                     ui.label("Sets:");
                     ui.text_edit_singleline(&mut self.sets);
+                });
+                ui.horizontal(|ui| {
+                    ui.label(metric_label);
+                    ui.text_edit_singleline(&mut self.reps);
                 });
                 ui.horizontal(|ui| {
                     ui.label("RPE:");
