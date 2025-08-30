@@ -1,6 +1,6 @@
 use crate::weight::Weight;
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 
 /// Metric tracked for a particular set.
@@ -25,7 +25,7 @@ impl fmt::Display for SetMetric {
 }
 
 /// Details for a single set within a lift execution.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ExecutionSet {
     /// Measurement for this set (reps, time, or distance).
     pub metric: SetMetric,
@@ -33,6 +33,24 @@ pub struct ExecutionSet {
     pub weight: Weight,
     /// Optional rating of perceived exertion for this set.
     pub rpe: Option<f32>,
+}
+
+impl<'de> Deserialize<'de> for ExecutionSet {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            Current { metric: SetMetric, weight: Weight, rpe: Option<f32> },
+            Legacy { reps: i32, weight: Weight, rpe: Option<f32> },
+        }
+        match Repr::deserialize(deserializer)? {
+            Repr::Current { metric, weight, rpe } => Ok(Self { metric, weight, rpe }),
+            Repr::Legacy { reps, weight, rpe } => Ok(Self { metric: SetMetric::Reps(reps), weight, rpe }),
+        }
+    }
 }
 
 /// A single performance of a lift on a given day.

@@ -13,6 +13,7 @@ use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetri
 use sqlite_db::SqliteDb;
 use weight::Weight;
 use rusqlite::Connection;
+use serde::Serialize;
 
 
 #[test]
@@ -50,6 +51,45 @@ fn add_and_list_lift_with_execution() {
     assert_eq!(stored.sets.len(), 3);
     assert_eq!(stored.sets[0].weight.to_string(), "135 lb");
     assert_eq!(stored.notes, "solid");
+}
+
+#[test]
+fn reads_legacy_execution_sets() {
+    let path = "test_old_sets.db";
+    let _ = std::fs::remove_file(path);
+    let db = SqliteDb::new(path).expect("db open");
+    db.add_lift("Row", LiftRegion::UPPER, None, &[], "").unwrap();
+
+    #[derive(Serialize)]
+    struct LegacySet {
+        reps: i32,
+        weight: Weight,
+        rpe: Option<f32>,
+    }
+
+    let conn = Connection::open(path).unwrap();
+    let lift_id: i32 = conn
+        .query_row("SELECT id FROM lifts WHERE name = 'Row'", [], |row| row.get(0))
+        .unwrap();
+    let legacy_sets = vec![LegacySet { reps: 10, weight: Weight::Raw(50.0), rpe: None }];
+    let sets_json = serde_json::to_string(&legacy_sets).unwrap();
+    conn.execute(
+        "INSERT INTO lift_records (lift_id, date, sets, notes) VALUES (?1, '2024-01-01', ?2, '')",
+        rusqlite::params![lift_id, sets_json],
+    )
+    .unwrap();
+    drop(conn);
+
+    let lift = db.list_lifts(Some("Row")).unwrap().pop().unwrap();
+    assert_eq!(lift.executions.len(), 1);
+    let set = &lift.executions[0].sets[0];
+    match set.metric {
+        SetMetric::Reps(r) => assert_eq!(r, 10),
+        _ => panic!("expected reps"),
+    }
+    assert_eq!(set.weight.to_string(), "50 lb");
+
+    std::fs::remove_file(path).unwrap();
 }
 
 #[test]
