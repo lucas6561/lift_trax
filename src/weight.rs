@@ -58,6 +58,8 @@ const POUNDS_PER_KILOGRAM: f64 = 2.20462;
 /// bands.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Weight {
+    /// No weight was used.
+    None,
     /// Raw numeric weight. The value represents pounds regardless of the unit
     /// originally entered by the user.
     Raw(f64),
@@ -70,6 +72,7 @@ pub enum Weight {
 impl fmt::Display for Weight {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Weight::None => write!(f, "none"),
             Weight::Raw(p) => write!(f, "{} lb", p),
             Weight::RawLr { left, right } => write!(f, "{}|{} lb", left, right),
             Weight::Bands(bands) => {
@@ -159,6 +162,9 @@ impl FromStr for Weight {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let trimmed = s.trim().to_lowercase();
+        if trimmed.is_empty() || trimmed == "none" {
+            return Ok(Weight::None);
+        }
         if trimmed.contains('|') {
             return Weight::parse_lr(&trimmed);
         }
@@ -189,6 +195,7 @@ impl Weight {
     /// Return the weight in pounds for comparison.
     pub fn to_lbs(&self) -> f64 {
         match self {
+            Weight::None => 0.0,
             Weight::Raw(p) => *p,
             Weight::RawLr { left, right } => left + right,
             Weight::Bands(_) => 0.0,

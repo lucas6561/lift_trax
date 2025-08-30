@@ -34,6 +34,7 @@ impl GuiApp {
             ui.selectable_value(&mut self.weight_mode, WeightMode::Weight, "Weight");
             ui.selectable_value(&mut self.weight_mode, WeightMode::WeightLr, "L/R Weight");
             ui.selectable_value(&mut self.weight_mode, WeightMode::Bands, "Bands");
+            ui.selectable_value(&mut self.weight_mode, WeightMode::None, "None");
         });
         match self.weight_mode {
             WeightMode::Weight => {
@@ -115,6 +116,7 @@ impl GuiApp {
                     }
                 });
             }
+            WeightMode::None => {}
         }
         ui.horizontal(|ui| {
             ui.label("Metric:");
@@ -352,6 +354,7 @@ impl GuiApp {
                 }
                 Weight::Bands(self.band_value.clone())
             }
+            WeightMode::None => Weight::None,
         };
         let metric_val: i32 = match self.reps.parse() {
             Ok(r) => r,
@@ -428,6 +431,7 @@ impl GuiApp {
                         }
                         Weight::Bands(self.band_value.clone())
                     }
+                    WeightMode::None => Weight::None,
                 };
                 let metric_val: i32 = match self.reps.parse() {
                     Ok(r) => r,

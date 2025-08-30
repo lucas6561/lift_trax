@@ -81,6 +81,7 @@ enum WeightMode {
     Weight,
     WeightLr,
     Bands,
+    None,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
