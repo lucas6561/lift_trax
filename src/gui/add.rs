@@ -5,7 +5,7 @@ use eframe::egui;
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
-use super::{GuiApp, WeightMode};
+use super::{GuiApp, SetMode, WeightMode};
 
 impl GuiApp {
     pub(super) fn tab_add(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
@@ -116,20 +116,59 @@ impl GuiApp {
             }
         }
         ui.horizontal(|ui| {
-            ui.label("Reps:");
-            ui.text_edit_singleline(&mut self.reps);
+            ui.label("Set Input:");
+            ui.selectable_value(&mut self.set_mode, SetMode::Simple, "Sets x Reps");
+            ui.selectable_value(&mut self.set_mode, SetMode::Detailed, "Individual Sets");
         });
-        ui.horizontal(|ui| {
-            ui.label("Sets:");
-            ui.text_edit_singleline(&mut self.sets);
-        });
+        match self.set_mode {
+            SetMode::Simple => {
+                ui.horizontal(|ui| {
+                    ui.label("Reps:");
+                    ui.text_edit_singleline(&mut self.reps);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sets:");
+                    ui.text_edit_singleline(&mut self.sets);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("RPE:");
+                    ui.text_edit_singleline(&mut self.rpe);
+                });
+            }
+            SetMode::Detailed => {
+                ui.horizontal(|ui| {
+                    ui.label("Reps:");
+                    ui.text_edit_singleline(&mut self.reps);
+                    ui.label("RPE:");
+                    ui.text_edit_singleline(&mut self.rpe);
+                    if ui.button("Add Set").clicked() {
+                        self.add_detail_set();
+                    }
+                });
+                let mut remove_idx: Option<usize> = None;
+                for (i, set) in self.detailed_sets.iter().enumerate() {
+                    let rpe = set.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                    ui.horizontal(|ui| {
+                        ui.label(format!(
+                            "Set {}: {} reps @ {}{}",
+                            i + 1,
+                            set.reps,
+                            set.weight,
+                            rpe
+                        ));
+                        if ui.small_button("x").clicked() {
+                            remove_idx = Some(i);
+                        }
+                    });
+                }
+                if let Some(i) = remove_idx {
+                    self.detailed_sets.remove(i);
+                }
+            }
+        }
         ui.horizontal(|ui| {
             ui.label("Date (YYYY-MM-DD):");
             ui.text_edit_singleline(&mut self.date);
-        });
-        ui.horizontal(|ui| {
-            ui.label("RPE:");
-            ui.text_edit_singleline(&mut self.rpe);
         });
         ui.horizontal(|ui| {
             ui.label("Notes:");
@@ -255,7 +294,7 @@ impl GuiApp {
         }
     }
 
-    fn add_execution(&mut self) {
+    fn add_detail_set(&mut self) {
         let weight = match self.weight_mode {
             WeightMode::Weight => {
                 let val: f64 = match self.weight_value.parse() {
@@ -299,11 +338,104 @@ impl GuiApp {
                 return;
             }
         };
-        let sets: i32 = match self.sets.parse() {
-            Ok(s) => s,
-            Err(_) => {
-                self.error = Some("Invalid sets".into());
-                return;
+        let rpe = if self.rpe.trim().is_empty() {
+            None
+        } else {
+            match self.rpe.parse::<f32>() {
+                Ok(r) => Some(r),
+                Err(_) => {
+                    self.error = Some("Invalid RPE".into());
+                    return;
+                }
+            }
+        };
+        self.detailed_sets.push(ExecutionSet { reps, weight, rpe });
+        self.weight_value.clear();
+        self.weight_left_value.clear();
+        self.weight_right_value.clear();
+        self.band_value.clear();
+        self.band_select = None;
+        self.reps.clear();
+        self.rpe.clear();
+    }
+
+    fn add_execution(&mut self) {
+        let sets_vec = match self.set_mode {
+            SetMode::Simple => {
+                let weight = match self.weight_mode {
+                    WeightMode::Weight => {
+                        let val: f64 = match self.weight_value.parse() {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid weight".into());
+                                return;
+                            }
+                        };
+                        Weight::from_unit(val, self.weight_unit)
+                    }
+                    WeightMode::WeightLr => {
+                        let left: f64 = match self.weight_left_value.parse() {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid weight".into());
+                                return;
+                            }
+                        };
+                        let right: f64 = match self.weight_right_value.parse() {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid weight".into());
+                                return;
+                            }
+                        };
+                        Weight::from_unit_lr(left, right, self.weight_unit)
+                    }
+                    WeightMode::Bands => {
+                        if self.band_value.is_empty() {
+                            self.error = Some("No bands selected".into());
+                            return;
+                        }
+                        Weight::Bands(self.band_value.clone())
+                    }
+                };
+                let reps: i32 = match self.reps.parse() {
+                    Ok(r) => r,
+                    Err(_) => {
+                        self.error = Some("Invalid reps".into());
+                        return;
+                    }
+                };
+                let sets: i32 = match self.sets.parse() {
+                    Ok(s) => s,
+                    Err(_) => {
+                        self.error = Some("Invalid sets".into());
+                        return;
+                    }
+                };
+                let rpe = if self.rpe.trim().is_empty() {
+                    None
+                } else {
+                    match self.rpe.parse::<f32>() {
+                        Ok(r) => Some(r),
+                        Err(_) => {
+                            self.error = Some("Invalid RPE".into());
+                            return;
+                        }
+                    }
+                };
+                let set = ExecutionSet {
+                    reps,
+                    weight: weight.clone(),
+                    rpe,
+                };
+                vec![set; sets as usize]
+            }
+            SetMode::Detailed => {
+                if self.detailed_sets.is_empty() {
+                    self.error = Some("No sets entered".into());
+                    return;
+                }
+                self.detailed_sets.clone()
             }
         };
         let date = if self.date.trim().is_empty() {
@@ -317,19 +449,6 @@ impl GuiApp {
                 }
             }
         };
-        let rpe = if self.rpe.trim().is_empty() {
-            None
-        } else {
-            match self.rpe.parse::<f32>() {
-                Ok(r) => Some(r),
-                Err(_) => {
-                    self.error = Some("Invalid RPE".into());
-                    return;
-                }
-            }
-        };
-        let set = ExecutionSet { reps, weight: weight.clone(), rpe };
-        let sets_vec = vec![set; sets as usize];
         let exec = LiftExecution {
             id: None,
             date,
@@ -351,6 +470,7 @@ impl GuiApp {
                 self.date.clear();
                 self.rpe.clear();
                 self.notes.clear();
+                self.detailed_sets.clear();
                 self.error = None;
                 self.refresh_lifts();
             }
