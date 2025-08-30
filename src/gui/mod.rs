@@ -28,6 +28,8 @@ struct GuiApp {
     db: Box<dyn Database>,
     current_tab: Tab,
     weight_value: String,
+    weight_left_value: String,
+    weight_right_value: String,
     band_value: String,
     weight_unit: WeightUnit,
     weight_mode: WeightMode,
@@ -53,6 +55,8 @@ struct GuiApp {
     edit_lift_notes: String,
     editing_exec: Option<(usize, usize)>,
     edit_weight_value: String,
+    edit_weight_left_value: String,
+    edit_weight_right_value: String,
     edit_band_value: String,
     edit_weight_unit: WeightUnit,
     edit_weight_mode: WeightMode,
@@ -68,6 +72,7 @@ struct GuiApp {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum WeightMode {
     Weight,
+    WeightLr,
     Bands,
 }
 
@@ -77,6 +82,8 @@ impl GuiApp {
             db,
             current_tab: Tab::Add,
             weight_value: String::new(),
+            weight_left_value: String::new(),
+            weight_right_value: String::new(),
             band_value: String::new(),
             weight_unit: WeightUnit::Pounds,
             weight_mode: WeightMode::Weight,
@@ -102,6 +109,8 @@ impl GuiApp {
             edit_lift_notes: String::new(),
             editing_exec: None,
             edit_weight_value: String::new(),
+            edit_weight_left_value: String::new(),
+            edit_weight_right_value: String::new(),
             edit_band_value: String::new(),
             edit_weight_unit: WeightUnit::Pounds,
             edit_weight_mode: WeightMode::Weight,
