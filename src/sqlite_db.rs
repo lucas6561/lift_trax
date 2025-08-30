@@ -56,10 +56,57 @@ impl SqliteDb {
     }
 }
 
+fn table_exists(conn: &Connection, table: &str) -> DbResult<bool> {
+    let exists: Option<String> = conn
+        .query_row(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?1",
+            params![table],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(exists.is_some())
+}
+
+fn has_column(conn: &Connection, table: &str, column: &str) -> DbResult<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn detect_version(conn: &Connection) -> DbResult<i32> {
+    if !table_exists(conn, "lifts")? {
+        return Ok(0);
+    }
+    let mut v = 1;
+    if has_column(conn, "lifts", "region")? {
+        v = 2;
+    }
+    if has_column(conn, "lifts", "main_lift")? {
+        v = 3;
+    }
+    if has_column(conn, "lifts", "muscles")? {
+        v = 4;
+    }
+    if has_column(conn, "lifts", "notes")? {
+        v = 5;
+    }
+    if has_column(conn, "lift_records", "notes")? {
+        v = 6;
+    }
+    Ok(v)
+}
+
 /// Initialize the database schema and ensure it matches the expected version.
 fn init_db(conn: &Connection) -> DbResult<()> {
-    let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if user_version == 0 {
+    let detected_version = detect_version(conn)?;
+    if detected_version == 0 {
+        // Fresh database with no tables yet.
         conn.execute(
             "CREATE TABLE IF NOT EXISTS lifts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,8 +133,16 @@ fn init_db(conn: &Connection) -> DbResult<()> {
             [],
         )?;
         conn.pragma_update(None, "user_version", &DB_VERSION)?;
-    } else if user_version < DB_VERSION {
-        run_migrations(conn, user_version)?;
+    } else if detected_version < DB_VERSION {
+        // Upgrade legacy schemas stepwise.
+        run_migrations(conn, detected_version)?;
+    } else {
+        // Schema matches the latest version but user_version might be incorrect.
+        let user_version: i32 =
+            conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if user_version != DB_VERSION {
+            conn.pragma_update(None, "user_version", &DB_VERSION)?;
+        }
     }
     Ok(())
 }
