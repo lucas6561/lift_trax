@@ -9,7 +9,7 @@ mod weight;
 
 use chrono::NaiveDate;
 use database::Database;
-use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
+use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
 use weight::Weight;
 use rusqlite::Connection;
@@ -36,7 +36,7 @@ fn add_and_list_lift_with_execution() {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
         sets: vec![ExecutionSet {
-            reps: 5,
+            metric: SetMetric::Reps(5),
             weight: Weight::Raw(135.0),
             rpe: Some(9.0),
         }; 3],
@@ -62,7 +62,7 @@ fn lift_stats_provides_summary() {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         sets: vec![ExecutionSet {
-            reps: 5,
+            metric: SetMetric::Reps(5),
             weight: Weight::Raw(100.0),
             rpe: None,
         }; 3],
@@ -72,7 +72,7 @@ fn lift_stats_provides_summary() {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
         sets: vec![ExecutionSet {
-            reps: 5,
+            metric: SetMetric::Reps(5),
             weight: Weight::Raw(120.0),
             rpe: None,
         }; 3],
@@ -82,7 +82,7 @@ fn lift_stats_provides_summary() {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
         sets: vec![ExecutionSet {
-            reps: 3,
+            metric: SetMetric::Reps(3),
             weight: Weight::Raw(150.0),
             rpe: Some(9.0),
         }; 2],
@@ -94,7 +94,10 @@ fn lift_stats_provides_summary() {
 
     let stats = db.lift_stats("Squat").unwrap();
     let last = stats.last.unwrap();
-    assert_eq!(last.sets[0].reps, 3);
+    match last.sets[0].metric {
+        SetMetric::Reps(r) => assert_eq!(r, 3),
+        _ => panic!("expected reps"),
+    }
     assert_eq!(last.sets[0].weight.to_string(), "150 lb");
     assert_eq!(stats.best_by_reps.get(&5).unwrap().to_string(), "120 lb");
     assert_eq!(stats.best_by_reps.get(&3).unwrap().to_string(), "150 lb");

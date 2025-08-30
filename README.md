@@ -29,7 +29,8 @@ cargo run -- add <EXERCISE> <WEIGHT> <REPS> <SETS> [--date YYYY-MM-DD] [--rpe RP
 
 * `<EXERCISE>` – name of the movement (e.g. `Bench`)
 * `<WEIGHT>` – weight lifted in pounds
-* `<REPS>` – number of repetitions per set
+* `<REPS>` – number of repetitions per set. For exercises measured by time or
+  distance, provide the seconds or feet in place of a rep count
 * `<SETS>` – number of sets performed
 * `--date` – optional date, defaults to today's date
 * `--rpe` – optional rating of perceived exertion

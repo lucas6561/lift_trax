@@ -8,7 +8,7 @@ use std::str::FromStr;
 use crate::weight::Weight;
 use crate::{
     database::{Database, DbResult},
-    models::{ExecutionSet, Lift, LiftExecution, LiftRegion, LiftStats, LiftType, Muscle},
+    models::{ExecutionSet, Lift, LiftExecution, LiftRegion, LiftStats, LiftType, Muscle, SetMetric},
 };
 
 /// Current database schema version.
@@ -220,7 +220,7 @@ fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
                     let rpe: Option<f32> = row.get(6)?;
                     let notes: String = row.get(7)?;
                     let weight = Weight::from_str(&weight_str).unwrap_or(Weight::Raw(0.0));
-                    let set = ExecutionSet { reps, weight: weight.clone(), rpe };
+                    let set = ExecutionSet { metric: SetMetric::Reps(reps), weight: weight.clone(), rpe };
                     let sets = vec![set; set_count as usize];
                     let sets_json = serde_json::to_string(&sets)?;
                     conn.execute(
@@ -365,9 +365,11 @@ impl Database for SqliteDb {
             let sets_json = row?;
             let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
             for set in sets {
-                let entry = best.entry(set.reps).or_insert(set.weight.clone());
-                if set.weight.to_lbs() > entry.to_lbs() {
-                    *entry = set.weight;
+                if let SetMetric::Reps(r) = set.metric {
+                    let entry = best.entry(r).or_insert(set.weight.clone());
+                    if set.weight.to_lbs() > entry.to_lbs() {
+                        *entry = set.weight;
+                    }
                 }
             }
         }

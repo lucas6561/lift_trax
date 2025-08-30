@@ -2,7 +2,7 @@ use clap::ValueEnum;
 use eframe::egui;
 use egui_extras::DatePickerButton;
 
-use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
+use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
 use super::{GuiApp, WeightMode};
@@ -171,7 +171,7 @@ impl GuiApp {
                             .iter()
                             .map(|s| {
                                 let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                                format!("{} reps @ {}{}", s.reps, s.weight, rpe)
+                                format!("{} @ {}{}", s.metric, s.weight, rpe)
                             })
                             .collect::<Vec<_>>()
                             .join(", ");
@@ -209,7 +209,11 @@ impl GuiApp {
                                         }
                                     }
                                     self.edit_sets = exec.sets.len().to_string();
-                                    self.edit_reps = first.reps.to_string();
+                                    if let SetMetric::Reps(r) = first.metric {
+                                        self.edit_reps = r.to_string();
+                                    } else {
+                                        self.edit_reps.clear();
+                                    }
                                     self.edit_date = exec.date;
                                     self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
                                     self.edit_notes = exec.notes.clone();
@@ -483,7 +487,7 @@ impl GuiApp {
                     }
                 }
             };
-            let set = ExecutionSet { reps, weight: weight.clone(), rpe };
+            let set = ExecutionSet { metric: SetMetric::Reps(reps), weight: weight.clone(), rpe };
             let sets_vec = vec![set; sets as usize];
             let new_exec = LiftExecution {
                 id: exec.id,

@@ -3,7 +3,7 @@ use egui_extras::DatePickerButton;
 use clap::ValueEnum;
 use eframe::egui;
 
-use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
+use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
 use super::{GuiApp, SetMode, WeightMode};
@@ -150,10 +150,10 @@ impl GuiApp {
                 for (i, set) in self.detailed_sets.iter().enumerate() {
                     let rpe = set.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
                     ui.horizontal(|ui| {
-                        ui.label(format!(
-                            "Set {}: {} reps @ {}{}",
+                    ui.label(format!(
+                            "Set {}: {} @ {}{}",
                             i + 1,
-                            set.reps,
+                            set.metric,
                             set.weight,
                             rpe
                         ));
@@ -350,7 +350,7 @@ impl GuiApp {
                 }
             }
         };
-        self.detailed_sets.push(ExecutionSet { reps, weight, rpe });
+        self.detailed_sets.push(ExecutionSet { metric: SetMetric::Reps(reps), weight, rpe });
         self.weight_value.clear();
         self.weight_left_value.clear();
         self.weight_right_value.clear();
@@ -425,7 +425,7 @@ impl GuiApp {
                     }
                 };
                 let set = ExecutionSet {
-                    reps,
+                    metric: SetMetric::Reps(reps),
                     weight: weight.clone(),
                     rpe,
                 };

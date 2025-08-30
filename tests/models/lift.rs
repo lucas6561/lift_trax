@@ -12,7 +12,7 @@ mod muscle;
 use crate::weight::Weight;
 use chrono::NaiveDate;
 use lift::Lift;
-use lift_execution::{ExecutionSet, LiftExecution};
+use lift_execution::{ExecutionSet, LiftExecution, SetMetric};
 use lift_region::LiftRegion;
 use lift_type::LiftType;
 use muscle::Muscle;
@@ -23,7 +23,7 @@ fn create_lift_with_execution() {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         sets: vec![ExecutionSet {
-            reps: 3,
+            metric: SetMetric::Reps(3),
             weight: Weight::Raw(200.0),
             rpe: None,
         }; 5],
@@ -39,5 +39,8 @@ fn create_lift_with_execution() {
     };
     assert_eq!(lift.name, "Squat");
     assert_eq!(lift.executions.len(), 1);
-    assert_eq!(lift.executions[0].sets[0].reps, 3);
+    match lift.executions[0].sets[0].metric {
+        SetMetric::Reps(r) => assert_eq!(r, 3),
+        _ => panic!("expected reps"),
+    }
 }
