@@ -177,10 +177,14 @@ impl eframe::App for GuiApp {
                 ui.selectable_value(&mut self.current_tab, Tab::List, "Executions");
             });
         });
-        egui::CentralPanel::default().show(ctx, |ui| match self.current_tab {
-            Tab::Add => self.tab_add(ui, ctx),
-            Tab::Query => self.tab_query(ui),
-            Tab::List => self.tab_list(ui),
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                match self.current_tab {
+                    Tab::Add => self.tab_add(ui, ctx),
+                    Tab::Query => self.tab_query(ui),
+                    Tab::List => self.tab_list(ui),
+                }
+            });
         });
     }
 }
