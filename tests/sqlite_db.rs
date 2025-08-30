@@ -9,7 +9,7 @@ mod weight;
 
 use chrono::NaiveDate;
 use database::Database;
-use models::{LiftExecution, LiftRegion, LiftType, Muscle};
+use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
 use sqlite_db::SqliteDb;
 use weight::Weight;
 use rusqlite::Connection;
@@ -35,10 +35,11 @@ fn add_and_list_lift_with_execution() {
     let exec = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
-        sets: 3,
-        reps: 5,
-        weight: Weight::Raw(135.0),
-        rpe: Some(9.0),
+        sets: vec![ExecutionSet {
+            reps: 5,
+            weight: Weight::Raw(135.0),
+            rpe: Some(9.0),
+        }; 3],
         notes: "solid".into(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -46,8 +47,8 @@ fn add_and_list_lift_with_execution() {
     let bench = db.list_lifts(Some("Bench")).unwrap().pop().unwrap();
     assert_eq!(bench.executions.len(), 1);
     let stored = &bench.executions[0];
-    assert_eq!(stored.sets, 3);
-    assert_eq!(stored.weight.to_string(), "135 lb");
+    assert_eq!(stored.sets.len(), 3);
+    assert_eq!(stored.sets[0].weight.to_string(), "135 lb");
     assert_eq!(stored.notes, "solid");
 }
 
@@ -60,28 +61,31 @@ fn lift_stats_provides_summary() {
     let exec1 = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-        sets: 3,
-        reps: 5,
-        weight: Weight::Raw(100.0),
-        rpe: None,
+        sets: vec![ExecutionSet {
+            reps: 5,
+            weight: Weight::Raw(100.0),
+            rpe: None,
+        }; 3],
         notes: String::new(),
     };
     let exec2 = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
-        sets: 3,
-        reps: 5,
-        weight: Weight::Raw(120.0),
-        rpe: None,
+        sets: vec![ExecutionSet {
+            reps: 5,
+            weight: Weight::Raw(120.0),
+            rpe: None,
+        }; 3],
         notes: String::new(),
     };
     let exec3 = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
-        sets: 2,
-        reps: 3,
-        weight: Weight::Raw(150.0),
-        rpe: Some(9.0),
+        sets: vec![ExecutionSet {
+            reps: 3,
+            weight: Weight::Raw(150.0),
+            rpe: Some(9.0),
+        }; 2],
         notes: String::new(),
     };
     db.add_lift_execution("Squat", &exec1).unwrap();
@@ -90,8 +94,8 @@ fn lift_stats_provides_summary() {
 
     let stats = db.lift_stats("Squat").unwrap();
     let last = stats.last.unwrap();
-    assert_eq!(last.reps, 3);
-    assert_eq!(last.weight.to_string(), "150 lb");
+    assert_eq!(last.sets[0].reps, 3);
+    assert_eq!(last.sets[0].weight.to_string(), "150 lb");
     assert_eq!(stats.best_by_reps.get(&5).unwrap().to_string(), "120 lb");
     assert_eq!(stats.best_by_reps.get(&3).unwrap().to_string(), "150 lb");
 }
@@ -140,7 +144,7 @@ fn upgrades_legacy_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 6);
+    assert_eq!(user_version, 7);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -204,7 +208,7 @@ fn upgrades_unversioned_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 6);
+    assert_eq!(user_version, 7);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -280,7 +284,7 @@ fn repairs_misreported_version() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 6);
+    assert_eq!(user_version, 7);
 
     std::fs::remove_file(path).unwrap();
 }

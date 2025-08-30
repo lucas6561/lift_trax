@@ -3,7 +3,7 @@ use eframe::{Frame, NativeOptions, egui};
 use crate::weight::{BandColor, WeightUnit};
 use crate::{
     database::Database,
-    models::{Lift, LiftRegion, LiftType, Muscle},
+    models::{ExecutionSet, Lift, LiftRegion, LiftType, Muscle},
 };
 
 mod add;
@@ -34,11 +34,13 @@ struct GuiApp {
     band_select: Option<BandColor>,
     weight_unit: WeightUnit,
     weight_mode: WeightMode,
+    set_mode: SetMode,
     reps: String,
     sets: String,
     date: String,
     rpe: String,
     notes: String,
+    detailed_sets: Vec<ExecutionSet>,
     selected_lift: Option<usize>,
     show_new_lift: bool,
     new_lift_name: String,
@@ -78,6 +80,12 @@ enum WeightMode {
     Bands,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SetMode {
+    Simple,
+    Detailed,
+}
+
 impl GuiApp {
     fn new(db: Box<dyn Database>) -> Self {
         let mut app = Self {
@@ -90,11 +98,13 @@ impl GuiApp {
             band_select: None,
             weight_unit: WeightUnit::Pounds,
             weight_mode: WeightMode::Weight,
+            set_mode: SetMode::Simple,
             reps: String::new(),
             sets: String::new(),
             date: String::new(),
             rpe: String::new(),
             notes: String::new(),
+            detailed_sets: Vec::new(),
             selected_lift: None,
             show_new_lift: false,
             new_lift_name: String::new(),

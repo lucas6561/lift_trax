@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use clap::ValueEnum;
 use eframe::egui;
 
-use crate::models::{LiftExecution, LiftRegion, LiftType, Muscle};
+use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
 use super::{GuiApp, WeightMode};
@@ -161,52 +161,59 @@ impl GuiApp {
                     ui.label("no records");
                 } else {
                     for (j, exec) in executions.iter().enumerate() {
-                        let rpe = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
                         let notes = if exec.notes.is_empty() {
                             String::new()
                         } else {
                             format!(" - {}", exec.notes)
                         };
+                        let set_desc = exec
+                            .sets
+                            .iter()
+                            .map(|s| {
+                                let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                                format!("{} reps @ {}{}", s.reps, s.weight, rpe)
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
                         ui.horizontal(|ui| {
-                            ui.label(format!(
-                                "{}: {} sets x {} reps @ {} {}{}",
-                                exec.date, exec.sets, exec.reps, exec.weight, rpe, notes
-                            ));
+                            ui.label(format!("{}: {}{}", exec.date, set_desc, notes));
                             if ui.button("Edit").clicked() {
                                 self.editing_exec = Some((i, j));
-                                match &exec.weight {
-                                    Weight::Raw(p) => {
-                                        self.edit_weight_mode = WeightMode::Weight;
-                                        self.edit_weight_unit = WeightUnit::Pounds;
-                                        self.edit_weight_value = format!("{}", p);
-                                        self.edit_weight_left_value.clear();
-                                        self.edit_weight_right_value.clear();
-                                        self.edit_band_value.clear();
-                                        self.edit_band_select = None;
+                                if let Some(first) = exec.sets.first() {
+                                    match &first.weight {
+                                        Weight::Raw(p) => {
+                                            self.edit_weight_mode = WeightMode::Weight;
+                                            self.edit_weight_unit = WeightUnit::Pounds;
+                                            self.edit_weight_value = format!("{}", p);
+                                            self.edit_weight_left_value.clear();
+                                            self.edit_weight_right_value.clear();
+                                            self.edit_band_value.clear();
+                                            self.edit_band_select = None;
+                                        }
+                                        Weight::RawLr { left, right } => {
+                                            self.edit_weight_mode = WeightMode::WeightLr;
+                                            self.edit_weight_unit = WeightUnit::Pounds;
+                                            self.edit_weight_left_value = format!("{}", left);
+                                            self.edit_weight_right_value = format!("{}", right);
+                                            self.edit_weight_value.clear();
+                                            self.edit_band_value.clear();
+                                            self.edit_band_select = None;
+                                        }
+                                        Weight::Bands(bands) => {
+                                            self.edit_weight_mode = WeightMode::Bands;
+                                            self.edit_band_value = bands.clone();
+                                            self.edit_band_select = None;
+                                            self.edit_weight_value.clear();
+                                            self.edit_weight_left_value.clear();
+                                            self.edit_weight_right_value.clear();
+                                        }
                                     }
-                                    Weight::RawLr { left, right } => {
-                                        self.edit_weight_mode = WeightMode::WeightLr;
-                                        self.edit_weight_unit = WeightUnit::Pounds;
-                                        self.edit_weight_left_value = format!("{}", left);
-                                        self.edit_weight_right_value = format!("{}", right);
-                                        self.edit_weight_value.clear();
-                                        self.edit_band_value.clear();
-                                        self.edit_band_select = None;
-                                    }
-                                    Weight::Bands(bands) => {
-                                        self.edit_weight_mode = WeightMode::Bands;
-                                        self.edit_band_value = bands.clone();
-                                        self.edit_band_select = None;
-                                        self.edit_weight_value.clear();
-                                        self.edit_weight_left_value.clear();
-                                        self.edit_weight_right_value.clear();
-                                    }
+                                    self.edit_sets = exec.sets.len().to_string();
+                                    self.edit_reps = first.reps.to_string();
+                                    self.edit_date = exec.date.to_string();
+                                    self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
+                                    self.edit_notes = exec.notes.clone();
                                 }
-                                self.edit_sets = exec.sets.to_string();
-                                self.edit_reps = exec.reps.to_string();
-                                self.edit_date = exec.date.to_string();
-                                self.edit_rpe = exec.rpe.map(|r| r.to_string()).unwrap_or_default();
-                                self.edit_notes = exec.notes.clone();
                             }
                         });
                         if self.editing_exec == Some((i, j)) {
@@ -486,13 +493,12 @@ impl GuiApp {
                     }
                 }
             };
+            let set = ExecutionSet { reps, weight: weight.clone(), rpe };
+            let sets_vec = vec![set; sets as usize];
             let new_exec = LiftExecution {
                 id: exec.id,
                 date,
-                sets,
-                reps,
-                weight,
-                rpe,
+                sets: sets_vec,
                 notes: self.edit_notes.clone(),
             };
             if let Some(id) = exec.id {

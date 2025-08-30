@@ -1,8 +1,10 @@
 use std::fmt;
 use std::str::FromStr;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::Error as DeError;
 
 /// Colors available for resistance bands.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BandColor {
     Orange,
     Red,
@@ -144,6 +146,36 @@ impl FromStr for Weight {
             .map(|b| b.trim().parse())
             .collect();
         bands.map(Weight::Bands)
+    }
+}
+
+impl Serialize for Weight {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Weight {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Weight::from_str(&s).map_err(DeError::custom)
+    }
+}
+
+impl Weight {
+    /// Return the weight in pounds for comparison.
+    pub fn to_lbs(&self) -> f64 {
+        match self {
+            Weight::Raw(p) => *p,
+            Weight::RawLr { left, right } => left + right,
+            Weight::Bands(_) => 0.0,
+        }
     }
 }
 

@@ -11,7 +11,7 @@ mod weight;
 
 use crate::weight::Weight;
 use database::Database;
-use models::{LiftExecution, LiftRegion, Muscle};
+use models::{ExecutionSet, LiftExecution, LiftRegion, Muscle};
 use sqlite_db::SqliteDb;
 
 #[derive(Parser)]
@@ -75,13 +75,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None => Utc::now().date_naive(),
             };
             let real_weight: Weight = weight.parse().map_err(|_| "Invalid weight supplied")?;
+            let set = ExecutionSet {
+                reps,
+                weight: real_weight.clone(),
+                rpe,
+            };
+            let sets_vec = vec![set; sets as usize];
             let exec = LiftExecution {
                 id: None,
                 date,
-                sets,
-                reps,
-                weight: real_weight,
-                rpe,
+                sets: sets_vec,
                 notes: notes.unwrap_or_default(),
             };
             // Ensure the lift exists with a default region and no main designation.
@@ -118,16 +121,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("  - no records");
                 } else {
                     for exec in l.executions {
-                        let rpe_str = exec.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                        let set_desc = exec
+                            .sets
+                            .iter()
+                            .map(|s| {
+                                let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                                format!("{} reps @ {}{}", s.reps, s.weight, rpe)
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
                         let notes_str = if exec.notes.is_empty() {
                             String::new()
                         } else {
                             format!(" - {}", exec.notes)
                         };
-                        println!(
-                            "  - {}: {} sets x {} reps @ {}{}{}",
-                            exec.date, exec.sets, exec.reps, exec.weight, rpe_str, notes_str
-                        );
+                        println!("  - {}: {}{}", exec.date, set_desc, notes_str);
                     }
                 }
             }

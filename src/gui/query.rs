@@ -25,11 +25,16 @@ impl GuiApp {
             match self.db.lift_stats(&lift.name) {
                 Ok(stats) => {
                     if let Some(last) = stats.last {
-                        let rpe = last.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                        ui.label(format!(
-                            "Last: {} sets x {} reps @ {}{} on {}",
-                            last.sets, last.reps, last.weight, rpe, last.date
-                        ));
+                        let set_desc = last
+                            .sets
+                            .iter()
+                            .map(|s| {
+                                let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                                format!("{} reps @ {}{}", s.reps, s.weight, rpe)
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        ui.label(format!("Last: {} on {}", set_desc, last.date));
                     } else {
                         ui.label("no records");
                     }
