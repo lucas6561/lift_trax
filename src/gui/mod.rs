@@ -1,6 +1,6 @@
 use eframe::{Frame, NativeOptions, egui};
 
-use crate::weight::WeightUnit;
+use crate::weight::{BandColor, WeightUnit};
 use crate::{
     database::Database,
     models::{Lift, LiftRegion, LiftType, Muscle},
@@ -30,7 +30,8 @@ struct GuiApp {
     weight_value: String,
     weight_left_value: String,
     weight_right_value: String,
-    band_value: String,
+    band_value: Vec<BandColor>,
+    band_select: Option<BandColor>,
     weight_unit: WeightUnit,
     weight_mode: WeightMode,
     reps: String,
@@ -57,7 +58,8 @@ struct GuiApp {
     edit_weight_value: String,
     edit_weight_left_value: String,
     edit_weight_right_value: String,
-    edit_band_value: String,
+    edit_band_value: Vec<BandColor>,
+    edit_band_select: Option<BandColor>,
     edit_weight_unit: WeightUnit,
     edit_weight_mode: WeightMode,
     edit_reps: String,
@@ -84,7 +86,8 @@ impl GuiApp {
             weight_value: String::new(),
             weight_left_value: String::new(),
             weight_right_value: String::new(),
-            band_value: String::new(),
+            band_value: Vec::new(),
+            band_select: None,
             weight_unit: WeightUnit::Pounds,
             weight_mode: WeightMode::Weight,
             reps: String::new(),
@@ -111,7 +114,8 @@ impl GuiApp {
             edit_weight_value: String::new(),
             edit_weight_left_value: String::new(),
             edit_weight_right_value: String::new(),
-            edit_band_value: String::new(),
+            edit_band_value: Vec::new(),
+            edit_band_select: None,
             edit_weight_unit: WeightUnit::Pounds,
             edit_weight_mode: WeightMode::Weight,
             edit_reps: String::new(),

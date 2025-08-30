@@ -3,7 +3,7 @@ use clap::ValueEnum;
 use eframe::egui;
 
 use crate::models::{LiftExecution, LiftRegion, LiftType, Muscle};
-use crate::weight::{Weight, WeightUnit};
+use crate::weight::{BandColor, Weight, WeightUnit};
 
 use super::{GuiApp, WeightMode};
 
@@ -182,6 +182,7 @@ impl GuiApp {
                                         self.edit_weight_left_value.clear();
                                         self.edit_weight_right_value.clear();
                                         self.edit_band_value.clear();
+                                        self.edit_band_select = None;
                                     }
                                     Weight::RawLr { left, right } => {
                                         self.edit_weight_mode = WeightMode::WeightLr;
@@ -190,10 +191,12 @@ impl GuiApp {
                                         self.edit_weight_right_value = format!("{}", right);
                                         self.edit_weight_value.clear();
                                         self.edit_band_value.clear();
+                                        self.edit_band_select = None;
                                     }
-                                    Weight::Bands(_) => {
+                                    Weight::Bands(bands) => {
                                         self.edit_weight_mode = WeightMode::Bands;
-                                        self.edit_band_value = exec.weight.to_string();
+                                        self.edit_band_value = bands.clone();
+                                        self.edit_band_select = None;
                                         self.edit_weight_value.clear();
                                         self.edit_weight_left_value.clear();
                                         self.edit_weight_right_value.clear();
@@ -290,7 +293,53 @@ impl GuiApp {
                                 WeightMode::Bands => {
                                     ui.horizontal(|ui| {
                                         ui.label("Bands:");
-                                        ui.text_edit_singleline(&mut self.edit_band_value);
+                                        let text = if self.edit_band_value.is_empty() {
+                                            "None".to_string()
+                                        } else {
+                                            self.edit_band_value
+                                                .iter()
+                                                .map(|b| b.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join("+")
+                                        };
+                                        ui.label(text);
+                                        egui::ComboBox::from_id_source(format!(
+                                            "edit_band_select_{}_{}",
+                                            i, j
+                                        ))
+                                        .selected_text(
+                                            self.edit_band_select
+                                                .map(|b| b.to_string())
+                                                .unwrap_or_else(|| "Select".into()),
+                                        )
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                for color in [
+                                                    BandColor::Orange,
+                                                    BandColor::Red,
+                                                    BandColor::Blue,
+                                                    BandColor::Green,
+                                                    BandColor::Black,
+                                                    BandColor::Purple,
+                                                ] {
+                                                    ui.selectable_value(
+                                                        &mut self.edit_band_select,
+                                                        Some(color),
+                                                        color.to_string(),
+                                                    );
+                                                }
+                                            },
+                                        );
+                                        if ui.button("Add").clicked() {
+                                            if let Some(color) = self.edit_band_select {
+                                                self.edit_band_value.push(color);
+                                            }
+                                        }
+                                        if ui.button("Clear").clicked() {
+                                            self.edit_band_value.clear();
+                                            self.edit_band_select = None;
+                                        }
                                     });
                                 }
                             }
@@ -321,6 +370,8 @@ impl GuiApp {
                                 if ui.button("Cancel").clicked() {
                                     self.editing_exec = None;
                                     self.edit_notes.clear();
+                                    self.edit_band_value.clear();
+                                    self.edit_band_select = None;
                                 }
                             });
                         }
@@ -391,13 +442,13 @@ impl GuiApp {
                     };
                     Weight::from_unit_lr(left, right, self.edit_weight_unit)
                 }
-                WeightMode::Bands => match self.edit_band_value.parse::<Weight>() {
-                    Ok(w) => w,
-                    Err(_) => {
-                        self.error = Some("Invalid bands".into());
+                WeightMode::Bands => {
+                    if self.edit_band_value.is_empty() {
+                        self.error = Some("No bands selected".into());
                         return;
                     }
-                },
+                    Weight::Bands(self.edit_band_value.clone())
+                }
             };
             let reps: i32 = match self.edit_reps.parse() {
                 Ok(r) => r,
@@ -450,6 +501,8 @@ impl GuiApp {
                 } else {
                     self.editing_exec = None;
                     self.edit_notes.clear();
+                    self.edit_band_value.clear();
+                    self.edit_band_select = None;
                     self.error = None;
                     self.refresh_lifts();
                 }

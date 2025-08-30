@@ -3,7 +3,7 @@ use clap::ValueEnum;
 use eframe::egui;
 
 use crate::models::{LiftExecution, LiftRegion, LiftType, Muscle};
-use crate::weight::{Weight, WeightUnit};
+use crate::weight::{BandColor, Weight, WeightUnit};
 
 use super::{GuiApp, WeightMode};
 
@@ -71,7 +71,47 @@ impl GuiApp {
             WeightMode::Bands => {
                 ui.horizontal(|ui| {
                     ui.label("Bands:");
-                    ui.text_edit_singleline(&mut self.band_value);
+                    let text = if self.band_value.is_empty() {
+                        "None".to_string()
+                    } else {
+                        self.band_value
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join("+")
+                    };
+                    ui.label(text);
+                    egui::ComboBox::from_id_source("band_select")
+                        .selected_text(
+                            self.band_select
+                                .map(|b| b.to_string())
+                                .unwrap_or_else(|| "Select".into()),
+                        )
+                        .show_ui(ui, |ui| {
+                            for color in [
+                                BandColor::Orange,
+                                BandColor::Red,
+                                BandColor::Blue,
+                                BandColor::Green,
+                                BandColor::Black,
+                                BandColor::Purple,
+                            ] {
+                                ui.selectable_value(
+                                    &mut self.band_select,
+                                    Some(color),
+                                    color.to_string(),
+                                );
+                            }
+                        });
+                    if ui.button("Add").clicked() {
+                        if let Some(color) = self.band_select {
+                            self.band_value.push(color);
+                        }
+                    }
+                    if ui.button("Clear").clicked() {
+                        self.band_value.clear();
+                        self.band_select = None;
+                    }
                 });
             }
         }
@@ -244,13 +284,13 @@ impl GuiApp {
                 };
                 Weight::from_unit_lr(left, right, self.weight_unit)
             }
-            WeightMode::Bands => match self.band_value.parse::<Weight>() {
-                Ok(w) => w,
-                Err(_) => {
-                    self.error = Some("Invalid bands".into());
+            WeightMode::Bands => {
+                if self.band_value.is_empty() {
+                    self.error = Some("No bands selected".into());
                     return;
                 }
-            },
+                Weight::Bands(self.band_value.clone())
+            }
         };
         let reps: i32 = match self.reps.parse() {
             Ok(r) => r,
@@ -306,6 +346,7 @@ impl GuiApp {
                 self.weight_left_value.clear();
                 self.weight_right_value.clear();
                 self.band_value.clear();
+                self.band_select = None;
                 self.reps.clear();
                 self.sets.clear();
                 self.date.clear();
