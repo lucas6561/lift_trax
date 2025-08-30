@@ -56,6 +56,21 @@ fn add_and_list_lift_with_execution() {
 }
 
 #[test]
+fn list_lifts_returns_all_sorted() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Zpress", LiftRegion::UPPER, None, &[], "").unwrap();
+    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "").unwrap();
+    db.add_lift("Curl", LiftRegion::UPPER, None, &[], "").unwrap();
+    let names: Vec<_> = db
+        .list_lifts(None)
+        .unwrap()
+        .into_iter()
+        .map(|l| l.name)
+        .collect();
+    assert_eq!(names, vec!["Bench", "Curl", "Zpress"]);
+}
+
+#[test]
 fn reads_legacy_execution_sets() {
     let path = "test_old_sets.db";
     let _ = std::fs::remove_file(path);
@@ -99,6 +114,15 @@ fn reads_legacy_execution_sets() {
     assert_eq!(set.weight.to_string(), "50 lb");
 
     std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn lift_stats_handles_empty_history() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "").unwrap();
+    let stats = db.lift_stats("Bench").unwrap();
+    assert!(stats.last.is_none());
+    assert!(stats.best_by_reps.is_empty());
 }
 
 #[test]

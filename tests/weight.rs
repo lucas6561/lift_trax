@@ -1,7 +1,7 @@
 #[path = "../src/weight.rs"]
 mod weight;
 
-use weight::{BandColor, Weight};
+use weight::{BandColor, Weight, WeightUnit};
 
 #[test]
 fn parse_and_display_pounds() {
@@ -50,6 +50,36 @@ fn parse_left_right() {
         Weight::RawLr { left, right } => {
             assert_eq!(left, 100.0);
             assert_eq!(right, 90.0);
+        }
+        _ => panic!("expected left/right raw weight"),
+    }
+}
+
+#[test]
+fn parse_left_right_with_units() {
+    let w: Weight = "10kg|20lb".parse().unwrap();
+    match w {
+        Weight::RawLr { left, right } => {
+            assert!((left - 22.0462).abs() < 1e-4);
+            assert_eq!(right, 20.0);
+        }
+        _ => panic!("expected left/right raw weight"),
+    }
+}
+
+#[test]
+fn invalid_weight_is_err() {
+    let res: Result<Weight, _> = "unknown".parse();
+    assert!(res.is_err());
+}
+
+#[test]
+fn from_unit_lr_converts_units() {
+    let w = Weight::from_unit_lr(10.0, 5.0, WeightUnit::Kilograms);
+    match w {
+        Weight::RawLr { left, right } => {
+            assert!((left - 22.0462).abs() < 1e-4);
+            assert!((right - 11.0231).abs() < 1e-4);
         }
         _ => panic!("expected left/right raw weight"),
     }

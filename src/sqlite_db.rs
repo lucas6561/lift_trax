@@ -1,7 +1,7 @@
 //! SQLite-backed implementation of the [`Database`] trait.
 
 use chrono::{NaiveDate, Utc};
-use rusqlite::{Connection, OptionalExtension, params, types::Type};
+use rusqlite::{params, types::Type, Connection, OptionalExtension};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -60,6 +60,99 @@ impl SqliteDb {
             executions.push(exec?);
         }
         Ok(executions)
+    }
+
+    fn parse_muscles(muscles_str: String) -> Vec<Muscle> {
+        if muscles_str.is_empty() {
+            Vec::new()
+        } else {
+            muscles_str
+                .split(',')
+                .filter_map(|m| Muscle::from_str(m).ok())
+                .collect()
+        }
+    }
+
+    fn row_to_lift(row: &rusqlite::Row<'_>) -> rusqlite::Result<(i32, Lift)> {
+        let id: i32 = row.get(0)?;
+        let region_str: String = row.get(2)?;
+        let region = LiftRegion::from_str(&region_str).unwrap_or(LiftRegion::UPPER);
+        let main_str: Option<String> = row.get(3)?;
+        let main = main_str.and_then(|m| LiftType::from_str(&m).ok());
+        let muscles_str: String = row.get(4)?;
+        let notes: String = row.get(5)?;
+        Ok((
+            id,
+            Lift {
+                name: row.get(1)?,
+                region,
+                main,
+                muscles: Self::parse_muscles(muscles_str),
+                notes,
+                executions: Vec::new(),
+            },
+        ))
+    }
+
+    fn load_lifts<P>(&self, sql: &str, params: P) -> DbResult<Vec<Lift>>
+    where
+        P: rusqlite::Params,
+    {
+        let mut stmt = self.conn.prepare(sql)?;
+        let iter = stmt.query_map(params, Self::row_to_lift)?;
+        let mut lifts = Vec::new();
+        for row in iter {
+            let (id, mut lift) = row?;
+            lift.executions = self.fetch_executions(id)?;
+            lifts.push(lift);
+        }
+        Ok(lifts)
+    }
+
+    fn get_last_execution(&self, lift_id: i32) -> DbResult<Option<LiftExecution>> {
+        Ok(
+            self.conn
+                .query_row(
+                    "SELECT id, date, sets, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
+                    params![lift_id],
+                    |row| {
+                        let date_str: String = row.get(1)?;
+                        let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
+                            rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
+                        })?;
+                        let sets_json: String = row.get(2)?;
+                        let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
+                        Ok(LiftExecution {
+                            id: Some(row.get(0)?),
+                            date,
+                            sets,
+                            notes: row.get(3)?,
+                        })
+                    },
+                )
+                .optional()?,
+        )
+    }
+
+    fn collect_best_by_reps(&self, lift_id: i32) -> DbResult<BTreeMap<i32, Weight>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT sets FROM lift_records WHERE lift_id = ?1")?;
+        let iter = stmt.query_map(params![lift_id], |row| row.get::<_, String>(0))?;
+        let mut best = BTreeMap::new();
+        for row in iter {
+            let sets_json = row?;
+            let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
+            for set in sets {
+                if let SetMetric::Reps(r) = set.metric {
+                    let entry = best.entry(r).or_insert(set.weight.clone());
+                    if set.weight.to_lbs() > entry.to_lbs() {
+                        *entry = set.weight;
+                    }
+                }
+            }
+        }
+        Ok(best)
     }
 }
 
@@ -347,133 +440,21 @@ impl Database for SqliteDb {
             params![name],
             |row| row.get(0),
         )?;
-        let last = self
-            .conn
-            .query_row(
-                "SELECT id, date, sets, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
-                params![lift_id],
-                |row| {
-                    let date_str: String = row.get(1)?;
-                    let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
-                    })?;
-                    let sets_json: String = row.get(2)?;
-                    let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
-                    Ok(LiftExecution {
-                        id: Some(row.get(0)?),
-                        date,
-                        sets,
-                        notes: row.get(3)?,
-                    })
-                },
-            )
-            .optional()?;
-        let mut stmt = self
-            .conn
-            .prepare("SELECT sets FROM lift_records WHERE lift_id = ?1")?;
-        let iter = stmt.query_map(params![lift_id], |row| row.get::<_, String>(0))?;
-        let mut best = BTreeMap::new();
-        for row in iter {
-            let sets_json = row?;
-            let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
-            for set in sets {
-                if let SetMetric::Reps(r) = set.metric {
-                    let entry = best.entry(r).or_insert(set.weight.clone());
-                    if set.weight.to_lbs() > entry.to_lbs() {
-                        *entry = set.weight;
-                    }
-                }
-            }
-        }
-        Ok(LiftStats {
-            last,
-            best_by_reps: best,
-        })
+        let last = self.get_last_execution(lift_id)?;
+        let best_by_reps = self.collect_best_by_reps(lift_id)?;
+        Ok(LiftStats { last, best_by_reps })
     }
 
     fn list_lifts(&self, name: Option<&str>) -> DbResult<Vec<Lift>> {
-        let mut lifts = Vec::new();
-        if let Some(n) = name {
-            let mut stmt = self.conn.prepare(
+        match name {
+            Some(n) => self.load_lifts(
                 "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE name = ?1 ORDER BY name",
-            )?;
-            let iter = stmt.query_map(params![n], |row| {
-                let id: i32 = row.get(0)?;
-                let region_str: String = row.get(2)?;
-                let region = LiftRegion::from_str(&region_str).unwrap_or(LiftRegion::UPPER);
-                let main_str: Option<String> = row.get(3)?;
-                let main = match main_str {
-                    Some(m) => LiftType::from_str(&m).ok(),
-                    None => None,
-                };
-                let muscles_str: String = row.get(4)?;
-                let notes: String = row.get(5)?;
-                let muscles = if muscles_str.is_empty() {
-                    Vec::new()
-                } else {
-                    muscles_str
-                        .split(',')
-                        .filter_map(|m| Muscle::from_str(m).ok())
-                        .collect()
-                };
-                Ok((
-                    id,
-                    Lift {
-                        name: row.get(1)?,
-                        region,
-                        main,
-                        muscles,
-                        notes,
-                        executions: Vec::new(),
-                    },
-                ))
-            })?;
-            for row in iter {
-                let (id, mut lift) = row?;
-                lift.executions = self.fetch_executions(id)?;
-                lifts.push(lift);
-            }
-        } else {
-            let mut stmt = self.conn.prepare(
+                params![n],
+            ),
+            None => self.load_lifts(
                 "SELECT id, name, region, main_lift, muscles, notes FROM lifts ORDER BY name",
-            )?;
-            let iter = stmt.query_map([], |row| {
-                let id: i32 = row.get(0)?;
-                let region_str: String = row.get(2)?;
-                let region = LiftRegion::from_str(&region_str).unwrap_or(LiftRegion::UPPER);
-                let main_str: Option<String> = row.get(3)?;
-                let main = match main_str {
-                    Some(m) => LiftType::from_str(&m).ok(),
-                    None => None,
-                };
-                let muscles_str: String = row.get(4)?;
-                let notes: String = row.get(5)?;
-                let muscles = if muscles_str.is_empty() {
-                    Vec::new()
-                } else {
-                    muscles_str
-                        .split(',')
-                        .filter_map(|m| Muscle::from_str(m).ok())
-                        .collect()
-                };
-                Ok((
-                    id,
-                    Lift {
-                        name: row.get(1)?,
-                        region,
-                        main,
-                        muscles,
-                        notes,
-                        executions: Vec::new(),
-                    },
-                ))
-            })?;
-            for row in iter {
-                let (id, mut lift) = row?;
-                lift.executions = self.fetch_executions(id)?;
-                lifts.push(lift);
-            }
+                [],
+            ),
         }
-        Ok(lifts)
     }
 }

@@ -103,6 +103,55 @@ impl Weight {
             },
         }
     }
+
+    /// Parse a single side of a left/right weight value, handling units.
+    fn parse_side(side: &str) -> Result<f64, String> {
+        let side_trim = side.trim();
+        if side_trim.ends_with("kg") {
+            let stripped = side_trim.trim_end_matches("kg").trim();
+            let val: f64 = stripped.parse().map_err(|_| "invalid weight")?;
+            Ok(val * POUNDS_PER_KILOGRAM)
+        } else if side_trim.ends_with("lb") {
+            let stripped = side_trim.trim_end_matches("lb").trim();
+            let val: f64 = stripped.parse().map_err(|_| "invalid weight")?;
+            Ok(val)
+        } else {
+            let val: f64 = side_trim.parse().map_err(|_| "invalid weight")?;
+            Ok(val)
+        }
+    }
+
+    /// Parse a left/right weight string separated by `|`.
+    fn parse_lr(s: &str) -> Result<Self, String> {
+        let (l_str, r_str) = s
+            .split_once('|')
+            .ok_or_else(|| "missing right side".to_string())?;
+        let left = Self::parse_side(l_str)?;
+        let right = Self::parse_side(r_str)?;
+        Ok(Weight::RawLr { left, right })
+    }
+
+    /// Parse a simple numeric weight with an optional unit suffix.
+    fn parse_with_unit(s: &str) -> Result<Self, String> {
+        if let Some(stripped) = s.strip_suffix("kg") {
+            let val: f64 = stripped.trim().parse().map_err(|_| "invalid weight")?;
+            return Ok(Weight::from_unit(val, WeightUnit::Kilograms));
+        }
+        if let Some(stripped) = s.strip_suffix("lb") {
+            let val: f64 = stripped.trim().parse().map_err(|_| "invalid weight")?;
+            return Ok(Weight::from_unit(val, WeightUnit::Pounds));
+        }
+        if let Ok(p) = s.parse::<f64>() {
+            return Ok(Weight::Raw(p));
+        }
+        Err("not a numeric weight".to_string())
+    }
+
+    /// Parse a string of one or more band colors separated by `+`.
+    fn parse_bands(s: &str) -> Result<Self, String> {
+        let bands: Result<Vec<BandColor>, _> = s.split('+').map(|b| b.trim().parse()).collect();
+        bands.map(Weight::Bands)
+    }
 }
 
 impl FromStr for Weight {
@@ -110,40 +159,10 @@ impl FromStr for Weight {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let trimmed = s.trim().to_lowercase();
-        if let Some((l_str, r_str)) = trimmed.split_once('|') {
-            let parse_side = |side: &str| -> Result<f64, String> {
-                let side_trim = side.trim();
-                if side_trim.ends_with("kg") {
-                    let stripped = side_trim.trim_end_matches("kg").trim();
-                    let val: f64 = stripped.parse().map_err(|_| "invalid weight")?;
-                    Ok(val * POUNDS_PER_KILOGRAM)
-                } else if side_trim.ends_with("lb") {
-                    let stripped = side_trim.trim_end_matches("lb").trim();
-                    let val: f64 = stripped.parse().map_err(|_| "invalid weight")?;
-                    Ok(val)
-                } else {
-                    let val: f64 = side_trim.parse().map_err(|_| "invalid weight")?;
-                    Ok(val)
-                }
-            };
-            let left = parse_side(l_str)?;
-            let right = parse_side(r_str)?;
-            return Ok(Weight::RawLr { left, right });
+        if trimmed.contains('|') {
+            return Weight::parse_lr(&trimmed);
         }
-        if let Some(stripped) = trimmed.strip_suffix("kg") {
-            let val: f64 = stripped.trim().parse().map_err(|_| "invalid weight")?;
-            return Ok(Weight::from_unit(val, WeightUnit::Kilograms));
-        }
-        if let Some(stripped) = trimmed.strip_suffix("lb") {
-            let val: f64 = stripped.trim().parse().map_err(|_| "invalid weight")?;
-            return Ok(Weight::from_unit(val, WeightUnit::Pounds));
-        }
-        if let Ok(p) = trimmed.parse::<f64>() {
-            return Ok(Weight::Raw(p));
-        }
-        let bands: Result<Vec<BandColor>, _> =
-            trimmed.split('+').map(|b| b.trim().parse()).collect();
-        bands.map(Weight::Bands)
+        Weight::parse_with_unit(&trimmed).or_else(|_| Weight::parse_bands(&trimmed))
     }
 }
 
