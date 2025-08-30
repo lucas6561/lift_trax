@@ -181,6 +181,12 @@ impl GuiApp {
                                         self.edit_weight_value = format!("{}", p);
                                         self.edit_band_value.clear();
                                     }
+                                    Weight::RawLr { left, right } => {
+                                        self.edit_weight_mode = WeightMode::Weight;
+                                        self.edit_weight_unit = WeightUnit::Pounds;
+                                        self.edit_weight_value = format!("{}|{}", left, right);
+                                        self.edit_band_value.clear();
+                                    }
                                     Weight::Bands(_) => {
                                         self.edit_weight_mode = WeightMode::Bands;
                                         self.edit_band_value = exec.weight.to_string();

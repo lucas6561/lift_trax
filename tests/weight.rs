@@ -41,3 +41,16 @@ fn parse_kilograms() {
         _ => panic!("expected raw weight"),
     }
 }
+
+#[test]
+fn parse_left_right() {
+    let w: Weight = "100|90".parse().unwrap();
+    assert_eq!(w.to_string(), "100|90 lb");
+    match w {
+        Weight::RawLr { left, right } => {
+            assert_eq!(left, 100.0);
+            assert_eq!(right, 90.0);
+        }
+        _ => panic!("expected left/right raw weight"),
+    }
+}
