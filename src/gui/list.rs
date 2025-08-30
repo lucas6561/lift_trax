@@ -77,6 +77,11 @@ impl GuiApp {
                                     Some(LiftType::Accessory),
                                     "Accessory",
                                 );
+                                ui.selectable_value(
+                                    &mut self.edit_lift_main,
+                                    Some(LiftType::WarmUp),
+                                    "Warm Up",
+                                );
                             });
                     });
                     ui.horizontal(|ui| {
