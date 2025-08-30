@@ -5,7 +5,7 @@ use egui_extras::DatePickerButton;
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
-use super::{GuiApp, WeightMode};
+use super::{GuiApp, MetricMode, WeightMode};
 
 impl GuiApp {
     pub(super) fn tab_list(&mut self, ui: &mut egui::Ui) {
@@ -209,13 +209,23 @@ impl GuiApp {
                                         }
                                     }
                                     self.edit_sets = exec.sets.len().to_string();
-                                    if let SetMetric::Reps(r) = first.metric {
-                                        self.edit_reps = r.to_string();
-                                    } else {
-                                        self.edit_reps.clear();
+                                    match first.metric {
+                                        SetMetric::Reps(r) => {
+                                            self.edit_metric_mode = MetricMode::Reps;
+                                            self.edit_reps = r.to_string();
+                                        }
+                                        SetMetric::TimeSecs(s) => {
+                                            self.edit_metric_mode = MetricMode::Time;
+                                            self.edit_reps = s.to_string();
+                                        }
+                                        SetMetric::DistanceFeet(d) => {
+                                            self.edit_metric_mode = MetricMode::Distance;
+                                            self.edit_reps = d.to_string();
+                                        }
                                     }
                                     self.edit_date = exec.date;
-                                    self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
+                                    self.edit_rpe =
+                                        first.rpe.map(|r| r.to_string()).unwrap_or_default();
                                     self.edit_notes = exec.notes.clone();
                                 }
                             }
@@ -355,7 +365,30 @@ impl GuiApp {
                                 }
                             }
                             ui.horizontal(|ui| {
-                                ui.label("Reps:");
+                                ui.label("Metric:");
+                                ui.selectable_value(
+                                    &mut self.edit_metric_mode,
+                                    MetricMode::Reps,
+                                    "Reps",
+                                );
+                                ui.selectable_value(
+                                    &mut self.edit_metric_mode,
+                                    MetricMode::Time,
+                                    "Seconds",
+                                );
+                                ui.selectable_value(
+                                    &mut self.edit_metric_mode,
+                                    MetricMode::Distance,
+                                    "Feet",
+                                );
+                            });
+                            let metric_label = match self.edit_metric_mode {
+                                MetricMode::Reps => "Reps:",
+                                MetricMode::Time => "Seconds:",
+                                MetricMode::Distance => "Feet:",
+                            };
+                            ui.horizontal(|ui| {
+                                ui.label(metric_label);
                                 ui.text_edit_singleline(&mut self.edit_reps);
                             });
                             ui.horizontal(|ui| {
@@ -364,7 +397,10 @@ impl GuiApp {
                             });
                             ui.horizontal(|ui| {
                                 ui.label("Date:");
-                                ui.add(DatePickerButton::new(&mut self.edit_date).id_source("edit_date"));
+                                ui.add(
+                                    DatePickerButton::new(&mut self.edit_date)
+                                        .id_source("edit_date"),
+                                );
                             });
                             ui.horizontal(|ui| {
                                 ui.label("RPE:");
@@ -461,10 +497,10 @@ impl GuiApp {
                     Weight::Bands(self.edit_band_value.clone())
                 }
             };
-            let reps: i32 = match self.edit_reps.parse() {
+            let metric_val: i32 = match self.edit_reps.parse() {
                 Ok(r) => r,
                 Err(_) => {
-                    self.error = Some("Invalid reps".into());
+                    self.error = Some("Invalid value".into());
                     return;
                 }
             };
@@ -487,7 +523,16 @@ impl GuiApp {
                     }
                 }
             };
-            let set = ExecutionSet { metric: SetMetric::Reps(reps), weight: weight.clone(), rpe };
+            let metric = match self.edit_metric_mode {
+                MetricMode::Reps => SetMetric::Reps(metric_val),
+                MetricMode::Time => SetMetric::TimeSecs(metric_val),
+                MetricMode::Distance => SetMetric::DistanceFeet(metric_val),
+            };
+            let set = ExecutionSet {
+                metric,
+                weight: weight.clone(),
+                rpe,
+            };
             let sets_vec = vec![set; sets as usize];
             let new_exec = LiftExecution {
                 id: exec.id,

@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, Utc};
-use eframe::{Frame, NativeOptions, egui};
+use eframe::{egui, Frame, NativeOptions};
 
 use crate::weight::{BandColor, WeightUnit};
 use crate::{
@@ -35,6 +35,7 @@ struct GuiApp {
     band_select: Option<BandColor>,
     weight_unit: WeightUnit,
     weight_mode: WeightMode,
+    metric_mode: MetricMode,
     set_mode: SetMode,
     reps: String,
     sets: String,
@@ -65,6 +66,7 @@ struct GuiApp {
     edit_band_select: Option<BandColor>,
     edit_weight_unit: WeightUnit,
     edit_weight_mode: WeightMode,
+    edit_metric_mode: MetricMode,
     edit_reps: String,
     edit_sets: String,
     edit_date: NaiveDate,
@@ -87,6 +89,13 @@ enum SetMode {
     Detailed,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MetricMode {
+    Reps,
+    Time,
+    Distance,
+}
+
 impl GuiApp {
     fn new(db: Box<dyn Database>) -> Self {
         let mut app = Self {
@@ -99,6 +108,7 @@ impl GuiApp {
             band_select: None,
             weight_unit: WeightUnit::Pounds,
             weight_mode: WeightMode::Weight,
+            metric_mode: MetricMode::Reps,
             set_mode: SetMode::Simple,
             reps: String::new(),
             sets: String::new(),
@@ -129,6 +139,7 @@ impl GuiApp {
             edit_band_select: None,
             edit_weight_unit: WeightUnit::Pounds,
             edit_weight_mode: WeightMode::Weight,
+            edit_metric_mode: MetricMode::Reps,
             edit_reps: String::new(),
             edit_sets: String::new(),
             edit_date: Utc::now().date_naive(),
