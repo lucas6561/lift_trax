@@ -1,12 +1,12 @@
 use chrono::Utc;
-use egui_extras::DatePickerButton;
 use clap::ValueEnum;
 use eframe::egui;
+use egui_extras::DatePickerButton;
 
-use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
+use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
-use super::{GuiApp, SetMode, WeightMode};
+use super::{GuiApp, MetricMode, SetMode, WeightMode};
 
 impl GuiApp {
     pub(super) fn tab_add(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
@@ -117,14 +117,25 @@ impl GuiApp {
             }
         }
         ui.horizontal(|ui| {
+            ui.label("Metric:");
+            ui.selectable_value(&mut self.metric_mode, MetricMode::Reps, "Reps");
+            ui.selectable_value(&mut self.metric_mode, MetricMode::Time, "Seconds");
+            ui.selectable_value(&mut self.metric_mode, MetricMode::Distance, "Feet");
+        });
+        ui.horizontal(|ui| {
             ui.label("Set Input:");
-            ui.selectable_value(&mut self.set_mode, SetMode::Simple, "Sets x Reps");
+            ui.selectable_value(&mut self.set_mode, SetMode::Simple, "Sets x Value");
             ui.selectable_value(&mut self.set_mode, SetMode::Detailed, "Individual Sets");
         });
         match self.set_mode {
             SetMode::Simple => {
+                let metric_label = match self.metric_mode {
+                    MetricMode::Reps => "Reps:",
+                    MetricMode::Time => "Seconds:",
+                    MetricMode::Distance => "Feet:",
+                };
                 ui.horizontal(|ui| {
-                    ui.label("Reps:");
+                    ui.label(metric_label);
                     ui.text_edit_singleline(&mut self.reps);
                 });
                 ui.horizontal(|ui| {
@@ -137,8 +148,13 @@ impl GuiApp {
                 });
             }
             SetMode::Detailed => {
+                let metric_label = match self.metric_mode {
+                    MetricMode::Reps => "Reps:",
+                    MetricMode::Time => "Seconds:",
+                    MetricMode::Distance => "Feet:",
+                };
                 ui.horizontal(|ui| {
-                    ui.label("Reps:");
+                    ui.label(metric_label);
                     ui.text_edit_singleline(&mut self.reps);
                     ui.label("RPE:");
                     ui.text_edit_singleline(&mut self.rpe);
@@ -151,9 +167,9 @@ impl GuiApp {
                     let rpe = set.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
                     ui.horizontal(|ui| {
                         ui.label(format!(
-                            "Set {}: {} reps @ {}{}",
+                            "Set {}: {} @ {}{}",
                             i + 1,
-                            set.reps,
+                            set.metric,
                             set.weight,
                             rpe
                         ));
@@ -337,10 +353,10 @@ impl GuiApp {
                 Weight::Bands(self.band_value.clone())
             }
         };
-        let reps: i32 = match self.reps.parse() {
+        let metric_val: i32 = match self.reps.parse() {
             Ok(r) => r,
             Err(_) => {
-                self.error = Some("Invalid reps".into());
+                self.error = Some("Invalid value".into());
                 return;
             }
         };
@@ -355,7 +371,16 @@ impl GuiApp {
                 }
             }
         };
-        self.detailed_sets.push(ExecutionSet { reps, weight, rpe });
+        let metric = match self.metric_mode {
+            MetricMode::Reps => SetMetric::Reps(metric_val),
+            MetricMode::Time => SetMetric::TimeSecs(metric_val),
+            MetricMode::Distance => SetMetric::DistanceFeet(metric_val),
+        };
+        self.detailed_sets.push(ExecutionSet {
+            metric,
+            weight,
+            rpe,
+        });
         self.weight_value.clear();
         self.weight_left_value.clear();
         self.weight_right_value.clear();
@@ -404,10 +429,10 @@ impl GuiApp {
                         Weight::Bands(self.band_value.clone())
                     }
                 };
-                let reps: i32 = match self.reps.parse() {
+                let metric_val: i32 = match self.reps.parse() {
                     Ok(r) => r,
                     Err(_) => {
-                        self.error = Some("Invalid reps".into());
+                        self.error = Some("Invalid value".into());
                         return;
                     }
                 };
@@ -429,8 +454,13 @@ impl GuiApp {
                         }
                     }
                 };
+                let metric = match self.metric_mode {
+                    MetricMode::Reps => SetMetric::Reps(metric_val),
+                    MetricMode::Time => SetMetric::TimeSecs(metric_val),
+                    MetricMode::Distance => SetMetric::DistanceFeet(metric_val),
+                };
                 let set = ExecutionSet {
-                    reps,
+                    metric,
                     weight: weight.clone(),
                     rpe,
                 };

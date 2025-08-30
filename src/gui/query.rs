@@ -30,7 +30,7 @@ impl GuiApp {
                             .iter()
                             .map(|s| {
                                 let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                                format!("{} reps @ {}{}", s.reps, s.weight, rpe)
+                                format!("{} @ {}{}", s.metric, s.weight, rpe)
                             })
                             .collect::<Vec<_>>()
                             .join(", ");

@@ -3,7 +3,7 @@ mod lift_execution;
 
 use crate::weight::Weight;
 use chrono::NaiveDate;
-use lift_execution::{ExecutionSet, LiftExecution};
+use lift_execution::{ExecutionSet, LiftExecution, SetMetric};
 
 #[test]
 fn create_lift_execution() {
@@ -11,7 +11,7 @@ fn create_lift_execution() {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 5, 20).unwrap(),
         sets: vec![ExecutionSet {
-            reps: 5,
+            metric: SetMetric::Reps(5),
             weight: Weight::Raw(100.0),
             rpe: Some(8.5),
         }],

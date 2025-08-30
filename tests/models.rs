@@ -1,5 +1,3 @@
-#[path = "../src/weight.rs"]
-mod weight;
 #[path = "models/lift.rs"]
 mod lift;
 #[path = "models/lift_execution.rs"]
@@ -10,3 +8,5 @@ mod lift_region;
 mod lift_type;
 #[path = "models/muscle.rs"]
 mod muscle;
+#[path = "../src/weight.rs"]
+mod weight;

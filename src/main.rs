@@ -11,7 +11,7 @@ mod weight;
 
 use crate::weight::Weight;
 use database::Database;
-use models::{ExecutionSet, LiftExecution, LiftRegion, Muscle};
+use models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
 
 #[derive(Parser)]
@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             let real_weight: Weight = weight.parse().map_err(|_| "Invalid weight supplied")?;
             let set = ExecutionSet {
-                reps,
+                metric: SetMetric::Reps(reps),
                 weight: real_weight.clone(),
                 rpe,
             };
@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .iter()
                             .map(|s| {
                                 let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                                format!("{} reps @ {}{}", s.reps, s.weight, rpe)
+                                format!("{} @ {}{}", s.metric, s.weight, rpe)
                             })
                             .collect::<Vec<_>>()
                             .join(", ");
