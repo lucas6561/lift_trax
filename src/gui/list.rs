@@ -1,6 +1,6 @@
-use chrono::NaiveDate;
 use clap::ValueEnum;
 use eframe::egui;
+use egui_extras::DatePickerButton;
 
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle};
 use crate::weight::{BandColor, Weight, WeightUnit};
@@ -210,7 +210,7 @@ impl GuiApp {
                                     }
                                     self.edit_sets = exec.sets.len().to_string();
                                     self.edit_reps = first.reps.to_string();
-                                    self.edit_date = exec.date.to_string();
+                                    self.edit_date = exec.date;
                                     self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
                                     self.edit_notes = exec.notes.clone();
                                 }
@@ -359,8 +359,8 @@ impl GuiApp {
                                 ui.text_edit_singleline(&mut self.edit_sets);
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Date (YYYY-MM-DD):");
-                                ui.text_edit_singleline(&mut self.edit_date);
+                                ui.label("Date:");
+                                ui.add(DatePickerButton::new(&mut self.edit_date).id_source("edit_date"));
                             });
                             ui.horizontal(|ui| {
                                 ui.label("RPE:");
@@ -471,17 +471,7 @@ impl GuiApp {
                     return;
                 }
             };
-            let date = if self.edit_date.trim().is_empty() {
-                exec.date
-            } else {
-                match NaiveDate::parse_from_str(&self.edit_date, "%Y-%m-%d") {
-                    Ok(d) => d,
-                    Err(_) => {
-                        self.error = Some("Invalid date".into());
-                        return;
-                    }
-                }
-            };
+            let date = self.edit_date;
             let rpe = if self.edit_rpe.trim().is_empty() {
                 None
             } else {
