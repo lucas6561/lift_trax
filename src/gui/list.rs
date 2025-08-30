@@ -215,7 +215,7 @@ impl GuiApp {
                                     }
                                     self.edit_sets = exec.sets.len().to_string();
                                     self.edit_reps = first.reps.to_string();
-                                    self.edit_date = exec.date.to_string();
+                                    self.edit_date = exec.date;
                                     self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
                                     self.edit_notes = exec.notes.clone();
                                 }
