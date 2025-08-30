@@ -1,8 +1,10 @@
 //! SQLite-backed implementation of the [`Database`] trait.
 
-use chrono::NaiveDate;
+use chrono::{NaiveDate, Utc};
 use rusqlite::{Connection, OptionalExtension, params, types::Type};
 use std::collections::BTreeMap;
+use std::fs;
+use std::path::Path;
 use std::str::FromStr;
 
 use crate::weight::Weight;
@@ -24,6 +26,11 @@ pub struct SqliteDb {
 impl SqliteDb {
     /// Open (or create) a SQLite database at `path`.
     pub fn new(path: &str) -> DbResult<Self> {
+        if Path::new(path).exists() {
+            let timestamp = Utc::now().format("%Y%m%d%H%M%S");
+            let backup_path = format!("{}.backup-{}", path, timestamp);
+            fs::copy(path, &backup_path)?;
+        }
         let conn = Connection::open(path)?;
         init_db(&conn)?;
         Ok(Self { conn })
