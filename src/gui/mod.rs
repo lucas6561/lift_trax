@@ -1,3 +1,4 @@
+use chrono::{NaiveDate, Utc};
 use eframe::{Frame, NativeOptions, egui};
 
 use crate::weight::{BandColor, WeightUnit};
@@ -37,7 +38,7 @@ struct GuiApp {
     set_mode: SetMode,
     reps: String,
     sets: String,
-    date: String,
+    date: NaiveDate,
     rpe: String,
     notes: String,
     detailed_sets: Vec<ExecutionSet>,
@@ -66,7 +67,7 @@ struct GuiApp {
     edit_weight_mode: WeightMode,
     edit_reps: String,
     edit_sets: String,
-    edit_date: String,
+    edit_date: NaiveDate,
     edit_rpe: String,
     edit_notes: String,
     lifts: Vec<Lift>,
@@ -101,7 +102,7 @@ impl GuiApp {
             set_mode: SetMode::Simple,
             reps: String::new(),
             sets: String::new(),
-            date: String::new(),
+            date: Utc::now().date_naive(),
             rpe: String::new(),
             notes: String::new(),
             detailed_sets: Vec::new(),
@@ -130,7 +131,7 @@ impl GuiApp {
             edit_weight_mode: WeightMode::Weight,
             edit_reps: String::new(),
             edit_sets: String::new(),
-            edit_date: String::new(),
+            edit_date: Utc::now().date_naive(),
             edit_rpe: String::new(),
             edit_notes: String::new(),
             lifts: Vec::new(),

@@ -1,4 +1,5 @@
-use chrono::{NaiveDate, Utc};
+use chrono::Utc;
+use egui_extras::DatePickerButton;
 use clap::ValueEnum;
 use eframe::egui;
 
@@ -167,8 +168,8 @@ impl GuiApp {
             }
         }
         ui.horizontal(|ui| {
-            ui.label("Date (YYYY-MM-DD):");
-            ui.text_edit_singleline(&mut self.date);
+            ui.label("Date:");
+            ui.add(DatePickerButton::new(&mut self.date).id_source("add_date"));
         });
         ui.horizontal(|ui| {
             ui.label("Notes:");
@@ -438,17 +439,7 @@ impl GuiApp {
                 self.detailed_sets.clone()
             }
         };
-        let date = if self.date.trim().is_empty() {
-            Utc::now().date_naive()
-        } else {
-            match NaiveDate::parse_from_str(&self.date, "%Y-%m-%d") {
-                Ok(d) => d,
-                Err(_) => {
-                    self.error = Some("Invalid date".into());
-                    return;
-                }
-            }
-        };
+        let date = self.date;
         let exec = LiftExecution {
             id: None,
             date,
@@ -467,7 +458,7 @@ impl GuiApp {
                 self.band_select = None;
                 self.reps.clear();
                 self.sets.clear();
-                self.date.clear();
+                self.date = Utc::now().date_naive();
                 self.rpe.clear();
                 self.notes.clear();
                 self.detailed_sets.clear();
