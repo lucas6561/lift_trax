@@ -226,6 +226,14 @@ fn upgrades_legacy_database() {
     assert!(record_cols.contains(&"notes".to_string()));
 
     std::fs::remove_file(path).unwrap();
+    // remove generated backup
+    for entry in std::fs::read_dir(".").unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("test_legacy.db.backup-") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 }
 
 #[test]
@@ -290,6 +298,13 @@ fn upgrades_unversioned_database() {
     assert!(record_cols.contains(&"notes".to_string()));
 
     std::fs::remove_file(path).unwrap();
+    for entry in std::fs::read_dir(".").unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("test_unversioned.db.backup-") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 }
 
 #[test]
@@ -348,4 +363,53 @@ fn repairs_misreported_version() {
     assert_eq!(user_version, 7);
 
     std::fs::remove_file(path).unwrap();
+    for entry in std::fs::read_dir(".").unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("test_misreported.db.backup-") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
+#[test]
+fn creates_backup_on_open() {
+    let path = "backup_test.db";
+    // ensure clean state
+    let _ = std::fs::remove_file(path);
+    for entry in std::fs::read_dir(".").unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("backup_test.db.backup-") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+
+    {
+        // create initial database
+        let _db = SqliteDb::new(path).expect("db open");
+    }
+    // reopening should create a backup of existing file
+    {
+        let _db = SqliteDb::new(path).expect("db open");
+    }
+
+    let backups: Vec<_> = std::fs::read_dir(".")
+        .unwrap()
+        .filter_map(|e| {
+            let name = e.unwrap().file_name().to_string_lossy().into_owned();
+            if name.starts_with("backup_test.db.backup-") {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert!(!backups.is_empty());
+
+    // clean up
+    std::fs::remove_file(path).unwrap();
+    for name in backups {
+        let _ = std::fs::remove_file(name);
+    }
 }
