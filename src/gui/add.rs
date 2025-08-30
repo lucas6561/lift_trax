@@ -31,6 +31,7 @@ impl GuiApp {
         ui.horizontal(|ui| {
             ui.label("Input:");
             ui.selectable_value(&mut self.weight_mode, WeightMode::Weight, "Weight");
+            ui.selectable_value(&mut self.weight_mode, WeightMode::WeightLr, "L/R Weight");
             ui.selectable_value(&mut self.weight_mode, WeightMode::Bands, "Bands");
         });
         match self.weight_mode {
@@ -38,6 +39,24 @@ impl GuiApp {
                 ui.horizontal(|ui| {
                     ui.label("Weight:");
                     ui.text_edit_singleline(&mut self.weight_value);
+                    egui::ComboBox::from_id_source("weight_unit")
+                        .selected_text(match self.weight_unit {
+                            WeightUnit::Pounds => "lb",
+                            WeightUnit::Kilograms => "kg",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                        });
+                });
+            }
+            WeightMode::WeightLr => {
+                ui.horizontal(|ui| {
+                    ui.label("Weight:");
+                    ui.label("L:");
+                    ui.text_edit_singleline(&mut self.weight_left_value);
+                    ui.label("R:");
+                    ui.text_edit_singleline(&mut self.weight_right_value);
                     egui::ComboBox::from_id_source("weight_unit")
                         .selected_text(match self.weight_unit {
                             WeightUnit::Pounds => "lb",
@@ -208,6 +227,23 @@ impl GuiApp {
                 };
                 Weight::from_unit(val, self.weight_unit)
             }
+            WeightMode::WeightLr => {
+                let left: f64 = match self.weight_left_value.parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        self.error = Some("Invalid weight".into());
+                        return;
+                    }
+                };
+                let right: f64 = match self.weight_right_value.parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        self.error = Some("Invalid weight".into());
+                        return;
+                    }
+                };
+                Weight::from_unit_lr(left, right, self.weight_unit)
+            }
             WeightMode::Bands => match self.band_value.parse::<Weight>() {
                 Ok(w) => w,
                 Err(_) => {
@@ -267,6 +303,8 @@ impl GuiApp {
                 self.error = Some(e.to_string());
             } else {
                 self.weight_value.clear();
+                self.weight_left_value.clear();
+                self.weight_right_value.clear();
                 self.band_value.clear();
                 self.reps.clear();
                 self.sets.clear();

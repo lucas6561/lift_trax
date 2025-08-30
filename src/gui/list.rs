@@ -179,12 +179,24 @@ impl GuiApp {
                                         self.edit_weight_mode = WeightMode::Weight;
                                         self.edit_weight_unit = WeightUnit::Pounds;
                                         self.edit_weight_value = format!("{}", p);
+                                        self.edit_weight_left_value.clear();
+                                        self.edit_weight_right_value.clear();
+                                        self.edit_band_value.clear();
+                                    }
+                                    Weight::RawLr { left, right } => {
+                                        self.edit_weight_mode = WeightMode::WeightLr;
+                                        self.edit_weight_unit = WeightUnit::Pounds;
+                                        self.edit_weight_left_value = format!("{}", left);
+                                        self.edit_weight_right_value = format!("{}", right);
+                                        self.edit_weight_value.clear();
                                         self.edit_band_value.clear();
                                     }
                                     Weight::Bands(_) => {
                                         self.edit_weight_mode = WeightMode::Bands;
                                         self.edit_band_value = exec.weight.to_string();
                                         self.edit_weight_value.clear();
+                                        self.edit_weight_left_value.clear();
+                                        self.edit_weight_right_value.clear();
                                     }
                                 }
                                 self.edit_sets = exec.sets.to_string();
@@ -204,6 +216,11 @@ impl GuiApp {
                                 );
                                 ui.selectable_value(
                                     &mut self.edit_weight_mode,
+                                    WeightMode::WeightLr,
+                                    "L/R Weight",
+                                );
+                                ui.selectable_value(
+                                    &mut self.edit_weight_mode,
                                     WeightMode::Bands,
                                     "Bands",
                                 );
@@ -213,6 +230,38 @@ impl GuiApp {
                                     ui.horizontal(|ui| {
                                         ui.label("Weight:");
                                         ui.text_edit_singleline(&mut self.edit_weight_value);
+                                        egui::ComboBox::from_id_source(format!(
+                                            "edit_unit_{}_{}",
+                                            i, j
+                                        ))
+                                        .selected_text(match self.edit_weight_unit {
+                                            WeightUnit::Pounds => "lb",
+                                            WeightUnit::Kilograms => "kg",
+                                        })
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                ui.selectable_value(
+                                                    &mut self.edit_weight_unit,
+                                                    WeightUnit::Pounds,
+                                                    "lb",
+                                                );
+                                                ui.selectable_value(
+                                                    &mut self.edit_weight_unit,
+                                                    WeightUnit::Kilograms,
+                                                    "kg",
+                                                );
+                                            },
+                                        );
+                                    });
+                                }
+                                WeightMode::WeightLr => {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Weight:");
+                                        ui.label("L:");
+                                        ui.text_edit_singleline(&mut self.edit_weight_left_value);
+                                        ui.label("R:");
+                                        ui.text_edit_singleline(&mut self.edit_weight_right_value);
                                         egui::ComboBox::from_id_source(format!(
                                             "edit_unit_{}_{}",
                                             i, j
@@ -324,6 +373,23 @@ impl GuiApp {
                         }
                     };
                     Weight::from_unit(val, self.edit_weight_unit)
+                }
+                WeightMode::WeightLr => {
+                    let left: f64 = match self.edit_weight_left_value.parse() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.error = Some("Invalid weight".into());
+                            return;
+                        }
+                    };
+                    let right: f64 = match self.edit_weight_right_value.parse() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.error = Some("Invalid weight".into());
+                            return;
+                        }
+                    };
+                    Weight::from_unit_lr(left, right, self.edit_weight_unit)
                 }
                 WeightMode::Bands => match self.edit_band_value.parse::<Weight>() {
                     Ok(w) => w,
