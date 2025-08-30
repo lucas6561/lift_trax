@@ -10,6 +10,7 @@ pub enum LiftType {
     Deadlift,
     Conditioning,
     Accessory,
+    WarmUp,
 }
 
 impl fmt::Display for LiftType {
@@ -21,6 +22,7 @@ impl fmt::Display for LiftType {
             LiftType::Deadlift => "DEADLIFT",
             LiftType::Conditioning => "CONDITIONING",
             LiftType::Accessory => "ACCESSORY",
+            LiftType::WarmUp => "WARM UP",
         };
         write!(f, "{}", name)
     }
@@ -38,6 +40,7 @@ impl FromStr for LiftType {
             "DEADLIFT" => Ok(LiftType::Deadlift),
             "CONDITIONING" => Ok(LiftType::Conditioning),
             "ACCESSORY" => Ok(LiftType::Accessory),
+            "WARM UP" => Ok(LiftType::WarmUp),
             _ => Err(format!("unknown lift type: {}", s)),
         }
     }
