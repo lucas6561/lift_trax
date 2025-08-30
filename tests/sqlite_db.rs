@@ -226,3 +226,61 @@ fn upgrades_unversioned_database() {
 
     std::fs::remove_file(path).unwrap();
 }
+
+#[test]
+fn repairs_misreported_version() {
+    let path = "test_misreported.db";
+    let _ = std::fs::remove_file(path);
+
+    // Create a legacy v4 schema but claim to be the latest version.
+    {
+        let conn = Connection::open(path).unwrap();
+        conn.execute(
+            "CREATE TABLE lifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                region TEXT NOT NULL,
+                main_lift TEXT,
+                muscles TEXT NOT NULL DEFAULT ''
+            )",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "CREATE TABLE lift_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lift_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                sets INTEGER NOT NULL,
+                reps INTEGER NOT NULL,
+                weight TEXT NOT NULL,
+                rpe REAL,
+                FOREIGN KEY(lift_id) REFERENCES lifts(id)
+            )",
+            [],
+        )
+        .unwrap();
+        // Incorrectly set user_version ahead of the actual schema.
+        conn.pragma_update(None, "user_version", &6).unwrap();
+    }
+
+    // Opening should reconcile the mismatch and add missing columns.
+    let _db = SqliteDb::new(path).expect("db open");
+
+    let conn = Connection::open(path).unwrap();
+    let cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(lift_records)")
+        .unwrap()
+        .query_map([], |row| row.get(1))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(cols.contains(&"notes".to_string()));
+
+    let user_version: i32 = conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(user_version, 6);
+
+    std::fs::remove_file(path).unwrap();
+}

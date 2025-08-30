@@ -104,45 +104,45 @@ fn detect_version(conn: &Connection) -> DbResult<i32> {
 
 /// Initialize the database schema and ensure it matches the expected version.
 fn init_db(conn: &Connection) -> DbResult<()> {
-    let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if user_version == 0 {
-        if table_exists(conn, "lifts")? {
-            let from_version = detect_version(conn)?;
-            if from_version < DB_VERSION {
-                run_migrations(conn, from_version)?;
-            } else {
-                conn.pragma_update(None, "user_version", &DB_VERSION)?;
-            }
-        } else {
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS lifts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    region TEXT NOT NULL,
-                    main_lift TEXT,
-                    muscles TEXT NOT NULL,
-                    notes TEXT NOT NULL DEFAULT ''
-                )",
-                [],
-            )?;
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS lift_records (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    lift_id INTEGER NOT NULL,
-                    date TEXT NOT NULL,
-                    sets INTEGER NOT NULL,
-                    reps INTEGER NOT NULL,
-                    weight TEXT NOT NULL,
-                    rpe REAL,
-                    notes TEXT NOT NULL DEFAULT '',
-                    FOREIGN KEY(lift_id) REFERENCES lifts(id)
-                )",
-                [],
-            )?;
+    let detected_version = detect_version(conn)?;
+    if detected_version == 0 {
+        // Fresh database with no tables yet.
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS lifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                region TEXT NOT NULL,
+                main_lift TEXT,
+                muscles TEXT NOT NULL,
+                notes TEXT NOT NULL DEFAULT ''
+            )",
+            [],
+        )?;
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS lift_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lift_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                sets INTEGER NOT NULL,
+                reps INTEGER NOT NULL,
+                weight TEXT NOT NULL,
+                rpe REAL,
+                notes TEXT NOT NULL DEFAULT '',
+                FOREIGN KEY(lift_id) REFERENCES lifts(id)
+            )",
+            [],
+        )?;
+        conn.pragma_update(None, "user_version", &DB_VERSION)?;
+    } else if detected_version < DB_VERSION {
+        // Upgrade legacy schemas stepwise.
+        run_migrations(conn, detected_version)?;
+    } else {
+        // Schema matches the latest version but user_version might be incorrect.
+        let user_version: i32 =
+            conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if user_version != DB_VERSION {
             conn.pragma_update(None, "user_version", &DB_VERSION)?;
         }
-    } else if user_version < DB_VERSION {
-        run_migrations(conn, user_version)?;
     }
     Ok(())
 }
