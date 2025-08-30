@@ -22,11 +22,14 @@ fn create_lift_with_execution() {
     let exec = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-        sets: vec![ExecutionSet {
-            metric: SetMetric::Reps(3),
-            weight: Weight::Raw(200.0),
-            rpe: None,
-        }; 5],
+        sets: vec![
+            ExecutionSet {
+                metric: SetMetric::Reps(3),
+                weight: Weight::Raw(200.0),
+                rpe: None,
+            };
+            5
+        ],
         notes: String::new(),
     };
     let lift = Lift {

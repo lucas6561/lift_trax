@@ -1,7 +1,7 @@
+use serde::de::Error as DeError;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::str::FromStr;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::Error as DeError;
 
 /// Colors available for resistance bands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -141,10 +141,8 @@ impl FromStr for Weight {
         if let Ok(p) = trimmed.parse::<f64>() {
             return Ok(Weight::Raw(p));
         }
-        let bands: Result<Vec<BandColor>, _> = trimmed
-            .split('+')
-            .map(|b| b.trim().parse())
-            .collect();
+        let bands: Result<Vec<BandColor>, _> =
+            trimmed.split('+').map(|b| b.trim().parse()).collect();
         bands.map(Weight::Bands)
     }
 }
@@ -178,4 +176,3 @@ impl Weight {
         }
     }
 }
-

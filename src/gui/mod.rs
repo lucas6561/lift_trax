@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, Utc};
-use eframe::{egui, Frame, NativeOptions};
+use eframe::{Frame, NativeOptions, egui};
 
 use crate::weight::{BandColor, WeightUnit};
 use crate::{

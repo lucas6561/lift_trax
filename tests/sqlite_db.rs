@@ -10,11 +10,10 @@ mod weight;
 use chrono::NaiveDate;
 use database::Database;
 use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
-use sqlite_db::SqliteDb;
-use weight::Weight;
 use rusqlite::Connection;
 use serde::Serialize;
-
+use sqlite_db::SqliteDb;
+use weight::Weight;
 
 #[test]
 fn add_and_list_lift_with_execution() {
@@ -36,11 +35,14 @@ fn add_and_list_lift_with_execution() {
     let exec = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
-        sets: vec![ExecutionSet {
-            metric: SetMetric::Reps(5),
-            weight: Weight::Raw(135.0),
-            rpe: Some(9.0),
-        }; 3],
+        sets: vec![
+            ExecutionSet {
+                metric: SetMetric::Reps(5),
+                weight: Weight::Raw(135.0),
+                rpe: Some(9.0),
+            };
+            3
+        ],
         notes: "solid".into(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -58,7 +60,8 @@ fn reads_legacy_execution_sets() {
     let path = "test_old_sets.db";
     let _ = std::fs::remove_file(path);
     let db = SqliteDb::new(path).expect("db open");
-    db.add_lift("Row", LiftRegion::UPPER, None, &[], "").unwrap();
+    db.add_lift("Row", LiftRegion::UPPER, None, &[], "")
+        .unwrap();
 
     #[derive(Serialize)]
     struct LegacySet {
@@ -69,9 +72,15 @@ fn reads_legacy_execution_sets() {
 
     let conn = Connection::open(path).unwrap();
     let lift_id: i32 = conn
-        .query_row("SELECT id FROM lifts WHERE name = 'Row'", [], |row| row.get(0))
+        .query_row("SELECT id FROM lifts WHERE name = 'Row'", [], |row| {
+            row.get(0)
+        })
         .unwrap();
-    let legacy_sets = vec![LegacySet { reps: 10, weight: Weight::Raw(50.0), rpe: None }];
+    let legacy_sets = vec![LegacySet {
+        reps: 10,
+        weight: Weight::Raw(50.0),
+        rpe: None,
+    }];
     let sets_json = serde_json::to_string(&legacy_sets).unwrap();
     conn.execute(
         "INSERT INTO lift_records (lift_id, date, sets, notes) VALUES (?1, '2024-01-01', ?2, '')",
@@ -101,31 +110,40 @@ fn lift_stats_provides_summary() {
     let exec1 = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-        sets: vec![ExecutionSet {
-            metric: SetMetric::Reps(5),
-            weight: Weight::Raw(100.0),
-            rpe: None,
-        }; 3],
+        sets: vec![
+            ExecutionSet {
+                metric: SetMetric::Reps(5),
+                weight: Weight::Raw(100.0),
+                rpe: None,
+            };
+            3
+        ],
         notes: String::new(),
     };
     let exec2 = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
-        sets: vec![ExecutionSet {
-            metric: SetMetric::Reps(5),
-            weight: Weight::Raw(120.0),
-            rpe: None,
-        }; 3],
+        sets: vec![
+            ExecutionSet {
+                metric: SetMetric::Reps(5),
+                weight: Weight::Raw(120.0),
+                rpe: None,
+            };
+            3
+        ],
         notes: String::new(),
     };
     let exec3 = LiftExecution {
         id: None,
         date: NaiveDate::from_ymd_opt(2024, 1, 3).unwrap(),
-        sets: vec![ExecutionSet {
-            metric: SetMetric::Reps(3),
-            weight: Weight::Raw(150.0),
-            rpe: Some(9.0),
-        }; 2],
+        sets: vec![
+            ExecutionSet {
+                metric: SetMetric::Reps(3),
+                weight: Weight::Raw(150.0),
+                rpe: Some(9.0),
+            };
+            2
+        ],
         notes: String::new(),
     };
     db.add_lift_execution("Squat", &exec1).unwrap();

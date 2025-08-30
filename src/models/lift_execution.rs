@@ -43,12 +43,32 @@ impl<'de> Deserialize<'de> for ExecutionSet {
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum Repr {
-            Current { metric: SetMetric, weight: Weight, rpe: Option<f32> },
-            Legacy { reps: i32, weight: Weight, rpe: Option<f32> },
+            Current {
+                metric: SetMetric,
+                weight: Weight,
+                rpe: Option<f32>,
+            },
+            Legacy {
+                reps: i32,
+                weight: Weight,
+                rpe: Option<f32>,
+            },
         }
         match Repr::deserialize(deserializer)? {
-            Repr::Current { metric, weight, rpe } => Ok(Self { metric, weight, rpe }),
-            Repr::Legacy { reps, weight, rpe } => Ok(Self { metric: SetMetric::Reps(reps), weight, rpe }),
+            Repr::Current {
+                metric,
+                weight,
+                rpe,
+            } => Ok(Self {
+                metric,
+                weight,
+                rpe,
+            }),
+            Repr::Legacy { reps, weight, rpe } => Ok(Self {
+                metric: SetMetric::Reps(reps),
+                weight,
+                rpe,
+            }),
         }
     }
 }
