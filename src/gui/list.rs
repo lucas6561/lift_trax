@@ -217,7 +217,7 @@ impl GuiApp {
                             match self.edit_weight_mode {
                                 WeightMode::Weight => {
                                     ui.horizontal(|ui| {
-                                        ui.label("Weight:");
+                                        ui.label("Weight (L|R):");
                                         ui.text_edit_singleline(&mut self.edit_weight_value);
                                         egui::ComboBox::from_id_source(format!(
                                             "edit_unit_{}_{}",
@@ -322,14 +322,35 @@ impl GuiApp {
             let exec = &lift.executions[exec_idx];
             let weight = match self.edit_weight_mode {
                 WeightMode::Weight => {
-                    let val: f64 = match self.edit_weight_value.parse() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            self.error = Some("Invalid weight".into());
-                            return;
-                        }
-                    };
-                    Weight::from_unit(val, self.edit_weight_unit)
+                    if let Some((l_str, r_str)) = self.edit_weight_value.split_once('|') {
+                        let parse_side = |s: &str| -> Result<f64, ()> {
+                            s.trim().parse().map_err(|_| ())
+                        };
+                        let left = match parse_side(l_str) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid weight".into());
+                                return;
+                            }
+                        };
+                        let right = match parse_side(r_str) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid weight".into());
+                                return;
+                            }
+                        };
+                        Weight::from_unit_lr(left, right, self.edit_weight_unit)
+                    } else {
+                        let val: f64 = match self.edit_weight_value.parse() {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid weight".into());
+                                return;
+                            }
+                        };
+                        Weight::from_unit(val, self.edit_weight_unit)
+                    }
                 }
                 WeightMode::Bands => match self.edit_band_value.parse::<Weight>() {
                     Ok(w) => w,
