@@ -23,7 +23,7 @@ fn display_and_parse() {
         LiftType::from_str("ACCESSORY").unwrap(),
         LiftType::Accessory
     );
-    assert_eq!(LiftType::WarmUp.to_string(), "WARM UP");
-    assert_eq!(LiftType::from_str("warm_up").unwrap(), LiftType::WarmUp);
+    assert_eq!(LiftType::Mobility.to_string(), "MOBILITY");
+    assert_eq!(LiftType::from_str("mobility").unwrap(), LiftType::Mobility);
     assert!(LiftType::from_str("curl").is_err());
 }
