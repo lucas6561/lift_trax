@@ -1,6 +1,6 @@
 use eframe::egui;
 
-use super::GuiApp;
+use super::{GuiApp, combo_box_width};
 
 impl GuiApp {
     pub(super) fn tab_query(&mut self, ui: &mut egui::Ui) {
@@ -12,7 +12,11 @@ impl GuiApp {
                 .and_then(|i| self.lifts.get(i))
                 .map(|l| l.name.as_str())
                 .unwrap_or("Select lift");
+            let mut options: Vec<String> = self.lifts.iter().map(|l| l.name.clone()).collect();
+            options.push("Select lift".into());
+            let width = combo_box_width(ui, &options);
             egui::ComboBox::from_id_source("query_lift_select")
+                .width(width)
                 .selected_text(selected)
                 .show_ui(ui, |ui| {
                     for (i, lift) in self.lifts.iter().enumerate() {
