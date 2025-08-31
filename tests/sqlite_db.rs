@@ -84,6 +84,29 @@ fn delete_execution_removes_record() {
 }
 
 #[test]
+fn delete_lift_removes_lift_and_history() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::Accessory, &[], "")
+        .unwrap();
+
+    let exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(5),
+            weight: Weight::Raw(135.0),
+            rpe: None,
+        }],
+        warmup: false,
+        notes: String::new(),
+    };
+    db.add_lift_execution("Bench", &exec).unwrap();
+
+    db.delete_lift("Bench").unwrap();
+    assert!(db.list_lifts(None).unwrap().is_empty());
+}
+
+#[test]
 fn list_lifts_returns_all_sorted() {
     let db = SqliteDb::new(":memory:").expect("db open");
     db.add_lift("Zpress", LiftRegion::UPPER, LiftType::Accessory, &[], "")

@@ -4,7 +4,10 @@ use eframe::egui;
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
 use crate::weight::{Weight, WeightUnit};
 
-use super::{execution_form::execution_form, GuiApp, MetricMode, WeightMode, combo_box_width, main_lift_options};
+use super::{
+    GuiApp, MetricMode, WeightMode, combo_box_width, execution_form::execution_form,
+    main_lift_options,
+};
 
 impl GuiApp {
     pub(super) fn tab_list(&mut self, ui: &mut egui::Ui) {
@@ -134,6 +137,9 @@ impl GuiApp {
                             self.edit_lift_muscles = muscles.clone();
                             self.edit_muscle_select = None;
                             self.edit_lift_notes = self.lifts[i].notes.clone();
+                        }
+                        if ui.button("Delete Lift").clicked() {
+                            self.lift_to_delete = Some(i);
                         }
                     });
                     if !self.lifts[i].notes.is_empty() {
@@ -282,6 +288,32 @@ impl GuiApp {
                     }
                 }
             });
+            if self.lift_to_delete == Some(i) {
+                egui::Window::new("Confirm Delete")
+                    .collapsible(false)
+                    .show(ui.ctx(), |ui| {
+                        ui.label("Delete lift and all execution data?");
+                        ui.horizontal(|ui| {
+                            if ui.button("Delete").clicked() {
+                                if let Err(e) = self.db.delete_lift(&name) {
+                                    self.error = Some(e.to_string());
+                                } else {
+                                    self.error = None;
+                                    self.editing_exec = None;
+                                    self.needs_lift_refresh = true;
+                                }
+                                self.lift_to_delete = None;
+                            }
+                            if ui.button("Cancel").clicked() {
+                                self.lift_to_delete = None;
+                            }
+                        });
+                    });
+            }
+        }
+        if self.needs_lift_refresh {
+            self.refresh_lifts();
+            self.needs_lift_refresh = false;
         }
         if let Some(err) = &self.error {
             ui.colored_label(egui::Color32::RED, err);

@@ -94,8 +94,7 @@ pub(super) fn execution_form<F>(
                     BandColor::Purple,
                 ];
                 colors.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-                let mut color_strings: Vec<String> =
-                    colors.iter().map(|c| c.to_string()).collect();
+                let mut color_strings: Vec<String> = colors.iter().map(|c| c.to_string()).collect();
                 color_strings.push("Select".into());
                 let band_width = combo_box_width(ui, &color_strings);
                 egui::ComboBox::from_id_source(format!("{id_prefix}_band_select"))
@@ -184,7 +183,11 @@ pub(super) fn execution_form<F>(
                             )
                             .show_ui(ui, |ui| {
                                 for color in &colors {
-                                    ui.selectable_value(band_select, Some(*color), color.to_string());
+                                    ui.selectable_value(
+                                        band_select,
+                                        Some(*color),
+                                        color.to_string(),
+                                    );
                                 }
                             });
                         if ui.button("Add").clicked() {
@@ -212,7 +215,7 @@ pub(super) fn execution_form<F>(
     ui.checkbox(warmup, "Warm-up");
     ui.horizontal(|ui| {
         ui.label("Date:");
-    ui.add(DatePickerButton::new(date).id_source(id_prefix));
+        ui.add(DatePickerButton::new(date).id_source(id_prefix));
     });
     ui.horizontal(|ui| {
         ui.label("Notes:");
