@@ -300,7 +300,7 @@ impl GuiApp {
                                 } else {
                                     self.error = None;
                                     self.editing_exec = None;
-                                    self.refresh_lifts();
+                                    self.needs_lift_refresh = true;
                                 }
                                 self.lift_to_delete = None;
                             }
@@ -310,6 +310,10 @@ impl GuiApp {
                         });
                     });
             }
+        }
+        if self.needs_lift_refresh {
+            self.refresh_lifts();
+            self.needs_lift_refresh = false;
         }
         if let Some(err) = &self.error {
             ui.colored_label(egui::Color32::RED, err);
