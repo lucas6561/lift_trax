@@ -1,7 +1,7 @@
 //! SQLite-backed implementation of the [`Database`] trait.
 
 use chrono::{NaiveDate, Utc};
-use rusqlite::{params, types::Type, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params, types::Type};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -431,6 +431,12 @@ impl Database for SqliteDb {
                 exec_id
             ],
         )?;
+        Ok(())
+    }
+
+    fn delete_lift_execution(&self, exec_id: i32) -> DbResult<()> {
+        self.conn
+            .execute("DELETE FROM lift_records WHERE id = ?1", params![exec_id])?;
         Ok(())
     }
 
