@@ -5,7 +5,7 @@ use egui_extras::DatePickerButton;
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use crate::weight::{BandColor, Weight, WeightUnit};
 
-use super::{GuiApp, MetricMode, WeightMode};
+use super::{GuiApp, MetricMode, WeightMode, combo_box_width};
 
 impl GuiApp {
     pub(super) fn tab_list(&mut self, ui: &mut egui::Ui) {
@@ -39,7 +39,19 @@ impl GuiApp {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Main:");
+                        let main_opts = vec![
+                            "None".to_string(),
+                            "Bench Press".to_string(),
+                            "Overhead Press".to_string(),
+                            "Squat".to_string(),
+                            "Deadlift".to_string(),
+                            "Conditioning".to_string(),
+                            "Accessory".to_string(),
+                            "Warm Up".to_string(),
+                        ];
+                        let main_width = combo_box_width(ui, &main_opts);
                         egui::ComboBox::from_id_source(format!("edit_main_{}", i))
+                            .width(main_width)
                             .selected_text(
                                 self.edit_lift_main
                                     .map(|m| m.to_string())
@@ -98,7 +110,14 @@ impl GuiApp {
                         }
                     });
                     ui.horizontal(|ui| {
+                        let mut muscle_opts: Vec<String> = Muscle::value_variants()
+                            .iter()
+                            .map(|m| m.to_string())
+                            .collect();
+                        muscle_opts.push("Select muscle".into());
+                        let muscle_width = combo_box_width(ui, &muscle_opts);
                         egui::ComboBox::from_id_source(format!("edit_muscle_select_{}", i))
+                            .width(muscle_width)
                             .selected_text(
                                 self.edit_muscle_select
                                     .map(|m| m.to_string())
@@ -293,10 +312,13 @@ impl GuiApp {
                                     ui.horizontal(|ui| {
                                         ui.label("Weight:");
                                         ui.text_edit_singleline(&mut self.edit_weight_value);
+                                        let unit_width =
+                                            combo_box_width(ui, &vec!["lb".into(), "kg".into()]);
                                         egui::ComboBox::from_id_source(format!(
                                             "edit_unit_{}_{}",
                                             i, j
                                         ))
+                                        .width(unit_width)
                                         .selected_text(match self.edit_weight_unit {
                                             WeightUnit::Pounds => "lb",
                                             WeightUnit::Kilograms => "kg",
@@ -322,10 +344,13 @@ impl GuiApp {
                                     ui.horizontal(|ui| {
                                         ui.label("Weight:");
                                         ui.text_edit_singleline(&mut self.edit_weight_value);
+                                        let unit_width =
+                                            combo_box_width(ui, &vec!["lb".into(), "kg".into()]);
                                         egui::ComboBox::from_id_source(format!(
                                             "edit_unit_{}_{}",
                                             i, j
                                         ))
+                                        .width(unit_width)
                                         .selected_text(match self.edit_weight_unit {
                                             WeightUnit::Pounds => "lb",
                                             WeightUnit::Kilograms => "kg",
@@ -354,10 +379,13 @@ impl GuiApp {
                                         ui.text_edit_singleline(&mut self.edit_weight_left_value);
                                         ui.label("R:");
                                         ui.text_edit_singleline(&mut self.edit_weight_right_value);
+                                        let unit_width =
+                                            combo_box_width(ui, &vec!["lb".into(), "kg".into()]);
                                         egui::ComboBox::from_id_source(format!(
                                             "edit_unit_{}_{}",
                                             i, j
                                         ))
+                                        .width(unit_width)
                                         .selected_text(match self.edit_weight_unit {
                                             WeightUnit::Pounds => "lb",
                                             WeightUnit::Kilograms => "kg",
@@ -392,10 +420,21 @@ impl GuiApp {
                                                 .join("+")
                                         };
                                         ui.label(text);
+                                        let colors = vec![
+                                            BandColor::Orange.to_string(),
+                                            BandColor::Red.to_string(),
+                                            BandColor::Blue.to_string(),
+                                            BandColor::Green.to_string(),
+                                            BandColor::Black.to_string(),
+                                            BandColor::Purple.to_string(),
+                                            "Select".into(),
+                                        ];
+                                        let band_width = combo_box_width(ui, &colors);
                                         egui::ComboBox::from_id_source(format!(
                                             "edit_band_select_{}_{}",
                                             i, j
                                         ))
+                                        .width(band_width)
                                         .selected_text(
                                             self.edit_band_select
                                                 .map(|b| b.to_string())

@@ -189,13 +189,29 @@ impl eframe::App for GuiApp {
             });
         });
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                match self.current_tab {
-                    Tab::Add => self.tab_add(ui, ctx),
-                    Tab::Query => self.tab_query(ui),
-                    Tab::List => self.tab_list(ui),
-                }
+            egui::ScrollArea::vertical().show(ui, |ui| match self.current_tab {
+                Tab::Add => self.tab_add(ui, ctx),
+                Tab::Query => self.tab_query(ui),
+                Tab::List => self.tab_list(ui),
             });
         });
     }
+}
+
+pub(super) fn combo_box_width(ui: &egui::Ui, texts: &[String]) -> f32 {
+    let font_id = egui::TextStyle::Button.resolve(ui.style());
+    let icon_width = ui.spacing().icon_width;
+    let padding = ui.spacing().button_padding.x * 2.0;
+    let ctx = ui.ctx().clone();
+    ctx.fonts(|f| {
+        let max = texts
+            .iter()
+            .map(|t| {
+                f.layout_no_wrap(t.clone(), font_id.clone(), egui::Color32::WHITE)
+                    .rect
+                    .width()
+            })
+            .fold(0.0_f32, f32::max);
+        max + icon_width + padding
+    })
 }
