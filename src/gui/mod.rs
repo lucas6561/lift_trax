@@ -166,13 +166,16 @@ impl GuiApp {
 
     fn refresh_lifts(&mut self) {
         match self.db.list_lifts(None) {
-            Ok(l) => {
+            Ok(mut l) => {
+                l.sort_by(|a, b| a.name.cmp(&b.name));
+                let selected_name = self
+                    .selected_lift
+                    .and_then(|i| self.lifts.get(i))
+                    .map(|l| l.name.clone());
                 self.lifts = l;
-                if self.lifts.is_empty() {
-                    self.selected_lift = None;
-                } else if self.selected_lift.map_or(true, |i| i >= self.lifts.len()) {
-                    self.selected_lift = Some(0);
-                }
+                self.selected_lift = selected_name
+                    .and_then(|name| self.lifts.iter().position(|l| l.name == name))
+                    .or_else(|| if self.lifts.is_empty() { None } else { Some(0) });
             }
             Err(e) => self.error = Some(e.to_string()),
         }
@@ -196,6 +199,21 @@ impl eframe::App for GuiApp {
             });
         });
     }
+}
+
+pub(super) fn main_lift_options() -> Vec<(Option<LiftType>, &'static str)> {
+    let mut opts = vec![
+        (None, "None"),
+        (Some(LiftType::Accessory), "Accessory"),
+        (Some(LiftType::BenchPress), "Bench Press"),
+        (Some(LiftType::Conditioning), "Conditioning"),
+        (Some(LiftType::Deadlift), "Deadlift"),
+        (Some(LiftType::OverheadPress), "Overhead Press"),
+        (Some(LiftType::Squat), "Squat"),
+        (Some(LiftType::WarmUp), "Warm Up"),
+    ];
+    opts.sort_by(|a, b| a.1.cmp(b.1));
+    opts
 }
 
 pub(super) fn combo_box_width(ui: &egui::Ui, texts: &[String]) -> f32 {
