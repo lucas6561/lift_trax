@@ -210,7 +210,7 @@ pub(super) fn main_lift_options() -> Vec<(Option<LiftType>, &'static str)> {
         (Some(LiftType::Deadlift), "Deadlift"),
         (Some(LiftType::OverheadPress), "Overhead Press"),
         (Some(LiftType::Squat), "Squat"),
-        (Some(LiftType::WarmUp), "Warm Up"),
+        (Some(LiftType::Mobility), "Mobility"),
     ];
     opts.sort_by(|a, b| a.1.cmp(b.1));
     opts
