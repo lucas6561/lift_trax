@@ -1,76 +1,118 @@
+use std::collections::HashMap;
+
+use chrono::Weekday;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType};
 
-/// Plan for a workout section over six weeks.
-///
-/// Variants either represent a single lift performed each week
-/// or a weekly circuit of multiple lifts.
-pub enum SectionPlan {
-    /// One lift per week, e.g. max-effort main lifts.
-    Single(Vec<Lift>),
-    /// Three-lift circuit performed once per week.
-    Circuits(Vec<Vec<Lift>>),
+/// Represents a single lift with optional suggested metrics.
+#[derive(Clone)]
+pub struct SingleLift {
+    pub lift: Lift,
+    pub rep_count: Option<u32>,
+    pub time_sec: Option<u32>,
+    pub distance_m: Option<u32>,
 }
 
-impl SectionPlan {
-    /// Swap the position of two weeks in the plan.
-    pub fn swap_weeks(&mut self, a: usize, b: usize) {
-        match self {
-            SectionPlan::Single(lifts) => lifts.swap(a, b),
-            SectionPlan::Circuits(weeks) => weeks.swap(a, b),
-        }
-    }
-
-    /// Swap two lifts within a weekly circuit.
-    /// Has no effect for `Single` plans.
-    pub fn swap_lifts(&mut self, week: usize, a: usize, b: usize) {
-        if let SectionPlan::Circuits(weeks) = self {
-            if let Some(lifts) = weeks.get_mut(week) {
-                lifts.swap(a, b);
-            }
-        }
-    }
+/// Represents a circuit of lifts with a prescribed rest time.
+#[derive(Clone)]
+pub struct CircuitLift {
+    pub circuit_lifts: Vec<SingleLift>,
+    pub rest_time_sec: u32,
 }
 
-/// Represents a section of a workout program capable of generating
-/// a six week block of suggested lifts.
-pub trait WorkoutSection {
-    /// Generate initial lift suggestions for the section.
-    fn suggest(&self, db: &dyn Database) -> DbResult<SectionPlan>;
+/// A lift entry within a workout, either a single lift or a circuit.
+#[derive(Clone)]
+pub enum WorkoutLift {
+    Single(SingleLift),
+    Circuit(CircuitLift),
 }
 
-/// Maximum effort lower body section.
-/// Picks six squat-type lifts for the block.
-pub struct MaxEffortLower;
+/// Collection of lifts to be performed in a workout.
+#[derive(Clone)]
+pub struct Workout {
+    pub lifts: Vec<WorkoutLift>,
+}
 
-impl WorkoutSection for MaxEffortLower {
-    fn suggest(&self, db: &dyn Database) -> DbResult<SectionPlan> {
+/// Mapping of weekday to its scheduled workout.
+pub type WorkoutWeek = HashMap<Weekday, Workout>;
+
+/// Builder capable of generating multi-week workout waves.
+pub trait WorkoutBuilder {
+    fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>>;
+}
+
+/// Basic workout builder selecting squat days and upper accessory circuits.
+pub struct BasicWorkoutBuilder;
+
+impl WorkoutBuilder for BasicWorkoutBuilder {
+    fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
+        let mut rng = thread_rng();
         let mut squats = db.lifts_by_type(LiftType::Squat)?;
-        if squats.len() < 6 {
+        if squats.len() < num_weeks {
             return Err("not enough squat lifts available".into());
         }
-        squats.shuffle(&mut thread_rng());
-        Ok(SectionPlan::Single(squats.into_iter().take(6).collect()))
-    }
-}
+        squats.shuffle(&mut rng);
 
-/// Upper accessory circuit performed on upper body days.
-/// Generates six unique three-lift circuits.
-pub struct UpperAccessoryCircuit;
-
-impl WorkoutSection for UpperAccessoryCircuit {
-    fn suggest(&self, db: &dyn Database) -> DbResult<SectionPlan> {
-        let mut candidates = db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Accessory)?;
-        if candidates.len() < 18 {
+        let accessories = db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Accessory)?;
+        if accessories.len() < 3 {
             return Err("not enough upper accessory lifts available".into());
         }
-        candidates.shuffle(&mut thread_rng());
-        let circuits: Vec<Vec<Lift>> = (0..6)
-            .map(|i| candidates[i * 3..(i + 1) * 3].to_vec())
-            .collect();
-        Ok(SectionPlan::Circuits(circuits))
+
+        let mut weeks = Vec::with_capacity(num_weeks);
+        for i in 0..num_weeks {
+            let mut week = WorkoutWeek::new();
+
+            let squat_lift = SingleLift {
+                lift: squats[i].clone(),
+                rep_count: None,
+                time_sec: None,
+                distance_m: None,
+            };
+            week.insert(
+                Weekday::Mon,
+                Workout {
+                    lifts: vec![WorkoutLift::Single(squat_lift)],
+                },
+            );
+
+            let circuit = |rng: &mut _, acc: &[Lift]| -> CircuitLift {
+                let picks: Vec<SingleLift> = acc
+                    .choose_multiple(rng, 3)
+                    .cloned()
+                    .map(|lift| SingleLift {
+                        lift,
+                        rep_count: None,
+                        time_sec: None,
+                        distance_m: None,
+                    })
+                    .collect();
+                CircuitLift {
+                    circuit_lifts: picks,
+                    rest_time_sec: 60,
+                }
+            };
+
+            let tue_circuit = circuit(&mut rng, &accessories);
+            week.insert(
+                Weekday::Tue,
+                Workout {
+                    lifts: vec![WorkoutLift::Circuit(tue_circuit)],
+                },
+            );
+
+            let thu_circuit = circuit(&mut rng, &accessories);
+            week.insert(
+                Weekday::Thu,
+                Workout {
+                    lifts: vec![WorkoutLift::Circuit(thu_circuit)],
+                },
+            );
+
+            weeks.push(week);
+        }
+        Ok(weeks)
     }
 }
