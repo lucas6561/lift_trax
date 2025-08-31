@@ -141,7 +141,7 @@ impl GuiApp {
                 ui.selectable_value(&mut self.new_lift_region, LiftRegion::LOWER, "Lower");
             });
             ui.horizontal(|ui| {
-                ui.label("Main:");
+                ui.label("Type:");
                 let main_types = main_lift_options();
                 let main_opts: Vec<String> =
                     main_types.iter().map(|(_, s)| s.to_string()).collect();
