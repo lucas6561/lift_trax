@@ -4,7 +4,7 @@ use super::{LiftExecution, LiftRegion, LiftType, Muscle};
 ///
 /// Lifts are uniquely identified by their [`name`]; any database identifiers
 /// are treated as internal implementation details.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lift {
     /// Name of the movement, e.g. "Bench".
     pub name: String,

@@ -8,6 +8,7 @@ mod gui;
 mod models;
 mod sqlite_db;
 mod weight;
+mod workout;
 
 use crate::weight::Weight;
 use database::Database;
