@@ -43,6 +43,7 @@ fn add_and_list_lift_with_execution() {
             };
             3
         ],
+        warmup: false,
         notes: "solid".into(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -69,6 +70,7 @@ fn delete_execution_removes_record() {
             weight: Weight::Raw(135.0),
             rpe: None,
         }],
+        warmup: false,
         notes: String::new(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -172,6 +174,7 @@ fn lift_stats_provides_summary() {
             };
             3
         ],
+        warmup: false,
         notes: String::new(),
     };
     let exec2 = LiftExecution {
@@ -185,6 +188,7 @@ fn lift_stats_provides_summary() {
             };
             3
         ],
+        warmup: false,
         notes: String::new(),
     };
     let exec3 = LiftExecution {
@@ -198,6 +202,7 @@ fn lift_stats_provides_summary() {
             };
             2
         ],
+        warmup: false,
         notes: String::new(),
     };
     db.add_lift_execution("Squat", &exec1).unwrap();
@@ -259,7 +264,7 @@ fn upgrades_legacy_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 7);
+    assert_eq!(user_version, 8);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -331,7 +336,7 @@ fn upgrades_unversioned_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 7);
+    assert_eq!(user_version, 8);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -414,7 +419,7 @@ fn repairs_misreported_version() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 7);
+    assert_eq!(user_version, 8);
 
     std::fs::remove_file(path).unwrap();
     for entry in std::fs::read_dir(".").unwrap() {

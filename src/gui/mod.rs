@@ -10,6 +10,7 @@ use crate::{
 mod add;
 mod list;
 mod query;
+mod execution_form;
 
 pub fn run_gui(db: Box<dyn Database>) -> Result<(), Box<dyn std::error::Error>> {
     let app = GuiApp::new(db);
@@ -43,6 +44,7 @@ struct GuiApp {
     sets: String,
     date: NaiveDate,
     rpe: String,
+    warmup: bool,
     notes: String,
     detailed_sets: Vec<ExecutionSet>,
     selected_lift: Option<usize>,
@@ -73,6 +75,7 @@ struct GuiApp {
     edit_sets: String,
     edit_date: NaiveDate,
     edit_rpe: String,
+    edit_warmup: bool,
     edit_notes: String,
     lifts: Vec<Lift>,
     error: Option<String>,
@@ -126,6 +129,7 @@ impl GuiApp {
             sets: String::new(),
             date: Utc::now().date_naive(),
             rpe: String::new(),
+            warmup: false,
             notes: String::new(),
             detailed_sets: Vec::new(),
             selected_lift: None,
@@ -156,6 +160,7 @@ impl GuiApp {
             edit_sets: String::new(),
             edit_date: Utc::now().date_naive(),
             edit_rpe: String::new(),
+            edit_warmup: false,
             edit_notes: String::new(),
             lifts: Vec::new(),
             error: None,

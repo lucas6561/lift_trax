@@ -51,6 +51,7 @@ fn create_lift_execution() {
             weight: Weight::Raw(100.0),
             rpe: Some(8.5),
         }],
+        warmup: false,
         notes: "felt good".into(),
     };
     assert_eq!(exec.sets.len(), 1);

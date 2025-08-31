@@ -82,6 +82,8 @@ pub struct LiftExecution {
     pub date: NaiveDate,
     /// Individual set details.
     pub sets: Vec<ExecutionSet>,
+    /// Whether this execution was a warm-up.
+    pub warmup: bool,
     /// Free-form notes about this execution.
     pub notes: String,
 }

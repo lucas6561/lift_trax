@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Current database schema version.
-const DB_VERSION: i32 = 7;
+const DB_VERSION: i32 = 8;
 
 /// Database persisted to a SQLite file.
 pub struct SqliteDb {
@@ -39,7 +39,7 @@ impl SqliteDb {
     /// Load all execution records for `lift_id`, newest first.
     fn fetch_executions(&self, lift_id: i32) -> DbResult<Vec<LiftExecution>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, date, sets, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC",
+            "SELECT id, date, sets, warmup, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC",
         )?;
         let iter = stmt.query_map(params![lift_id], |row| {
             let date_str: String = row.get(1)?;
@@ -48,11 +48,13 @@ impl SqliteDb {
             })?;
             let sets_json: String = row.get(2)?;
             let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
+            let warm: i32 = row.get(3)?;
             Ok(LiftExecution {
                 id: Some(row.get(0)?),
                 date,
                 sets,
-                notes: row.get(3)?,
+                warmup: warm != 0,
+                notes: row.get(4)?,
             })
         })?;
         let mut executions = Vec::new();
@@ -113,7 +115,7 @@ impl SqliteDb {
         Ok(
             self.conn
                 .query_row(
-                    "SELECT id, date, sets, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
+                    "SELECT id, date, sets, warmup, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
                     params![lift_id],
                     |row| {
                         let date_str: String = row.get(1)?;
@@ -122,11 +124,13 @@ impl SqliteDb {
                         })?;
                         let sets_json: String = row.get(2)?;
                         let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
+                        let warm: i32 = row.get(3)?;
                         Ok(LiftExecution {
                             id: Some(row.get(0)?),
                             date,
                             sets,
-                            notes: row.get(3)?,
+                            warmup: warm != 0,
+                            notes: row.get(4)?,
                         })
                     },
                 )
@@ -201,6 +205,9 @@ fn detect_version(conn: &Connection) -> DbResult<i32> {
         if !has_column(conn, "lift_records", "reps")? {
             v = 7;
         }
+        if has_column(conn, "lift_records", "warmup")? {
+            v = 8;
+        }
     }
     Ok(v)
 }
@@ -227,6 +234,7 @@ fn init_db(conn: &Connection) -> DbResult<()> {
                 lift_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
                 sets TEXT NOT NULL,
+                warmup INTEGER NOT NULL DEFAULT 0,
                 notes TEXT NOT NULL DEFAULT '',
                 FOREIGN KEY(lift_id) REFERENCES lifts(id)
             )",
@@ -335,6 +343,13 @@ fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
                 }
                 conn.execute("DROP TABLE lift_records_old", [])?;
             }
+            7 => {
+                // Track warm-up flag for executions.
+                conn.execute(
+                    "ALTER TABLE lift_records ADD COLUMN warmup INTEGER NOT NULL DEFAULT 0",
+                    [],
+                )?;
+            }
             _ => {}
         }
         from_version += 1;
@@ -381,11 +396,12 @@ impl Database for SqliteDb {
         };
         let sets_json = serde_json::to_string(&execution.sets)?;
         self.conn.execute(
-            "INSERT INTO lift_records (lift_id, date, sets, notes) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO lift_records (lift_id, date, sets, warmup, notes) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
                 lift_id,
                 execution.date.to_string(),
                 sets_json,
+                if execution.warmup { 1 } else { 0 },
                 execution.notes
             ],
         )?;
@@ -423,10 +439,11 @@ impl Database for SqliteDb {
     fn update_lift_execution(&self, exec_id: i32, execution: &LiftExecution) -> DbResult<()> {
         let sets_json = serde_json::to_string(&execution.sets)?;
         self.conn.execute(
-            "UPDATE lift_records SET date = ?1, sets = ?2, notes = ?3 WHERE id = ?4",
+            "UPDATE lift_records SET date = ?1, sets = ?2, warmup = ?3, notes = ?4 WHERE id = ?5",
             params![
                 execution.date.to_string(),
                 sets_json,
+                if execution.warmup { 1 } else { 0 },
                 execution.notes,
                 exec_id
             ],
