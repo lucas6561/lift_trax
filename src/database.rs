@@ -47,4 +47,14 @@ pub trait Database {
 
     /// Retrieve lifts with their recorded executions. Optionally filter by name.
     fn list_lifts(&self, name: Option<&str>) -> DbResult<Vec<Lift>>;
+
+    /// Retrieve lifts matching the given main lift type.
+    fn lifts_by_type(&self, lift_type: LiftType) -> DbResult<Vec<Lift>>;
+
+    /// Retrieve lifts filtered by region and main lift type.
+    fn lifts_by_region_and_type(
+        &self,
+        region: LiftRegion,
+        lift_type: LiftType,
+    ) -> DbResult<Vec<Lift>>;
 }

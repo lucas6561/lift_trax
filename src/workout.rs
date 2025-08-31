@@ -48,11 +48,7 @@ pub struct MaxEffortLower;
 
 impl WorkoutSection for MaxEffortLower {
     fn suggest(&self, db: &dyn Database) -> DbResult<SectionPlan> {
-        let lifts = db.list_lifts(None)?;
-        let mut squats: Vec<Lift> = lifts
-            .into_iter()
-            .filter(|l| matches!(l.main, Some(LiftType::Squat)))
-            .collect();
+        let mut squats = db.lifts_by_type(LiftType::Squat)?;
         if squats.len() < 6 {
             return Err("not enough squat lifts available".into());
         }
@@ -67,13 +63,7 @@ pub struct UpperAccessoryCircuit;
 
 impl WorkoutSection for UpperAccessoryCircuit {
     fn suggest(&self, db: &dyn Database) -> DbResult<SectionPlan> {
-        let lifts = db.list_lifts(None)?;
-        let mut candidates: Vec<Lift> = lifts
-            .into_iter()
-            .filter(|l| {
-                l.region == LiftRegion::UPPER && matches!(l.main, Some(LiftType::Accessory))
-            })
-            .collect();
+        let mut candidates = db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Accessory)?;
         if candidates.len() < 18 {
             return Err("not enough upper accessory lifts available".into());
         }

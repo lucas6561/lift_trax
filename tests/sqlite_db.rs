@@ -125,6 +125,64 @@ fn list_lifts_returns_all_sorted() {
 }
 
 #[test]
+fn lifts_by_type_filters_main_lifts() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift(
+        "Back Squat",
+        LiftRegion::LOWER,
+        LiftType::Squat,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Bench",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    let lifts = db.lifts_by_type(LiftType::Squat).unwrap();
+    assert_eq!(lifts.len(), 1);
+    assert_eq!(lifts[0].name, "Back Squat");
+}
+
+#[test]
+fn lifts_by_region_and_type_filters() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift(
+        "Curl",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Squat",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Bench",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    let lifts = db
+        .lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Accessory)
+        .unwrap();
+    assert_eq!(lifts.len(), 1);
+    assert_eq!(lifts[0].name, "Curl");
+}
+
+#[test]
 fn reads_legacy_execution_sets() {
     let path = "test_old_sets.db";
     let _ = std::fs::remove_file(path);
