@@ -52,8 +52,28 @@ fn create_lift_execution() {
             rpe: Some(8.5),
         }],
         notes: "felt good".into(),
+        warmup: false,
     };
     assert_eq!(exec.sets.len(), 1);
     assert_eq!(exec.sets[0].weight.to_string(), "100 lb");
     assert_eq!(exec.notes, "felt good");
+}
+
+#[test]
+fn display_shows_warmup_indicator() {
+    let exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 5, 21).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(5),
+            weight: Weight::Raw(95.0),
+            rpe: None,
+        }],
+        notes: String::new(),
+        warmup: true,
+    };
+    assert!(exec.to_string().contains("warmup"));
+
+    let not_warm = LiftExecution { warmup: false, ..exec };
+    assert!(!not_warm.to_string().contains("warmup"));
 }

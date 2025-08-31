@@ -84,6 +84,8 @@ pub struct LiftExecution {
     pub sets: Vec<ExecutionSet>,
     /// Free-form notes about this execution.
     pub notes: String,
+    /// Whether this execution was a warmup.
+    pub warmup: bool,
 }
 
 /// Format a slice of execution sets into a human-readable description,
@@ -113,4 +115,17 @@ pub fn format_execution_sets(sets: &[ExecutionSet]) -> String {
         })
         .collect();
     parts.join(", ")
+}
+
+impl fmt::Display for LiftExecution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let set_desc = format_execution_sets(&self.sets);
+        let warmup = if self.warmup { " (warmup)" } else { "" };
+        let notes = if self.notes.is_empty() {
+            String::new()
+        } else {
+            format!(" - {}", self.notes)
+        };
+        write!(f, "{}: {}{}{}", self.date, set_desc, warmup, notes)
+    }
 }

@@ -44,6 +44,7 @@ fn add_and_list_lift_with_execution() {
             3
         ],
         notes: "solid".into(),
+        warmup: false,
     };
     db.add_lift_execution("Bench", &exec).unwrap();
 
@@ -70,6 +71,7 @@ fn delete_execution_removes_record() {
             rpe: None,
         }],
         notes: String::new(),
+        warmup: false,
     };
     db.add_lift_execution("Bench", &exec).unwrap();
 
@@ -173,6 +175,7 @@ fn lift_stats_provides_summary() {
             3
         ],
         notes: String::new(),
+        warmup: false,
     };
     let exec2 = LiftExecution {
         id: None,
@@ -186,6 +189,7 @@ fn lift_stats_provides_summary() {
             3
         ],
         notes: String::new(),
+        warmup: false,
     };
     let exec3 = LiftExecution {
         id: None,
@@ -199,6 +203,7 @@ fn lift_stats_provides_summary() {
             2
         ],
         notes: String::new(),
+        warmup: false,
     };
     db.add_lift_execution("Squat", &exec1).unwrap();
     db.add_lift_execution("Squat", &exec2).unwrap();
@@ -259,7 +264,7 @@ fn upgrades_legacy_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 7);
+    assert_eq!(user_version, 8);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -278,6 +283,7 @@ fn upgrades_legacy_database() {
         .collect::<Result<_, _>>()
         .unwrap();
     assert!(record_cols.contains(&"notes".to_string()));
+    assert!(record_cols.contains(&"warmup".to_string()));
 
     std::fs::remove_file(path).unwrap();
     // remove generated backup
@@ -331,7 +337,7 @@ fn upgrades_unversioned_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 7);
+    assert_eq!(user_version, 8);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -350,6 +356,7 @@ fn upgrades_unversioned_database() {
         .collect::<Result<_, _>>()
         .unwrap();
     assert!(record_cols.contains(&"notes".to_string()));
+    assert!(record_cols.contains(&"warmup".to_string()));
 
     std::fs::remove_file(path).unwrap();
     for entry in std::fs::read_dir(".").unwrap() {
@@ -410,11 +417,12 @@ fn repairs_misreported_version() {
         .collect::<Result<_, _>>()
         .unwrap();
     assert!(cols.contains(&"notes".to_string()));
+    assert!(cols.contains(&"warmup".to_string()));
 
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 7);
+    assert_eq!(user_version, 8);
 
     std::fs::remove_file(path).unwrap();
     for entry in std::fs::read_dir(".").unwrap() {

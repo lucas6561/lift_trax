@@ -646,6 +646,7 @@ impl GuiApp {
             date,
             sets: sets_vec,
             notes: self.notes.clone(),
+            warmup: false,
         };
         if let Some(idx) = self.selected_lift {
             let lift = &self.lifts[idx];

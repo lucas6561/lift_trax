@@ -86,6 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 date,
                 sets: sets_vec,
                 notes: notes.unwrap_or_default(),
+                warmup: false,
             };
             // Ensure the lift exists with a default region and no main designation.
             let _ = db.add_lift(&exercise, LiftRegion::UPPER, None, &muscles, "");

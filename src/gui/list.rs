@@ -152,8 +152,9 @@ impl GuiApp {
                         };
                         let set_desc =
                             crate::models::lift_execution::format_execution_sets(&exec.sets);
+                        let warmup = if exec.warmup { " (warmup)" } else { "" };
                         ui.horizontal(|ui| {
-                            ui.label(format!("{}: {}{}", exec.date, set_desc, notes));
+                            ui.label(format!("{}: {}{}{}", exec.date, set_desc, warmup, notes));
                             if ui.button("Edit").clicked() {
                                 self.editing_exec = Some((i, j));
                                 if let Some(first) = exec.sets.first() {
@@ -607,6 +608,7 @@ impl GuiApp {
                 date,
                 sets: sets_vec,
                 notes: self.edit_notes.clone(),
+                warmup: exec.warmup,
             };
             if let Some(id) = exec.id {
                 if let Err(e) = self.db.update_lift_execution(id, &new_exec) {

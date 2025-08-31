@@ -31,6 +31,7 @@ fn create_lift_with_execution() {
             5
         ],
         notes: String::new(),
+        warmup: false,
     };
     let lift = Lift {
         name: "Squat".to_string(),
