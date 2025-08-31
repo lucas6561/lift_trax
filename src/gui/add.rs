@@ -1,13 +1,14 @@
 use chrono::Utc;
 use clap::ValueEnum;
 use eframe::egui;
-use egui_extras::DatePickerButton;
 
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
-use crate::weight::{AccommodatingResist, BandColor, Weight, WeightUnit};
+#[allow(unused_imports)]
+use crate::weight::{AccommodatingResist, Weight, WeightUnit};
 
 use super::{
-    AccommodatingMode, GuiApp, MetricMode, SetMode, WeightMode, combo_box_width, main_lift_options,
+    execution_form::execution_form, AccommodatingMode, GuiApp, MetricMode, SetMode, WeightMode,
+    combo_box_width, main_lift_options,
 };
 
 impl GuiApp {
@@ -35,265 +36,90 @@ impl GuiApp {
                 self.show_new_lift = true;
             }
         });
-        ui.horizontal(|ui| {
-            ui.label("Input:");
-            ui.selectable_value(&mut self.weight_mode, WeightMode::Weight, "Weight");
-            ui.selectable_value(&mut self.weight_mode, WeightMode::WeightLr, "L/R Weight");
-            ui.selectable_value(&mut self.weight_mode, WeightMode::Bands, "Bands");
-            ui.selectable_value(&mut self.weight_mode, WeightMode::Accommodating, "Accom");
-            ui.selectable_value(&mut self.weight_mode, WeightMode::None, "None");
-        });
-        match self.weight_mode {
-            WeightMode::Weight => {
+        let mut add_set_clicked = false;
+        execution_form(
+            ui,
+            "add",
+            &mut self.weight_mode,
+            &mut self.weight_unit,
+            &mut self.weight_value,
+            &mut self.weight_left_value,
+            &mut self.weight_right_value,
+            &mut self.band_value,
+            &mut self.band_select,
+            &mut self.chain_value,
+            &mut self.accom_mode,
+            &mut self.metric_mode,
+            &mut self.warmup,
+            &mut self.date,
+            &mut self.notes,
+            |ui, metric_mode| {
                 ui.horizontal(|ui| {
-                    ui.label("Weight:");
-                    ui.text_edit_singleline(&mut self.weight_value);
-                    let unit_width = combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
-                    egui::ComboBox::from_id_source("weight_unit")
-                        .width(unit_width)
-                        .selected_text(match self.weight_unit {
-                            WeightUnit::Kilograms => "kg",
-                            WeightUnit::Pounds => "lb",
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
-                        });
+                    ui.label("Set Input:");
+                    ui.selectable_value(&mut self.set_mode, SetMode::Simple, "Sets x Value");
+                    ui.selectable_value(&mut self.set_mode, SetMode::Detailed, "Individual Sets");
                 });
-            }
-            WeightMode::WeightLr => {
-                ui.horizontal(|ui| {
-                    ui.label("Weight:");
-                    ui.label("L:");
-                    ui.text_edit_singleline(&mut self.weight_left_value);
-                    ui.label("R:");
-                    ui.text_edit_singleline(&mut self.weight_right_value);
-                    let unit_width = combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
-                    egui::ComboBox::from_id_source("weight_unit")
-                        .width(unit_width)
-                        .selected_text(match self.weight_unit {
-                            WeightUnit::Kilograms => "kg",
-                            WeightUnit::Pounds => "lb",
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
+                match self.set_mode {
+                    SetMode::Simple => {
+                        let metric_label = match metric_mode {
+                            MetricMode::Reps => "Reps:",
+                            MetricMode::Time => "Seconds:",
+                            MetricMode::Distance => "Feet:",
+                        };
+                        ui.horizontal(|ui| {
+                            ui.label("Sets:");
+                            ui.text_edit_singleline(&mut self.sets);
                         });
-                });
-            }
-            WeightMode::Bands => {
-                ui.horizontal(|ui| {
-                    ui.label("Bands:");
-                    let text = if self.band_value.is_empty() {
-                        "None".to_string()
-                    } else {
-                        self.band_value
-                            .iter()
-                            .map(|b| b.to_string())
-                            .collect::<Vec<_>>()
-                            .join("+")
-                    };
-                    ui.label(text);
-                    let mut colors = vec![
-                        BandColor::Orange,
-                        BandColor::Red,
-                        BandColor::Blue,
-                        BandColor::Green,
-                        BandColor::Black,
-                        BandColor::Purple,
-                    ];
-                    colors.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-                    let mut color_strings: Vec<String> =
-                        colors.iter().map(|c| c.to_string()).collect();
-                    color_strings.push("Select".into());
-                    let band_width = combo_box_width(ui, &color_strings);
-                    egui::ComboBox::from_id_source("band_select")
-                        .width(band_width)
-                        .selected_text(
-                            self.band_select
-                                .map(|b| b.to_string())
-                                .unwrap_or_else(|| "Select".into()),
-                        )
-                        .show_ui(ui, |ui| {
-                            for color in &colors {
-                                ui.selectable_value(
-                                    &mut self.band_select,
-                                    Some(*color),
-                                    color.to_string(),
-                                );
+                        ui.horizontal(|ui| {
+                            ui.label(metric_label);
+                            ui.text_edit_singleline(&mut self.reps);
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("RPE:");
+                            ui.text_edit_singleline(&mut self.rpe);
+                        });
+                    }
+                    SetMode::Detailed => {
+                        let metric_label = match metric_mode {
+                            MetricMode::Reps => "Reps:",
+                            MetricMode::Time => "Seconds:",
+                            MetricMode::Distance => "Feet:",
+                        };
+                        ui.horizontal(|ui| {
+                            ui.label(metric_label);
+                            ui.text_edit_singleline(&mut self.reps);
+                            ui.label("RPE:");
+                            ui.text_edit_singleline(&mut self.rpe);
+                            if ui.button("Add Set").clicked() {
+                                add_set_clicked = true;
                             }
                         });
-                    if ui.button("Add").clicked() {
-                        if let Some(color) = self.band_select {
-                            self.band_value.push(color);
-                        }
-                    }
-                    if ui.button("Clear").clicked() {
-                        self.band_value.clear();
-                        self.band_select = None;
-                    }
-                });
-            }
-            WeightMode::Accommodating => {
-                ui.horizontal(|ui| {
-                    ui.label("Bar:");
-                    ui.text_edit_singleline(&mut self.weight_value);
-                    let unit_width = combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
-                    egui::ComboBox::from_id_source("weight_unit")
-                        .width(unit_width)
-                        .selected_text(match self.weight_unit {
-                            WeightUnit::Kilograms => "kg",
-                            WeightUnit::Pounds => "lb",
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
-                        });
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Resistance:");
-                    ui.selectable_value(&mut self.accom_mode, AccommodatingMode::Chains, "Chains");
-                    ui.selectable_value(&mut self.accom_mode, AccommodatingMode::Bands, "Bands");
-                });
-                match self.accom_mode {
-                    AccommodatingMode::Chains => {
-                        ui.horizontal(|ui| {
-                            ui.label("Chain:");
-                            ui.text_edit_singleline(&mut self.chain_value);
-                        });
-                    }
-                    AccommodatingMode::Bands => {
-                        ui.horizontal(|ui| {
-                            ui.label("Bands:");
-                            let text = if self.band_value.is_empty() {
-                                "None".to_string()
-                            } else {
-                                self.band_value
-                                    .iter()
-                                    .map(|b| b.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join("+")
-                            };
-                            ui.label(text);
-                            let mut colors = vec![
-                                BandColor::Orange,
-                                BandColor::Red,
-                                BandColor::Blue,
-                                BandColor::Green,
-                                BandColor::Black,
-                                BandColor::Purple,
-                            ];
-                            colors.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-                            let mut color_strings: Vec<String> =
-                                colors.iter().map(|c| c.to_string()).collect();
-                            color_strings.push("Select".into());
-                            let band_width = combo_box_width(ui, &color_strings);
-                            egui::ComboBox::from_id_source("band_select")
-                                .width(band_width)
-                                .selected_text(
-                                    self.band_select
-                                        .map(|b| b.to_string())
-                                        .unwrap_or_else(|| "Select".into()),
-                                )
-                                .show_ui(ui, |ui| {
-                                    for color in &colors {
-                                        ui.selectable_value(
-                                            &mut self.band_select,
-                                            Some(*color),
-                                            color.to_string(),
-                                        );
-                                    }
-                                });
-                            if ui.button("Add").clicked() {
-                                if let Some(color) = self.band_select {
-                                    self.band_value.push(color);
+                        let mut remove_idx: Option<usize> = None;
+                        for (i, set) in self.detailed_sets.iter().enumerate() {
+                            let rpe = set.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+                            ui.horizontal(|ui| {
+                                ui.label(format!(
+                                    "Set {}: {} @ {}{}",
+                                    i + 1,
+                                    set.metric,
+                                    set.weight,
+                                    rpe
+                                ));
+                                if ui.small_button("x").clicked() {
+                                    remove_idx = Some(i);
                                 }
-                            }
-                            if ui.button("Clear").clicked() {
-                                self.band_value.clear();
-                                self.band_select = None;
-                            }
-                        });
-                    }
-                }
-            }
-            WeightMode::None => {}
-        }
-        ui.horizontal(|ui| {
-            ui.label("Metric:");
-            ui.selectable_value(&mut self.metric_mode, MetricMode::Reps, "Reps");
-            ui.selectable_value(&mut self.metric_mode, MetricMode::Time, "Seconds");
-            ui.selectable_value(&mut self.metric_mode, MetricMode::Distance, "Feet");
-        });
-        ui.horizontal(|ui| {
-            ui.label("Set Input:");
-            ui.selectable_value(&mut self.set_mode, SetMode::Simple, "Sets x Value");
-            ui.selectable_value(&mut self.set_mode, SetMode::Detailed, "Individual Sets");
-        });
-        match self.set_mode {
-            SetMode::Simple => {
-                let metric_label = match self.metric_mode {
-                    MetricMode::Reps => "Reps:",
-                    MetricMode::Time => "Seconds:",
-                    MetricMode::Distance => "Feet:",
-                };
-                ui.horizontal(|ui| {
-                    ui.label("Sets:");
-                    ui.text_edit_singleline(&mut self.sets);
-                });
-                ui.horizontal(|ui| {
-                    ui.label(metric_label);
-                    ui.text_edit_singleline(&mut self.reps);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("RPE:");
-                    ui.text_edit_singleline(&mut self.rpe);
-                });
-            }
-            SetMode::Detailed => {
-                let metric_label = match self.metric_mode {
-                    MetricMode::Reps => "Reps:",
-                    MetricMode::Time => "Seconds:",
-                    MetricMode::Distance => "Feet:",
-                };
-                ui.horizontal(|ui| {
-                    ui.label(metric_label);
-                    ui.text_edit_singleline(&mut self.reps);
-                    ui.label("RPE:");
-                    ui.text_edit_singleline(&mut self.rpe);
-                    if ui.button("Add Set").clicked() {
-                        self.add_detail_set();
-                    }
-                });
-                let mut remove_idx: Option<usize> = None;
-                for (i, set) in self.detailed_sets.iter().enumerate() {
-                    let rpe = set.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                    ui.horizontal(|ui| {
-                        ui.label(format!(
-                            "Set {}: {} @ {}{}",
-                            i + 1,
-                            set.metric,
-                            set.weight,
-                            rpe
-                        ));
-                        if ui.small_button("x").clicked() {
-                            remove_idx = Some(i);
+                            });
                         }
-                    });
+                        if let Some(i) = remove_idx {
+                            self.detailed_sets.remove(i);
+                        }
+                    }
                 }
-                if let Some(i) = remove_idx {
-                    self.detailed_sets.remove(i);
-                }
-            }
+            },
+        );
+        if add_set_clicked {
+            self.add_detail_set();
         }
-        ui.horizontal(|ui| {
-            ui.label("Date:");
-            ui.add(DatePickerButton::new(&mut self.date).id_source("add_date"));
-        });
-        ui.horizontal(|ui| {
-            ui.label("Notes:");
-            ui.text_edit_singleline(&mut self.notes);
-        });
         if ui.button("Add").clicked() {
             self.add_execution();
         }
@@ -645,6 +471,7 @@ impl GuiApp {
             id: None,
             date,
             sets: sets_vec,
+            warmup: self.warmup,
             notes: self.notes.clone(),
         };
         if let Some(idx) = self.selected_lift {
@@ -663,6 +490,7 @@ impl GuiApp {
                 self.sets.clear();
                 self.date = Utc::now().date_naive();
                 self.rpe.clear();
+                self.warmup = false;
                 self.notes.clear();
                 self.detailed_sets.clear();
                 self.error = None;

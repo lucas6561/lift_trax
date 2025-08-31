@@ -1,11 +1,10 @@
 use clap::ValueEnum;
 use eframe::egui;
-use egui_extras::DatePickerButton;
 
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
-use crate::weight::{BandColor, Weight, WeightUnit};
+use crate::weight::{Weight, WeightUnit};
 
-use super::{GuiApp, MetricMode, WeightMode, combo_box_width, main_lift_options};
+use super::{execution_form::execution_form, GuiApp, MetricMode, WeightMode, combo_box_width, main_lift_options};
 
 impl GuiApp {
     pub(super) fn tab_list(&mut self, ui: &mut egui::Ui) {
@@ -145,15 +144,8 @@ impl GuiApp {
                     ui.label("no records");
                 } else {
                     for (j, exec) in executions.iter().enumerate() {
-                        let notes = if exec.notes.is_empty() {
-                            String::new()
-                        } else {
-                            format!(" - {}", exec.notes)
-                        };
-                        let set_desc =
-                            crate::models::lift_execution::format_execution_sets(&exec.sets);
                         ui.horizontal(|ui| {
-                            ui.label(format!("{}: {}{}", exec.date, set_desc, notes));
+                            ui.label(exec.to_string());
                             if ui.button("Edit").clicked() {
                                 self.editing_exec = Some((i, j));
                                 if let Some(first) = exec.sets.first() {
@@ -222,6 +214,7 @@ impl GuiApp {
                                     self.edit_rpe =
                                         first.rpe.map(|r| r.to_string()).unwrap_or_default();
                                     self.edit_notes = exec.notes.clone();
+                                    self.edit_warmup = exec.warmup;
                                 }
                             }
                             if let Some(id) = exec.id {
@@ -237,236 +230,42 @@ impl GuiApp {
                             }
                         });
                         if self.editing_exec == Some((i, j)) {
-                            ui.horizontal(|ui| {
-                                ui.label("Input:");
-                                ui.selectable_value(
-                                    &mut self.edit_weight_mode,
-                                    WeightMode::Weight,
-                                    "Weight",
-                                );
-                                ui.selectable_value(
-                                    &mut self.edit_weight_mode,
-                                    WeightMode::WeightLr,
-                                    "L/R Weight",
-                                );
-                                ui.selectable_value(
-                                    &mut self.edit_weight_mode,
-                                    WeightMode::Bands,
-                                    "Bands",
-                                );
-                                ui.selectable_value(
-                                    &mut self.edit_weight_mode,
-                                    WeightMode::None,
-                                    "None",
-                                );
-                            });
-                            match self.edit_weight_mode {
-                                WeightMode::Weight => {
+                            execution_form(
+                                ui,
+                                "edit",
+                                &mut self.edit_weight_mode,
+                                &mut self.edit_weight_unit,
+                                &mut self.edit_weight_value,
+                                &mut self.edit_weight_left_value,
+                                &mut self.edit_weight_right_value,
+                                &mut self.edit_band_value,
+                                &mut self.edit_band_select,
+                                &mut self.chain_value,
+                                &mut self.accom_mode,
+                                &mut self.edit_metric_mode,
+                                &mut self.edit_warmup,
+                                &mut self.edit_date,
+                                &mut self.edit_notes,
+                                |ui, metric_mode| {
+                                    let metric_label = match metric_mode {
+                                        MetricMode::Reps => "Reps:",
+                                        MetricMode::Time => "Seconds:",
+                                        MetricMode::Distance => "Feet:",
+                                    };
                                     ui.horizontal(|ui| {
-                                        ui.label("Weight:");
-                                        ui.text_edit_singleline(&mut self.edit_weight_value);
-                                        let unit_width =
-                                            combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
-                                        egui::ComboBox::from_id_source(format!(
-                                            "edit_unit_{}_{}",
-                                            i, j
-                                        ))
-                                        .width(unit_width)
-                                        .selected_text(match self.edit_weight_unit {
-                                            WeightUnit::Kilograms => "kg",
-                                            WeightUnit::Pounds => "lb",
-                                        })
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                ui.selectable_value(
-                                                    &mut self.edit_weight_unit,
-                                                    WeightUnit::Kilograms,
-                                                    "kg",
-                                                );
-                                                ui.selectable_value(
-                                                    &mut self.edit_weight_unit,
-                                                    WeightUnit::Pounds,
-                                                    "lb",
-                                                );
-                                            },
-                                        );
+                                        ui.label(metric_label);
+                                        ui.text_edit_singleline(&mut self.edit_reps);
                                     });
-                                }
-                                WeightMode::Accommodating => {
                                     ui.horizontal(|ui| {
-                                        ui.label("Weight:");
-                                        ui.text_edit_singleline(&mut self.edit_weight_value);
-                                        let unit_width =
-                                            combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
-                                        egui::ComboBox::from_id_source(format!(
-                                            "edit_unit_{}_{}",
-                                            i, j
-                                        ))
-                                        .width(unit_width)
-                                        .selected_text(match self.edit_weight_unit {
-                                            WeightUnit::Kilograms => "kg",
-                                            WeightUnit::Pounds => "lb",
-                                        })
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                ui.selectable_value(
-                                                    &mut self.edit_weight_unit,
-                                                    WeightUnit::Kilograms,
-                                                    "kg",
-                                                );
-                                                ui.selectable_value(
-                                                    &mut self.edit_weight_unit,
-                                                    WeightUnit::Pounds,
-                                                    "lb",
-                                                );
-                                            },
-                                        );
+                                        ui.label("Sets:");
+                                        ui.text_edit_singleline(&mut self.edit_sets);
                                     });
-                                }
-                                WeightMode::WeightLr => {
                                     ui.horizontal(|ui| {
-                                        ui.label("Weight:");
-                                        ui.label("L:");
-                                        ui.text_edit_singleline(&mut self.edit_weight_left_value);
-                                        ui.label("R:");
-                                        ui.text_edit_singleline(&mut self.edit_weight_right_value);
-                                        let unit_width =
-                                            combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
-                                        egui::ComboBox::from_id_source(format!(
-                                            "edit_unit_{}_{}",
-                                            i, j
-                                        ))
-                                        .width(unit_width)
-                                        .selected_text(match self.edit_weight_unit {
-                                            WeightUnit::Kilograms => "kg",
-                                            WeightUnit::Pounds => "lb",
-                                        })
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                ui.selectable_value(
-                                                    &mut self.edit_weight_unit,
-                                                    WeightUnit::Kilograms,
-                                                    "kg",
-                                                );
-                                                ui.selectable_value(
-                                                    &mut self.edit_weight_unit,
-                                                    WeightUnit::Pounds,
-                                                    "lb",
-                                                );
-                                            },
-                                        );
+                                        ui.label("RPE:");
+                                        ui.text_edit_singleline(&mut self.edit_rpe);
                                     });
-                                }
-                                WeightMode::Bands => {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Bands:");
-                                        let text = if self.edit_band_value.is_empty() {
-                                            "None".to_string()
-                                        } else {
-                                            self.edit_band_value
-                                                .iter()
-                                                .map(|b| b.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join("+")
-                                        };
-                                        ui.label(text);
-                                        let mut colors = vec![
-                                            BandColor::Orange,
-                                            BandColor::Red,
-                                            BandColor::Blue,
-                                            BandColor::Green,
-                                            BandColor::Black,
-                                            BandColor::Purple,
-                                        ];
-                                        colors.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-                                        let mut color_strings: Vec<String> =
-                                            colors.iter().map(|c| c.to_string()).collect();
-                                        color_strings.push("Select".into());
-                                        let band_width = combo_box_width(ui, &color_strings);
-                                        egui::ComboBox::from_id_source(format!(
-                                            "edit_band_select_{}_{}",
-                                            i, j
-                                        ))
-                                        .width(band_width)
-                                        .selected_text(
-                                            self.edit_band_select
-                                                .map(|b| b.to_string())
-                                                .unwrap_or_else(|| "Select".into()),
-                                        )
-                                        .show_ui(
-                                            ui,
-                                            |ui| {
-                                                for color in &colors {
-                                                    ui.selectable_value(
-                                                        &mut self.edit_band_select,
-                                                        Some(*color),
-                                                        color.to_string(),
-                                                    );
-                                                }
-                                            },
-                                        );
-                                        if ui.button("Add").clicked() {
-                                            if let Some(color) = self.edit_band_select {
-                                                self.edit_band_value.push(color);
-                                            }
-                                        }
-                                        if ui.button("Clear").clicked() {
-                                            self.edit_band_value.clear();
-                                            self.edit_band_select = None;
-                                        }
-                                    });
-                                }
-                                WeightMode::None => {}
-                            }
-                            ui.horizontal(|ui| {
-                                ui.label("Metric:");
-                                ui.selectable_value(
-                                    &mut self.edit_metric_mode,
-                                    MetricMode::Reps,
-                                    "Reps",
-                                );
-                                ui.selectable_value(
-                                    &mut self.edit_metric_mode,
-                                    MetricMode::Time,
-                                    "Seconds",
-                                );
-                                ui.selectable_value(
-                                    &mut self.edit_metric_mode,
-                                    MetricMode::Distance,
-                                    "Feet",
-                                );
-                            });
-                            let metric_label = match self.edit_metric_mode {
-                                MetricMode::Reps => "Reps:",
-                                MetricMode::Time => "Seconds:",
-                                MetricMode::Distance => "Feet:",
-                            };
-                            ui.horizontal(|ui| {
-                                ui.label(metric_label);
-                                ui.text_edit_singleline(&mut self.edit_reps);
-                            });
-                            ui.horizontal(|ui| {
-                                ui.label("Sets:");
-                                ui.text_edit_singleline(&mut self.edit_sets);
-                            });
-                            ui.horizontal(|ui| {
-                                ui.label("Date:");
-                                ui.add(
-                                    DatePickerButton::new(&mut self.edit_date)
-                                        .id_source("edit_date"),
-                                );
-                            });
-                            ui.horizontal(|ui| {
-                                ui.label("RPE:");
-                                ui.text_edit_singleline(&mut self.edit_rpe);
-                            });
-                            ui.horizontal(|ui| {
-                                ui.label("Notes:");
-                                ui.text_edit_singleline(&mut self.edit_notes);
-                            });
+                                },
+                            );
                             ui.horizontal(|ui| {
                                 if ui.button("Save").clicked() {
                                     self.save_exec_edit();
@@ -476,6 +275,7 @@ impl GuiApp {
                                     self.edit_notes.clear();
                                     self.edit_band_value.clear();
                                     self.edit_band_select = None;
+                                    self.edit_warmup = false;
                                 }
                             });
                         }
@@ -606,6 +406,7 @@ impl GuiApp {
                 id: exec.id,
                 date,
                 sets: sets_vec,
+                warmup: self.edit_warmup,
                 notes: self.edit_notes.clone(),
             };
             if let Some(id) = exec.id {
@@ -616,6 +417,7 @@ impl GuiApp {
                     self.edit_notes.clear();
                     self.edit_band_value.clear();
                     self.edit_band_select = None;
+                    self.edit_warmup = false;
                     self.error = None;
                     self.refresh_lifts();
                 }

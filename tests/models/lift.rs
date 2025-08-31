@@ -30,6 +30,7 @@ fn create_lift_with_execution() {
             };
             5
         ],
+        warmup: false,
         notes: String::new(),
     };
     let lift = Lift {

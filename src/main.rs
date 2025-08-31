@@ -85,6 +85,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 id: None,
                 date,
                 sets: sets_vec,
+                warmup: false,
                 notes: notes.unwrap_or_default(),
             };
             // Ensure the lift exists with a default region and no main designation.
