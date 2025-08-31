@@ -252,6 +252,17 @@ impl GuiApp {
                                     self.edit_notes = exec.notes.clone();
                                 }
                             }
+                            if let Some(id) = exec.id {
+                                if ui.button("Delete").clicked() {
+                                    if let Err(e) = self.db.delete_lift_execution(id) {
+                                        self.error = Some(e.to_string());
+                                    } else {
+                                        self.editing_exec = None;
+                                        self.error = None;
+                                        self.refresh_lifts();
+                                    }
+                                }
+                            }
                         });
                         if self.editing_exec == Some((i, j)) {
                             ui.horizontal(|ui| {

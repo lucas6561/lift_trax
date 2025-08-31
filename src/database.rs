@@ -36,6 +36,9 @@ pub trait Database {
     /// Update a recorded execution by id.
     fn update_lift_execution(&self, exec_id: i32, execution: &LiftExecution) -> DbResult<()>;
 
+    /// Delete a recorded execution by id.
+    fn delete_lift_execution(&self, exec_id: i32) -> DbResult<()>;
+
     /// Retrieve summary statistics for a named lift.
     fn lift_stats(&self, name: &str) -> DbResult<LiftStats>;
 

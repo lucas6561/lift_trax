@@ -56,11 +56,40 @@ fn add_and_list_lift_with_execution() {
 }
 
 #[test]
+fn delete_execution_removes_record() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "")
+        .unwrap();
+
+    let exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(5),
+            weight: Weight::Raw(135.0),
+            rpe: None,
+        }],
+        notes: String::new(),
+    };
+    db.add_lift_execution("Bench", &exec).unwrap();
+
+    let bench = db.list_lifts(Some("Bench")).unwrap().pop().unwrap();
+    let exec_id = bench.executions[0].id.unwrap();
+    db.delete_lift_execution(exec_id).unwrap();
+
+    let bench = db.list_lifts(Some("Bench")).unwrap().pop().unwrap();
+    assert!(bench.executions.is_empty());
+}
+
+#[test]
 fn list_lifts_returns_all_sorted() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Zpress", LiftRegion::UPPER, None, &[], "").unwrap();
-    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "").unwrap();
-    db.add_lift("Curl", LiftRegion::UPPER, None, &[], "").unwrap();
+    db.add_lift("Zpress", LiftRegion::UPPER, None, &[], "")
+        .unwrap();
+    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "")
+        .unwrap();
+    db.add_lift("Curl", LiftRegion::UPPER, None, &[], "")
+        .unwrap();
     let names: Vec<_> = db
         .list_lifts(None)
         .unwrap()
@@ -119,7 +148,8 @@ fn reads_legacy_execution_sets() {
 #[test]
 fn lift_stats_handles_empty_history() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "").unwrap();
+    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "")
+        .unwrap();
     let stats = db.lift_stats("Bench").unwrap();
     assert!(stats.last.is_none());
     assert!(stats.best_by_reps.is_empty());
