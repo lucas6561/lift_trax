@@ -74,3 +74,14 @@ fn display_includes_warmup_flag() {
     };
     assert_eq!(exec.to_string(), "2024-05-20: 5 reps @ 100 lb (warm-up)");
 }
+
+#[test]
+fn format_execution_sets_omits_none_weight() {
+    let sets = vec![ExecutionSet {
+        metric: SetMetric::Reps(5),
+        weight: Weight::None,
+        rpe: None,
+    }];
+    let formatted = lift_execution::format_execution_sets(&sets);
+    assert_eq!(formatted, "5 reps");
+}
