@@ -289,6 +289,7 @@ impl GuiApp {
         ui.horizontal(|ui| {
             ui.label("Date:");
             ui.add(DatePickerButton::new(&mut self.date).id_source("add_date"));
+            ui.checkbox(&mut self.warmup, "Warmup");
         });
         ui.horizontal(|ui| {
             ui.label("Notes:");
@@ -646,7 +647,7 @@ impl GuiApp {
             date,
             sets: sets_vec,
             notes: self.notes.clone(),
-            warmup: false,
+            warmup: self.warmup,
         };
         if let Some(idx) = self.selected_lift {
             let lift = &self.lifts[idx];
@@ -666,6 +667,7 @@ impl GuiApp {
                 self.rpe.clear();
                 self.notes.clear();
                 self.detailed_sets.clear();
+                self.warmup = false;
                 self.error = None;
                 self.refresh_lifts();
             }
