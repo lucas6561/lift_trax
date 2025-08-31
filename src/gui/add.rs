@@ -1,4 +1,3 @@
-use chrono::Utc;
 use clap::ValueEnum;
 use eframe::egui;
 
@@ -7,8 +6,8 @@ use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
 use crate::weight::{AccommodatingResist, Weight, WeightUnit};
 
 use super::{
-    execution_form::execution_form, AccommodatingMode, GuiApp, MetricMode, SetMode, WeightMode,
-    combo_box_width, main_lift_options,
+    AccommodatingMode, GuiApp, MetricMode, SetMode, WeightMode, combo_box_width,
+    execution_form::execution_form, main_lift_options,
 };
 
 impl GuiApp {
@@ -488,7 +487,6 @@ impl GuiApp {
                 self.accom_mode = AccommodatingMode::Chains;
                 self.reps.clear();
                 self.sets.clear();
-                self.date = Utc::now().date_naive();
                 self.rpe.clear();
                 self.warmup = false;
                 self.notes.clear();
