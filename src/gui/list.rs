@@ -144,15 +144,8 @@ impl GuiApp {
                     ui.label("no records");
                 } else {
                     for (j, exec) in executions.iter().enumerate() {
-                        let notes = if exec.notes.is_empty() {
-                            String::new()
-                        } else {
-                            format!(" - {}", exec.notes)
-                        };
-                        let set_desc =
-                            crate::models::lift_execution::format_execution_sets(&exec.sets);
                         ui.horizontal(|ui| {
-                            ui.label(format!("{}: {}{}", exec.date, set_desc, notes));
+                            ui.label(exec.to_string());
                             if ui.button("Edit").clicked() {
                                 self.editing_exec = Some((i, j));
                                 if let Some(first) = exec.sets.first() {
