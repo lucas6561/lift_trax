@@ -495,4 +495,22 @@ impl Database for SqliteDb {
             ),
         }
     }
+
+    fn lifts_by_type(&self, lift_type: LiftType) -> DbResult<Vec<Lift>> {
+        self.load_lifts(
+            "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ?1 ORDER BY name",
+            params![lift_type.to_string()],
+        )
+    }
+
+    fn lifts_by_region_and_type(
+        &self,
+        region: LiftRegion,
+        lift_type: LiftType,
+    ) -> DbResult<Vec<Lift>> {
+        self.load_lifts(
+            "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE region = ?1 AND main_lift = ?2 ORDER BY name",
+            params![region.to_string(), lift_type.to_string()],
+        )
+    }
 }
