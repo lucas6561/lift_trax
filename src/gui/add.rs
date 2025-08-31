@@ -3,10 +3,12 @@ use clap::ValueEnum;
 use eframe::egui;
 use egui_extras::DatePickerButton;
 
-use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
+use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
 use crate::weight::{AccommodatingResist, BandColor, Weight, WeightUnit};
 
-use super::{AccommodatingMode, GuiApp, MetricMode, SetMode, WeightMode, combo_box_width};
+use super::{
+    AccommodatingMode, GuiApp, MetricMode, SetMode, WeightMode, combo_box_width, main_lift_options,
+};
 
 impl GuiApp {
     pub(super) fn tab_add(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
@@ -46,16 +48,16 @@ impl GuiApp {
                 ui.horizontal(|ui| {
                     ui.label("Weight:");
                     ui.text_edit_singleline(&mut self.weight_value);
-                    let unit_width = combo_box_width(ui, &vec!["lb".into(), "kg".into()]);
+                    let unit_width = combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
                     egui::ComboBox::from_id_source("weight_unit")
                         .width(unit_width)
                         .selected_text(match self.weight_unit {
-                            WeightUnit::Pounds => "lb",
                             WeightUnit::Kilograms => "kg",
+                            WeightUnit::Pounds => "lb",
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
                             ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
                         });
                 });
             }
@@ -66,16 +68,16 @@ impl GuiApp {
                     ui.text_edit_singleline(&mut self.weight_left_value);
                     ui.label("R:");
                     ui.text_edit_singleline(&mut self.weight_right_value);
-                    let unit_width = combo_box_width(ui, &vec!["lb".into(), "kg".into()]);
+                    let unit_width = combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
                     egui::ComboBox::from_id_source("weight_unit")
                         .width(unit_width)
                         .selected_text(match self.weight_unit {
-                            WeightUnit::Pounds => "lb",
                             WeightUnit::Kilograms => "kg",
+                            WeightUnit::Pounds => "lb",
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
                             ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
                         });
                 });
             }
@@ -92,16 +94,19 @@ impl GuiApp {
                             .join("+")
                     };
                     ui.label(text);
-                    let colors = vec![
-                        BandColor::Orange.to_string(),
-                        BandColor::Red.to_string(),
-                        BandColor::Blue.to_string(),
-                        BandColor::Green.to_string(),
-                        BandColor::Black.to_string(),
-                        BandColor::Purple.to_string(),
-                        "Select".into(),
+                    let mut colors = vec![
+                        BandColor::Orange,
+                        BandColor::Red,
+                        BandColor::Blue,
+                        BandColor::Green,
+                        BandColor::Black,
+                        BandColor::Purple,
                     ];
-                    let band_width = combo_box_width(ui, &colors);
+                    colors.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+                    let mut color_strings: Vec<String> =
+                        colors.iter().map(|c| c.to_string()).collect();
+                    color_strings.push("Select".into());
+                    let band_width = combo_box_width(ui, &color_strings);
                     egui::ComboBox::from_id_source("band_select")
                         .width(band_width)
                         .selected_text(
@@ -110,17 +115,10 @@ impl GuiApp {
                                 .unwrap_or_else(|| "Select".into()),
                         )
                         .show_ui(ui, |ui| {
-                            for color in [
-                                BandColor::Orange,
-                                BandColor::Red,
-                                BandColor::Blue,
-                                BandColor::Green,
-                                BandColor::Black,
-                                BandColor::Purple,
-                            ] {
+                            for color in &colors {
                                 ui.selectable_value(
                                     &mut self.band_select,
-                                    Some(color),
+                                    Some(*color),
                                     color.to_string(),
                                 );
                             }
@@ -140,16 +138,16 @@ impl GuiApp {
                 ui.horizontal(|ui| {
                     ui.label("Bar:");
                     ui.text_edit_singleline(&mut self.weight_value);
-                    let unit_width = combo_box_width(ui, &vec!["lb".into(), "kg".into()]);
+                    let unit_width = combo_box_width(ui, &vec!["kg".into(), "lb".into()]);
                     egui::ComboBox::from_id_source("weight_unit")
                         .width(unit_width)
                         .selected_text(match self.weight_unit {
-                            WeightUnit::Pounds => "lb",
                             WeightUnit::Kilograms => "kg",
+                            WeightUnit::Pounds => "lb",
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
                             ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
                         });
                 });
                 ui.horizontal(|ui| {
@@ -177,16 +175,19 @@ impl GuiApp {
                                     .join("+")
                             };
                             ui.label(text);
-                            let colors = vec![
-                                BandColor::Orange.to_string(),
-                                BandColor::Red.to_string(),
-                                BandColor::Blue.to_string(),
-                                BandColor::Green.to_string(),
-                                BandColor::Black.to_string(),
-                                BandColor::Purple.to_string(),
-                                "Select".into(),
+                            let mut colors = vec![
+                                BandColor::Orange,
+                                BandColor::Red,
+                                BandColor::Blue,
+                                BandColor::Green,
+                                BandColor::Black,
+                                BandColor::Purple,
                             ];
-                            let band_width = combo_box_width(ui, &colors);
+                            colors.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+                            let mut color_strings: Vec<String> =
+                                colors.iter().map(|c| c.to_string()).collect();
+                            color_strings.push("Select".into());
+                            let band_width = combo_box_width(ui, &color_strings);
                             egui::ComboBox::from_id_source("band_select")
                                 .width(band_width)
                                 .selected_text(
@@ -195,17 +196,10 @@ impl GuiApp {
                                         .unwrap_or_else(|| "Select".into()),
                                 )
                                 .show_ui(ui, |ui| {
-                                    for color in [
-                                        BandColor::Orange,
-                                        BandColor::Red,
-                                        BandColor::Blue,
-                                        BandColor::Green,
-                                        BandColor::Black,
-                                        BandColor::Purple,
-                                    ] {
+                                    for color in &colors {
                                         ui.selectable_value(
                                             &mut self.band_select,
-                                            Some(color),
+                                            Some(*color),
                                             color.to_string(),
                                         );
                                     }
@@ -323,16 +317,9 @@ impl GuiApp {
             });
             ui.horizontal(|ui| {
                 ui.label("Main:");
-                let main_opts = vec![
-                    "None".to_string(),
-                    "Bench Press".to_string(),
-                    "Overhead Press".to_string(),
-                    "Squat".to_string(),
-                    "Deadlift".to_string(),
-                    "Conditioning".to_string(),
-                    "Accessory".to_string(),
-                    "Warm Up".to_string(),
-                ];
+                let main_types = main_lift_options();
+                let main_opts: Vec<String> =
+                    main_types.iter().map(|(_, s)| s.to_string()).collect();
                 let main_width = combo_box_width(ui, &main_opts);
                 egui::ComboBox::from_id_source("main_lift")
                     .width(main_width)
@@ -342,42 +329,9 @@ impl GuiApp {
                             .unwrap_or_else(|| "None".to_string()),
                     )
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.new_lift_main, None, "None");
-                        ui.selectable_value(
-                            &mut self.new_lift_main,
-                            Some(LiftType::BenchPress),
-                            "Bench Press",
-                        );
-                        ui.selectable_value(
-                            &mut self.new_lift_main,
-                            Some(LiftType::OverheadPress),
-                            "Overhead Press",
-                        );
-                        ui.selectable_value(
-                            &mut self.new_lift_main,
-                            Some(LiftType::Squat),
-                            "Squat",
-                        );
-                        ui.selectable_value(
-                            &mut self.new_lift_main,
-                            Some(LiftType::Deadlift),
-                            "Deadlift",
-                        );
-                        ui.selectable_value(
-                            &mut self.new_lift_main,
-                            Some(LiftType::Conditioning),
-                            "Conditioning",
-                        );
-                        ui.selectable_value(
-                            &mut self.new_lift_main,
-                            Some(LiftType::Accessory),
-                            "Accessory",
-                        );
-                        ui.selectable_value(
-                            &mut self.new_lift_main,
-                            Some(LiftType::WarmUp),
-                            "Warm Up",
-                        );
+                        for (variant, label) in &main_types {
+                            ui.selectable_value(&mut self.new_lift_main, *variant, *label);
+                        }
                     });
             });
             ui.horizontal(|ui| {
@@ -394,12 +348,12 @@ impl GuiApp {
                 }
             });
             ui.horizontal(|ui| {
-                let mut muscle_opts: Vec<String> = Muscle::value_variants()
-                    .iter()
-                    .map(|m| m.to_string())
-                    .collect();
-                muscle_opts.push("Select muscle".into());
-                let muscle_width = combo_box_width(ui, &muscle_opts);
+                let mut muscle_opts: Vec<Muscle> = Muscle::value_variants().to_vec();
+                muscle_opts.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+                let mut muscle_strings: Vec<String> =
+                    muscle_opts.iter().map(|m| m.to_string()).collect();
+                muscle_strings.push("Select muscle".into());
+                let muscle_width = combo_box_width(ui, &muscle_strings);
                 egui::ComboBox::from_id_source("new_muscle_select")
                     .width(muscle_width)
                     .selected_text(
@@ -408,7 +362,7 @@ impl GuiApp {
                             .unwrap_or_else(|| "Select muscle".into()),
                     )
                     .show_ui(ui, |ui| {
-                        for m in Muscle::value_variants() {
+                        for m in &muscle_opts {
                             ui.selectable_value(
                                 &mut self.new_muscle_select,
                                 Some(*m),
