@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 
 /// Metric tracked for a particular set.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum SetMetric {
     /// Number of repetitions performed.
     Reps(i32),
@@ -25,7 +25,7 @@ impl fmt::Display for SetMetric {
 }
 
 /// Details for a single set within a lift execution.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct ExecutionSet {
     /// Measurement for this set (reps, time, or distance).
     pub metric: SetMetric,
@@ -84,4 +84,33 @@ pub struct LiftExecution {
     pub sets: Vec<ExecutionSet>,
     /// Free-form notes about this execution.
     pub notes: String,
+}
+
+/// Format a slice of execution sets into a human-readable description,
+/// grouping consecutive identical sets with an "Nx" prefix.
+pub fn format_execution_sets(sets: &[ExecutionSet]) -> String {
+    let mut groups: Vec<(usize, &ExecutionSet)> = Vec::new();
+    for set in sets {
+        if let Some((count, prev)) = groups.last_mut() {
+            if *prev == set {
+                *count += 1;
+                continue;
+            }
+        }
+        groups.push((1, set));
+    }
+
+    let parts: Vec<String> = groups
+        .into_iter()
+        .map(|(count, set)| {
+            let rpe = set.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+            let base = format!("{} @ {}{}", set.metric, set.weight, rpe);
+            if count > 1 {
+                format!("{}x {}", count, base)
+            } else {
+                base
+            }
+        })
+        .collect();
+    parts.join(", ")
 }

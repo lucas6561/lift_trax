@@ -190,15 +190,8 @@ impl GuiApp {
                         } else {
                             format!(" - {}", exec.notes)
                         };
-                        let set_desc = exec
-                            .sets
-                            .iter()
-                            .map(|s| {
-                                let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                                format!("{} @ {}{}", s.metric, s.weight, rpe)
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
+                        let set_desc =
+                            crate::models::lift_execution::format_execution_sets(&exec.sets);
                         ui.horizontal(|ui| {
                             ui.label(format!("{}: {}{}", exec.date, set_desc, notes));
                             if ui.button("Edit").clicked() {
