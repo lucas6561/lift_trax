@@ -436,6 +436,21 @@ impl Database for SqliteDb {
         Ok(())
     }
 
+    fn delete_lift(&self, name: &str) -> DbResult<()> {
+        let lift_id: Option<i32> = self
+            .conn
+            .prepare("SELECT id FROM lifts WHERE name = ?1")?
+            .query_row(params![name], |row| row.get(0))
+            .optional()?;
+        if let Some(id) = lift_id {
+            self.conn
+                .execute("DELETE FROM lift_records WHERE lift_id = ?1", params![id])?;
+            self.conn
+                .execute("DELETE FROM lifts WHERE id = ?1", params![id])?;
+        }
+        Ok(())
+    }
+
     fn update_lift_execution(&self, exec_id: i32, execution: &LiftExecution) -> DbResult<()> {
         let sets_json = serde_json::to_string(&execution.sets)?;
         self.conn.execute(

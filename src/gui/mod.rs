@@ -8,9 +8,9 @@ use crate::{
 };
 
 mod add;
+mod execution_form;
 mod list;
 mod query;
-mod execution_form;
 
 pub fn run_gui(db: Box<dyn Database>) -> Result<(), Box<dyn std::error::Error>> {
     let app = GuiApp::new(db);
@@ -62,6 +62,7 @@ struct GuiApp {
     edit_lift_muscles: Vec<Muscle>,
     edit_muscle_select: Option<Muscle>,
     edit_lift_notes: String,
+    lift_to_delete: Option<usize>,
     editing_exec: Option<(usize, usize)>,
     edit_weight_value: String,
     edit_weight_left_value: String,
@@ -147,6 +148,7 @@ impl GuiApp {
             edit_lift_muscles: Vec::new(),
             edit_muscle_select: None,
             edit_lift_notes: String::new(),
+            lift_to_delete: None,
             editing_exec: None,
             edit_weight_value: String::new(),
             edit_weight_left_value: String::new(),
