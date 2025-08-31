@@ -4,9 +4,9 @@ use eframe::egui;
 use egui_extras::DatePickerButton;
 
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
-use crate::weight::{BandColor, Weight, WeightUnit};
+use crate::weight::{AccommodatingResist, BandColor, Weight, WeightUnit};
 
-use super::{GuiApp, MetricMode, SetMode, WeightMode};
+use super::{AccommodatingMode, GuiApp, MetricMode, SetMode, WeightMode};
 
 impl GuiApp {
     pub(super) fn tab_add(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
@@ -34,6 +34,7 @@ impl GuiApp {
             ui.selectable_value(&mut self.weight_mode, WeightMode::Weight, "Weight");
             ui.selectable_value(&mut self.weight_mode, WeightMode::WeightLr, "L/R Weight");
             ui.selectable_value(&mut self.weight_mode, WeightMode::Bands, "Bands");
+            ui.selectable_value(&mut self.weight_mode, WeightMode::Accommodating, "Accom");
             ui.selectable_value(&mut self.weight_mode, WeightMode::None, "None");
         });
         match self.weight_mode {
@@ -115,6 +116,80 @@ impl GuiApp {
                         self.band_select = None;
                     }
                 });
+            }
+            WeightMode::Accommodating => {
+                ui.horizontal(|ui| {
+                    ui.label("Bar:");
+                    ui.text_edit_singleline(&mut self.weight_value);
+                    egui::ComboBox::from_id_source("weight_unit")
+                        .selected_text(match self.weight_unit {
+                            WeightUnit::Pounds => "lb",
+                            WeightUnit::Kilograms => "kg",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Pounds, "lb");
+                            ui.selectable_value(&mut self.weight_unit, WeightUnit::Kilograms, "kg");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Resistance:");
+                    ui.selectable_value(&mut self.accom_mode, AccommodatingMode::Chains, "Chains");
+                    ui.selectable_value(&mut self.accom_mode, AccommodatingMode::Bands, "Bands");
+                });
+                match self.accom_mode {
+                    AccommodatingMode::Chains => {
+                        ui.horizontal(|ui| {
+                            ui.label("Chain:");
+                            ui.text_edit_singleline(&mut self.chain_value);
+                        });
+                    }
+                    AccommodatingMode::Bands => {
+                        ui.horizontal(|ui| {
+                            ui.label("Bands:");
+                            let text = if self.band_value.is_empty() {
+                                "None".to_string()
+                            } else {
+                                self.band_value
+                                    .iter()
+                                    .map(|b| b.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join("+")
+                            };
+                            ui.label(text);
+                            egui::ComboBox::from_id_source("band_select")
+                                .selected_text(
+                                    self.band_select
+                                        .map(|b| b.to_string())
+                                        .unwrap_or_else(|| "Select".into()),
+                                )
+                                .show_ui(ui, |ui| {
+                                    for color in [
+                                        BandColor::Orange,
+                                        BandColor::Red,
+                                        BandColor::Blue,
+                                        BandColor::Green,
+                                        BandColor::Black,
+                                        BandColor::Purple,
+                                    ] {
+                                        ui.selectable_value(
+                                            &mut self.band_select,
+                                            Some(color),
+                                            color.to_string(),
+                                        );
+                                    }
+                                });
+                            if ui.button("Add").clicked() {
+                                if let Some(color) = self.band_select {
+                                    self.band_value.push(color);
+                                }
+                            }
+                            if ui.button("Clear").clicked() {
+                                self.band_value.clear();
+                                self.band_select = None;
+                            }
+                        });
+                    }
+                }
             }
             WeightMode::None => {}
         }
@@ -354,6 +429,43 @@ impl GuiApp {
                 }
                 Weight::Bands(self.band_value.clone())
             }
+            WeightMode::Accommodating => {
+                let raw: f64 = match self.weight_value.parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        self.error = Some("Invalid weight".into());
+                        return;
+                    }
+                };
+                let raw_lbs = match Weight::from_unit(raw, self.weight_unit) {
+                    Weight::Raw(p) => p,
+                    _ => unreachable!(),
+                };
+                let resistance = match self.accom_mode {
+                    AccommodatingMode::Chains => {
+                        let chain: f64 = match self.chain_value.parse() {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid chain weight".into());
+                                return;
+                            }
+                        };
+                        let chain_lbs = match Weight::from_unit(chain, self.weight_unit) {
+                            Weight::Raw(p) => p,
+                            _ => unreachable!(),
+                        };
+                        AccommodatingResist::Chains(chain_lbs)
+                    }
+                    AccommodatingMode::Bands => {
+                        if self.band_value.is_empty() {
+                            self.error = Some("No bands selected".into());
+                            return;
+                        }
+                        AccommodatingResist::Bands(self.band_value.clone())
+                    }
+                };
+                Weight::Accommodating { raw: raw_lbs, resistance }
+            }
             WeightMode::None => Weight::None,
         };
         let metric_val: i32 = match self.reps.parse() {
@@ -389,6 +501,8 @@ impl GuiApp {
         self.weight_right_value.clear();
         self.band_value.clear();
         self.band_select = None;
+        self.chain_value.clear();
+        self.accom_mode = AccommodatingMode::Chains;
         self.reps.clear();
         self.rpe.clear();
     }
@@ -430,6 +544,43 @@ impl GuiApp {
                             return;
                         }
                         Weight::Bands(self.band_value.clone())
+                    }
+                    WeightMode::Accommodating => {
+                        let raw: f64 = match self.weight_value.parse() {
+                            Ok(v) => v,
+                            Err(_) => {
+                                self.error = Some("Invalid weight".into());
+                                return;
+                            }
+                        };
+                        let raw_lbs = match Weight::from_unit(raw, self.weight_unit) {
+                            Weight::Raw(p) => p,
+                            _ => unreachable!(),
+                        };
+                        let resistance = match self.accom_mode {
+                            AccommodatingMode::Chains => {
+                                let chain: f64 = match self.chain_value.parse() {
+                                    Ok(v) => v,
+                                    Err(_) => {
+                                        self.error = Some("Invalid chain weight".into());
+                                        return;
+                                    }
+                                };
+                                let chain_lbs = match Weight::from_unit(chain, self.weight_unit) {
+                                    Weight::Raw(p) => p,
+                                    _ => unreachable!(),
+                                };
+                                AccommodatingResist::Chains(chain_lbs)
+                            }
+                            AccommodatingMode::Bands => {
+                                if self.band_value.is_empty() {
+                                    self.error = Some("No bands selected".into());
+                                    return;
+                                }
+                                AccommodatingResist::Bands(self.band_value.clone())
+                            }
+                        };
+                        Weight::Accommodating { raw: raw_lbs, resistance }
                     }
                     WeightMode::None => Weight::None,
                 };
@@ -495,6 +646,8 @@ impl GuiApp {
                 self.weight_right_value.clear();
                 self.band_value.clear();
                 self.band_select = None;
+                self.chain_value.clear();
+                self.accom_mode = AccommodatingMode::Chains;
                 self.reps.clear();
                 self.sets.clear();
                 self.date = Utc::now().date_naive();

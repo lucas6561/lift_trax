@@ -307,6 +307,35 @@ impl GuiApp {
                                         );
                                     });
                                 }
+                                WeightMode::Accommodating => {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Weight:");
+                                        ui.text_edit_singleline(&mut self.edit_weight_value);
+                                        egui::ComboBox::from_id_source(format!(
+                                            "edit_unit_{}_{}",
+                                            i, j
+                                        ))
+                                        .selected_text(match self.edit_weight_unit {
+                                            WeightUnit::Pounds => "lb",
+                                            WeightUnit::Kilograms => "kg",
+                                        })
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                ui.selectable_value(
+                                                    &mut self.edit_weight_unit,
+                                                    WeightUnit::Pounds,
+                                                    "lb",
+                                                );
+                                                ui.selectable_value(
+                                                    &mut self.edit_weight_unit,
+                                                    WeightUnit::Kilograms,
+                                                    "kg",
+                                                );
+                                            },
+                                        );
+                                    });
+                                }
                                 WeightMode::WeightLr => {
                                     ui.horizontal(|ui| {
                                         ui.label("Weight:");
@@ -492,6 +521,16 @@ impl GuiApp {
             let exec = &lift.executions[exec_idx];
             let weight = match self.edit_weight_mode {
                 WeightMode::Weight => {
+                    let val: f64 = match self.edit_weight_value.parse() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.error = Some("Invalid weight".into());
+                            return;
+                        }
+                    };
+                    Weight::from_unit(val, self.edit_weight_unit)
+                }
+                WeightMode::Accommodating => {
                     let val: f64 = match self.edit_weight_value.parse() {
                         Ok(v) => v,
                         Err(_) => {

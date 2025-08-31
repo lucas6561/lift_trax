@@ -33,6 +33,8 @@ struct GuiApp {
     weight_right_value: String,
     band_value: Vec<BandColor>,
     band_select: Option<BandColor>,
+    chain_value: String,
+    accom_mode: AccommodatingMode,
     weight_unit: WeightUnit,
     weight_mode: WeightMode,
     metric_mode: MetricMode,
@@ -81,7 +83,14 @@ enum WeightMode {
     Weight,
     WeightLr,
     Bands,
+    Accommodating,
     None,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AccommodatingMode {
+    Chains,
+    Bands,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -107,6 +116,8 @@ impl GuiApp {
             weight_right_value: String::new(),
             band_value: Vec::new(),
             band_select: None,
+            chain_value: String::new(),
+            accom_mode: AccommodatingMode::Chains,
             weight_unit: WeightUnit::Pounds,
             weight_mode: WeightMode::Weight,
             metric_mode: MetricMode::Reps,
