@@ -212,6 +212,16 @@ impl GuiApp {
                                             self.edit_weight_left_value.clear();
                                             self.edit_weight_right_value.clear();
                                         }
+                                        Weight::Accommodating { raw, .. } => {
+                                            // Treat accommodating resistance as a simple raw weight for editing
+                                            self.edit_weight_mode = WeightMode::Weight;
+                                            self.edit_weight_unit = WeightUnit::Pounds;
+                                            self.edit_weight_value = format!("{}", raw);
+                                            self.edit_weight_left_value.clear();
+                                            self.edit_weight_right_value.clear();
+                                            self.edit_band_value.clear();
+                                            self.edit_band_select = None;
+                                        }
                                         Weight::None => {
                                             self.edit_weight_mode = WeightMode::None;
                                             self.edit_weight_value.clear();
@@ -269,6 +279,35 @@ impl GuiApp {
                             });
                             match self.edit_weight_mode {
                                 WeightMode::Weight => {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Weight:");
+                                        ui.text_edit_singleline(&mut self.edit_weight_value);
+                                        egui::ComboBox::from_id_source(format!(
+                                            "edit_unit_{}_{}",
+                                            i, j
+                                        ))
+                                        .selected_text(match self.edit_weight_unit {
+                                            WeightUnit::Pounds => "lb",
+                                            WeightUnit::Kilograms => "kg",
+                                        })
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                ui.selectable_value(
+                                                    &mut self.edit_weight_unit,
+                                                    WeightUnit::Pounds,
+                                                    "lb",
+                                                );
+                                                ui.selectable_value(
+                                                    &mut self.edit_weight_unit,
+                                                    WeightUnit::Kilograms,
+                                                    "kg",
+                                                );
+                                            },
+                                        );
+                                    });
+                                }
+                                WeightMode::Accommodating => {
                                     ui.horizontal(|ui| {
                                         ui.label("Weight:");
                                         ui.text_edit_singleline(&mut self.edit_weight_value);
@@ -482,6 +521,16 @@ impl GuiApp {
             let exec = &lift.executions[exec_idx];
             let weight = match self.edit_weight_mode {
                 WeightMode::Weight => {
+                    let val: f64 = match self.edit_weight_value.parse() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.error = Some("Invalid weight".into());
+                            return;
+                        }
+                    };
+                    Weight::from_unit(val, self.edit_weight_unit)
+                }
+                WeightMode::Accommodating => {
                     let val: f64 = match self.edit_weight_value.parse() {
                         Ok(v) => v,
                         Err(_) => {

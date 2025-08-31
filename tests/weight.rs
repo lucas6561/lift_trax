@@ -1,7 +1,7 @@
 #[path = "../src/weight.rs"]
 mod weight;
 
-use weight::{BandColor, Weight, WeightUnit};
+use weight::{AccommodatingResist, BandColor, Weight, WeightUnit};
 
 #[test]
 fn parse_and_display_pounds() {
@@ -30,6 +30,40 @@ fn parse_multiple_bands() {
     match w {
         Weight::Bands(ref b) => assert_eq!(b, &vec![BandColor::Red, BandColor::Blue]),
         _ => panic!("expected bands"),
+    }
+}
+
+#[test]
+fn parse_accommodating_chains() {
+    let w: Weight = "225+80c".parse().unwrap();
+    assert_eq!(w.to_string(), "225+80c");
+    match w {
+        Weight::Accommodating { raw, resistance } => {
+            assert_eq!(raw, 225.0);
+            match resistance {
+                AccommodatingResist::Chains(c) => assert_eq!(c, 80.0),
+                _ => panic!("expected chains"),
+            }
+        }
+        _ => panic!("expected accommodating resistance"),
+    }
+}
+
+#[test]
+fn parse_accommodating_bands() {
+    let w: Weight = "315+blue".parse().unwrap();
+    assert_eq!(w.to_string(), "315+blue");
+    match w {
+        Weight::Accommodating { raw, resistance } => {
+            assert_eq!(raw, 315.0);
+            match resistance {
+                AccommodatingResist::Bands(b) => {
+                    assert_eq!(b, vec![BandColor::Blue]);
+                }
+                _ => panic!("expected bands"),
+            }
+        }
+        _ => panic!("expected accommodating resistance"),
     }
 }
 
