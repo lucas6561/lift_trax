@@ -1,0 +1,43 @@
+use std::collections::HashMap;
+
+use chrono::Weekday;
+
+use crate::database::{Database, DbResult};
+use crate::models::Lift;
+
+/// Represents a single lift with optional suggested metrics.
+#[derive(Clone)]
+pub struct SingleLift {
+    pub lift: Lift,
+    pub rep_count: Option<u32>,
+    pub time_sec: Option<u32>,
+    pub distance_m: Option<u32>,
+}
+
+/// Represents a circuit of lifts with a prescribed rest time.
+#[derive(Clone)]
+pub struct CircuitLift {
+    pub circuit_lifts: Vec<SingleLift>,
+    pub rest_time_sec: u32,
+}
+
+/// A lift entry within a workout, either a single lift or a circuit.
+#[derive(Clone)]
+pub enum WorkoutLift {
+    Single(SingleLift),
+    Circuit(CircuitLift),
+}
+
+/// Collection of lifts to be performed in a workout.
+#[derive(Clone)]
+pub struct Workout {
+    pub lifts: Vec<WorkoutLift>,
+}
+
+/// Mapping of weekday to its scheduled workout.
+pub type WorkoutWeek = HashMap<Weekday, Workout>;
+
+/// Builder capable of generating multi-week workout waves.
+pub trait WorkoutBuilder {
+    fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>>;
+}

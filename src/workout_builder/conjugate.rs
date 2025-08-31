@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use chrono::Weekday;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -7,47 +5,12 @@ use rand::thread_rng;
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType};
 
-/// Represents a single lift with optional suggested metrics.
-#[derive(Clone)]
-pub struct SingleLift {
-    pub lift: Lift,
-    pub rep_count: Option<u32>,
-    pub time_sec: Option<u32>,
-    pub distance_m: Option<u32>,
-}
+use super::{CircuitLift, SingleLift, Workout, WorkoutBuilder, WorkoutLift, WorkoutWeek};
 
-/// Represents a circuit of lifts with a prescribed rest time.
-#[derive(Clone)]
-pub struct CircuitLift {
-    pub circuit_lifts: Vec<SingleLift>,
-    pub rest_time_sec: u32,
-}
+/// Workout builder implementing a basic conjugate approach.
+pub struct ConjugateWorkoutBuilder;
 
-/// A lift entry within a workout, either a single lift or a circuit.
-#[derive(Clone)]
-pub enum WorkoutLift {
-    Single(SingleLift),
-    Circuit(CircuitLift),
-}
-
-/// Collection of lifts to be performed in a workout.
-#[derive(Clone)]
-pub struct Workout {
-    pub lifts: Vec<WorkoutLift>,
-}
-
-/// Mapping of weekday to its scheduled workout.
-pub type WorkoutWeek = HashMap<Weekday, Workout>;
-
-/// Builder capable of generating multi-week workout waves.
-pub trait WorkoutBuilder {
-    fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>>;
-}
-
-/// Basic workout builder selecting squat days and upper accessory circuits.
-pub struct BasicWorkoutBuilder;
-
-impl WorkoutBuilder for BasicWorkoutBuilder {
+impl WorkoutBuilder for ConjugateWorkoutBuilder {
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
         let mut rng = thread_rng();
         let mut squats = db.lifts_by_type(LiftType::Squat)?;

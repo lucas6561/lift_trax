@@ -6,14 +6,14 @@ mod models;
 mod sqlite_db;
 #[path = "../src/weight.rs"]
 mod weight;
-#[path = "../src/workout.rs"]
-mod workout;
+#[path = "../src/workout_builder/mod.rs"]
+mod workout_builder;
 
 use chrono::Weekday;
 use database::Database;
 use models::{LiftRegion, LiftType};
 use sqlite_db::SqliteDb;
-use workout::{BasicWorkoutBuilder, WorkoutBuilder, WorkoutLift};
+use workout_builder::{ConjugateWorkoutBuilder, WorkoutBuilder, WorkoutLift};
 
 #[test]
 fn builds_wave_with_expected_structure() {
@@ -31,7 +31,7 @@ fn builds_wave_with_expected_structure() {
     db.add_lift("Fly", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
 
-    let builder = BasicWorkoutBuilder;
+    let builder = ConjugateWorkoutBuilder;
     let wave = builder.get_wave(2, &db).unwrap();
     assert_eq!(wave.len(), 2);
     for week in &wave {
