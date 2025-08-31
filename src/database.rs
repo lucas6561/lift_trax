@@ -9,12 +9,12 @@ pub type DbResult<T> = Result<T, Box<dyn Error>>;
 
 /// Behavior required for storing and retrieving lift data.
 pub trait Database {
-    /// Create a new lift with the given name, region, optional lift type, muscles, and notes.
+    /// Create a new lift with the given name, region, lift type, muscles, and notes.
     fn add_lift(
         &self,
         name: &str,
         region: LiftRegion,
-        main: Option<LiftType>,
+        main: LiftType,
         muscles: &[Muscle],
         notes: &str,
     ) -> DbResult<()>;

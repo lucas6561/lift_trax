@@ -21,7 +21,7 @@ fn add_and_list_lift_with_execution() {
     db.add_lift(
         "Bench",
         LiftRegion::UPPER,
-        Some(LiftType::BenchPress),
+        LiftType::BenchPress,
         &[Muscle::Chest],
         "barbell",
     )
@@ -59,7 +59,7 @@ fn add_and_list_lift_with_execution() {
 #[test]
 fn delete_execution_removes_record() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "")
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
 
     let exec = LiftExecution {
@@ -86,11 +86,11 @@ fn delete_execution_removes_record() {
 #[test]
 fn list_lifts_returns_all_sorted() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Zpress", LiftRegion::UPPER, None, &[], "")
+    db.add_lift("Zpress", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
-    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "")
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
-    db.add_lift("Curl", LiftRegion::UPPER, None, &[], "")
+    db.add_lift("Curl", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
     let names: Vec<_> = db
         .list_lifts(None)
@@ -106,7 +106,7 @@ fn reads_legacy_execution_sets() {
     let path = "test_old_sets.db";
     let _ = std::fs::remove_file(path);
     let db = SqliteDb::new(path).expect("db open");
-    db.add_lift("Row", LiftRegion::UPPER, None, &[], "")
+    db.add_lift("Row", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
 
     #[derive(Serialize)]
@@ -150,7 +150,7 @@ fn reads_legacy_execution_sets() {
 #[test]
 fn lift_stats_handles_empty_history() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Bench", LiftRegion::UPPER, None, &[], "")
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
     let stats = db.lift_stats("Bench").unwrap();
     assert!(stats.last.is_none());
@@ -160,7 +160,7 @@ fn lift_stats_handles_empty_history() {
 #[test]
 fn lift_stats_provides_summary() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift("Squat", LiftRegion::LOWER, None, &[], "")
+    db.add_lift("Squat", LiftRegion::LOWER, LiftType::Accessory, &[], "")
         .unwrap();
 
     let exec1 = LiftExecution {

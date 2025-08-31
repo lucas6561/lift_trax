@@ -21,10 +21,10 @@ cargo run -- <SUBCOMMAND> [FLAGS]
 ### Add a lift execution
 
 Record a new performance of a lift in the database. If the lift does not
-exist yet it will be created.
+exist yet it will be created when a lift `--type` is supplied.
 
 ```bash
-cargo run -- add <EXERCISE> <WEIGHT> <REPS> <SETS> [--date YYYY-MM-DD] [--rpe RPE] [--muscle MUSCLE]...
+cargo run -- add <EXERCISE> <WEIGHT> <REPS> <SETS> [--date YYYY-MM-DD] [--rpe RPE] [--muscle MUSCLE]... [--type LIFT_TYPE]
 ```
 
 * `<EXERCISE>` – name of the movement (e.g. `Bench`)
@@ -35,6 +35,7 @@ cargo run -- add <EXERCISE> <WEIGHT> <REPS> <SETS> [--date YYYY-MM-DD] [--rpe RP
 * `--date` – optional date, defaults to today's date
 * `--rpe` – optional rating of perceived exertion
 * `--muscle` – muscles worked by this lift; repeat flag for multiple values. Valid values include `BICEP`, `TRICEP`, `NECK`, `LAT`, `QUAD`, `HAMSTRING`, `CALF`, `LOWER_BACK`, `CHEST`, `FOREARM`, `REAR_DELT`, `FRONT_DELT`, `SHOULDER`, `CORE`, `GLUTE`, and `TRAP`.
+* `--type` – type of lift when creating a new lift; valid values include `BENCH_PRESS`, `OVERHEAD_PRESS`, `SQUAT`, `DEADLIFT`, `CONDITIONING`, `ACCESSORY`, and `MOBILITY`.
 
 Examples:
 
