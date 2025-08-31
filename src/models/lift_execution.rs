@@ -106,7 +106,12 @@ pub fn format_execution_sets(sets: &[ExecutionSet]) -> String {
         .into_iter()
         .map(|(count, set)| {
             let rpe = set.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-            let base = format!("{} @ {}{}", set.metric, set.weight, rpe);
+            let weight = if set.weight == Weight::None {
+                String::new()
+            } else {
+                format!(" @ {}", set.weight)
+            };
+            let base = format!("{}{}{}", set.metric, weight, rpe);
             if count > 1 {
                 format!("{}x {}", count, base)
             } else {

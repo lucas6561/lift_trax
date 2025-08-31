@@ -1,3 +1,4 @@
+use chrono::{Duration, Utc};
 use eframe::egui;
 
 use super::{GuiApp, combo_box_width};
@@ -28,18 +29,14 @@ impl GuiApp {
             let lift = &self.lifts[idx];
             match self.db.lift_stats(&lift.name) {
                 Ok(stats) => {
-                    if let Some(last) = stats.last {
-                        let set_desc = last
-                            .sets
-                            .iter()
-                            .map(|s| {
-                                let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                                format!("{} @ {}{}", s.metric, s.weight, rpe)
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        ui.label(format!("Last: {} on {}", set_desc, last.date));
-                    } else {
+                    ui.heading("Last Year");
+                    let one_year_ago = Utc::now().date_naive() - Duration::days(365);
+                    let mut any = false;
+                    for exec in lift.executions.iter().filter(|e| e.date >= one_year_ago) {
+                        ui.label(exec.to_string());
+                        any = true;
+                    }
+                    if !any {
                         ui.label("no records");
                     }
                     ui.separator();
