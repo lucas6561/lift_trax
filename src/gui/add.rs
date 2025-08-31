@@ -505,11 +505,18 @@ impl GuiApp {
             self.error = Some("Lift name required".into());
             return;
         }
+        let main = match self.new_lift_main {
+            Some(m) => m,
+            None => {
+                self.error = Some("Lift type required".into());
+                return;
+            }
+        };
         let name_owned = name.to_string();
         match self.db.add_lift(
             &name_owned,
             self.new_lift_region,
-            self.new_lift_main,
+            main,
             &self.new_lift_muscles,
             &self.new_lift_notes,
         ) {

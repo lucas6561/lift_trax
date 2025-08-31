@@ -363,7 +363,7 @@ impl Database for SqliteDb {
         &self,
         name: &str,
         region: LiftRegion,
-        main: Option<LiftType>,
+        main: LiftType,
         muscles: &[Muscle],
         notes: &str,
     ) -> DbResult<()> {
@@ -377,7 +377,7 @@ impl Database for SqliteDb {
             params![
                 name,
                 region.to_string(),
-                main.map(|m| m.to_string()),
+                main.to_string(),
                 muscles_str,
                 notes
             ],

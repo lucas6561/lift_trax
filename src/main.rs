@@ -11,7 +11,7 @@ mod weight;
 
 use crate::weight::Weight;
 use database::Database;
-use models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
+use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
 
 #[derive(Parser)]
@@ -42,6 +42,9 @@ enum Commands {
         /// Muscles targeted by this lift
         #[arg(long = "muscle", value_enum)]
         muscles: Vec<Muscle>,
+        /// Lift type used if creating a new lift
+        #[arg(long = "type")]
+        lift_type: Option<LiftType>,
         /// Free-form notes about this execution
         #[arg(long)]
         notes: Option<String>,
@@ -68,6 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             date,
             rpe,
             muscles,
+            lift_type,
             notes,
         } => {
             let date = match date {
@@ -88,8 +92,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 warmup: false,
                 notes: notes.unwrap_or_default(),
             };
-            // Ensure the lift exists with a default region and no main designation.
-            let _ = db.add_lift(&exercise, LiftRegion::UPPER, None, &muscles, "");
+            if let Some(main) = lift_type {
+                let _ = db.add_lift(&exercise, LiftRegion::UPPER, main, &muscles, "");
+            }
             db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
