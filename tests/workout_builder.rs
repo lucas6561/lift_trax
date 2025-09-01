@@ -16,38 +16,73 @@ use sqlite_db::SqliteDb;
 use workout_builder::{ConjugateWorkoutBuilder, WorkoutBuilder, WorkoutLift};
 
 #[test]
-fn builds_wave_with_expected_structure() {
+fn alternates_main_lifts_across_weeks() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    // add squat lifts
+
+    // add squat and deadlift lifts
     db.add_lift("Back Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
         .unwrap();
     db.add_lift("Front Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
         .unwrap();
-    // add upper accessory lifts
-    db.add_lift("Curl", LiftRegion::UPPER, LiftType::Accessory, &[], "")
+    db.add_lift("Box Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
         .unwrap();
-    db.add_lift("Row", LiftRegion::UPPER, LiftType::Accessory, &[], "")
+    db.add_lift("Conventional Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
         .unwrap();
-    db.add_lift("Fly", LiftRegion::UPPER, LiftType::Accessory, &[], "")
+    db.add_lift("Sumo Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
+        .unwrap();
+    db.add_lift("Deficit Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
+        .unwrap();
+
+    // add bench and overhead press lifts
+    db.add_lift("Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
+    db.add_lift("Close-Grip Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
+    db.add_lift("Floor Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
+    db.add_lift("Overhead Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
+        .unwrap();
+    db.add_lift("Push Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
+        .unwrap();
+    db.add_lift("Seated Overhead Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
         .unwrap();
 
     let builder = ConjugateWorkoutBuilder;
-    let wave = builder.get_wave(2, &db).unwrap();
-    assert_eq!(wave.len(), 2);
-    for week in &wave {
+    let wave = builder.get_wave(6, &db).unwrap();
+    assert_eq!(wave.len(), 6);
+
+    let expected_lower = [
+        LiftType::Squat,
+        LiftType::Deadlift,
+        LiftType::Squat,
+        LiftType::Deadlift,
+        LiftType::Squat,
+        LiftType::Deadlift,
+    ];
+    let expected_upper = [
+        LiftType::BenchPress,
+        LiftType::OverheadPress,
+        LiftType::BenchPress,
+        LiftType::OverheadPress,
+        LiftType::BenchPress,
+        LiftType::OverheadPress,
+    ];
+
+    for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert!(matches!(mon.lifts[0], WorkoutLift::Single(_)));
+        match &mon.lifts[0] {
+            WorkoutLift::Single(s) => assert_eq!(s.lift.main, Some(expected_lower[i])),
+            _ => panic!("expected single"),
+        }
+        assert_eq!(mon.lifts.len(), 1);
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
         match &tue.lifts[0] {
-            WorkoutLift::Circuit(c) => assert_eq!(c.circuit_lifts.len(), 3),
-            _ => panic!("expected circuit"),
+            WorkoutLift::Single(s) => assert_eq!(s.lift.main, Some(expected_upper[i])),
+            _ => panic!("expected single"),
         }
+        assert_eq!(tue.lifts.len(), 1);
 
-        let thu = week.get(&Weekday::Thu).expect("thursday");
-        match &thu.lifts[0] {
-            WorkoutLift::Circuit(c) => assert_eq!(c.circuit_lifts.len(), 3),
-            _ => panic!("expected circuit"),
-        }
+        assert!(week.get(&Weekday::Thu).is_none());
     }
 }

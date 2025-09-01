@@ -56,8 +56,76 @@ enum Commands {
         #[arg(long)]
         exercise: Option<String>,
     },
+    /// Generate an example conjugate wave
+    Wave {
+        /// Number of weeks to generate
+        #[arg(long, default_value_t = 6)]
+        weeks: usize,
+    },
     /// Launch graphical interface
     Gui,
+}
+
+fn seed_example_lifts(db: &dyn Database) {
+    use models::{LiftRegion, LiftType};
+    let _ = db.add_lift("Back Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
+    let _ = db.add_lift("Front Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
+    let _ = db.add_lift("Box Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
+    let _ = db.add_lift(
+        "Conventional Deadlift",
+        LiftRegion::LOWER,
+        LiftType::Deadlift,
+        &[],
+        "",
+    );
+    let _ = db.add_lift("Sumo Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "");
+    let _ = db.add_lift(
+        "Deficit Deadlift",
+        LiftRegion::LOWER,
+        LiftType::Deadlift,
+        &[],
+        "",
+    );
+    let _ = db.add_lift("Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "");
+    let _ = db.add_lift(
+        "Close-Grip Bench Press",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    );
+    let _ = db.add_lift("Floor Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "");
+    let _ = db.add_lift(
+        "Overhead Press",
+        LiftRegion::UPPER,
+        LiftType::OverheadPress,
+        &[],
+        "",
+    );
+    let _ = db.add_lift("Push Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "");
+    let _ = db.add_lift(
+        "Seated Overhead Press",
+        LiftRegion::UPPER,
+        LiftType::OverheadPress,
+        &[],
+        "",
+    );
+}
+
+fn workout_desc(w: &workout_builder::Workout) -> String {
+    w.lifts
+        .iter()
+        .map(|l| match l {
+            workout_builder::WorkoutLift::Single(s) => s.lift.name.clone(),
+            workout_builder::WorkoutLift::Circuit(c) => c
+                .circuit_lifts
+                .iter()
+                .map(|sl| sl.lift.name.clone())
+                .collect::<Vec<_>>()
+                .join(" -> "),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -145,6 +213,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("  - {}: {}{}", exec.date, set_desc, notes_str);
                     }
                 }
+            }
+        }
+        Commands::Wave { weeks } => {
+            use chrono::Weekday;
+            use workout_builder::{ConjugateWorkoutBuilder, WorkoutBuilder};
+            seed_example_lifts(db.as_ref());
+            let builder = ConjugateWorkoutBuilder;
+            let wave = builder.get_wave(weeks, db.as_ref())?;
+            for (i, week) in wave.iter().enumerate() {
+                println!("Week {}", i + 1);
+                if let Some(mon) = week.get(&Weekday::Mon) {
+                    println!("  Mon: {}", workout_desc(mon));
+                }
+                if let Some(tue) = week.get(&Weekday::Tue) {
+                    println!("  Tue: {}", workout_desc(tue));
+                }
+                println!();
             }
         }
         Commands::Gui => {
