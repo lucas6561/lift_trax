@@ -130,11 +130,11 @@ impl DynamicLifts {
             .pop()
             .ok_or("Deadlift lift not found")?;
         let bench = db
-            .list_lifts(Some("Bench press"))?
+            .list_lifts(Some("Bench Press"))?
             .pop()
             .ok_or("Bench press lift not found")?;
         let overhead = db
-            .list_lifts(Some("Overhead press"))?
+            .list_lifts(Some("Overhead Press"))?
             .pop()
             .ok_or("Overhead press lift not found")?;
 
