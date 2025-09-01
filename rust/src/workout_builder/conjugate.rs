@@ -240,6 +240,21 @@ impl ConjugateWorkoutBuilder {
         }))
     }
 
+    fn conditioning(db: &dyn Database) -> DbResult<WorkoutLift> {
+        let mut rng = thread_rng();
+        let cond = db
+            .lifts_by_type(LiftType::Conditioning)?
+            .choose(&mut rng)
+            .ok_or("not enough conditioning lifts available")?
+            .clone();
+        Ok(WorkoutLift::Single(SingleLift {
+            lift: cond,
+            metric: Some(SetMetric::TimeSecs(600)),
+            percent: None,
+            accommodating_resistance: None,
+        }))
+    }
+
     fn accessory_lift(all: &[Lift], muscle: Muscle, rng: &mut ThreadRng) -> DbResult<SingleLift> {
         let matches: Vec<Lift> = all
             .iter()
@@ -299,6 +314,7 @@ impl ConjugateWorkoutBuilder {
             Muscle::Calf,
             db,
         )?);
+        mon_lifts.push(Self::conditioning(db)?);
         week.insert(Weekday::Mon, Workout { lifts: mon_lifts });
 
         let upper = me_lifts.upper_for_week(i);
@@ -322,6 +338,7 @@ impl ConjugateWorkoutBuilder {
             third,
             db,
         )?);
+        tue_lifts.push(Self::conditioning(db)?);
         week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
         let percent = 50 + (i as u32) * 5;
@@ -334,6 +351,7 @@ impl ConjugateWorkoutBuilder {
             Muscle::Core,
             db,
         )?);
+        thu_lifts.push(Self::conditioning(db)?);
         week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
 
         let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?];
@@ -345,6 +363,7 @@ impl ConjugateWorkoutBuilder {
             Muscle::Bicep,
             db,
         )?);
+        fri_lifts.push(Self::conditioning(db)?);
         week.insert(Weekday::Fri, Workout { lifts: fri_lifts });
 
         Ok(week)
