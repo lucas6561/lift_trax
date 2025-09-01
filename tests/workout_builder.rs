@@ -59,7 +59,7 @@ fn alternates_main_lifts_across_weeks() {
 
     // add bench and overhead press lifts
     db.add_lift(
-        "Bench press",
+        "Bench Press",
         LiftRegion::UPPER,
         LiftType::BenchPress,
         &[],
@@ -83,7 +83,7 @@ fn alternates_main_lifts_across_weeks() {
     )
     .unwrap();
     db.add_lift(
-        "Overhead press",
+        "Overhead Press",
         LiftRegion::UPPER,
         LiftType::OverheadPress,
         &[],
@@ -102,6 +102,64 @@ fn alternates_main_lifts_across_weeks() {
         "Seated Overhead Press",
         LiftRegion::UPPER,
         LiftType::OverheadPress,
+        &[],
+        "",
+    )
+    .unwrap();
+
+    // warmup lifts
+    db.add_lift(
+        "Jump Rope",
+        LiftRegion::LOWER,
+        LiftType::Conditioning,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Upper Mobility",
+        LiftRegion::UPPER,
+        LiftType::Mobility,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Lower Mobility",
+        LiftRegion::LOWER,
+        LiftType::Mobility,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Upper Accessory 1",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Upper Accessory 2",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Lower Accessory 1",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Lower Accessory 2",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
         &[],
         "",
     )
@@ -135,22 +193,64 @@ fn alternates_main_lifts_across_weeks() {
 
     for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");
+        assert_eq!(mon.lifts.len(), 2);
         match &mon.lifts[0] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 4);
+                let lifts = &c.circuit_lifts;
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
+                assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
+                assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
+            }
+            _ => panic!("expected circuit"),
+        }
+        match &mon.lifts[1] {
             WorkoutLift::Single(s) => assert_eq!(s.lift.main, Some(expected_lower[i])),
             _ => panic!("expected single"),
         }
-        assert_eq!(mon.lifts.len(), 1);
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
+        assert_eq!(tue.lifts.len(), 2);
         match &tue.lifts[0] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 4);
+                let lifts = &c.circuit_lifts;
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
+                assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
+                assert_eq!(lifts[3].lift.region, LiftRegion::UPPER);
+            }
+            _ => panic!("expected circuit"),
+        }
+        match &tue.lifts[1] {
             WorkoutLift::Single(s) => assert_eq!(s.lift.main, Some(expected_upper[i])),
             _ => panic!("expected single"),
         }
-        assert_eq!(tue.lifts.len(), 1);
 
         let thu = week.get(&Weekday::Thu).expect("thursday");
-        assert_eq!(thu.lifts.len(), 2);
+        assert_eq!(thu.lifts.len(), 3);
         match &thu.lifts[0] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 4);
+                let lifts = &c.circuit_lifts;
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
+                assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
+                assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
+            }
+            _ => panic!("expected circuit"),
+        }
+        match &thu.lifts[1] {
             WorkoutLift::Single(s) => {
                 assert_eq!(s.lift.name, "Squat");
                 assert_eq!(s.lift.main, Some(LiftType::Squat));
@@ -164,7 +264,7 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         }
-        match &thu.lifts[1] {
+        match &thu.lifts[2] {
             WorkoutLift::Single(s) => {
                 assert_eq!(s.lift.name, "Deadlift");
                 assert_eq!(s.lift.main, Some(LiftType::Deadlift));
@@ -180,10 +280,24 @@ fn alternates_main_lifts_across_weeks() {
         }
 
         let fri = week.get(&Weekday::Fri).expect("friday");
-        assert_eq!(fri.lifts.len(), 2);
+        assert_eq!(fri.lifts.len(), 3);
         match &fri.lifts[0] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 4);
+                let lifts = &c.circuit_lifts;
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
+                assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
+                assert_eq!(lifts[3].lift.region, LiftRegion::UPPER);
+            }
+            _ => panic!("expected circuit"),
+        }
+        match &fri.lifts[1] {
             WorkoutLift::Single(s) => {
-                assert_eq!(s.lift.name, "Bench press");
+                assert_eq!(s.lift.name, "Bench Press");
                 assert_eq!(s.lift.main, Some(LiftType::BenchPress));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
@@ -195,9 +309,9 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         }
-        match &fri.lifts[1] {
+        match &fri.lifts[2] {
             WorkoutLift::Single(s) => {
-                assert_eq!(s.lift.name, "Overhead press");
+                assert_eq!(s.lift.name, "Overhead Press");
                 assert_eq!(s.lift.main, Some(LiftType::OverheadPress));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
