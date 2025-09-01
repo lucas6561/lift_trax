@@ -4,7 +4,7 @@ use rand::{seq::SliceRandom, thread_rng};
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftType};
 
-use super::{SingleLift, Workout, WorkoutBuilder, WorkoutLift, WorkoutWeek};
+use super::{AccommodatingResistance, SingleLift, Workout, WorkoutBuilder, WorkoutLift, WorkoutWeek};
 
 /// Workout builder implementing a basic conjugate approach.
 pub struct ConjugateWorkoutBuilder;
@@ -89,6 +89,45 @@ impl MainLiftPools {
     }
 }
 
+struct DynamicLift {
+    lift: Lift,
+    ar: AccommodatingResistance,
+}
+
+struct DynamicLifts {
+    squat: DynamicLift,
+    deadlift: DynamicLift,
+    bench: DynamicLift,
+    overhead: DynamicLift,
+}
+
+impl DynamicLifts {
+    fn new(db: &dyn Database) -> DbResult<Self> {
+        let mut rng = thread_rng();
+        let ar_opts = [
+            AccommodatingResistance::None,
+            AccommodatingResistance::Chains,
+            AccommodatingResistance::Bands,
+        ];
+
+        let mut pick = |lifts: Vec<Lift>| -> DbResult<DynamicLift> {
+            let lift = lifts
+                .choose(&mut rng)
+                .ok_or("not enough lifts available")?
+                .clone();
+            let ar = ar_opts.choose(&mut rng).unwrap().clone();
+            Ok(DynamicLift { lift, ar })
+        };
+
+        Ok(Self {
+            squat: pick(db.lifts_by_type(LiftType::Squat)?)?,
+            deadlift: pick(db.lifts_by_type(LiftType::Deadlift)?)?,
+            bench: pick(db.lifts_by_type(LiftType::BenchPress)?)?,
+            overhead: pick(db.lifts_by_type(LiftType::OverheadPress)?)?,
+        })
+    }
+}
+
 impl ConjugateWorkoutBuilder {
     fn single(lift: Lift) -> WorkoutLift {
         WorkoutLift::Single(SingleLift {
@@ -96,10 +135,12 @@ impl ConjugateWorkoutBuilder {
             rep_count: None,
             time_sec: None,
             distance_m: None,
+            percent: None,
+            accommodating_resistance: None,
         })
     }
 
-    fn build_week(i: usize, pools: &mut MainLiftPools) -> WorkoutWeek {
+    fn build_week(i: usize, pools: &mut MainLiftPools, de: &DynamicLifts) -> WorkoutWeek {
         let mut week = WorkoutWeek::new();
 
         let lower = pools.next_lower(i);
@@ -108,6 +149,47 @@ impl ConjugateWorkoutBuilder {
         let upper = pools.next_upper(i);
         week.insert(Weekday::Tue, Workout { lifts: vec![Self::single(upper)] });
 
+        let percent = 50 + (i as u32) * 5;
+        let thu_lifts = vec![
+            WorkoutLift::Single(SingleLift {
+                lift: de.squat.lift.clone(),
+                rep_count: None,
+                time_sec: None,
+                distance_m: None,
+                percent: Some(percent),
+                accommodating_resistance: Some(de.squat.ar.clone()),
+            }),
+            WorkoutLift::Single(SingleLift {
+                lift: de.deadlift.lift.clone(),
+                rep_count: None,
+                time_sec: None,
+                distance_m: None,
+                percent: Some(percent),
+                accommodating_resistance: Some(de.deadlift.ar.clone()),
+            }),
+        ];
+        week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
+
+        let fri_lifts = vec![
+            WorkoutLift::Single(SingleLift {
+                lift: de.bench.lift.clone(),
+                rep_count: None,
+                time_sec: None,
+                distance_m: None,
+                percent: Some(percent),
+                accommodating_resistance: Some(de.bench.ar.clone()),
+            }),
+            WorkoutLift::Single(SingleLift {
+                lift: de.overhead.lift.clone(),
+                rep_count: None,
+                time_sec: None,
+                distance_m: None,
+                percent: Some(percent),
+                accommodating_resistance: Some(de.overhead.ar.clone()),
+            }),
+        ];
+        week.insert(Weekday::Fri, Workout { lifts: fri_lifts });
+
         week
     }
 }
@@ -115,9 +197,10 @@ impl ConjugateWorkoutBuilder {
 impl WorkoutBuilder for ConjugateWorkoutBuilder {
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
         let mut pools = MainLiftPools::new(num_weeks, db)?;
+        let dynamic = DynamicLifts::new(db)?;
         let mut weeks = Vec::with_capacity(num_weeks);
         for i in 0..num_weeks {
-            weeks.push(Self::build_week(i, &mut pools));
+            weeks.push(Self::build_week(i, &mut pools, &dynamic));
         }
         Ok(weeks)
     }

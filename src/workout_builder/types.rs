@@ -5,6 +5,14 @@ use chrono::Weekday;
 use crate::database::{Database, DbResult};
 use crate::models::Lift;
 
+/// Types of accommodating resistance applied to a lift.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AccommodatingResistance {
+    None,
+    Chains,
+    Bands,
+}
+
 /// Represents a single lift with optional suggested metrics.
 #[derive(Clone)]
 pub struct SingleLift {
@@ -12,6 +20,8 @@ pub struct SingleLift {
     pub rep_count: Option<u32>,
     pub time_sec: Option<u32>,
     pub distance_m: Option<u32>,
+    pub percent: Option<u32>,
+    pub accommodating_resistance: Option<AccommodatingResistance>,
 }
 
 /// Represents a circuit of lifts with a prescribed rest time.
