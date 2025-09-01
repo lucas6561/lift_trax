@@ -230,7 +230,7 @@ impl ConjugateWorkoutBuilder {
         let mk = |lift: Lift| SingleLift {
             lift,
             metric: None,
-            percent: Some(40),
+            percent: None,
             accommodating_resistance: None,
         };
 

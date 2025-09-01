@@ -116,7 +116,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     }
 
     private static SingleLift mkWarmupLift(Lift lift) {
-        return new SingleLift(lift, null, 40, null);
+        return new SingleLift(lift, null, null, null);
     }
 
     private static WorkoutLift single(Lift lift) {

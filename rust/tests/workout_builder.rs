@@ -296,6 +296,7 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
+                assert!(lifts.iter().all(|l| l.percent.is_none()));
             }
             _ => panic!("expected circuit"),
         }
@@ -381,6 +382,7 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[3].lift.region, LiftRegion::UPPER);
+                assert!(lifts.iter().all(|l| l.percent.is_none()));
             }
             _ => panic!("expected circuit"),
         }
@@ -466,6 +468,7 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
+                assert!(lifts.iter().all(|l| l.percent.is_none()));
             }
             _ => panic!("expected circuit"),
         }
@@ -540,6 +543,7 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[3].lift.region, LiftRegion::UPPER);
+                assert!(lifts.iter().all(|l| l.percent.is_none()));
             }
             _ => panic!("expected circuit"),
         }
