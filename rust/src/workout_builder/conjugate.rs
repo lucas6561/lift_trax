@@ -1,8 +1,8 @@
 use chrono::Weekday;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use crate::database::{Database, DbResult};
-use crate::models::{Lift, LiftRegion, LiftType};
+use crate::models::{Lift, LiftRegion, LiftType, SetMetric};
 
 use super::{
     AccommodatingResistance, CircuitLift, SingleLift, Workout, WorkoutBuilder, WorkoutLift,
@@ -158,6 +158,28 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
+    fn backoff_sets(lift: Lift) -> Vec<WorkoutLift> {
+        let mut rng = thread_rng();
+        if rng.gen_bool(0.5) {
+            let reps = rng.gen_range(3..=5);
+            vec![WorkoutLift::Single(SingleLift {
+                lift,
+                metric: Some(SetMetric::Reps(reps)),
+                percent: Some(90),
+                accommodating_resistance: None,
+            })]
+        } else {
+            (0..3)
+                .map(|_| WorkoutLift::Single(SingleLift {
+                    lift: lift.clone(),
+                    metric: Some(SetMetric::Reps(3)),
+                    percent: Some(80),
+                    accommodating_resistance: None,
+                }))
+                .collect()
+        }
+    }
+
     fn warmup(region: LiftRegion, db: &dyn Database) -> DbResult<WorkoutLift> {
         let mut rng = thread_rng();
 
@@ -203,20 +225,14 @@ impl ConjugateWorkoutBuilder {
         let mut week = WorkoutWeek::new();
 
         let lower = me_lifts.next_lower(i);
-        week.insert(
-            Weekday::Mon,
-            Workout {
-                lifts: vec![Self::warmup(LiftRegion::LOWER, db)?, Self::single(lower)],
-            },
-        );
+        let mut mon_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?, Self::single(lower.clone())];
+        mon_lifts.extend(Self::backoff_sets(lower));
+        week.insert(Weekday::Mon, Workout { lifts: mon_lifts });
 
         let upper = me_lifts.next_upper(i);
-        week.insert(
-            Weekday::Tue,
-            Workout {
-                lifts: vec![Self::warmup(LiftRegion::UPPER, db)?, Self::single(upper)],
-            },
-        );
+        let mut tue_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?, Self::single(upper.clone())];
+        tue_lifts.extend(Self::backoff_sets(upper));
+        week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
         let percent = 50 + (i as u32) * 5;
         let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?];

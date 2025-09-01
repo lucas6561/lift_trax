@@ -160,7 +160,7 @@ fn single_desc(s: &workout_builder::SingleLift) -> String {
     parts.join(" ")
 }
 
-fn workout_desc(w: &workout_builder::Workout) -> String {
+fn workout_lines(w: &workout_builder::Workout) -> Vec<String> {
     w.lifts
         .iter()
         .map(|l| match l {
@@ -172,8 +172,7 @@ fn workout_desc(w: &workout_builder::Workout) -> String {
                 .collect::<Vec<_>>()
                 .join(" -> "),
         })
-        .collect::<Vec<_>>()
-        .join(", ")
+        .collect()
 }
 
 fn day_name(day: Weekday) -> &'static str {
@@ -284,7 +283,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Week {}", i + 1);
                 for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
                     if let Some(w) = week.get(&day) {
-                        println!("  {}: {}", day_name(day), workout_desc(w));
+                        println!("  {}:", day_name(day));
+                        for line in workout_lines(w) {
+                            println!("    {}", line);
+                        }
                     }
                 }
                 println!();
