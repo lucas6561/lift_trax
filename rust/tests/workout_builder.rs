@@ -287,6 +287,7 @@ fn alternates_main_lifts_across_weeks() {
         match &mon.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
+                assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
@@ -346,9 +347,13 @@ fn alternates_main_lifts_across_weeks() {
         match &mon.lifts[5 + backoff_count] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 3);
+                assert_eq!(c.rounds, 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),
@@ -367,6 +372,7 @@ fn alternates_main_lifts_across_weeks() {
         match &tue.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
+                assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
@@ -426,9 +432,13 @@ fn alternates_main_lifts_across_weeks() {
         match &tue.lifts[5 + backoff_count] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 3);
+                assert_eq!(c.rounds, 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),
@@ -447,6 +457,7 @@ fn alternates_main_lifts_across_weeks() {
         match &thu.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
+                assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
@@ -495,9 +506,13 @@ fn alternates_main_lifts_across_weeks() {
         match &thu.lifts[13] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 3);
+                assert_eq!(c.rounds, 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),
@@ -516,6 +531,7 @@ fn alternates_main_lifts_across_weeks() {
         match &fri.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
+                assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
@@ -564,9 +580,13 @@ fn alternates_main_lifts_across_weeks() {
         match &fri.lifts[16] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 3);
+                assert_eq!(c.rounds, 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),

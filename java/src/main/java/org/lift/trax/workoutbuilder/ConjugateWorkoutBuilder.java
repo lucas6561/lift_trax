@@ -165,7 +165,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
                 mkWarmupLift(mob),
                 mkWarmupLift(acc1),
                 mkWarmupLift(acc2));
-        return new CircuitLift(lifts, 60);
+        return new CircuitLift(lifts, 60, 3);
     }
 
     private static SingleLift accessoryLift(List<Lift> allLifts, Muscle muscle, Random rng) throws Exception {
@@ -179,7 +179,8 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             throw new Exception("not enough accessory lifts available for " + muscle.toString());
         }
         Lift lift = matches.get(rng.nextInt(matches.size()));
-        return new SingleLift(lift, SetMetric.reps(15), null, null);
+        int reps = rng.nextInt(3) + 10;
+        return new SingleLift(lift, SetMetric.reps(reps), null, null);
     }
 
     private static WorkoutLift accessoryCircuit(Muscle m1, Muscle m2, Muscle m3, Database db) throws Exception {
@@ -189,7 +190,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
                 accessoryLift(all, m1, rng),
                 accessoryLift(all, m2, rng),
                 accessoryLift(all, m3, rng));
-        return new CircuitLift(lifts, 60);
+        return new CircuitLift(lifts, 60, 3);
     }
 
     private static WorkoutWeek buildWeek(int i, MaxEffortLiftPools meLifts, DynamicLifts deLifts, Database db) throws Exception {

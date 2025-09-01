@@ -237,6 +237,7 @@ impl ConjugateWorkoutBuilder {
         Ok(WorkoutLift::Circuit(CircuitLift {
             circuit_lifts: vec![mk(cond), mk(mob), mk(acc1), mk(acc2)],
             rest_time_sec: 60,
+            rounds: 3,
         }))
     }
 
@@ -265,9 +266,10 @@ impl ConjugateWorkoutBuilder {
             return Err(format!("not enough accessory lifts available for {}", muscle).into());
         }
         let lift = matches.choose(rng).unwrap().clone();
+        let reps = rng.gen_range(10..=12);
         Ok(SingleLift {
             lift,
-            metric: Some(SetMetric::Reps(15)),
+            metric: Some(SetMetric::Reps(reps)),
             percent: None,
             accommodating_resistance: None,
         })
@@ -289,6 +291,7 @@ impl ConjugateWorkoutBuilder {
         Ok(WorkoutLift::Circuit(CircuitLift {
             circuit_lifts: lifts,
             rest_time_sec: 60,
+            rounds: 3,
         }))
     }
 

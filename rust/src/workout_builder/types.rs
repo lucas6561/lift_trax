@@ -27,6 +27,7 @@ pub struct SingleLift {
 pub struct CircuitLift {
     pub circuit_lifts: Vec<SingleLift>,
     pub rest_time_sec: u32,
+    pub rounds: u32,
 }
 
 /// A lift entry within a workout, either a single lift or a circuit.
