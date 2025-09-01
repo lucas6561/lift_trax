@@ -24,9 +24,13 @@ fn alternates_main_lifts_across_weeks() {
         .unwrap();
     db.add_lift("Front Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
         .unwrap();
+    db.add_lift("Box Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
+        .unwrap();
     db.add_lift("Conventional Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
         .unwrap();
     db.add_lift("Sumo Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
+        .unwrap();
+    db.add_lift("Deficit Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
         .unwrap();
 
     // add bench and overhead press lifts
@@ -34,22 +38,30 @@ fn alternates_main_lifts_across_weeks() {
         .unwrap();
     db.add_lift("Close-Grip Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
         .unwrap();
+    db.add_lift("Floor Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
     db.add_lift("Overhead Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
         .unwrap();
     db.add_lift("Push Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
         .unwrap();
+    db.add_lift("Seated Overhead Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
+        .unwrap();
 
     let builder = ConjugateWorkoutBuilder;
-    let wave = builder.get_wave(4, &db).unwrap();
-    assert_eq!(wave.len(), 4);
+    let wave = builder.get_wave(6, &db).unwrap();
+    assert_eq!(wave.len(), 6);
 
     let expected_lower = [
         LiftType::Squat,
         LiftType::Deadlift,
         LiftType::Squat,
         LiftType::Deadlift,
+        LiftType::Squat,
+        LiftType::Deadlift,
     ];
     let expected_upper = [
+        LiftType::BenchPress,
+        LiftType::OverheadPress,
         LiftType::BenchPress,
         LiftType::OverheadPress,
         LiftType::BenchPress,

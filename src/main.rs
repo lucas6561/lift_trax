@@ -59,7 +59,7 @@ enum Commands {
     /// Generate an example conjugate wave
     Wave {
         /// Number of weeks to generate
-        #[arg(long, default_value_t = 4)]
+        #[arg(long, default_value_t = 6)]
         weeks: usize,
     },
     /// Launch graphical interface
@@ -70,6 +70,7 @@ fn seed_example_lifts(db: &dyn Database) {
     use models::{LiftRegion, LiftType};
     let _ = db.add_lift("Back Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
     let _ = db.add_lift("Front Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
+    let _ = db.add_lift("Box Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
     let _ = db.add_lift(
         "Conventional Deadlift",
         LiftRegion::LOWER,
@@ -78,6 +79,13 @@ fn seed_example_lifts(db: &dyn Database) {
         "",
     );
     let _ = db.add_lift("Sumo Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "");
+    let _ = db.add_lift(
+        "Deficit Deadlift",
+        LiftRegion::LOWER,
+        LiftType::Deadlift,
+        &[],
+        "",
+    );
     let _ = db.add_lift("Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "");
     let _ = db.add_lift(
         "Close-Grip Bench Press",
@@ -86,6 +94,7 @@ fn seed_example_lifts(db: &dyn Database) {
         &[],
         "",
     );
+    let _ = db.add_lift("Floor Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "");
     let _ = db.add_lift(
         "Overhead Press",
         LiftRegion::UPPER,
@@ -93,8 +102,14 @@ fn seed_example_lifts(db: &dyn Database) {
         &[],
         "",
     );
-    let _ =
-        db.add_lift("Push Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "");
+    let _ = db.add_lift("Push Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "");
+    let _ = db.add_lift(
+        "Seated Overhead Press",
+        LiftRegion::UPPER,
+        LiftType::OverheadPress,
+        &[],
+        "",
+    );
 }
 
 fn workout_desc(w: &workout_builder::Workout) -> String {
