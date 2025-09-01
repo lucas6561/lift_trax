@@ -152,9 +152,7 @@ impl ConjugateWorkoutBuilder {
     fn single(lift: Lift) -> WorkoutLift {
         WorkoutLift::Single(SingleLift {
             lift,
-            rep_count: None,
-            time_sec: None,
-            distance_m: None,
+            metric: None,
             percent: None,
             accommodating_resistance: None,
         })
@@ -185,9 +183,7 @@ impl ConjugateWorkoutBuilder {
 
         let mk = |lift: Lift| SingleLift {
             lift,
-            rep_count: None,
-            time_sec: None,
-            distance_m: None,
+            metric: None,
             percent: Some(40),
             accommodating_resistance: None,
         };
@@ -226,17 +222,13 @@ impl ConjugateWorkoutBuilder {
         let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?];
         thu_lifts.push(WorkoutLift::Single(SingleLift {
             lift: de_lifts.squat.lift.clone(),
-            rep_count: None,
-            time_sec: None,
-            distance_m: None,
+            metric: None,
             percent: Some(percent),
             accommodating_resistance: Some(de_lifts.squat.ar.clone()),
         }));
         thu_lifts.push(WorkoutLift::Single(SingleLift {
             lift: de_lifts.deadlift.lift.clone(),
-            rep_count: None,
-            time_sec: None,
-            distance_m: None,
+            metric: None,
             percent: Some(percent),
             accommodating_resistance: Some(de_lifts.deadlift.ar.clone()),
         }));
@@ -245,17 +237,13 @@ impl ConjugateWorkoutBuilder {
         let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?];
         fri_lifts.push(WorkoutLift::Single(SingleLift {
             lift: de_lifts.bench.lift.clone(),
-            rep_count: None,
-            time_sec: None,
-            distance_m: None,
+            metric: None,
             percent: Some(percent),
             accommodating_resistance: Some(de_lifts.bench.ar.clone()),
         }));
         fri_lifts.push(WorkoutLift::Single(SingleLift {
             lift: de_lifts.overhead.lift.clone(),
-            rep_count: None,
-            time_sec: None,
-            distance_m: None,
+            metric: None,
             percent: Some(percent),
             accommodating_resistance: Some(de_lifts.overhead.ar.clone()),
         }));

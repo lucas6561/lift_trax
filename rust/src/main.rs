@@ -138,14 +138,13 @@ fn seed_example_lifts(db: &dyn Database) {
 
 fn single_desc(s: &workout_builder::SingleLift) -> String {
     let mut parts = vec![s.lift.name.clone()];
-    if let Some(reps) = s.rep_count {
-        parts.push(format!("{} reps", reps));
-    }
-    if let Some(time) = s.time_sec {
-        parts.push(format!("{}s", time));
-    }
-    if let Some(dist) = s.distance_m {
-        parts.push(format!("{}m", dist));
+    if let Some(metric) = &s.metric {
+        use SetMetric::*;
+        match metric {
+            Reps(r) => parts.push(format!("{} reps", r)),
+            TimeSecs(t) => parts.push(format!("{}s", t)),
+            DistanceFeet(d) => parts.push(format!("{}ft", d)),
+        }
     }
     if let Some(percent) = s.percent {
         parts.push(format!("@ {}%", percent));
