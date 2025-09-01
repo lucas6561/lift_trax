@@ -29,6 +29,13 @@ impl GuiApp {
             let lift = &self.lifts[idx];
             match self.db.lift_stats(&lift.name) {
                 Ok(stats) => {
+                    ui.heading("Last");
+                    if let Some(last) = &stats.last {
+                        ui.label(last.to_string());
+                    } else {
+                        ui.label("no records");
+                    }
+                    ui.separator();
                     ui.heading("Last Year");
                     let one_year_ago = Utc::now().date_naive() - Duration::days(365);
                     let mut any = false;
