@@ -348,7 +348,10 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),
@@ -428,7 +431,10 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),
@@ -497,7 +503,10 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),
@@ -566,7 +575,10 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 3);
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
-                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                    match l.metric {
+                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
+                        _ => panic!("expected reps"),
+                    }
                 }
             }
             _ => panic!("expected circuit"),

@@ -265,9 +265,10 @@ impl ConjugateWorkoutBuilder {
             return Err(format!("not enough accessory lifts available for {}", muscle).into());
         }
         let lift = matches.choose(rng).unwrap().clone();
+        let reps = rng.gen_range(10..=12);
         Ok(SingleLift {
             lift,
-            metric: Some(SetMetric::Reps(15)),
+            metric: Some(SetMetric::Reps(reps)),
             percent: None,
             accommodating_resistance: None,
         })

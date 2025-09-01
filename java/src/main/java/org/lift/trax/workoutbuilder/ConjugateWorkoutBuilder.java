@@ -179,7 +179,8 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             throw new Exception("not enough accessory lifts available for " + muscle.toString());
         }
         Lift lift = matches.get(rng.nextInt(matches.size()));
-        return new SingleLift(lift, SetMetric.reps(15), null, null);
+        int reps = rng.nextInt(3) + 10;
+        return new SingleLift(lift, SetMetric.reps(reps), null, null);
     }
 
     private static WorkoutLift accessoryCircuit(Muscle m1, Muscle m2, Muscle m3, Database db) throws Exception {
