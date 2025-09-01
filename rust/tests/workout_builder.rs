@@ -463,7 +463,7 @@ fn alternates_main_lifts_across_weeks() {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.name, "Squat");
                     assert_eq!(s.lift.main, Some(LiftType::Squat));
-                    assert_eq!(s.percent, Some(50 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
                     assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
                     if i == 0 && idx == 0 {
@@ -480,7 +480,7 @@ fn alternates_main_lifts_across_weeks() {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.name, "Deadlift");
                     assert_eq!(s.lift.main, Some(LiftType::Deadlift));
-                    assert_eq!(s.percent, Some(50 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
                     assert_eq!(s.metric, Some(SetMetric::Reps(2)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
                     if i == 0 && idx == 0 {
@@ -532,7 +532,7 @@ fn alternates_main_lifts_across_weeks() {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.name, "Bench Press");
                     assert_eq!(s.lift.main, Some(LiftType::BenchPress));
-                    assert_eq!(s.percent, Some(50 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
                     assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
                     if i == 0 && idx == 0 {
@@ -549,7 +549,7 @@ fn alternates_main_lifts_across_weeks() {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.name, "Overhead Press");
                     assert_eq!(s.lift.main, Some(LiftType::OverheadPress));
-                    assert_eq!(s.percent, Some(50 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
                     assert_eq!(s.metric, Some(SetMetric::Reps(2)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
                     if i == 0 && idx == 0 {
