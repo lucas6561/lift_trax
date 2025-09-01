@@ -1,2 +1,6 @@
 /target
 lifts.db*
+# Java dependencies
+/java/sqlite-jdbc.jar
+/java/slf4j-api.jar
+/java/slf4j-simple.jar

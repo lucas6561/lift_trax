@@ -68,6 +68,33 @@ Bench (UPPER) [CHEST, TRICEP]
   - 2024-05-15: 3 sets x 5 reps @ 220 lbs
 ```
 
+## Java Dependencies
+
+The project previously bundled several JAR files required by optional Java
+utilities. To keep the repository lightweight, these artifacts are no longer
+tracked. If you need to compile or run the Java components, download the
+following libraries and place them in a local `java/` directory:
+
+1. `sqlite-jdbc.jar`
+2. `slf4j-api.jar`
+3. `slf4j-simple.jar`
+
+Example commands to fetch the dependencies:
+
+```bash
+mkdir -p java
+curl -L -o java/sqlite-jdbc.jar \
+  https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/3.45.1.0/sqlite-jdbc-3.45.1.0.jar
+curl -L -o java/slf4j-api.jar \
+  https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.7/slf4j-api-2.0.7.jar
+curl -L -o java/slf4j-simple.jar \
+  https://repo1.maven.org/maven2/org/slf4j/slf4j-simple/2.0.7/slf4j-simple-2.0.7.jar
+```
+
+These JARs are ignored by Git, ensuring local copies do not clutter version
+history. You may also configure a build tool such as Maven or Gradle to manage
+these dependencies automatically.
+
 ## Help
 
 Show available options and flags:
