@@ -1,5 +1,5 @@
-mod types;
 mod conjugate;
+mod types;
 
-pub use types::*;
 pub use conjugate::*;
+pub use types::*;
