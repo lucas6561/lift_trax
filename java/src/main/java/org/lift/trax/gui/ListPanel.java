@@ -168,7 +168,7 @@ public class ListPanel extends JPanel {
                 int setNum = 1;
                 for (ExecutionSet set : exec.sets) {
                     sb.append("<br>").append(setNum++).append(": ")
-                            .append(set.weight);
+                            .append(set.displayWeight());
                     if (set.reps != null) {
                         sb.append(" x ").append(set.reps);
                     } else if (set.timeSecs != null) {

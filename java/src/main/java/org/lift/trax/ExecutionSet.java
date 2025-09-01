@@ -12,7 +12,8 @@ public class ExecutionSet {
     @JsonIgnore public Integer reps;
     @JsonIgnore public Integer timeSecs;
     @JsonIgnore public Integer distanceFeet;
-    public double weight;
+    @JsonIgnore public String weightText;
+    @JsonIgnore public double weight;
     public Double rpe;
 
     public ExecutionSet() {}
@@ -20,6 +21,7 @@ public class ExecutionSet {
     public ExecutionSet(int reps, double weight, Double rpe) {
         this.reps = reps;
         this.weight = weight;
+        this.weightText = Double.toString(weight);
         this.rpe = rpe;
     }
 
@@ -51,13 +53,23 @@ public class ExecutionSet {
     @JsonProperty("weight")
     private void unpackWeight(Object weightVal) {
         if (weightVal == null) return;
+        this.weightText = weightVal.toString();
         if (weightVal instanceof Number) {
             this.weight = ((Number) weightVal).doubleValue();
         } else {
-            String cleaned = weightVal.toString().replaceAll("[^0-9.]", "");
+            String cleaned = weightText.replaceAll("[^0-9.]", "");
             if (!cleaned.isEmpty()) {
                 this.weight = Double.parseDouble(cleaned);
             }
         }
+    }
+
+    @JsonProperty("weight")
+    private Object packWeight() {
+        return weightText != null ? weightText : weight;
+    }
+
+    public String displayWeight() {
+        return weightText != null ? weightText : Double.toString(weight);
     }
 }
