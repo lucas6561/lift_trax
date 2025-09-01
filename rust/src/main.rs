@@ -2,6 +2,7 @@
 
 use chrono::{NaiveDate, Utc, Weekday};
 use clap::{Parser, Subcommand};
+use std::fs;
 
 mod database;
 mod gui;
@@ -174,7 +175,38 @@ fn same_single(a: &workout_builder::SingleLift, b: &workout_builder::SingleLift)
         && a.accommodating_resistance == b.accommodating_resistance
 }
 
-fn workout_lines(w: &workout_builder::Workout) -> Vec<String> {
+fn format_exec(exec: &LiftExecution) -> String {
+    if exec.sets.is_empty() {
+        return "no sets recorded".into();
+    }
+    let first = &exec.sets[0];
+    let rpe = first.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+    let metric_str = match first.metric {
+        SetMetric::Reps(r) => format!("{} reps", r),
+        SetMetric::TimeSecs(t) => format!("{}s", t),
+        SetMetric::DistanceFeet(d) => format!("{}ft", d),
+    };
+    format!(
+        "{} sets x {} @ {}{}",
+        exec.sets.len(),
+        metric_str,
+        first.weight,
+        rpe
+    )
+}
+
+fn last_exec_desc(db: &dyn Database, name: &str, warmup: bool) -> Option<String> {
+    let lifts = db.list_lifts(Some(name)).ok()?;
+    let lift = lifts.into_iter().next()?;
+    for exec in lift.executions {
+        if exec.warmup == warmup {
+            return Some(format_exec(&exec));
+        }
+    }
+    None
+}
+
+fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String> {
     let mut lines = Vec::new();
     let mut i = 0usize;
     while i < w.lifts.len() {
@@ -191,6 +223,9 @@ fn workout_lines(w: &workout_builder::Workout) -> Vec<String> {
                     break;
                 }
                 lines.push(single_desc(s, count));
+                if let Some(desc) = last_exec_desc(db, &s.lift.name, false) {
+                    lines.push(format!("  Last: {}", desc));
+                }
                 i += count;
             }
             workout_builder::WorkoutLift::Circuit(c) => {
@@ -201,6 +236,15 @@ fn workout_lines(w: &workout_builder::Workout) -> Vec<String> {
                     .collect::<Vec<_>>()
                     .join(" -> ");
                 lines.push(line);
+                let warmup = c
+                    .circuit_lifts
+                    .iter()
+                    .all(|sl| sl.metric.is_none() && sl.percent == Some(40));
+                for sl in &c.circuit_lifts {
+                    if let Some(desc) = last_exec_desc(db, &sl.lift.name, warmup) {
+                        lines.push(format!("  {}: {}", sl.lift.name, desc));
+                    }
+                }
                 i += 1;
             }
         }
@@ -312,18 +356,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             //seed_example_lifts(db.as_ref());
             let builder = ConjugateWorkoutBuilder;
             let wave = builder.get_wave(weeks, db.as_ref())?;
+            let mut out_lines = Vec::new();
             for (i, week) in wave.iter().enumerate() {
-                println!("Week {}", i + 1);
+                let header = format!("Week {}", i + 1);
+                println!("{}", header);
+                out_lines.push(header);
                 for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
                     if let Some(w) = week.get(&day) {
-                        println!("  {}:", day_name(day));
-                        for line in workout_lines(w) {
+                        let day_line = format!("  {}:", day_name(day));
+                        println!("{}", day_line);
+                        out_lines.push(day_line);
+                        for line in workout_lines(w, db.as_ref()) {
                             println!("    {}", line);
+                            out_lines.push(format!("    {}", line));
                         }
                     }
                 }
                 println!();
+                out_lines.push(String::new());
             }
+            fs::write("wave.txt", out_lines.join("\n"))?;
         }
         Commands::Gui => {
             gui::run_gui(db)?;
