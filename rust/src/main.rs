@@ -136,15 +136,22 @@ fn seed_example_lifts(db: &dyn Database) {
     );
 }
 
-fn single_desc(s: &workout_builder::SingleLift) -> String {
+fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
     let mut parts = vec![s.lift.name.clone()];
     if let Some(metric) = &s.metric {
         use SetMetric::*;
-        match metric {
-            Reps(r) => parts.push(format!("{} reps", r)),
-            TimeSecs(t) => parts.push(format!("{}s", t)),
-            DistanceFeet(d) => parts.push(format!("{}ft", d)),
+        let metric_str = match metric {
+            Reps(r) => format!("{} reps", r),
+            TimeSecs(t) => format!("{}s", t),
+            DistanceFeet(d) => format!("{}ft", d),
+        };
+        if count > 1 {
+            parts.push(format!("{}x {}", count, metric_str));
+        } else {
+            parts.push(metric_str);
         }
+    } else if count > 1 {
+        parts.push(format!("{}x", count));
     }
     if let Some(percent) = s.percent {
         parts.push(format!("@ {}%", percent));
@@ -160,19 +167,45 @@ fn single_desc(s: &workout_builder::SingleLift) -> String {
     parts.join(" ")
 }
 
+fn same_single(a: &workout_builder::SingleLift, b: &workout_builder::SingleLift) -> bool {
+    a.lift.name == b.lift.name
+        && a.metric == b.metric
+        && a.percent == b.percent
+        && a.accommodating_resistance == b.accommodating_resistance
+}
+
 fn workout_lines(w: &workout_builder::Workout) -> Vec<String> {
-    w.lifts
-        .iter()
-        .map(|l| match l {
-            workout_builder::WorkoutLift::Single(s) => single_desc(s),
-            workout_builder::WorkoutLift::Circuit(c) => c
-                .circuit_lifts
-                .iter()
-                .map(|sl| single_desc(sl))
-                .collect::<Vec<_>>()
-                .join(" -> "),
-        })
-        .collect()
+    let mut lines = Vec::new();
+    let mut i = 0usize;
+    while i < w.lifts.len() {
+        match &w.lifts[i] {
+            workout_builder::WorkoutLift::Single(s) => {
+                let mut count = 1usize;
+                while i + count < w.lifts.len() {
+                    if let workout_builder::WorkoutLift::Single(next) = &w.lifts[i + count] {
+                        if same_single(s, next) {
+                            count += 1;
+                            continue;
+                        }
+                    }
+                    break;
+                }
+                lines.push(single_desc(s, count));
+                i += count;
+            }
+            workout_builder::WorkoutLift::Circuit(c) => {
+                let line = c
+                    .circuit_lifts
+                    .iter()
+                    .map(|sl| single_desc(sl, 1))
+                    .collect::<Vec<_>>()
+                    .join(" -> ");
+                lines.push(line);
+                i += 1;
+            }
+        }
+    }
+    lines
 }
 
 fn day_name(day: Weekday) -> &'static str {

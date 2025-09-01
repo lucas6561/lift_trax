@@ -341,7 +341,7 @@ impl ConjugateWorkoutBuilder {
         tue_lifts.push(Self::conditioning(db)?);
         week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
-        let percent = 50 + (i as u32) * 5;
+        let percent = 60 + (i as u32) * 5;
         let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?];
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
