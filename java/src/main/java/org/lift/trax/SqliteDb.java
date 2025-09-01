@@ -129,9 +129,11 @@ public class SqliteDb implements Database {
                 while (rs.next()) {
                     List<ExecutionSet> sets = parseSets(rs.getString(1));
                     for (ExecutionSet set : sets) {
-                        int reps = set.reps;
-                        double weight = set.weight;
-                        best.merge(reps, weight, Math::max);
+                        if (set.reps != null) {
+                            int reps = set.reps;
+                            double weight = set.weight;
+                            best.merge(reps, weight, Math::max);
+                        }
                     }
                 }
             }

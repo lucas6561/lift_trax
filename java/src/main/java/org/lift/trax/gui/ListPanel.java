@@ -168,8 +168,14 @@ public class ListPanel extends JPanel {
                 int setNum = 1;
                 for (ExecutionSet set : exec.sets) {
                     sb.append("<br>").append(setNum++).append(": ")
-                            .append(set.weight).append(" x ")
-                            .append(set.reps);
+                            .append(set.weight);
+                    if (set.reps != null) {
+                        sb.append(" x ").append(set.reps);
+                    } else if (set.timeSecs != null) {
+                        sb.append(" for ").append(set.timeSecs).append(" sec");
+                    } else if (set.distanceFeet != null) {
+                        sb.append(" for ").append(set.distanceFeet).append(" ft");
+                    }
                     if (set.rpe != null) {
                         sb.append(" @ RPE ").append(set.rpe);
                     }
