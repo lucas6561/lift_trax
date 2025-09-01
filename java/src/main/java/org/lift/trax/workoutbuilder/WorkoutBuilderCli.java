@@ -39,9 +39,11 @@ public class WorkoutBuilderCli {
 
     private static void printSingleLift(String indent, SingleLift sl) {
         StringBuilder sb = new StringBuilder(indent).append("- ").append(sl.lift.name);
-        if (sl.repCount != null) sb.append(" x").append(sl.repCount);
-        if (sl.timeSec != null) sb.append(" ").append(sl.timeSec).append("s");
-        if (sl.distanceM != null) sb.append(" ").append(sl.distanceM).append("m");
+        if (sl.metric != null) {
+            if (sl.metric.reps != null) sb.append(" x").append(sl.metric.reps);
+            else if (sl.metric.timeSecs != null) sb.append(" ").append(sl.metric.timeSecs).append("s");
+            else if (sl.metric.distanceM != null) sb.append(" ").append(sl.metric.distanceM).append("m");
+        }
         if (sl.percent != null) sb.append(" @").append(sl.percent).append("%");
         if (sl.accommodatingResistance != null && sl.accommodatingResistance != AccommodatingResistance.NONE) {
             sb.append(" + ").append(sl.accommodatingResistance.name().toLowerCase());

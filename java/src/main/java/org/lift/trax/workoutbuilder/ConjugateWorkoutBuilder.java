@@ -110,11 +110,11 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     }
 
     private static SingleLift mkWarmupLift(Lift lift) {
-        return new SingleLift(lift, null, null, null, 40, null);
+        return new SingleLift(lift, null, 40, null);
     }
 
     private static WorkoutLift single(Lift lift) {
-        return new SingleLift(lift, null, null, null, null, null);
+        return new SingleLift(lift, null, null, null);
     }
 
     private static WorkoutLift warmup(LiftRegion region, Database db) throws Exception {
@@ -158,14 +158,14 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         int percent = 50 + i * 5;
         List<WorkoutLift> thuLifts = new ArrayList<>();
         thuLifts.add(warmup(LiftRegion.LOWER, db));
-        thuLifts.add(new SingleLift(deLifts.squat.lift, null, null, null, percent, deLifts.squat.ar));
-        thuLifts.add(new SingleLift(deLifts.deadlift.lift, null, null, null, percent, deLifts.deadlift.ar));
+        thuLifts.add(new SingleLift(deLifts.squat.lift, null, percent, deLifts.squat.ar));
+        thuLifts.add(new SingleLift(deLifts.deadlift.lift, null, percent, deLifts.deadlift.ar));
         week.put(DayOfWeek.THURSDAY, new Workout(thuLifts));
 
         List<WorkoutLift> friLifts = new ArrayList<>();
         friLifts.add(warmup(LiftRegion.UPPER, db));
-        friLifts.add(new SingleLift(deLifts.bench.lift, null, null, null, percent, deLifts.bench.ar));
-        friLifts.add(new SingleLift(deLifts.overhead.lift, null, null, null, percent, deLifts.overhead.ar));
+        friLifts.add(new SingleLift(deLifts.bench.lift, null, percent, deLifts.bench.ar));
+        friLifts.add(new SingleLift(deLifts.overhead.lift, null, percent, deLifts.overhead.ar));
         week.put(DayOfWeek.FRIDAY, new Workout(friLifts));
 
         return week;
