@@ -1,6 +1,6 @@
 //! Command-line interface for recording and listing lifts.
 
-use chrono::{NaiveDate, Utc};
+use chrono::{NaiveDate, Utc, Weekday};
 use clap::{Parser, Subcommand};
 
 mod database;
@@ -128,6 +128,18 @@ fn workout_desc(w: &workout_builder::Workout) -> String {
         .join(", ")
 }
 
+fn day_name(day: Weekday) -> &'static str {
+    match day {
+        Weekday::Mon => "Mon",
+        Weekday::Tue => "Tue",
+        Weekday::Wed => "Wed",
+        Weekday::Thu => "Thu",
+        Weekday::Fri => "Fri",
+        Weekday::Sat => "Sat",
+        Weekday::Sun => "Sun",
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let db: Box<dyn Database> = Box::new(SqliteDb::new("lifts.db")?);
@@ -216,18 +228,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Wave { weeks } => {
-            use chrono::Weekday;
             use workout_builder::{ConjugateWorkoutBuilder, WorkoutBuilder};
             seed_example_lifts(db.as_ref());
             let builder = ConjugateWorkoutBuilder;
             let wave = builder.get_wave(weeks, db.as_ref())?;
             for (i, week) in wave.iter().enumerate() {
                 println!("Week {}", i + 1);
-                if let Some(mon) = week.get(&Weekday::Mon) {
-                    println!("  Mon: {}", workout_desc(mon));
-                }
-                if let Some(tue) = week.get(&Weekday::Tue) {
-                    println!("  Tue: {}", workout_desc(tue));
+                for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
+                    if let Some(w) = week.get(&day) {
+                        println!("  {}: {}", day_name(day), workout_desc(w));
+                    }
                 }
                 println!();
             }
