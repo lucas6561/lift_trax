@@ -503,6 +503,13 @@ impl Database for SqliteDb {
         )
     }
 
+    fn lifts_by_region(&self, region: LiftRegion) -> DbResult<Vec<Lift>> {
+        self.load_lifts(
+            "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE region = ?1 ORDER BY name",
+            params![region.to_string()],
+        )
+    }
+
     fn lifts_by_region_and_type(
         &self,
         region: LiftRegion,

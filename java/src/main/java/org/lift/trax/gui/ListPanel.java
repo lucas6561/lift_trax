@@ -4,6 +4,8 @@ import org.lift.trax.Database;
 import org.lift.trax.ExecutionSet;
 import org.lift.trax.Lift;
 import org.lift.trax.LiftExecution;
+import org.lift.trax.LiftRegion;
+import org.lift.trax.LiftType;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,10 +19,32 @@ public class ListPanel extends JPanel {
     private final DefaultListModel<LiftExecution> execModel = new DefaultListModel<>();
     private final JList<Lift> liftList = new JList<>(liftModel);
     private final JList<LiftExecution> execList = new JList<>(execModel);
+    private final JComboBox<LiftRegion> regionBox = new JComboBox<>();
+    private final JComboBox<LiftType> typeBox = new JComboBox<>();
 
     public ListPanel(Database db) {
         this.db = db;
         setLayout(new BorderLayout());
+
+        JPanel filters = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        regionBox.addItem(null);
+        for (LiftRegion region : LiftRegion.values()) {
+            regionBox.addItem(region);
+        }
+        regionBox.setRenderer(new ComboRenderer("All Regions"));
+        typeBox.addItem(null);
+        for (LiftType type : LiftType.values()) {
+            typeBox.addItem(type);
+        }
+        typeBox.setRenderer(new ComboRenderer("All Types"));
+        regionBox.addActionListener(e -> loadLifts());
+        typeBox.addActionListener(e -> loadLifts());
+        filters.add(new JLabel("Region:"));
+        filters.add(regionBox);
+        filters.add(new JLabel("Type:"));
+        filters.add(typeBox);
+        add(filters, BorderLayout.NORTH);
+
         loadLifts();
         liftList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         liftList.addListSelectionListener(e -> {
@@ -39,7 +63,18 @@ public class ListPanel extends JPanel {
     private void loadLifts() {
         liftModel.clear();
         try {
-            List<Lift> lifts = db.listLifts(null);
+            LiftRegion region = (LiftRegion) regionBox.getSelectedItem();
+            LiftType type = (LiftType) typeBox.getSelectedItem();
+            List<Lift> lifts;
+            if (region != null && type != null) {
+                lifts = db.liftsByRegionAndType(region, type);
+            } else if (region != null) {
+                lifts = db.liftsByRegion(region);
+            } else if (type != null) {
+                lifts = db.liftsByType(type);
+            } else {
+                lifts = db.listLifts(null);
+            }
             for (Lift lift : lifts) {
                 liftModel.addElement(lift);
             }
@@ -172,6 +207,23 @@ public class ListPanel extends JPanel {
             @Override public void mousePressed(MouseEvent e) { handle(e); }
             @Override public void mouseReleased(MouseEvent e) { handle(e); }
         });
+    }
+
+    private static class ComboRenderer extends DefaultListCellRenderer {
+        private final String allLabel;
+
+        ComboRenderer(String allLabel) {
+            this.allLabel = allLabel;
+        }
+
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            if (value == null) {
+                label.setText(allLabel);
+            }
+            return label;
+        }
     }
 
     private static class ExecutionRenderer extends DefaultListCellRenderer {

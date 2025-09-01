@@ -12,6 +12,63 @@ use super::{
 impl GuiApp {
     pub(super) fn tab_list(&mut self, ui: &mut egui::Ui) {
         ui.heading("Recorded Lifts");
+        ui.horizontal(|ui| {
+            ui.label("Region:");
+            let region_opts = vec![
+                (None, "All Regions".to_string()),
+                (Some(LiftRegion::UPPER), "Upper".to_string()),
+                (Some(LiftRegion::LOWER), "Lower".to_string()),
+            ];
+            let region_labels: Vec<String> =
+                region_opts.iter().map(|(_, s)| s.clone()).collect();
+            let region_width = combo_box_width(ui, &region_labels);
+            let selected_region = match self.filter_region {
+                Some(LiftRegion::UPPER) => "Upper".to_string(),
+                Some(LiftRegion::LOWER) => "Lower".to_string(),
+                None => "All Regions".to_string(),
+            };
+            let region_resp = egui::ComboBox::from_id_source("filter_region")
+                .width(region_width)
+                .selected_text(selected_region)
+                .show_ui(ui, |ui| {
+                    for (val, label) in &region_opts {
+                        ui.selectable_value(&mut self.filter_region, *val, label);
+                    }
+                });
+            if region_resp.response.changed() {
+                self.refresh_lifts();
+            }
+
+            ui.label("Type:");
+            let type_opts = main_lift_options();
+            let type_labels: Vec<String> = type_opts
+                .iter()
+                .map(|(val, label)| {
+                    if val.is_none() {
+                        "All Types".to_string()
+                    } else {
+                        (*label).to_string()
+                    }
+                })
+                .collect();
+            let type_width = combo_box_width(ui, &type_labels);
+            let selected_type = match self.filter_type {
+                Some(t) => t.to_string(),
+                None => "All Types".to_string(),
+            };
+            let type_resp = egui::ComboBox::from_id_source("filter_type")
+                .width(type_width)
+                .selected_text(selected_type)
+                .show_ui(ui, |ui| {
+                    for (val, label) in &type_opts {
+                        let text = if val.is_none() { "All Types" } else { *label };
+                        ui.selectable_value(&mut self.filter_type, *val, text);
+                    }
+                });
+            if type_resp.response.changed() {
+                self.refresh_lifts();
+            }
+        });
         for i in 0..self.lifts.len() {
             let name = self.lifts[i].name.clone();
             let region = self.lifts[i].region;

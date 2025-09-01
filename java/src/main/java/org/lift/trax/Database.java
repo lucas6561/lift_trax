@@ -13,5 +13,6 @@ public interface Database {
     LiftStats liftStats(String name) throws Exception;
     List<Lift> listLifts(String nameFilter) throws Exception;
     List<Lift> liftsByType(LiftType liftType) throws Exception;
+    List<Lift> liftsByRegion(LiftRegion region) throws Exception;
     List<Lift> liftsByRegionAndType(LiftRegion region, LiftType liftType) throws Exception;
 }

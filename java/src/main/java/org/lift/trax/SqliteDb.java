@@ -266,6 +266,11 @@ public class SqliteDb implements Database {
     }
 
     @Override
+    public List<Lift> liftsByRegion(LiftRegion region) throws Exception {
+        return loadLifts("SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE region = ? ORDER BY name", region.toString());
+    }
+
+    @Override
     public List<Lift> liftsByRegionAndType(LiftRegion region, LiftType liftType) throws Exception {
         return loadLifts("SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE region = ? AND main_lift = ? ORDER BY name", region.toString(), liftType.toString());
     }

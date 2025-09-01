@@ -149,6 +149,18 @@ fn lifts_by_type_filters_main_lifts() {
 }
 
 #[test]
+fn lifts_by_region_filters() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::Accessory, &[], "")
+        .unwrap();
+    db.add_lift("Squat", LiftRegion::LOWER, LiftType::Accessory, &[], "")
+        .unwrap();
+    let lifts = db.lifts_by_region(LiftRegion::UPPER).unwrap();
+    assert_eq!(lifts.len(), 1);
+    assert_eq!(lifts[0].name, "Bench");
+}
+
+#[test]
 fn lifts_by_region_and_type_filters() {
     let db = SqliteDb::new(":memory:").expect("db open");
     db.add_lift(
