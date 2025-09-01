@@ -193,7 +193,7 @@ fn alternates_main_lifts_across_weeks() {
 
     for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert!(mon.lifts.len() == 3 || mon.lifts.len() == 5);
+        assert!(mon.lifts.len() == 6 || mon.lifts.len() == 8);
         match &mon.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -219,8 +219,8 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLift::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = mon.lifts.len() - 2;
-        for b in &mon.lifts[2..] {
+        let backoff_count = mon.lifts.len() - 5;
+        for b in &mon.lifts[2..2 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.name, main_name);
@@ -228,7 +228,7 @@ fn alternates_main_lifts_across_weeks() {
                     match backoff_percent {
                         Some(90) => match s.metric {
                             Some(SetMetric::Reps(r)) => assert!((3..=5).contains(&r)),
-                        _ => panic!("expected reps"),
+                            _ => panic!("expected reps"),
                         },
                         Some(80) => assert_eq!(s.metric, Some(SetMetric::Reps(3))),
                         _ => panic!("unexpected percent"),
@@ -242,9 +242,20 @@ fn alternates_main_lifts_across_weeks() {
             Some(80) => assert_eq!(backoff_count, 3),
             _ => panic!("unexpected percent"),
         }
+        let next_lift = expected_lower[(i + 1) % expected_lower.len()];
+        for b in &mon.lifts[2 + backoff_count..] {
+            match b {
+                WorkoutLift::Single(s) => {
+                    assert_eq!(s.lift.main, Some(next_lift));
+                    assert_eq!(s.percent, Some(80));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                }
+                _ => panic!("expected single"),
+            }
+        }
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
-        assert!(tue.lifts.len() == 3 || tue.lifts.len() == 5);
+        assert!(tue.lifts.len() == 6 || tue.lifts.len() == 8);
         match &tue.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -270,8 +281,8 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLift::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = tue.lifts.len() - 2;
-        for b in &tue.lifts[2..] {
+        let backoff_count = tue.lifts.len() - 5;
+        for b in &tue.lifts[2..2 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.name, main_name);
@@ -292,6 +303,17 @@ fn alternates_main_lifts_across_weeks() {
             Some(90) => assert_eq!(backoff_count, 1),
             Some(80) => assert_eq!(backoff_count, 3),
             _ => panic!("unexpected percent"),
+        }
+        let next_lift = expected_upper[(i + 1) % expected_upper.len()];
+        for b in &tue.lifts[2 + backoff_count..] {
+            match b {
+                WorkoutLift::Single(s) => {
+                    assert_eq!(s.lift.main, Some(next_lift));
+                    assert_eq!(s.percent, Some(80));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                }
+                _ => panic!("expected single"),
+            }
         }
 
         let thu = week.get(&Weekday::Thu).expect("thursday");
