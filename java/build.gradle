@@ -14,4 +14,5 @@ dependencies {
 
 application {
     mainClass = 'org.lift.trax.Main'
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
 }
