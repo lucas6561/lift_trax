@@ -10,6 +10,7 @@ import org.lift.trax.Database;
 import org.lift.trax.Lift;
 import org.lift.trax.LiftRegion;
 import org.lift.trax.LiftType;
+import org.lift.trax.Muscle;
 
 public class ConjugateWorkoutBuilder implements WorkoutBuilder {
 
@@ -167,6 +168,30 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         return new CircuitLift(lifts, 60);
     }
 
+    private static SingleLift accessoryLift(List<Lift> allLifts, Muscle muscle, Random rng) throws Exception {
+        List<Lift> matches = new ArrayList<>();
+        for (Lift lift : allLifts) {
+            if (lift.main == LiftType.ACCESSORY && lift.muscles.contains(muscle)) {
+                matches.add(lift);
+            }
+        }
+        if (matches.isEmpty()) {
+            throw new Exception("not enough accessory lifts available for " + muscle.toString());
+        }
+        Lift lift = matches.get(rng.nextInt(matches.size()));
+        return new SingleLift(lift, SetMetric.reps(15), null, null);
+    }
+
+    private static WorkoutLift accessoryCircuit(Muscle m1, Muscle m2, Muscle m3, Database db) throws Exception {
+        List<Lift> all = db.listLifts(null);
+        Random rng = new Random();
+        List<SingleLift> lifts = List.of(
+                accessoryLift(all, m1, rng),
+                accessoryLift(all, m2, rng),
+                accessoryLift(all, m3, rng));
+        return new CircuitLift(lifts, 60);
+    }
+
     private static WorkoutWeek buildWeek(int i, MaxEffortLiftPools meLifts, DynamicLifts deLifts, Database db) throws Exception {
         WorkoutWeek week = new WorkoutWeek();
 
@@ -177,6 +202,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         monLifts.addAll(backoffSets(lower));
         Lift nextLower = meLifts.lowerForWeek((i + 1) % meLifts.numWeeks());
         monLifts.addAll(supplementalSets(nextLower));
+        monLifts.add(accessoryCircuit(Muscle.HAMSTRING, Muscle.QUAD, Muscle.CALF, db));
         week.put(DayOfWeek.MONDAY, new Workout(monLifts));
 
         Lift upper = meLifts.upperForWeek(i);
@@ -186,6 +212,9 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         tueLifts.addAll(backoffSets(upper));
         Lift nextUpper = meLifts.upperForWeek((i + 1) % meLifts.numWeeks());
         tueLifts.addAll(supplementalSets(nextUpper));
+        Muscle[] upperOpts = new Muscle[] {Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP};
+        Muscle third = upperOpts[new Random().nextInt(upperOpts.length)];
+        tueLifts.add(accessoryCircuit(Muscle.LAT, Muscle.TRICEP, third, db));
         week.put(DayOfWeek.TUESDAY, new Workout(tueLifts));
 
         int percent = 50 + i * 5;
@@ -193,12 +222,14 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         thuLifts.add(warmup(LiftRegion.LOWER, db));
         thuLifts.add(new SingleLift(deLifts.squat.lift, null, percent, deLifts.squat.ar));
         thuLifts.add(new SingleLift(deLifts.deadlift.lift, null, percent, deLifts.deadlift.ar));
+        thuLifts.add(accessoryCircuit(Muscle.HAMSTRING, Muscle.QUAD, Muscle.CORE, db));
         week.put(DayOfWeek.THURSDAY, new Workout(thuLifts));
 
         List<WorkoutLift> friLifts = new ArrayList<>();
         friLifts.add(warmup(LiftRegion.UPPER, db));
         friLifts.add(new SingleLift(deLifts.bench.lift, null, percent, deLifts.bench.ar));
         friLifts.add(new SingleLift(deLifts.overhead.lift, null, percent, deLifts.overhead.ar));
+        friLifts.add(accessoryCircuit(Muscle.LAT, Muscle.TRICEP, Muscle.BICEP, db));
         week.put(DayOfWeek.FRIDAY, new Workout(friLifts));
 
         return week;
