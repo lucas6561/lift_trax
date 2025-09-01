@@ -22,32 +22,90 @@ fn alternates_main_lifts_across_weeks() {
     let db = SqliteDb::new(":memory:").expect("db open");
 
     // add squat and deadlift lifts
+    db.add_lift("Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
+        .unwrap();
     db.add_lift("Back Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
         .unwrap();
     db.add_lift("Front Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
         .unwrap();
     db.add_lift("Box Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
         .unwrap();
-    db.add_lift("Conventional Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
+    db.add_lift("Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
         .unwrap();
-    db.add_lift("Sumo Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
-        .unwrap();
-    db.add_lift("Deficit Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "")
-        .unwrap();
+    db.add_lift(
+        "Conventional Deadlift",
+        LiftRegion::LOWER,
+        LiftType::Deadlift,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Sumo Deadlift",
+        LiftRegion::LOWER,
+        LiftType::Deadlift,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Deficit Deadlift",
+        LiftRegion::LOWER,
+        LiftType::Deadlift,
+        &[],
+        "",
+    )
+    .unwrap();
 
     // add bench and overhead press lifts
-    db.add_lift("Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
-        .unwrap();
-    db.add_lift("Close-Grip Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
-        .unwrap();
-    db.add_lift("Floor Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
-        .unwrap();
-    db.add_lift("Overhead Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
-        .unwrap();
-    db.add_lift("Push Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
-        .unwrap();
-    db.add_lift("Seated Overhead Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "")
-        .unwrap();
+    db.add_lift(
+        "Bench press",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Close-Grip Bench Press",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Floor Press",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Overhead press",
+        LiftRegion::UPPER,
+        LiftType::OverheadPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Push Press",
+        LiftRegion::UPPER,
+        LiftType::OverheadPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Seated Overhead Press",
+        LiftRegion::UPPER,
+        LiftType::OverheadPress,
+        &[],
+        "",
+    )
+    .unwrap();
 
     let builder = ConjugateWorkoutBuilder;
     let wave = builder.get_wave(6, &db).unwrap();
@@ -70,10 +128,6 @@ fn alternates_main_lifts_across_weeks() {
         LiftType::OverheadPress,
     ];
 
-    let mut de_squat_name = String::new();
-    let mut de_dead_name = String::new();
-    let mut de_bench_name = String::new();
-    let mut de_ohp_name = String::new();
     let mut de_squat_ar = AccommodatingResistance::None;
     let mut de_dead_ar = AccommodatingResistance::None;
     let mut de_bench_ar = AccommodatingResistance::None;
@@ -98,14 +152,13 @@ fn alternates_main_lifts_across_weeks() {
         assert_eq!(thu.lifts.len(), 2);
         match &thu.lifts[0] {
             WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.name, "Squat");
                 assert_eq!(s.lift.main, Some(LiftType::Squat));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
                 if i == 0 {
-                    de_squat_name = s.lift.name.clone();
                     de_squat_ar = ar;
                 } else {
-                    assert_eq!(s.lift.name, de_squat_name);
                     assert_eq!(ar, de_squat_ar);
                 }
             }
@@ -113,14 +166,13 @@ fn alternates_main_lifts_across_weeks() {
         }
         match &thu.lifts[1] {
             WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.name, "Deadlift");
                 assert_eq!(s.lift.main, Some(LiftType::Deadlift));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
                 if i == 0 {
-                    de_dead_name = s.lift.name.clone();
                     de_dead_ar = ar;
                 } else {
-                    assert_eq!(s.lift.name, de_dead_name);
                     assert_eq!(ar, de_dead_ar);
                 }
             }
@@ -131,14 +183,13 @@ fn alternates_main_lifts_across_weeks() {
         assert_eq!(fri.lifts.len(), 2);
         match &fri.lifts[0] {
             WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.name, "Bench press");
                 assert_eq!(s.lift.main, Some(LiftType::BenchPress));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
                 if i == 0 {
-                    de_bench_name = s.lift.name.clone();
                     de_bench_ar = ar;
                 } else {
-                    assert_eq!(s.lift.name, de_bench_name);
                     assert_eq!(ar, de_bench_ar);
                 }
             }
@@ -146,14 +197,13 @@ fn alternates_main_lifts_across_weeks() {
         }
         match &fri.lifts[1] {
             WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.name, "Overhead press");
                 assert_eq!(s.lift.main, Some(LiftType::OverheadPress));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
                 if i == 0 {
-                    de_ohp_name = s.lift.name.clone();
                     de_ohp_ar = ar;
                 } else {
-                    assert_eq!(s.lift.name, de_ohp_name);
                     assert_eq!(ar, de_ohp_ar);
                 }
             }

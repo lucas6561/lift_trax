@@ -4,7 +4,9 @@ use rand::{seq::SliceRandom, thread_rng};
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftType};
 
-use super::{AccommodatingResistance, SingleLift, Workout, WorkoutBuilder, WorkoutLift, WorkoutWeek};
+use super::{
+    AccommodatingResistance, SingleLift, Workout, WorkoutBuilder, WorkoutLift, WorkoutWeek,
+};
 
 /// Workout builder implementing a basic conjugate approach.
 pub struct ConjugateWorkoutBuilder;
@@ -119,11 +121,28 @@ impl DynamicLifts {
             Ok(DynamicLift { lift, ar })
         };
 
+        let squat = db
+            .list_lifts(Some("Squat"))?
+            .pop()
+            .ok_or("Squat lift not found")?;
+        let deadlift = db
+            .list_lifts(Some("Deadlift"))?
+            .pop()
+            .ok_or("Deadlift lift not found")?;
+        let bench = db
+            .list_lifts(Some("Bench press"))?
+            .pop()
+            .ok_or("Bench press lift not found")?;
+        let overhead = db
+            .list_lifts(Some("Overhead press"))?
+            .pop()
+            .ok_or("Overhead press lift not found")?;
+
         Ok(Self {
-            squat: pick(db.lifts_by_type(LiftType::Squat)?)?,
-            deadlift: pick(db.lifts_by_type(LiftType::Deadlift)?)?,
-            bench: pick(db.lifts_by_type(LiftType::BenchPress)?)?,
-            overhead: pick(db.lifts_by_type(LiftType::OverheadPress)?)?,
+            squat: pick(vec![squat])?,
+            deadlift: pick(vec![deadlift])?,
+            bench: pick(vec![bench])?,
+            overhead: pick(vec![overhead])?,
         })
     }
 }
@@ -144,10 +163,20 @@ impl ConjugateWorkoutBuilder {
         let mut week = WorkoutWeek::new();
 
         let lower = pools.next_lower(i);
-        week.insert(Weekday::Mon, Workout { lifts: vec![Self::single(lower)] });
+        week.insert(
+            Weekday::Mon,
+            Workout {
+                lifts: vec![Self::single(lower)],
+            },
+        );
 
         let upper = pools.next_upper(i);
-        week.insert(Weekday::Tue, Workout { lifts: vec![Self::single(upper)] });
+        week.insert(
+            Weekday::Tue,
+            Workout {
+                lifts: vec![Self::single(upper)],
+            },
+        );
 
         let percent = 50 + (i as u32) * 5;
         let thu_lifts = vec![
