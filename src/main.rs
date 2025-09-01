@@ -218,7 +218,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Wave { weeks } => {
             use chrono::Weekday;
             use workout_builder::{ConjugateWorkoutBuilder, WorkoutBuilder};
-            seed_example_lifts(db.as_ref());
+            //seed_example_lifts(db.as_ref());
             let builder = ConjugateWorkoutBuilder;
             let wave = builder.get_wave(weeks, db.as_ref())?;
             for (i, week) in wave.iter().enumerate() {
