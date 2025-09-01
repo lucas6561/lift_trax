@@ -1,8 +1,8 @@
 use chrono::Weekday;
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{Rng, rngs::ThreadRng, seq::SliceRandom, thread_rng};
 
 use crate::database::{Database, DbResult};
-use crate::models::{Lift, LiftRegion, LiftType, SetMetric};
+use crate::models::{Lift, LiftRegion, LiftType, Muscle, SetMetric};
 
 use super::{
     AccommodatingResistance, CircuitLift, SingleLift, Workout, WorkoutBuilder, WorkoutLift,
@@ -166,40 +166,41 @@ impl ConjugateWorkoutBuilder {
             })]
         } else {
             (0..3)
-                .map(|_| WorkoutLift::Single(SingleLift {
-                    lift: lift.clone(),
-                    metric: Some(SetMetric::Reps(3)),
-                    percent: Some(80),
-                    accommodating_resistance: None,
-                }))
+                .map(|_| {
+                    WorkoutLift::Single(SingleLift {
+                        lift: lift.clone(),
+                        metric: Some(SetMetric::Reps(3)),
+                        percent: Some(80),
+                        accommodating_resistance: None,
+                    })
+                })
                 .collect()
         }
     }
 
     fn supplemental_sets(lift: Lift) -> Vec<WorkoutLift> {
         (0..3)
-            .map(|_| WorkoutLift::Single(SingleLift {
-                lift: lift.clone(),
-                metric: Some(SetMetric::Reps(5)),
-                percent: Some(80),
-                accommodating_resistance: None,
-            }))
+            .map(|_| {
+                WorkoutLift::Single(SingleLift {
+                    lift: lift.clone(),
+                    metric: Some(SetMetric::Reps(5)),
+                    percent: Some(80),
+                    accommodating_resistance: None,
+                })
+            })
             .collect()
     }
 
-    fn dynamic_sets(
-        dl: &DynamicLift,
-        sets: usize,
-        reps: i32,
-        percent: u32,
-    ) -> Vec<WorkoutLift> {
+    fn dynamic_sets(dl: &DynamicLift, sets: usize, reps: i32, percent: u32) -> Vec<WorkoutLift> {
         (0..sets)
-            .map(|_| WorkoutLift::Single(SingleLift {
-                lift: dl.lift.clone(),
-                metric: Some(SetMetric::Reps(reps)),
-                percent: Some(percent),
-                accommodating_resistance: Some(dl.ar.clone()),
-            }))
+            .map(|_| {
+                WorkoutLift::Single(SingleLift {
+                    lift: dl.lift.clone(),
+                    metric: Some(SetMetric::Reps(reps)),
+                    percent: Some(percent),
+                    accommodating_resistance: Some(dl.ar.clone()),
+                })
+            })
             .collect()
     }
 
@@ -239,6 +240,43 @@ impl ConjugateWorkoutBuilder {
         }))
     }
 
+    fn accessory_lift(all: &[Lift], muscle: Muscle, rng: &mut ThreadRng) -> DbResult<SingleLift> {
+        let matches: Vec<Lift> = all
+            .iter()
+            .filter(|l| l.main == Some(LiftType::Accessory) && l.muscles.contains(&muscle))
+            .cloned()
+            .collect();
+        if matches.is_empty() {
+            return Err(format!("not enough accessory lifts available for {}", muscle).into());
+        }
+        let lift = matches.choose(rng).unwrap().clone();
+        Ok(SingleLift {
+            lift,
+            metric: Some(SetMetric::Reps(15)),
+            percent: None,
+            accommodating_resistance: None,
+        })
+    }
+
+    fn accessory_circuit(
+        m1: Muscle,
+        m2: Muscle,
+        m3: Muscle,
+        db: &dyn Database,
+    ) -> DbResult<WorkoutLift> {
+        let all = db.list_lifts(None)?;
+        let mut rng = thread_rng();
+        let lifts = vec![
+            Self::accessory_lift(&all, m1, &mut rng)?,
+            Self::accessory_lift(&all, m2, &mut rng)?,
+            Self::accessory_lift(&all, m3, &mut rng)?,
+        ];
+        Ok(WorkoutLift::Circuit(CircuitLift {
+            circuit_lifts: lifts,
+            rest_time_sec: 60,
+        }))
+    }
+
     fn build_week(
         i: usize,
         me_lifts: &MaxEffortLiftPools,
@@ -248,28 +286,65 @@ impl ConjugateWorkoutBuilder {
         let mut week = WorkoutWeek::new();
 
         let lower = me_lifts.lower_for_week(i);
-        let mut mon_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?, Self::single(lower.clone())];
+        let mut mon_lifts = vec![
+            Self::warmup(LiftRegion::LOWER, db)?,
+            Self::single(lower.clone()),
+        ];
         mon_lifts.extend(Self::backoff_sets(lower));
         let next_lower = me_lifts.lower_for_week((i + 1) % me_lifts.num_weeks());
         mon_lifts.extend(Self::supplemental_sets(next_lower));
+        mon_lifts.push(Self::accessory_circuit(
+            Muscle::Hamstring,
+            Muscle::Quad,
+            Muscle::Calf,
+            db,
+        )?);
         week.insert(Weekday::Mon, Workout { lifts: mon_lifts });
 
         let upper = me_lifts.upper_for_week(i);
-        let mut tue_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?, Self::single(upper.clone())];
+        let mut tue_lifts = vec![
+            Self::warmup(LiftRegion::UPPER, db)?,
+            Self::single(upper.clone()),
+        ];
         tue_lifts.extend(Self::backoff_sets(upper));
         let next_upper = me_lifts.upper_for_week((i + 1) % me_lifts.num_weeks());
         tue_lifts.extend(Self::supplemental_sets(next_upper));
+        let upper_opts = [
+            Muscle::RearDelt,
+            Muscle::Shoulder,
+            Muscle::FrontDelt,
+            Muscle::Trap,
+        ];
+        let third = *upper_opts.choose(&mut thread_rng()).unwrap();
+        tue_lifts.push(Self::accessory_circuit(
+            Muscle::Lat,
+            Muscle::Tricep,
+            third,
+            db,
+        )?);
         week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
         let percent = 50 + (i as u32) * 5;
         let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?];
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
+        thu_lifts.push(Self::accessory_circuit(
+            Muscle::Hamstring,
+            Muscle::Quad,
+            Muscle::Core,
+            db,
+        )?);
         week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
 
         let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?];
         fri_lifts.extend(Self::dynamic_sets(&de_lifts.bench, 9, 3, percent));
         fri_lifts.extend(Self::dynamic_sets(&de_lifts.overhead, 6, 2, percent));
+        fri_lifts.push(Self::accessory_circuit(
+            Muscle::Lat,
+            Muscle::Tricep,
+            Muscle::Bicep,
+            db,
+        )?);
         week.insert(Weekday::Fri, Workout { lifts: fri_lifts });
 
         Ok(week)

@@ -11,7 +11,7 @@ mod workout_builder;
 
 use chrono::Weekday;
 use database::Database;
-use models::{LiftRegion, LiftType, SetMetric};
+use models::{LiftRegion, LiftType, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
 use workout_builder::{
     AccommodatingResistance, ConjugateWorkoutBuilder, WorkoutBuilder, WorkoutLift,
@@ -165,6 +165,96 @@ fn alternates_main_lifts_across_weeks() {
     )
     .unwrap();
 
+    // targeted accessory lifts for circuits
+    db.add_lift(
+        "Hamstring Curl",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[Muscle::Hamstring],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Leg Extension",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[Muscle::Quad],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Calf Raise",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[Muscle::Calf],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Plank",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[Muscle::Core],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Lat Pulldown",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Lat],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Tricep Pushdown",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Tricep],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Face Pull",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::RearDelt],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Shoulder Raise",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Shoulder],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Front Raise",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::FrontDelt],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Shrug",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Trap],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Bicep Curl",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Bicep],
+        "",
+    )
+    .unwrap();
+
     let builder = ConjugateWorkoutBuilder;
     let wave = builder.get_wave(6, &db).unwrap();
     assert_eq!(wave.len(), 6);
@@ -193,7 +283,7 @@ fn alternates_main_lifts_across_weeks() {
 
     for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert!(mon.lifts.len() == 6 || mon.lifts.len() == 8);
+        assert!(mon.lifts.len() == 7 || mon.lifts.len() == 9);
         match &mon.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -219,7 +309,7 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLift::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = mon.lifts.len() - 5;
+        let backoff_count = mon.lifts.len() - 6;
         for b in &mon.lifts[2..2 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
@@ -243,7 +333,7 @@ fn alternates_main_lifts_across_weeks() {
             _ => panic!("unexpected percent"),
         }
         let next_lift = expected_lower[(i + 1) % expected_lower.len()];
-        for b in &mon.lifts[2 + backoff_count..] {
+        for b in &mon.lifts[2 + backoff_count..5 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.main, Some(next_lift));
@@ -253,9 +343,19 @@ fn alternates_main_lifts_across_weeks() {
                 _ => panic!("expected single"),
             }
         }
+        match &mon.lifts[5 + backoff_count] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 3);
+                for l in &c.circuit_lifts {
+                    assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                }
+            }
+            _ => panic!("expected circuit"),
+        }
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
-        assert!(tue.lifts.len() == 6 || tue.lifts.len() == 8);
+        assert!(tue.lifts.len() == 7 || tue.lifts.len() == 9);
         match &tue.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -281,7 +381,7 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLift::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = tue.lifts.len() - 5;
+        let backoff_count = tue.lifts.len() - 6;
         for b in &tue.lifts[2..2 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
@@ -305,7 +405,7 @@ fn alternates_main_lifts_across_weeks() {
             _ => panic!("unexpected percent"),
         }
         let next_lift = expected_upper[(i + 1) % expected_upper.len()];
-        for b in &tue.lifts[2 + backoff_count..] {
+        for b in &tue.lifts[2 + backoff_count..5 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
                     assert_eq!(s.lift.main, Some(next_lift));
@@ -315,9 +415,19 @@ fn alternates_main_lifts_across_weeks() {
                 _ => panic!("expected single"),
             }
         }
+        match &tue.lifts[5 + backoff_count] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 3);
+                for l in &c.circuit_lifts {
+                    assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                }
+            }
+            _ => panic!("expected circuit"),
+        }
 
         let thu = week.get(&Weekday::Thu).expect("thursday");
-        assert_eq!(thu.lifts.len(), 13);
+        assert_eq!(thu.lifts.len(), 14);
         match &thu.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -366,9 +476,19 @@ fn alternates_main_lifts_across_weeks() {
                 _ => panic!("expected single"),
             }
         }
+        match &thu.lifts[13] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 3);
+                for l in &c.circuit_lifts {
+                    assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                }
+            }
+            _ => panic!("expected circuit"),
+        }
 
         let fri = week.get(&Weekday::Fri).expect("friday");
-        assert_eq!(fri.lifts.len(), 16);
+        assert_eq!(fri.lifts.len(), 17);
         match &fri.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -416,6 +536,16 @@ fn alternates_main_lifts_across_weeks() {
                 }
                 _ => panic!("expected single"),
             }
+        }
+        match &fri.lifts[16] {
+            WorkoutLift::Circuit(c) => {
+                assert_eq!(c.circuit_lifts.len(), 3);
+                for l in &c.circuit_lifts {
+                    assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(l.metric, Some(SetMetric::Reps(15)));
+                }
+            }
+            _ => panic!("expected circuit"),
         }
     }
 }
