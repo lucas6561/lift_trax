@@ -17,7 +17,7 @@ public class GuiApp extends JFrame {
         JTabbedPane tabs = new JTabbedPane();
         ListPanel listPanel = new ListPanel(db);
         tabs.addTab("Add", new AddPanel(db, listPanel::refresh));
-        tabs.addTab("Query", new QueryPanel());
+        tabs.addTab("Query", new QueryPanel(db));
         tabs.addTab("List", listPanel);
         add(tabs, BorderLayout.CENTER);
     }
