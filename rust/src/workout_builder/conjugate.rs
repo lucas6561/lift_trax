@@ -187,6 +187,22 @@ impl ConjugateWorkoutBuilder {
             .collect()
     }
 
+    fn dynamic_sets(
+        dl: &DynamicLift,
+        sets: usize,
+        reps: i32,
+        percent: u32,
+    ) -> Vec<WorkoutLift> {
+        (0..sets)
+            .map(|_| WorkoutLift::Single(SingleLift {
+                lift: dl.lift.clone(),
+                metric: Some(SetMetric::Reps(reps)),
+                percent: Some(percent),
+                accommodating_resistance: Some(dl.ar.clone()),
+            }))
+            .collect()
+    }
+
     fn warmup(region: LiftRegion, db: &dyn Database) -> DbResult<WorkoutLift> {
         let mut rng = thread_rng();
 
@@ -247,33 +263,13 @@ impl ConjugateWorkoutBuilder {
 
         let percent = 50 + (i as u32) * 5;
         let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?];
-        thu_lifts.push(WorkoutLift::Single(SingleLift {
-            lift: de_lifts.squat.lift.clone(),
-            metric: None,
-            percent: Some(percent),
-            accommodating_resistance: Some(de_lifts.squat.ar.clone()),
-        }));
-        thu_lifts.push(WorkoutLift::Single(SingleLift {
-            lift: de_lifts.deadlift.lift.clone(),
-            metric: None,
-            percent: Some(percent),
-            accommodating_resistance: Some(de_lifts.deadlift.ar.clone()),
-        }));
+        thu_lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
+        thu_lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
         week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
 
         let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?];
-        fri_lifts.push(WorkoutLift::Single(SingleLift {
-            lift: de_lifts.bench.lift.clone(),
-            metric: None,
-            percent: Some(percent),
-            accommodating_resistance: Some(de_lifts.bench.ar.clone()),
-        }));
-        fri_lifts.push(WorkoutLift::Single(SingleLift {
-            lift: de_lifts.overhead.lift.clone(),
-            metric: None,
-            percent: Some(percent),
-            accommodating_resistance: Some(de_lifts.overhead.ar.clone()),
-        }));
+        fri_lifts.extend(Self::dynamic_sets(&de_lifts.bench, 9, 3, percent));
+        fri_lifts.extend(Self::dynamic_sets(&de_lifts.overhead, 6, 2, percent));
         week.insert(Weekday::Fri, Workout { lifts: fri_lifts });
 
         Ok(week)
