@@ -102,7 +102,7 @@ public class AddPanel extends JPanel {
             LocalDate date = LocalDate.parse(dateField.getText().trim());
             List<ExecutionSet> execSets = new ArrayList<>();
             if (simpleBtn.isSelected()) {
-                double weight = Double.parseDouble(weightField.getText().trim());
+                String weight = weightField.getText().trim();
                 int reps = Integer.parseInt(repsField.getText().trim());
                 int sets = Integer.parseInt(setsField.getText().trim());
                 Double rpe = rpeField.getText().isBlank() ? null : Double.parseDouble(rpeField.getText().trim());
@@ -182,7 +182,7 @@ public class AddPanel extends JPanel {
 
     private void addDetailedSet() {
         try {
-            double weight = Double.parseDouble(dWeightField.getText().trim());
+            String weight = dWeightField.getText().trim();
             int reps = Integer.parseInt(dRepsField.getText().trim());
             Double rpe = dRpeField.getText().isBlank() ? null : Double.parseDouble(dRpeField.getText().trim());
             dModel.addElement(new ExecutionSet(reps, weight, rpe));

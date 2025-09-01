@@ -25,6 +25,13 @@ public class ExecutionSet {
         this.rpe = rpe;
     }
 
+    public ExecutionSet(int reps, String weightText, Double rpe) {
+        this.reps = reps;
+        this.weightText = weightText;
+        this.weight = WeightParser.toLbs(weightText);
+        this.rpe = rpe;
+    }
+
     @JsonSetter("reps")
     private void setReps(Integer reps) {
         this.reps = reps;
@@ -57,10 +64,7 @@ public class ExecutionSet {
         if (weightVal instanceof Number) {
             this.weight = ((Number) weightVal).doubleValue();
         } else {
-            String cleaned = weightText.replaceAll("[^0-9.]", "");
-            if (!cleaned.isEmpty()) {
-                this.weight = Double.parseDouble(cleaned);
-            }
+            this.weight = WeightParser.toLbs(weightText);
         }
     }
 

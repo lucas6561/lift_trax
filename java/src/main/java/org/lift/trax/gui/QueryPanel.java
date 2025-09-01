@@ -2,6 +2,7 @@ package org.lift.trax.gui;
 
 import org.lift.trax.Database;
 import org.lift.trax.Lift;
+import org.lift.trax.ExecutionSet;
 import org.lift.trax.LiftExecution;
 import org.lift.trax.LiftStats;
 
@@ -59,22 +60,48 @@ public class QueryPanel extends JPanel {
             boolean any = false;
             for (LiftExecution exec : lift.executions) {
                 if (!exec.date.isBefore(oneYearAgo)) {
-                    sb.append(exec.toString()).append("\n");
                     any = true;
+                    formatExecution(sb, exec);
                 }
             }
             if (!any) {
                 sb.append("no records\n");
             }
             sb.append("\nBest by reps:\n");
-            for (Map.Entry<Integer, Double> entry : stats.bestByReps.entrySet()) {
-                sb.append(entry.getKey()).append(" reps: ")
-                        .append(entry.getValue()).append("\n");
-            }
+            stats.bestByReps.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> sb.append(entry.getKey()).append(" reps: ")
+                            .append(entry.getValue()).append(" lb\n"));
             resultArea.setText(sb.toString());
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void formatExecution(StringBuilder sb, LiftExecution exec) {
+        sb.append(exec.date);
+        if (exec.warmup) sb.append(" (warm-up)");
+        sb.append("\n");
+        int setNum = 1;
+        for (ExecutionSet set : exec.sets) {
+            sb.append("  ").append(setNum++).append(": ")
+                    .append(set.displayWeight());
+            if (set.reps != null) {
+                sb.append(" x ").append(set.reps);
+            } else if (set.timeSecs != null) {
+                sb.append(" for ").append(set.timeSecs).append(" sec");
+            } else if (set.distanceFeet != null) {
+                sb.append(" for ").append(set.distanceFeet).append(" ft");
+            }
+            if (set.rpe != null) {
+                sb.append(" @ RPE ").append(set.rpe);
+            }
+            sb.append("\n");
+        }
+        if (exec.notes != null && !exec.notes.isBlank()) {
+            sb.append("  Notes: ").append(exec.notes).append("\n");
+        }
+        sb.append("\n");
     }
 }
 
