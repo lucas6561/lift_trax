@@ -14,53 +14,58 @@ import org.lift.trax.LiftType;
 public class ConjugateWorkoutBuilder implements WorkoutBuilder {
 
     private static class MaxEffortLiftPools {
-        List<Lift> squats;
-        List<Lift> deadlifts;
-        List<Lift> benches;
-        List<Lift> overheads;
-        int squatIdx;
-        int deadIdx;
-        int benchIdx;
-        int ohpIdx;
+        List<Lift> lowerWeeks;
+        List<Lift> upperWeeks;
+        int numWeeks;
 
         static MaxEffortLiftPools create(int numWeeks, Database db) throws Exception {
-            MaxEffortLiftPools p = new MaxEffortLiftPools();
-            p.squats = db.liftsByType(LiftType.SQUAT);
-            p.deadlifts = db.liftsByType(LiftType.DEADLIFT);
-            p.benches = db.liftsByType(LiftType.BENCH_PRESS);
-            p.overheads = db.liftsByType(LiftType.OVERHEAD_PRESS);
+            List<Lift> squats = db.liftsByType(LiftType.SQUAT);
+            List<Lift> deadlifts = db.liftsByType(LiftType.DEADLIFT);
+            List<Lift> benches = db.liftsByType(LiftType.BENCH_PRESS);
+            List<Lift> overheads = db.liftsByType(LiftType.OVERHEAD_PRESS);
 
             int squatWeeks = (numWeeks + 1) / 2;
             int deadWeeks = numWeeks / 2;
             int benchWeeks = (numWeeks + 1) / 2;
             int ohpWeeks = numWeeks / 2;
 
-            if (p.squats.size() < squatWeeks) throw new Exception("not enough squat lifts available");
-            if (p.deadlifts.size() < deadWeeks) throw new Exception("not enough deadlift lifts available");
-            if (p.benches.size() < benchWeeks) throw new Exception("not enough bench press lifts available");
-            if (p.overheads.size() < ohpWeeks) throw new Exception("not enough overhead press lifts available");
+            if (squats.size() < squatWeeks) throw new Exception("not enough squat lifts available");
+            if (deadlifts.size() < deadWeeks) throw new Exception("not enough deadlift lifts available");
+            if (benches.size() < benchWeeks) throw new Exception("not enough bench press lifts available");
+            if (overheads.size() < ohpWeeks) throw new Exception("not enough overhead press lifts available");
 
-            Collections.shuffle(p.squats);
-            Collections.shuffle(p.deadlifts);
-            Collections.shuffle(p.benches);
-            Collections.shuffle(p.overheads);
+            Collections.shuffle(squats);
+            Collections.shuffle(deadlifts);
+            Collections.shuffle(benches);
+            Collections.shuffle(overheads);
+
+            MaxEffortLiftPools p = new MaxEffortLiftPools();
+            p.numWeeks = numWeeks;
+            p.lowerWeeks = new ArrayList<>(numWeeks);
+            p.upperWeeks = new ArrayList<>(numWeeks);
+            int squatIdx = 0, deadIdx = 0, benchIdx = 0, ohpIdx = 0;
+            for (int i = 0; i < numWeeks; i++) {
+                if (i % 2 == 0) {
+                    p.lowerWeeks.add(squats.get(squatIdx++));
+                    p.upperWeeks.add(benches.get(benchIdx++));
+                } else {
+                    p.lowerWeeks.add(deadlifts.get(deadIdx++));
+                    p.upperWeeks.add(overheads.get(ohpIdx++));
+                }
+            }
             return p;
         }
 
-        Lift nextLower(int weekIdx) {
-            if (weekIdx % 2 == 0) {
-                return squats.get(squatIdx++);
-            } else {
-                return deadlifts.get(deadIdx++);
-            }
+        Lift lowerForWeek(int weekIdx) {
+            return lowerWeeks.get(weekIdx);
         }
 
-        Lift nextUpper(int weekIdx) {
-            if (weekIdx % 2 == 0) {
-                return benches.get(benchIdx++);
-            } else {
-                return overheads.get(ohpIdx++);
-            }
+        Lift upperForWeek(int weekIdx) {
+            return upperWeeks.get(weekIdx);
+        }
+
+        int numWeeks() {
+            return numWeeks;
         }
     }
 
@@ -130,6 +135,13 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         }
     }
 
+    private static List<WorkoutLift> supplementalSets(Lift lift) {
+        return List.of(
+                new SingleLift(lift, SetMetric.reps(5), 80, null),
+                new SingleLift(lift, SetMetric.reps(5), 80, null),
+                new SingleLift(lift, SetMetric.reps(5), 80, null));
+    }
+
     private static WorkoutLift warmup(LiftRegion region, Database db) throws Exception {
         Random rng = new Random();
 
@@ -158,18 +170,22 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     private static WorkoutWeek buildWeek(int i, MaxEffortLiftPools meLifts, DynamicLifts deLifts, Database db) throws Exception {
         WorkoutWeek week = new WorkoutWeek();
 
-        Lift lower = meLifts.nextLower(i);
+        Lift lower = meLifts.lowerForWeek(i);
         List<WorkoutLift> monLifts = new ArrayList<>();
         monLifts.add(warmup(LiftRegion.LOWER, db));
         monLifts.add(single(lower));
         monLifts.addAll(backoffSets(lower));
+        Lift nextLower = meLifts.lowerForWeek((i + 1) % meLifts.numWeeks());
+        monLifts.addAll(supplementalSets(nextLower));
         week.put(DayOfWeek.MONDAY, new Workout(monLifts));
 
-        Lift upper = meLifts.nextUpper(i);
+        Lift upper = meLifts.upperForWeek(i);
         List<WorkoutLift> tueLifts = new ArrayList<>();
         tueLifts.add(warmup(LiftRegion.UPPER, db));
         tueLifts.add(single(upper));
         tueLifts.addAll(backoffSets(upper));
+        Lift nextUpper = meLifts.upperForWeek((i + 1) % meLifts.numWeeks());
+        tueLifts.addAll(supplementalSets(nextUpper));
         week.put(DayOfWeek.TUESDAY, new Workout(tueLifts));
 
         int percent = 50 + i * 5;
