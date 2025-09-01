@@ -59,7 +59,7 @@ fn alternates_main_lifts_across_weeks() {
 
     // add bench and overhead press lifts
     db.add_lift(
-        "Bench Press",
+        "Bench press",
         LiftRegion::UPPER,
         LiftType::BenchPress,
         &[],
@@ -83,7 +83,7 @@ fn alternates_main_lifts_across_weeks() {
     )
     .unwrap();
     db.add_lift(
-        "Overhead Press",
+        "Overhead press",
         LiftRegion::UPPER,
         LiftType::OverheadPress,
         &[],
@@ -128,8 +128,6 @@ fn alternates_main_lifts_across_weeks() {
         LiftType::OverheadPress,
     ];
 
-    let mut de_bench_name = String::new();
-    let mut de_ohp_name = String::new();
     let mut de_squat_ar = AccommodatingResistance::None;
     let mut de_dead_ar = AccommodatingResistance::None;
     let mut de_bench_ar = AccommodatingResistance::None;
@@ -185,14 +183,13 @@ fn alternates_main_lifts_across_weeks() {
         assert_eq!(fri.lifts.len(), 2);
         match &fri.lifts[0] {
             WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.name, "Bench press");
                 assert_eq!(s.lift.main, Some(LiftType::BenchPress));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
                 if i == 0 {
-                    de_bench_name = s.lift.name.clone();
                     de_bench_ar = ar;
                 } else {
-                    assert_eq!(s.lift.name, de_bench_name);
                     assert_eq!(ar, de_bench_ar);
                 }
             }
@@ -200,14 +197,13 @@ fn alternates_main_lifts_across_weeks() {
         }
         match &fri.lifts[1] {
             WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.name, "Overhead press");
                 assert_eq!(s.lift.main, Some(LiftType::OverheadPress));
                 assert_eq!(s.percent, Some(50 + i as u32 * 5));
                 let ar = s.accommodating_resistance.clone().expect("ar");
                 if i == 0 {
-                    de_ohp_name = s.lift.name.clone();
                     de_ohp_ar = ar;
                 } else {
-                    assert_eq!(s.lift.name, de_ohp_name);
                     assert_eq!(ar, de_ohp_ar);
                 }
             }

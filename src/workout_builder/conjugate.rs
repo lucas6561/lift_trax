@@ -129,12 +129,20 @@ impl DynamicLifts {
             .list_lifts(Some("Deadlift"))?
             .pop()
             .ok_or("Deadlift lift not found")?;
+        let bench = db
+            .list_lifts(Some("Bench press"))?
+            .pop()
+            .ok_or("Bench press lift not found")?;
+        let overhead = db
+            .list_lifts(Some("Overhead press"))?
+            .pop()
+            .ok_or("Overhead press lift not found")?;
 
         Ok(Self {
             squat: pick(vec![squat])?,
             deadlift: pick(vec![deadlift])?,
-            bench: pick(db.lifts_by_type(LiftType::BenchPress)?)?,
-            overhead: pick(db.lifts_by_type(LiftType::OverheadPress)?)?,
+            bench: pick(vec![bench])?,
+            overhead: pick(vec![overhead])?,
         })
     }
 }

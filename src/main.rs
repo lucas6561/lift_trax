@@ -78,7 +78,13 @@ fn seed_example_lifts(db: &dyn Database) {
         &[],
         "",
     );
-    let _ = db.add_lift("Sumo Deadlift", LiftRegion::LOWER, LiftType::Deadlift, &[], "");
+    let _ = db.add_lift(
+        "Sumo Deadlift",
+        LiftRegion::LOWER,
+        LiftType::Deadlift,
+        &[],
+        "",
+    );
     let _ = db.add_lift(
         "Deficit Deadlift",
         LiftRegion::LOWER,
@@ -86,7 +92,13 @@ fn seed_example_lifts(db: &dyn Database) {
         &[],
         "",
     );
-    let _ = db.add_lift("Bench Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "");
+    let _ = db.add_lift(
+        "Bench Press",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    );
     let _ = db.add_lift(
         "Close-Grip Bench Press",
         LiftRegion::UPPER,
@@ -94,7 +106,13 @@ fn seed_example_lifts(db: &dyn Database) {
         &[],
         "",
     );
-    let _ = db.add_lift("Floor Press", LiftRegion::UPPER, LiftType::BenchPress, &[], "");
+    let _ = db.add_lift(
+        "Floor Press",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    );
     let _ = db.add_lift(
         "Overhead Press",
         LiftRegion::UPPER,
@@ -102,7 +120,13 @@ fn seed_example_lifts(db: &dyn Database) {
         &[],
         "",
     );
-    let _ = db.add_lift("Push Press", LiftRegion::UPPER, LiftType::OverheadPress, &[], "");
+    let _ = db.add_lift(
+        "Push Press",
+        LiftRegion::UPPER,
+        LiftType::OverheadPress,
+        &[],
+        "",
+    );
     let _ = db.add_lift(
         "Seated Overhead Press",
         LiftRegion::UPPER,
@@ -112,15 +136,40 @@ fn seed_example_lifts(db: &dyn Database) {
     );
 }
 
+fn single_desc(s: &workout_builder::SingleLift) -> String {
+    let mut parts = vec![s.lift.name.clone()];
+    if let Some(reps) = s.rep_count {
+        parts.push(format!("{} reps", reps));
+    }
+    if let Some(time) = s.time_sec {
+        parts.push(format!("{}s", time));
+    }
+    if let Some(dist) = s.distance_m {
+        parts.push(format!("{}m", dist));
+    }
+    if let Some(percent) = s.percent {
+        parts.push(format!("@ {}%", percent));
+    }
+    if let Some(ar) = &s.accommodating_resistance {
+        use workout_builder::AccommodatingResistance::*;
+        match ar {
+            None => {}
+            Chains => parts.push("Chains".into()),
+            Bands => parts.push("Bands".into()),
+        }
+    }
+    parts.join(" ")
+}
+
 fn workout_desc(w: &workout_builder::Workout) -> String {
     w.lifts
         .iter()
         .map(|l| match l {
-            workout_builder::WorkoutLift::Single(s) => s.lift.name.clone(),
+            workout_builder::WorkoutLift::Single(s) => single_desc(s),
             workout_builder::WorkoutLift::Circuit(c) => c
                 .circuit_lifts
                 .iter()
-                .map(|sl| sl.lift.name.clone())
+                .map(|sl| single_desc(sl))
                 .collect::<Vec<_>>()
                 .join(" -> "),
         })
