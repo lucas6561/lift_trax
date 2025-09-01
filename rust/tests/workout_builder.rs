@@ -283,7 +283,7 @@ fn alternates_main_lifts_across_weeks() {
 
     for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert!(mon.lifts.len() == 7 || mon.lifts.len() == 9);
+        assert!(mon.lifts.len() == 8 || mon.lifts.len() == 10);
         match &mon.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -309,7 +309,7 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLift::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = mon.lifts.len() - 6;
+        let backoff_count = mon.lifts.len() - 7;
         for b in &mon.lifts[2..2 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
@@ -353,9 +353,17 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
+        match mon.lifts.last().expect("conditioning") {
+            WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.main, Some(LiftType::Conditioning));
+                assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
+                assert_eq!(s.percent, None);
+            }
+            _ => panic!("expected single"),
+        }
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
-        assert!(tue.lifts.len() == 7 || tue.lifts.len() == 9);
+        assert!(tue.lifts.len() == 8 || tue.lifts.len() == 10);
         match &tue.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -381,7 +389,7 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLift::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = tue.lifts.len() - 6;
+        let backoff_count = tue.lifts.len() - 7;
         for b in &tue.lifts[2..2 + backoff_count] {
             match b {
                 WorkoutLift::Single(s) => {
@@ -425,9 +433,17 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
+        match tue.lifts.last().expect("conditioning") {
+            WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.main, Some(LiftType::Conditioning));
+                assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
+                assert_eq!(s.percent, None);
+            }
+            _ => panic!("expected single"),
+        }
 
         let thu = week.get(&Weekday::Thu).expect("thursday");
-        assert_eq!(thu.lifts.len(), 14);
+        assert_eq!(thu.lifts.len(), 15);
         match &thu.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -486,9 +502,17 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
+        match &thu.lifts[14] {
+            WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.main, Some(LiftType::Conditioning));
+                assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
+                assert_eq!(s.percent, None);
+            }
+            _ => panic!("expected single"),
+        }
 
         let fri = week.get(&Weekday::Fri).expect("friday");
-        assert_eq!(fri.lifts.len(), 17);
+        assert_eq!(fri.lifts.len(), 18);
         match &fri.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -546,6 +570,14 @@ fn alternates_main_lifts_across_weeks() {
                 }
             }
             _ => panic!("expected circuit"),
+        }
+        match &fri.lifts[17] {
+            WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.main, Some(LiftType::Conditioning));
+                assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
+                assert_eq!(s.percent, None);
+            }
+            _ => panic!("expected single"),
         }
     }
 }
