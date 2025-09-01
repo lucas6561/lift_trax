@@ -13,6 +13,7 @@ import java.util.List;
 
 public class AddPanel extends JPanel {
     private final Database db;
+    private final Runnable onAdd;
     private final JComboBox<Lift> liftBox = new JComboBox<>();
     private final JTextField dateField = new JTextField(10);
     private final JTextField weightField = new JTextField(5);
@@ -22,8 +23,9 @@ public class AddPanel extends JPanel {
     private final JCheckBox warmupCheck = new JCheckBox("Warm-up");
     private final JTextField notesField = new JTextField(20);
 
-    public AddPanel(Database db) {
+    public AddPanel(Database db, Runnable onAdd) {
         this.db = db;
+        this.onAdd = onAdd;
         setLayout(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(4, 4, 4, 4);
@@ -90,6 +92,9 @@ public class AddPanel extends JPanel {
             LiftExecution exec = new LiftExecution(null, date, execSets, warmupCheck.isSelected(), notesField.getText().trim());
             db.addLiftExecution(lift.name, exec);
             JOptionPane.showMessageDialog(this, "Execution added", "Success", JOptionPane.INFORMATION_MESSAGE);
+            if (onAdd != null) {
+                onAdd.run();
+            }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }

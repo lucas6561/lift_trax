@@ -56,6 +56,25 @@ public class ListPanel extends JPanel {
         }
     }
 
+    /**
+     * Reload lifts and executions from the database while preserving the
+     * currently selected lift.
+     */
+    public void refresh() {
+        Lift selected = liftList.getSelectedValue();
+        loadLifts();
+        if (selected != null) {
+            for (int i = 0; i < liftModel.size(); i++) {
+                Lift lift = liftModel.get(i);
+                if (lift.name.equals(selected.name)) {
+                    liftList.setSelectedIndex(i);
+                    showExecutions(lift);
+                    break;
+                }
+            }
+        }
+    }
+
     private void installLiftMenu() {
         JPopupMenu menu = new JPopupMenu();
         JMenuItem edit = new JMenuItem("Edit Lift");
