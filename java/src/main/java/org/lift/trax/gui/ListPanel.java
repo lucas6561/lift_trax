@@ -1,6 +1,7 @@
 package org.lift.trax.gui;
 
 import org.lift.trax.Database;
+import org.lift.trax.ExecutionSet;
 import org.lift.trax.Lift;
 import org.lift.trax.LiftExecution;
 
@@ -29,6 +30,7 @@ public class ListPanel extends JPanel {
         });
         installLiftMenu();
         installExecMenu();
+        execList.setCellRenderer(new ExecutionRenderer());
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 new JScrollPane(liftList), new JScrollPane(execList));
         add(split, BorderLayout.CENTER);
@@ -151,5 +153,35 @@ public class ListPanel extends JPanel {
             @Override public void mousePressed(MouseEvent e) { handle(e); }
             @Override public void mouseReleased(MouseEvent e) { handle(e); }
         });
+    }
+
+    private static class ExecutionRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            if (value instanceof LiftExecution exec) {
+                StringBuilder sb = new StringBuilder("<html");
+                sb.append('>').append(exec.date);
+                if (exec.warmup) {
+                    sb.append(" (warm-up)");
+                }
+                int setNum = 1;
+                for (ExecutionSet set : exec.sets) {
+                    sb.append("<br>").append(setNum++).append(": ")
+                            .append(set.weight).append(" x ")
+                            .append(set.reps);
+                    if (set.rpe != null) {
+                        sb.append(" @ RPE ").append(set.rpe);
+                    }
+                }
+                if (exec.notes != null && !exec.notes.isBlank()) {
+                    sb.append("<br>").append(exec.notes);
+                }
+                sb.append("</html>");
+                label.setText(sb.toString());
+                label.setVerticalAlignment(SwingConstants.TOP);
+            }
+            return label;
+        }
     }
 }
