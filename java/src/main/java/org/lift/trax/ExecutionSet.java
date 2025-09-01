@@ -27,4 +27,17 @@ public class ExecutionSet {
         }
         // TimeSecs and DistanceFeet are ignored since Java layer only tracks reps currently
     }
+
+    @JsonProperty("weight")
+    private void unpackWeight(Object weightVal) {
+        if (weightVal == null) return;
+        if (weightVal instanceof Number) {
+            this.weight = ((Number) weightVal).doubleValue();
+        } else {
+            String cleaned = weightVal.toString().replaceAll("[^0-9.]", "");
+            if (!cleaned.isEmpty()) {
+                this.weight = Double.parseDouble(cleaned);
+            }
+        }
+    }
 }
