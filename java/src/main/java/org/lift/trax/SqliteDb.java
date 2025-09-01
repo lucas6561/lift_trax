@@ -78,12 +78,12 @@ public class SqliteDb implements Database {
         String name = rs.getString("name");
         LiftRegion region = LiftRegion.valueOf(rs.getString("region"));
         String mainStr = rs.getString("main_lift");
-        LiftType main = mainStr == null ? null : LiftType.valueOf(mainStr);
+        LiftType main = mainStr == null ? null : LiftType.fromString(mainStr);
         String musclesStr = rs.getString("muscles");
         List<Muscle> muscles = new ArrayList<>();
         if (musclesStr != null && !musclesStr.isEmpty()) {
             for (String m : musclesStr.split(",")) {
-                muscles.add(Muscle.valueOf(m));
+                muscles.add(Muscle.fromString(m.trim()));
             }
         }
         String notes = rs.getString("notes");

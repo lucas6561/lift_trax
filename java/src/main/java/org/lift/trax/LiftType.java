@@ -11,6 +11,10 @@ public enum LiftType {
 
     @Override
     public String toString() {
-        return name();
+        return name().replace('_', ' ');
+    }
+
+    public static LiftType fromString(String s) {
+        return valueOf(s.replace(' ', '_'));
     }
 }

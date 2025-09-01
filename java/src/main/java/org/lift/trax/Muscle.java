@@ -20,6 +20,10 @@ public enum Muscle {
 
     @Override
     public String toString() {
-        return name();
+        return name().replace('_', ' ');
+    }
+
+    public static Muscle fromString(String s) {
+        return valueOf(s.replace(' ', '_'));
     }
 }
