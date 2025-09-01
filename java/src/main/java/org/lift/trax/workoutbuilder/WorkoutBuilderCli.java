@@ -26,7 +26,8 @@ public class WorkoutBuilderCli {
                     if (wl instanceof SingleLift sl) {
                         printSingleLift("  ", sl);
                     } else if (wl instanceof CircuitLift cl) {
-                        System.out.println("  Circuit (rest " + cl.restTimeSec + "s)");
+                        System.out.println(
+                                "  Circuit (" + cl.rounds + " rounds, rest " + cl.restTimeSec + "s)");
                         for (SingleLift sl : cl.circuitLifts) {
                             printSingleLift("    ", sl);
                         }

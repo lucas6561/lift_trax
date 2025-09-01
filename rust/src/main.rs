@@ -235,7 +235,7 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                     .map(|sl| single_desc(sl, 1))
                     .collect::<Vec<_>>()
                     .join(" -> ");
-                lines.push(line);
+                lines.push(format!("{} rounds (rest {}s): {}", c.rounds, c.rest_time_sec, line));
                 let warmup = c
                     .circuit_lifts
                     .iter()

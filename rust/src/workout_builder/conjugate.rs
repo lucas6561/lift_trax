@@ -237,6 +237,7 @@ impl ConjugateWorkoutBuilder {
         Ok(WorkoutLift::Circuit(CircuitLift {
             circuit_lifts: vec![mk(cond), mk(mob), mk(acc1), mk(acc2)],
             rest_time_sec: 60,
+            rounds: 3,
         }))
     }
 
@@ -290,6 +291,7 @@ impl ConjugateWorkoutBuilder {
         Ok(WorkoutLift::Circuit(CircuitLift {
             circuit_lifts: lifts,
             rest_time_sec: 60,
+            rounds: 3,
         }))
     }
 

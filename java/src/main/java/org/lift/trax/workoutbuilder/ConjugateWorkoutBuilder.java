@@ -165,7 +165,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
                 mkWarmupLift(mob),
                 mkWarmupLift(acc1),
                 mkWarmupLift(acc2));
-        return new CircuitLift(lifts, 60);
+        return new CircuitLift(lifts, 60, 3);
     }
 
     private static SingleLift accessoryLift(List<Lift> allLifts, Muscle muscle, Random rng) throws Exception {
@@ -190,7 +190,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
                 accessoryLift(all, m1, rng),
                 accessoryLift(all, m2, rng),
                 accessoryLift(all, m3, rng));
-        return new CircuitLift(lifts, 60);
+        return new CircuitLift(lifts, 60, 3);
     }
 
     private static WorkoutWeek buildWeek(int i, MaxEffortLiftPools meLifts, DynamicLifts deLifts, Database db) throws Exception {
