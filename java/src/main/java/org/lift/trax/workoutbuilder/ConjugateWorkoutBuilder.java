@@ -117,6 +117,19 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         return new SingleLift(lift, null, null, null);
     }
 
+    private static List<WorkoutLift> backoffSets(Lift lift) {
+        Random rng = new Random();
+        if (rng.nextBoolean()) {
+            int reps = 3 + rng.nextInt(3);
+            return List.of(new SingleLift(lift, SetMetric.reps(reps), 90, null));
+        } else {
+            return List.of(
+                    new SingleLift(lift, SetMetric.reps(3), 80, null),
+                    new SingleLift(lift, SetMetric.reps(3), 80, null),
+                    new SingleLift(lift, SetMetric.reps(3), 80, null));
+        }
+    }
+
     private static WorkoutLift warmup(LiftRegion region, Database db) throws Exception {
         Random rng = new Random();
 
@@ -146,14 +159,18 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         WorkoutWeek week = new WorkoutWeek();
 
         Lift lower = meLifts.nextLower(i);
-        week.put(DayOfWeek.MONDAY, new Workout(List.of(
-                warmup(LiftRegion.LOWER, db),
-                single(lower))));
+        List<WorkoutLift> monLifts = new ArrayList<>();
+        monLifts.add(warmup(LiftRegion.LOWER, db));
+        monLifts.add(single(lower));
+        monLifts.addAll(backoffSets(lower));
+        week.put(DayOfWeek.MONDAY, new Workout(monLifts));
 
         Lift upper = meLifts.nextUpper(i);
-        week.put(DayOfWeek.TUESDAY, new Workout(List.of(
-                warmup(LiftRegion.UPPER, db),
-                single(upper))));
+        List<WorkoutLift> tueLifts = new ArrayList<>();
+        tueLifts.add(warmup(LiftRegion.UPPER, db));
+        tueLifts.add(single(upper));
+        tueLifts.addAll(backoffSets(upper));
+        week.put(DayOfWeek.TUESDAY, new Workout(tueLifts));
 
         int percent = 50 + i * 5;
         List<WorkoutLift> thuLifts = new ArrayList<>();

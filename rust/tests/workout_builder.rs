@@ -11,7 +11,7 @@ mod workout_builder;
 
 use chrono::Weekday;
 use database::Database;
-use models::{LiftRegion, LiftType};
+use models::{LiftRegion, LiftType, SetMetric};
 use sqlite_db::SqliteDb;
 use workout_builder::{
     AccommodatingResistance, ConjugateWorkoutBuilder, WorkoutBuilder, WorkoutLift,
@@ -193,7 +193,7 @@ fn alternates_main_lifts_across_weeks() {
 
     for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert_eq!(mon.lifts.len(), 2);
+        assert!(mon.lifts.len() == 3 || mon.lifts.len() == 5);
         match &mon.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -208,13 +208,43 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        match &mon.lifts[1] {
-            WorkoutLift::Single(s) => assert_eq!(s.lift.main, Some(expected_lower[i])),
+        let main_name = match &mon.lifts[1] {
+            WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.main, Some(expected_lower[i]));
+                s.lift.name.clone()
+            }
             _ => panic!("expected single"),
+        };
+        let backoff_percent = match &mon.lifts[2] {
+            WorkoutLift::Single(s) => s.percent,
+            _ => panic!("expected single"),
+        };
+        let backoff_count = mon.lifts.len() - 2;
+        for b in &mon.lifts[2..] {
+            match b {
+                WorkoutLift::Single(s) => {
+                    assert_eq!(s.lift.name, main_name);
+                    assert_eq!(s.percent, backoff_percent);
+                    match backoff_percent {
+                        Some(90) => match s.metric {
+                            Some(SetMetric::Reps(r)) => assert!((3..=5).contains(&r)),
+                        _ => panic!("expected reps"),
+                        },
+                        Some(80) => assert_eq!(s.metric, Some(SetMetric::Reps(3))),
+                        _ => panic!("unexpected percent"),
+                    }
+                }
+                _ => panic!("expected single"),
+            }
+        }
+        match backoff_percent {
+            Some(90) => assert_eq!(backoff_count, 1),
+            Some(80) => assert_eq!(backoff_count, 3),
+            _ => panic!("unexpected percent"),
         }
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
-        assert_eq!(tue.lifts.len(), 2);
+        assert!(tue.lifts.len() == 3 || tue.lifts.len() == 5);
         match &tue.lifts[0] {
             WorkoutLift::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -229,9 +259,39 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        match &tue.lifts[1] {
-            WorkoutLift::Single(s) => assert_eq!(s.lift.main, Some(expected_upper[i])),
+        let main_name = match &tue.lifts[1] {
+            WorkoutLift::Single(s) => {
+                assert_eq!(s.lift.main, Some(expected_upper[i]));
+                s.lift.name.clone()
+            }
             _ => panic!("expected single"),
+        };
+        let backoff_percent = match &tue.lifts[2] {
+            WorkoutLift::Single(s) => s.percent,
+            _ => panic!("expected single"),
+        };
+        let backoff_count = tue.lifts.len() - 2;
+        for b in &tue.lifts[2..] {
+            match b {
+                WorkoutLift::Single(s) => {
+                    assert_eq!(s.lift.name, main_name);
+                    assert_eq!(s.percent, backoff_percent);
+                    match backoff_percent {
+                        Some(90) => match s.metric {
+                            Some(SetMetric::Reps(r)) => assert!((3..=5).contains(&r)),
+                            _ => panic!("expected reps"),
+                        },
+                        Some(80) => assert_eq!(s.metric, Some(SetMetric::Reps(3))),
+                        _ => panic!("unexpected percent"),
+                    }
+                }
+                _ => panic!("expected single"),
+            }
+        }
+        match backoff_percent {
+            Some(90) => assert_eq!(backoff_count, 1),
+            Some(80) => assert_eq!(backoff_count, 3),
+            _ => panic!("unexpected percent"),
         }
 
         let thu = week.get(&Weekday::Thu).expect("thursday");
