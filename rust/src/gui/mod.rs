@@ -79,6 +79,8 @@ struct GuiApp {
     edit_rpe: String,
     edit_warmup: bool,
     edit_notes: String,
+    filter_region: Option<LiftRegion>,
+    filter_type: Option<LiftType>,
     lifts: Vec<Lift>,
     error: Option<String>,
 }
@@ -166,6 +168,8 @@ impl GuiApp {
             edit_rpe: String::new(),
             edit_warmup: false,
             edit_notes: String::new(),
+            filter_region: None,
+            filter_type: None,
             lifts: Vec::new(),
             error: None,
         };
@@ -177,6 +181,12 @@ impl GuiApp {
         match self.db.list_lifts(None) {
             Ok(mut l) => {
                 l.sort_by(|a, b| a.name.cmp(&b.name));
+                if let Some(region) = self.filter_region {
+                    l.retain(|lift| lift.region == region);
+                }
+                if let Some(typ) = self.filter_type {
+                    l.retain(|lift| lift.main == Some(typ));
+                }
                 let selected_name = self
                     .selected_lift
                     .and_then(|i| self.lifts.get(i))
