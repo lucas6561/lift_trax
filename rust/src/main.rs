@@ -138,7 +138,7 @@ fn seed_example_lifts(db: &dyn Database) {
 }
 
 fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
-    let mut parts = vec![s.lift.name.clone()];
+    let mut parts = vec![format!("**{}**", s.lift.name)];
     if let Some(metric) = &s.metric {
         use SetMetric::*;
         let metric_str = match metric {
@@ -224,7 +224,7 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                 }
                 lines.push(single_desc(s, count));
                 if let Some(desc) = last_exec_desc(db, &s.lift.name, false) {
-                    lines.push(format!("  Last: {}", desc));
+                    lines.push(format!("Last: {}", desc));
                 }
                 i += count;
             }
@@ -235,14 +235,17 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                     .map(|sl| single_desc(sl, 1))
                     .collect::<Vec<_>>()
                     .join(" -> ");
-                lines.push(format!("{} rounds (rest {}s): {}", c.rounds, c.rest_time_sec, line));
+                lines.push(format!(
+                    "{} rounds (rest {}s): {}",
+                    c.rounds, c.rest_time_sec, line
+                ));
                 let warmup = c
                     .circuit_lifts
                     .iter()
                     .all(|sl| sl.metric.is_none() && sl.percent == Some(40));
                 for sl in &c.circuit_lifts {
                     if let Some(desc) = last_exec_desc(db, &sl.lift.name, warmup) {
-                        lines.push(format!("  {}: {}", sl.lift.name, desc));
+                        lines.push(format!("**{}**: {}", sl.lift.name, desc));
                     }
                 }
                 i += 1;
@@ -358,22 +361,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let wave = builder.get_wave(weeks, db.as_ref())?;
             let mut out_lines = Vec::new();
             for (i, week) in wave.iter().enumerate() {
-                let header = format!("Week {}", i + 1);
+                let header = format!("## Week {}", i + 1);
                 println!("{}", header);
                 out_lines.push(header);
+                out_lines.push(String::new());
                 for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
                     if let Some(w) = week.get(&day) {
-                        let day_line = format!("  {}:", day_name(day));
-                        println!("{}", day_line);
-                        out_lines.push(day_line);
+                        let day_header = format!("### {}", day_name(day));
+                        println!("{}", day_header);
+                        out_lines.push(day_header);
                         for line in workout_lines(w, db.as_ref()) {
-                            println!("    {}", line);
-                            out_lines.push(format!("    {}", line));
+                            let bullet = format!("- {}", line);
+                            println!("{}", bullet);
+                            out_lines.push(bullet);
                         }
+                        println!();
+                        out_lines.push(String::new());
                     }
                 }
-                println!();
-                out_lines.push(String::new());
             }
             fs::write("wave.txt", out_lines.join("\n"))?;
         }
