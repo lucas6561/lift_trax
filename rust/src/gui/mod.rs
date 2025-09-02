@@ -199,6 +199,63 @@ impl GuiApp {
             Err(e) => self.error = Some(e.to_string()),
         }
     }
+
+    fn lift_filter_ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            // Region filter
+            let region_opts = vec![
+                (None, "All"),
+                (Some(LiftRegion::UPPER), "Upper"),
+                (Some(LiftRegion::LOWER), "Lower"),
+            ];
+            let region_strings: Vec<String> =
+                region_opts.iter().map(|(_, s)| s.to_string()).collect();
+            let region_width = combo_box_width(ui, &region_strings);
+            let selected_region = match self.filter_region {
+                Some(LiftRegion::UPPER) => "Upper",
+                Some(LiftRegion::LOWER) => "Lower",
+                None => "All",
+            };
+            let prev_region = self.filter_region;
+            let mut region_changed = false;
+            egui::ComboBox::from_id_source("filter_region")
+                .width(region_width)
+                .selected_text(selected_region)
+                .show_ui(ui, |ui| {
+                    for (val, label) in &region_opts {
+                        region_changed |=
+                            ui.selectable_value(&mut self.filter_region, *val, *label).changed();
+                    }
+                });
+            if region_changed || self.filter_region != prev_region {
+                self.refresh_lifts();
+            }
+
+            // Type filter
+            let type_opts = main_lift_options();
+            let type_strings: Vec<String> =
+                type_opts.iter().map(|(_, s)| s.to_string()).collect();
+            let type_width = combo_box_width(ui, &type_strings);
+            let selected_type = match self.filter_type {
+                Some(t) => t.to_string(),
+                None => "None".to_string(),
+            };
+            let prev_type = self.filter_type;
+            let mut type_changed = false;
+            egui::ComboBox::from_id_source("filter_type")
+                .width(type_width)
+                .selected_text(selected_type)
+                .show_ui(ui, |ui| {
+                    for (val, label) in &type_opts {
+                        type_changed |=
+                            ui.selectable_value(&mut self.filter_type, *val, *label).changed();
+                    }
+                });
+            if type_changed || self.filter_type != prev_type {
+                self.refresh_lifts();
+            }
+        });
+    }
 }
 
 impl eframe::App for GuiApp {

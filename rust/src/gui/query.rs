@@ -6,6 +6,7 @@ use super::{GuiApp, combo_box_width};
 impl GuiApp {
     pub(super) fn tab_query(&mut self, ui: &mut egui::Ui) {
         ui.heading("Query Lift");
+        self.lift_filter_ui(ui);
         ui.horizontal(|ui| {
             ui.label("Lift:");
             let selected = self

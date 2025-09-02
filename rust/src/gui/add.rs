@@ -13,6 +13,7 @@ use super::{
 impl GuiApp {
     pub(super) fn tab_add(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.heading("Add Lift Execution");
+        self.lift_filter_ui(ui);
         ui.horizontal(|ui| {
             ui.label("Lift:");
             let selected = self
