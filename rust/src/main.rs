@@ -380,7 +380,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-            fs::write("wave.txt", out_lines.join("\n"))?;
+            fs::write("wave.md", out_lines.join("\n"))?;
         }
         Commands::Gui => {
             gui::run_gui(db)?;
