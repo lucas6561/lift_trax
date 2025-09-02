@@ -138,7 +138,7 @@ fn seed_example_lifts(db: &dyn Database) {
 }
 
 fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
-    let mut parts = vec![s.lift.name.clone()];
+    let mut parts = vec![format!("**{}**", s.lift.name)];
     if let Some(metric) = &s.metric {
         use SetMetric::*;
         let metric_str = match metric {
@@ -223,9 +223,9 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                     }
                     break;
                 }
-                lines.push(format!("  {}. {}", idx, single_desc(s, count)));
+                lines.push(format!("{}. {}", idx, single_desc(s, count)));
                 if let Some(desc) = last_exec_desc(db, &s.lift.name, false) {
-                    lines.push(format!("      Last: {}", desc));
+                    lines.push(format!("   - Last: {}", desc));
                 }
                 idx += 1;
                 i += count;
@@ -236,22 +236,22 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                     .iter()
                     .all(|sl| sl.metric.is_none() && sl.percent == Some(40));
                 if warmup {
-                    lines.push("  Warm-up Circuit".into());
+                    lines.push("- Warm-up Circuit".into());
                 } else {
                     lines.push(format!(
-                        "  Circuit: {} rounds, {}s rest",
+                        "- Circuit: {} rounds, {}s rest",
                         c.rounds, c.rest_time_sec
                     ));
                 }
                 for (j, sl) in c.circuit_lifts.iter().enumerate() {
                     let desc = if warmup {
-                        sl.lift.name.clone()
+                        format!("**{}**", sl.lift.name)
                     } else {
                         single_desc(sl, 1)
                     };
-                    lines.push(format!("    {}. {}", j + 1, desc));
+                    lines.push(format!("  {}. {}", j + 1, desc));
                     if let Some(desc) = last_exec_desc(db, &sl.lift.name, warmup) {
-                        lines.push(format!("        Last: {}", desc));
+                        lines.push(format!("     - Last: {}", desc));
                     }
                 }
                 i += 1;
@@ -367,12 +367,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let wave = builder.get_wave(weeks, db.as_ref())?;
             let mut out_lines = Vec::new();
             for (i, week) in wave.iter().enumerate() {
-                let header = format!("Week {}", i + 1);
+                let header = format!("## Week {}", i + 1);
                 println!("{}", header);
                 out_lines.push(header);
                 for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
                     if let Some(w) = week.get(&day) {
-                        let day_header = day_name(day).to_string();
+                        let day_header = format!("### {}", day_name(day));
                         println!("{}", day_header);
                         out_lines.push(day_header);
                         for line in workout_lines(w, db.as_ref()) {
