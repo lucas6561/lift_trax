@@ -12,6 +12,7 @@ use super::{
 impl GuiApp {
     pub(super) fn tab_list(&mut self, ui: &mut egui::Ui) {
         ui.heading("Recorded Lifts");
+        self.lift_filter_ui(ui);
         for i in 0..self.lifts.len() {
             let name = self.lifts[i].name.clone();
             let region = self.lifts[i].region;
