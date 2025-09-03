@@ -276,10 +276,10 @@ fn alternates_main_lifts_across_weeks() {
         LiftType::OverheadPress,
     ];
 
-    let mut de_squat_ar = AccommodatingResistance::None;
-    let mut de_dead_ar = AccommodatingResistance::None;
-    let mut de_bench_ar = AccommodatingResistance::None;
-    let mut de_ohp_ar = AccommodatingResistance::None;
+    let mut de_squat_ar = AccommodatingResistance::Straight;
+    let mut de_dead_ar = AccommodatingResistance::Straight;
+    let mut de_bench_ar = AccommodatingResistance::Straight;
+    let mut de_ohp_ar = AccommodatingResistance::Straight;
 
     for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");

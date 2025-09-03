@@ -160,7 +160,7 @@ fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
     if let Some(ar) = &s.accommodating_resistance {
         use workout_builder::AccommodatingResistance::*;
         match ar {
-            None => {}
+            Straight => {}
             Chains => parts.push("Chains".into()),
             Bands => parts.push("Bands".into()),
         }

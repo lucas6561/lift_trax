@@ -8,7 +8,7 @@ use crate::models::{Lift, SetMetric};
 /// Types of accommodating resistance applied to a lift.
 #[derive(Clone, Debug, PartialEq)]
 pub enum AccommodatingResistance {
-    None,
+    Straight,
     Chains,
     Bands,
 }

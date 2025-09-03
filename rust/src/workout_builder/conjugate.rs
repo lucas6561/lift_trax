@@ -104,7 +104,7 @@ impl DynamicLifts {
     fn new(db: &dyn Database) -> DbResult<Self> {
         let mut rng = thread_rng();
         let ar_opts = [
-            AccommodatingResistance::None,
+            AccommodatingResistance::Straight,
             AccommodatingResistance::Chains,
             AccommodatingResistance::Bands,
         ];
