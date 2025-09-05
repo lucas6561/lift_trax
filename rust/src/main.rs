@@ -15,6 +15,7 @@ use crate::weight::Weight;
 use database::Database;
 use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
+use crate::workout_builder::WorkoutWeek;
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -211,11 +212,15 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
     let mut idx = 1usize;
     let mut i = 0usize;
     while i < w.lifts.len() {
-        match &w.lifts[i] {
-            workout_builder::WorkoutLift::Single(s) => {
+        let lift = &w.lifts[i];
+        let lift_label = format!("### {}", lift.name);
+        println!("{}", lift_label);
+        lines.push(lift_label);
+        match &lift.kind {
+            workout_builder::WorkoutLiftKind::Single(s) => {
                 let mut count = 1usize;
                 while i + count < w.lifts.len() {
-                    if let workout_builder::WorkoutLift::Single(next) = &w.lifts[i + count] {
+                    if let workout_builder::WorkoutLiftKind::Single(next) = &w.lifts[i + count].kind {
                         if same_single(s, next) {
                             count += 1;
                             continue;
@@ -230,7 +235,7 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                 idx += 1;
                 i += count;
             }
-            workout_builder::WorkoutLift::Circuit(c) => {
+            workout_builder::WorkoutLiftKind::Circuit(c) => {
                 let warmup = c
                     .circuit_lifts
                     .iter()
@@ -365,26 +370,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             //seed_example_lifts(db.as_ref());
             let builder = ConjugateWorkoutBuilder;
             let wave = builder.get_wave(weeks, db.as_ref())?;
-            let mut out_lines = Vec::new();
-            for (i, week) in wave.iter().enumerate() {
-                let header = format!("## Week {}", i + 1);
-                println!("{}", header);
-                out_lines.push(header);
-                for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
-                    if let Some(w) = week.get(&day) {
-                        let day_header = format!("### {}", day_name(day));
-                        println!("{}", day_header);
-                        out_lines.push(day_header);
-                        for line in workout_lines(w, db.as_ref()) {
-                            println!("{}", line);
-                            out_lines.push(line);
-                        }
-                        println!();
-                        out_lines.push(String::new());
-                    }
-                }
-                out_lines.push(String::new());
-            }
+            let out_lines = create_markdown(&wave, db.as_ref());
             fs::write("wave.md", out_lines.join("\n"))?;
         }
         Commands::Gui => {
@@ -392,4 +378,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
+}
+
+fn create_markdown(wave: &Vec<WorkoutWeek>, db: &dyn Database) -> Vec<String> {
+    let mut out_lines = Vec::new();
+    for (i, week) in wave.iter().enumerate() {
+        let header = format!("# Week {}", i + 1);
+        println!("{}", header);
+        out_lines.push(header);
+        for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
+            if let Some(w) = week.get(&day) {
+                let day_header = format!("## {}", day_name(day));
+                println!("{}", day_header);
+                out_lines.push(day_header);
+                for line in workout_lines(w, db) {
+                    println!("{}", line);
+                    out_lines.push(line);
+                }
+                println!();
+                out_lines.push(String::new());
+            }
+        }
+        out_lines.push(String::new());
+    }
+    out_lines
 }

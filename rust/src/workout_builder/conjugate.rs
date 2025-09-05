@@ -6,7 +6,7 @@ use crate::models::{Lift, LiftRegion, LiftType, Muscle, SetMetric};
 
 use super::{
     AccommodatingResistance, CircuitLift, SingleLift, Workout, WorkoutBuilder, WorkoutLift,
-    WorkoutWeek,
+    WorkoutLiftKind, WorkoutWeek,
 };
 
 /// Workout builder implementing a basic conjugate approach.
@@ -145,34 +145,41 @@ impl DynamicLifts {
 }
 
 impl ConjugateWorkoutBuilder {
-    fn single(lift: Lift) -> WorkoutLift {
-        WorkoutLift::Single(SingleLift {
-            lift,
-            metric: None,
-            percent: None,
-            accommodating_resistance: None,
-        })
+    fn max_effort_single(lift: Lift) -> WorkoutLift {
+        WorkoutLift {
+            name: "Max Effort Single".to_string(),
+            kind: WorkoutLiftKind::Single(SingleLift {
+                lift,
+                metric: Some(SetMetric::Reps(1)),
+                percent: None,
+                accommodating_resistance: None,
+            }),
+        }
     }
 
     fn backoff_sets(lift: Lift) -> Vec<WorkoutLift> {
         let mut rng = thread_rng();
         if rng.gen_bool(0.5) {
             let reps = rng.gen_range(3..=5);
-            vec![WorkoutLift::Single(SingleLift {
-                lift,
-                metric: Some(SetMetric::Reps(reps)),
-                percent: Some(90),
-                accommodating_resistance: None,
-            })]
+            vec![WorkoutLift {
+                name: "Backoff Set".to_string(),
+                kind: WorkoutLiftKind::Single(SingleLift {
+                    lift,
+                    metric: Some(SetMetric::Reps(reps)),
+                    percent: Some(90),
+                    accommodating_resistance: None,
+                }),
+            }]
         } else {
             (0..3)
-                .map(|_| {
-                    WorkoutLift::Single(SingleLift {
+                .map(|_| WorkoutLift {
+                    name: "Backoff Sets".to_string(),
+                    kind: WorkoutLiftKind::Single(SingleLift {
                         lift: lift.clone(),
                         metric: Some(SetMetric::Reps(3)),
                         percent: Some(80),
                         accommodating_resistance: None,
-                    })
+                    }),
                 })
                 .collect()
         }
@@ -180,26 +187,28 @@ impl ConjugateWorkoutBuilder {
 
     fn supplemental_sets(lift: Lift) -> Vec<WorkoutLift> {
         (0..3)
-            .map(|_| {
-                WorkoutLift::Single(SingleLift {
+            .map(|_| WorkoutLift {
+                name: "Supplemental Sets".to_string(),
+                kind: WorkoutLiftKind::Single(SingleLift {
                     lift: lift.clone(),
                     metric: Some(SetMetric::Reps(5)),
                     percent: Some(80),
                     accommodating_resistance: None,
-                })
+                }),
             })
             .collect()
     }
 
     fn dynamic_sets(dl: &DynamicLift, sets: usize, reps: i32, percent: u32) -> Vec<WorkoutLift> {
         (0..sets)
-            .map(|_| {
-                WorkoutLift::Single(SingleLift {
+            .map(|_| WorkoutLift {
+                name: "Dynamic Effort".to_string(),
+                kind: WorkoutLiftKind::Single(SingleLift {
                     lift: dl.lift.clone(),
                     metric: Some(SetMetric::Reps(reps)),
                     percent: Some(percent),
                     accommodating_resistance: Some(dl.ar.clone()),
-                })
+                }),
             })
             .collect()
     }
@@ -234,11 +243,14 @@ impl ConjugateWorkoutBuilder {
             accommodating_resistance: None,
         };
 
-        Ok(WorkoutLift::Circuit(CircuitLift {
-            circuit_lifts: vec![mk(cond), mk(mob), mk(acc1), mk(acc2)],
-            rest_time_sec: 60,
-            rounds: 3,
-        }))
+        Ok(WorkoutLift {
+            name: "Warmup Circuit".to_string(),
+            kind: WorkoutLiftKind::Circuit(CircuitLift {
+                circuit_lifts: vec![mk(cond), mk(mob), mk(acc1), mk(acc2)],
+                rest_time_sec: 60,
+                rounds: 3,
+            }),
+        })
     }
 
     fn conditioning(db: &dyn Database) -> DbResult<WorkoutLift> {
@@ -248,12 +260,15 @@ impl ConjugateWorkoutBuilder {
             .choose(&mut rng)
             .ok_or("not enough conditioning lifts available")?
             .clone();
-        Ok(WorkoutLift::Single(SingleLift {
-            lift: cond,
-            metric: Some(SetMetric::TimeSecs(600)),
-            percent: None,
-            accommodating_resistance: None,
-        }))
+        Ok(WorkoutLift {
+            name: "Conditioning".to_string(),
+            kind: WorkoutLiftKind::Single(SingleLift {
+                lift: cond,
+                metric: Some(SetMetric::TimeSecs(600)),
+                percent: None,
+                accommodating_resistance: None,
+            }),
+        })
     }
 
     fn accessory_lift(all: &[Lift], muscle: Muscle, rng: &mut ThreadRng) -> DbResult<SingleLift> {
@@ -288,11 +303,14 @@ impl ConjugateWorkoutBuilder {
             Self::accessory_lift(&all, m2, &mut rng)?,
             Self::accessory_lift(&all, m3, &mut rng)?,
         ];
-        Ok(WorkoutLift::Circuit(CircuitLift {
-            circuit_lifts: lifts,
-            rest_time_sec: 60,
-            rounds: 3,
-        }))
+        Ok(WorkoutLift {
+            name: "Accessory Circuit".to_string(),
+            kind: WorkoutLiftKind::Circuit(CircuitLift {
+                circuit_lifts: lifts,
+                rest_time_sec: 60,
+                rounds: 3,
+            }),
+        })
     }
 
     fn build_week(
@@ -306,7 +324,7 @@ impl ConjugateWorkoutBuilder {
         let lower = me_lifts.lower_for_week(i);
         let mut mon_lifts = vec![
             Self::warmup(LiftRegion::LOWER, db)?,
-            Self::single(lower.clone()),
+            Self::max_effort_single(lower.clone()),
         ];
         mon_lifts.extend(Self::backoff_sets(lower));
         let next_lower = me_lifts.lower_for_week((i + 1) % me_lifts.num_weeks());
@@ -323,7 +341,7 @@ impl ConjugateWorkoutBuilder {
         let upper = me_lifts.upper_for_week(i);
         let mut tue_lifts = vec![
             Self::warmup(LiftRegion::UPPER, db)?,
-            Self::single(upper.clone()),
+            Self::max_effort_single(upper.clone()),
         ];
         tue_lifts.extend(Self::backoff_sets(upper));
         let next_upper = me_lifts.upper_for_week((i + 1) % me_lifts.num_weeks());
