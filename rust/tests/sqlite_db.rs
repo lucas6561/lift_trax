@@ -27,7 +27,7 @@ fn add_and_list_lift_with_execution() {
     )
     .unwrap();
 
-    let lifts = db.list_lifts(None).unwrap();
+    let lifts = db.list_lifts().unwrap();
     assert_eq!(lifts.len(), 1);
     assert_eq!(lifts[0].name, "Bench");
     assert_eq!(lifts[0].notes, "barbell");
@@ -48,7 +48,7 @@ fn add_and_list_lift_with_execution() {
     };
     db.add_lift_execution("Bench", &exec).unwrap();
 
-    let bench = db.list_lifts(Some("Bench")).unwrap().pop().unwrap();
+    let bench = db.get_lift("Bench").unwrap();
     assert_eq!(bench.executions.len(), 1);
     let stored = &bench.executions[0];
     assert_eq!(stored.sets.len(), 3);
@@ -75,11 +75,11 @@ fn delete_execution_removes_record() {
     };
     db.add_lift_execution("Bench", &exec).unwrap();
 
-    let bench = db.list_lifts(Some("Bench")).unwrap().pop().unwrap();
+    let bench = db.get_lift("Bench").unwrap();
     let exec_id = bench.executions[0].id.unwrap();
     db.delete_lift_execution(exec_id).unwrap();
 
-    let bench = db.list_lifts(Some("Bench")).unwrap().pop().unwrap();
+    let bench = db.get_lift("Bench").unwrap();
     assert!(bench.executions.is_empty());
 }
 
@@ -103,7 +103,7 @@ fn delete_lift_removes_lift_and_history() {
     db.add_lift_execution("Bench", &exec).unwrap();
 
     db.delete_lift("Bench").unwrap();
-    assert!(db.list_lifts(None).unwrap().is_empty());
+    assert!(db.list_lifts().unwrap().is_empty());
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn list_lifts_returns_all_sorted() {
     db.add_lift("Curl", LiftRegion::UPPER, LiftType::Accessory, &[], "")
         .unwrap();
     let names: Vec<_> = db
-        .list_lifts(None)
+        .list_lifts()
         .unwrap()
         .into_iter()
         .map(|l| l.name)
@@ -216,7 +216,7 @@ fn reads_legacy_execution_sets() {
     .unwrap();
     drop(conn);
 
-    let lift = db.list_lifts(Some("Row")).unwrap().pop().unwrap();
+    let lift = db.get_lift("Row").unwrap();
     assert_eq!(lift.executions.len(), 1);
     let set = &lift.executions[0].sets[0];
     match set.metric {
