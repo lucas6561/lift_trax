@@ -187,11 +187,16 @@ fn format_exec(exec: &LiftExecution) -> String {
         SetMetric::TimeSecs(t) => format!("{}s", t),
         SetMetric::DistanceFeet(d) => format!("{}ft", d),
     };
+    let weight_str = match &first.weight {
+        Weight::None => String::from(""),
+        other => format!("@ {}", other),
+    };
+
     format!(
-        "{} sets x {} @ {}{}",
+        "{} sets x {} {}{}",
         exec.sets.len(),
         metric_str,
-        first.weight,
+        weight_str,
         rpe
     )
 }
