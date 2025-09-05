@@ -196,8 +196,49 @@ fn format_exec(exec: &LiftExecution) -> String {
     )
 }
 
-fn last_exec_desc(db: &dyn Database, name: &str, warmup: bool, num_reps: Option<SetMetric>) -> Option<String> {
+fn last_exec_desc(
+    db: &dyn Database,
+    name: &str,
+    warmup: bool,
+    num_reps: Option<SetMetric>,
+) -> Option<String> {
     let lift = db.get_lift(name).ok()?;
+    if let Some(target_metric) = num_reps {
+        let mut fallback: Option<&LiftExecution> = None;
+        let mut closest: Option<&LiftExecution> = None;
+        let mut closest_diff: i32 = i32::MAX;
+        for exec in &lift.executions {
+            if exec.warmup != warmup {
+                continue;
+            }
+            if fallback.is_none() {
+                fallback = Some(exec);
+            }
+            let first_metric = match exec.sets.first() {
+                Some(set) => &set.metric,
+                None => continue,
+            };
+            if *first_metric == target_metric {
+                return Some(format_exec(exec));
+            }
+            let diff = match (first_metric, &target_metric) {
+                (SetMetric::Reps(a), SetMetric::Reps(b)) => Some((a - b).abs()),
+                (SetMetric::TimeSecs(a), SetMetric::TimeSecs(b)) => Some((a - b).abs()),
+                (SetMetric::DistanceFeet(a), SetMetric::DistanceFeet(b)) => Some((a - b).abs()),
+                _ => None,
+            };
+            if let Some(d) = diff {
+                if d < closest_diff {
+                    closest_diff = d;
+                    closest = Some(exec);
+                }
+            }
+        }
+        if let Some(exec) = closest {
+            return Some(format_exec(exec));
+        }
+        return fallback.map(|e| format_exec(e));
+    }
     for exec in lift.executions {
         if exec.warmup == warmup {
             return Some(format_exec(&exec));
