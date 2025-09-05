@@ -11,7 +11,7 @@ mod sqlite_db;
 mod weight;
 mod workout_builder;
 
-use crate::weight::Weight;
+use crate::weight::{AccommodatingResist, Weight};
 use crate::workout_builder::WorkoutWeek;
 use database::Database;
 use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
@@ -138,7 +138,7 @@ fn seed_example_lifts(db: &dyn Database) {
     );
 }
 
-fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
+fn single_desc(s: &workout_builder::SingleLift, count: usize, db: &dyn Database) -> String {
     let mut parts = vec![format!("**{}**", s.lift.name)];
     if let Some(metric) = &s.metric {
         use SetMetric::*;
@@ -156,7 +156,11 @@ fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
         parts.push(format!("{}x", count));
     }
     if let Some(percent) = s.percent {
-        parts.push(format!("@ {}%", percent));
+        if let Some(w) = percent_one_rep_max(db, &s.lift.name, percent) {
+            parts.push(format!("@ {}% ({})", percent, w));
+        } else {
+            parts.push(format!("@ {}%", percent));
+        }
     }
     if let Some(ar) = &s.accommodating_resistance {
         use workout_builder::AccommodatingResistance::*;
@@ -167,6 +171,54 @@ fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
         }
     }
     parts.join(" ")
+}
+
+fn percent_one_rep_max(db: &dyn Database, name: &str, percent: u32) -> Option<Weight> {
+    let lift = db.get_lift(name).ok()?;
+    for exec in &lift.executions {
+        let mut best: Option<Weight> = None;
+        let mut best_val = 0.0f64;
+        for set in &exec.sets {
+            if set.metric == SetMetric::Reps(1) {
+                let val = match &set.weight {
+                    Weight::Raw(p) => *p,
+                    Weight::RawLr { left, right } => left + right,
+                    Weight::Accommodating { raw, resistance } => match resistance {
+                        AccommodatingResist::Chains(c) => raw + c,
+                        AccommodatingResist::Bands(_) => *raw,
+                    },
+                    _ => continue,
+                };
+                if val > best_val {
+                    best_val = val;
+                    best = Some(set.weight.clone());
+                }
+            }
+        }
+        if let Some(w) = best {
+            return scale_weight(&w, percent);
+        }
+    }
+    None
+}
+
+fn scale_weight(w: &Weight, percent: u32) -> Option<Weight> {
+    let pct = percent as f64 / 100.0;
+    match w {
+        Weight::Raw(p) => Some(Weight::Raw(p * pct)),
+        Weight::RawLr { left, right } => Some(Weight::RawLr {
+            left: left * pct,
+            right: right * pct,
+        }),
+        Weight::Accommodating { raw, resistance } => match resistance {
+            AccommodatingResist::Chains(c) => Some(Weight::Accommodating {
+                raw: raw * pct,
+                resistance: AccommodatingResist::Chains(c * pct),
+            }),
+            AccommodatingResist::Bands(_) => None,
+        },
+        _ => None,
+    }
 }
 
 fn same_single(a: &workout_builder::SingleLift, b: &workout_builder::SingleLift) -> bool {
@@ -273,7 +325,7 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                     }
                     break;
                 }
-                lines.push(format!("{}", single_desc(s, count)));
+                lines.push(format!("{}", single_desc(s, count, db)));
                 if let Some(desc) = last_exec_desc(db, &s.lift.name, false, s.metric.clone()) {
                     lines.push(format!("   - Last: {}", desc));
                 }
@@ -290,7 +342,7 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                     let desc = if c.warmup {
                         format!("**{}**", sl.lift.name)
                     } else {
-                        single_desc(sl, 1)
+                        single_desc(sl, 1, db)
                     };
                     lines.push(format!("  {}. {}", j + 1, desc));
                     if let Some(desc) = last_exec_desc(db, &sl.lift.name, c.warmup, None) {
