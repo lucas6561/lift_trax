@@ -28,6 +28,7 @@ pub struct CircuitLift {
     pub circuit_lifts: Vec<SingleLift>,
     pub rest_time_sec: u32,
     pub rounds: u32,
+    pub warmup: bool,
 }
 #[derive(Clone)]
 pub struct WorkoutLift {

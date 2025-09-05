@@ -178,7 +178,7 @@ impl GuiApp {
     }
 
     fn refresh_lifts(&mut self) {
-        match self.db.list_lifts(None) {
+        match self.db.list_lifts() {
             Ok(mut l) => {
                 l.sort_by(|a, b| a.name.cmp(&b.name));
                 if let Some(region) = self.filter_region {

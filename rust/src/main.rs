@@ -12,10 +12,10 @@ mod weight;
 mod workout_builder;
 
 use crate::weight::Weight;
+use crate::workout_builder::WorkoutWeek;
 use database::Database;
 use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
-use crate::workout_builder::WorkoutWeek;
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -196,9 +196,8 @@ fn format_exec(exec: &LiftExecution) -> String {
     )
 }
 
-fn last_exec_desc(db: &dyn Database, name: &str, warmup: bool) -> Option<String> {
-    let lifts = db.list_lifts(Some(name)).ok()?;
-    let lift = lifts.into_iter().next()?;
+fn last_exec_desc(db: &dyn Database, name: &str, warmup: bool, num_reps: Option<SetMetric>) -> Option<String> {
+    let lift = db.get_lift(name).ok()?;
     for exec in lift.executions {
         if exec.warmup == warmup {
             return Some(format_exec(&exec));
@@ -214,13 +213,13 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
     while i < w.lifts.len() {
         let lift = &w.lifts[i];
         let lift_label = format!("### {}", lift.name);
-        println!("{}", lift_label);
         lines.push(lift_label);
         match &lift.kind {
             workout_builder::WorkoutLiftKind::Single(s) => {
                 let mut count = 1usize;
                 while i + count < w.lifts.len() {
-                    if let workout_builder::WorkoutLiftKind::Single(next) = &w.lifts[i + count].kind {
+                    if let workout_builder::WorkoutLiftKind::Single(next) = &w.lifts[i + count].kind
+                    {
                         if same_single(s, next) {
                             count += 1;
                             continue;
@@ -228,34 +227,27 @@ fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<String>
                     }
                     break;
                 }
-                lines.push(format!("{}. {}", idx, single_desc(s, count)));
-                if let Some(desc) = last_exec_desc(db, &s.lift.name, false) {
+                lines.push(format!("{}", single_desc(s, count)));
+                if let Some(desc) = last_exec_desc(db, &s.lift.name, false, s.metric.clone()) {
                     lines.push(format!("   - Last: {}", desc));
                 }
                 idx += 1;
                 i += count;
             }
             workout_builder::WorkoutLiftKind::Circuit(c) => {
-                let warmup = c
-                    .circuit_lifts
-                    .iter()
-                    .all(|sl| sl.metric.is_none() && sl.percent == Some(40));
-                if warmup {
-                    lines.push("- Warm-up Circuit".into());
-                } else {
-                    lines.push(format!(
-                        "- Circuit: {} rounds, {}s rest",
-                        c.rounds, c.rest_time_sec
-                    ));
-                }
+                lines.push(format!(
+                    "- Circuit: {} rounds, {}s rest",
+                    c.rounds, c.rest_time_sec
+                ));
+
                 for (j, sl) in c.circuit_lifts.iter().enumerate() {
-                    let desc = if warmup {
+                    let desc = if c.warmup {
                         format!("**{}**", sl.lift.name)
                     } else {
                         single_desc(sl, 1)
                     };
                     lines.push(format!("  {}. {}", j + 1, desc));
-                    if let Some(desc) = last_exec_desc(db, &sl.lift.name, warmup) {
+                    if let Some(desc) = last_exec_desc(db, &sl.lift.name, c.warmup, None) {
                         lines.push(format!("     - Last: {}", desc));
                     }
                 }
@@ -318,7 +310,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Lift execution added.");
         }
         Commands::List { exercise } => {
-            let lifts = db.list_lifts(exercise.as_deref())?;
+            // TODO handle name specified
+            let lifts = db.list_lifts()?;
             for l in lifts {
                 let main_str = l.main.map(|m| format!(" [{}]", m)).unwrap_or_default();
                 let muscles_str = if l.muscles.is_empty() {
@@ -383,23 +376,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn create_markdown(wave: &Vec<WorkoutWeek>, db: &dyn Database) -> Vec<String> {
     let mut out_lines = Vec::new();
     for (i, week) in wave.iter().enumerate() {
-        let header = format!("# Week {}", i + 1);
-        println!("{}", header);
-        out_lines.push(header);
-        for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
+        let week_header = format!("# Week {}", i + 1);
+        out_lines.push(week_header);
+        for day in [
+            Weekday::Mon,
+            Weekday::Tue,
+            Weekday::Wed,
+            Weekday::Thu,
+            Weekday::Fri,
+            Weekday::Sat,
+            Weekday::Sun,
+        ] {
             if let Some(w) = week.get(&day) {
                 let day_header = format!("## {}", day_name(day));
-                println!("{}", day_header);
                 out_lines.push(day_header);
                 for line in workout_lines(w, db) {
-                    println!("{}", line);
                     out_lines.push(line);
                 }
-                println!();
                 out_lines.push(String::new());
             }
         }
         out_lines.push(String::new());
+    }
+    for s in &out_lines {
+        println!("{}", s);
     }
     out_lines
 }

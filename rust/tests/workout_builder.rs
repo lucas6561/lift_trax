@@ -289,10 +289,10 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 4);
                 assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
-                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
-                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
@@ -375,13 +375,13 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 4);
                 assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
-                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
-                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[0].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
-                assert_eq!(lifts[3].lift.region, LiftRegion::UPPER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
             }
             _ => panic!("expected circuit"),
@@ -461,13 +461,13 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 4);
                 assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
-                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
-                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[0].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
-                assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
             }
             _ => panic!("expected circuit"),
@@ -536,13 +536,13 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(c.circuit_lifts.len(), 4);
                 assert_eq!(c.rounds, 3);
                 let lifts = &c.circuit_lifts;
-                assert_eq!(lifts[0].lift.main, Some(LiftType::Conditioning));
-                assert_eq!(lifts[1].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
+                assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[0].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
-                assert_eq!(lifts[3].lift.region, LiftRegion::UPPER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
             }
             _ => panic!("expected circuit"),

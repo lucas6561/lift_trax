@@ -483,17 +483,22 @@ impl Database for SqliteDb {
         Ok(LiftStats { last, best_by_reps })
     }
 
-    fn list_lifts(&self, name: Option<&str>) -> DbResult<Vec<Lift>> {
-        match name {
-            Some(n) => self.load_lifts(
+    fn get_lift(&self, name: &str) -> DbResult<Lift> {
+        let lifts =  self.load_lifts(
                 "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE name = ?1 ORDER BY name",
-                params![n],
-            ),
-            None => self.load_lifts(
-                "SELECT id, name, region, main_lift, muscles, notes FROM lifts ORDER BY name",
-                [],
-            ),
+                [name]
+            )?;
+        match lifts.len() {
+            1 => Ok(lifts.into_iter().next().unwrap()),
+            0 => Err(format!("Lift {} not found", name).into()), // pick an error that fits your app
+            n => Err(format!("Lift {} had {} entries.", name, lifts.len()).into()),
         }
+    }
+    fn list_lifts(&self) -> DbResult<Vec<Lift>> {
+        self.load_lifts(
+            "SELECT id, name, region, main_lift, muscles, notes FROM lifts ORDER BY name",
+            [],
+        )
     }
 
     fn lifts_by_type(&self, lift_type: LiftType) -> DbResult<Vec<Lift>> {

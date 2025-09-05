@@ -118,22 +118,10 @@ impl DynamicLifts {
             Ok(DynamicLift { lift, ar })
         };
 
-        let squat = db
-            .list_lifts(Some("Squat"))?
-            .pop()
-            .ok_or("Squat lift not found")?;
-        let deadlift = db
-            .list_lifts(Some("Deadlift"))?
-            .pop()
-            .ok_or("Deadlift lift not found")?;
-        let bench = db
-            .list_lifts(Some("Bench Press"))?
-            .pop()
-            .ok_or("Bench press lift not found")?;
-        let overhead = db
-            .list_lifts(Some("Overhead Press"))?
-            .pop()
-            .ok_or("Overhead press lift not found")?;
+        let squat = db.get_lift("Squat")?;
+        let deadlift = db.get_lift("Deadlift")?;
+        let bench = db.get_lift("Bench Press")?;
+        let overhead = db.get_lift("Overhead Press")?;
 
         Ok(Self {
             squat: pick(vec![squat])?,
@@ -246,9 +234,10 @@ impl ConjugateWorkoutBuilder {
         Ok(WorkoutLift {
             name: "Warmup Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
-                circuit_lifts: vec![mk(cond), mk(mob), mk(acc1), mk(acc2)],
+                circuit_lifts: vec![mk(mob), mk(acc1), mk(acc2), mk(cond)],
                 rest_time_sec: 60,
                 rounds: 3,
+                warmup: true,
             }),
         })
     }
@@ -296,7 +285,7 @@ impl ConjugateWorkoutBuilder {
         m3: Muscle,
         db: &dyn Database,
     ) -> DbResult<WorkoutLift> {
-        let all = db.list_lifts(None)?;
+        let all = db.list_lifts()?;
         let mut rng = thread_rng();
         let lifts = vec![
             Self::accessory_lift(&all, m1, &mut rng)?,
@@ -309,6 +298,7 @@ impl ConjugateWorkoutBuilder {
                 circuit_lifts: lifts,
                 rest_time_sec: 60,
                 rounds: 3,
+                warmup: false,
             }),
         })
     }
