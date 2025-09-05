@@ -224,7 +224,8 @@ fn reads_legacy_execution_sets() {
         _ => panic!("expected reps"),
     }
     assert_eq!(set.weight.to_string(), "50 lb");
-
+    // drop database connection before removing file on Windows
+    drop(db);
     std::fs::remove_file(path).unwrap();
 }
 
@@ -339,7 +340,10 @@ fn upgrades_legacy_database() {
     }
 
     // Opening through SqliteDb should upgrade to the latest schema
-    let _db = SqliteDb::new(path).expect("db open");
+    {
+        let _db = SqliteDb::new(path).expect("db open");
+        // dropped here
+    }
 
     let conn = Connection::open(path).unwrap();
     let user_version: i32 = conn
@@ -365,6 +369,8 @@ fn upgrades_legacy_database() {
         .unwrap();
     assert!(record_cols.contains(&"notes".to_string()));
 
+    // close connection before removing file
+    drop(conn);
     std::fs::remove_file(path).unwrap();
     // remove generated backup
     for entry in std::fs::read_dir(".").unwrap() {
@@ -411,7 +417,10 @@ fn upgrades_unversioned_database() {
         // leave user_version at default 0
     }
 
-    let _db = SqliteDb::new(path).expect("db open");
+    {
+        let _db = SqliteDb::new(path).expect("db open");
+        // dropped here
+    }
 
     let conn = Connection::open(path).unwrap();
     let user_version: i32 = conn
@@ -437,6 +446,8 @@ fn upgrades_unversioned_database() {
         .unwrap();
     assert!(record_cols.contains(&"notes".to_string()));
 
+    // close connection before removing file
+    drop(conn);
     std::fs::remove_file(path).unwrap();
     for entry in std::fs::read_dir(".").unwrap() {
         let entry = entry.unwrap();
@@ -485,7 +496,10 @@ fn repairs_misreported_version() {
     }
 
     // Opening should reconcile the mismatch and add missing columns.
-    let _db = SqliteDb::new(path).expect("db open");
+    {
+        let _db = SqliteDb::new(path).expect("db open");
+        // dropped here
+    }
 
     let conn = Connection::open(path).unwrap();
     let cols: Vec<String> = conn
@@ -502,6 +516,8 @@ fn repairs_misreported_version() {
         .unwrap();
     assert_eq!(user_version, 8);
 
+    // close connection before removing file
+    drop(conn);
     std::fs::remove_file(path).unwrap();
     for entry in std::fs::read_dir(".").unwrap() {
         let entry = entry.unwrap();
