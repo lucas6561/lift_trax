@@ -43,7 +43,11 @@ fn same_single(a: &workout_builder::SingleLift, b: &workout_builder::SingleLift)
 
 fn format_exec(exec: &LiftExecution) -> String {
     if exec.sets.is_empty() {
-        return "no sets recorded".into();
+        return if exec.notes.is_empty() {
+            "no sets recorded".into()
+        } else {
+            format!("no sets recorded - {}", exec.notes)
+        };
     }
     let first = &exec.sets[0];
     let rpe = first.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
@@ -56,13 +60,19 @@ fn format_exec(exec: &LiftExecution) -> String {
         Weight::None => String::from(""),
         other => format!("@ {}", other),
     };
+    let notes = if exec.notes.is_empty() {
+        String::new()
+    } else {
+        format!(" - {}", exec.notes)
+    };
 
     format!(
-        "{} sets x {} {}{}",
+        "{} sets x {} {}{}{}",
         exec.sets.len(),
         metric_str,
         weight_str,
-        rpe
+        rpe,
+        notes
     )
 }
 
@@ -146,7 +156,8 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
             workout_builder::WorkoutLiftKind::Single(s) => {
                 let mut count = 1usize;
                 while i + count < w.lifts.len() {
-                    if let workout_builder::WorkoutLiftKind::Single(next) = &w.lifts[i + count].kind {
+                    if let workout_builder::WorkoutLiftKind::Single(next) = &w.lifts[i + count].kind
+                    {
                         if same_single(s, next) {
                             count += 1;
                             continue;
@@ -155,6 +166,9 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                     break;
                 }
                 lines.push(format!("{}", single_desc(s, count)));
+                if !s.lift.notes.is_empty() {
+                    lines.push(format!("   - Notes: {}", s.lift.notes));
+                }
                 if let Some(desc) = last_exec_desc(db, &s.lift.name, false, s.metric.clone()) {
                     lines.push(format!("   - Last: {}", desc));
                 }
@@ -177,6 +191,9 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                         single_desc(sl, 1)
                     };
                     lines.push(format!("  {}. {}", j + 1, desc));
+                    if !sl.lift.notes.is_empty() {
+                        lines.push(format!("     - Notes: {}", sl.lift.notes));
+                    }
                     if let Some(desc) = last_exec_desc(db, &sl.lift.name, c.warmup, None) {
                         lines.push(format!("     - Last: {}", desc));
                     }
