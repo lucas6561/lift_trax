@@ -12,7 +12,7 @@ use database::Database;
 use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use rusqlite::Connection;
 use serde::Serialize;
-use sqlite_db::SqliteDb;
+use sqlite_db::{MAX_BACKUPS, SqliteDb};
 use weight::Weight;
 
 #[test]
@@ -127,22 +127,10 @@ fn list_lifts_returns_all_sorted() {
 #[test]
 fn lifts_by_type_filters_main_lifts() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift(
-        "Back Squat",
-        LiftRegion::LOWER,
-        LiftType::Squat,
-        &[],
-        "",
-    )
-    .unwrap();
-    db.add_lift(
-        "Bench",
-        LiftRegion::UPPER,
-        LiftType::BenchPress,
-        &[],
-        "",
-    )
-    .unwrap();
+    db.add_lift("Back Squat", LiftRegion::LOWER, LiftType::Squat, &[], "")
+        .unwrap();
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
     let lifts = db.lifts_by_type(LiftType::Squat).unwrap();
     assert_eq!(lifts.len(), 1);
     assert_eq!(lifts[0].name, "Back Squat");
@@ -151,30 +139,12 @@ fn lifts_by_type_filters_main_lifts() {
 #[test]
 fn lifts_by_region_and_type_filters() {
     let db = SqliteDb::new(":memory:").expect("db open");
-    db.add_lift(
-        "Curl",
-        LiftRegion::UPPER,
-        LiftType::Accessory,
-        &[],
-        "",
-    )
-    .unwrap();
-    db.add_lift(
-        "Squat",
-        LiftRegion::LOWER,
-        LiftType::Accessory,
-        &[],
-        "",
-    )
-    .unwrap();
-    db.add_lift(
-        "Bench",
-        LiftRegion::UPPER,
-        LiftType::BenchPress,
-        &[],
-        "",
-    )
-    .unwrap();
+    db.add_lift("Curl", LiftRegion::UPPER, LiftType::Accessory, &[], "")
+        .unwrap();
+    db.add_lift("Squat", LiftRegion::LOWER, LiftType::Accessory, &[], "")
+        .unwrap();
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
     let lifts = db
         .lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Accessory)
         .unwrap();
@@ -562,6 +532,44 @@ fn creates_backup_on_open() {
         })
         .collect();
     assert!(!backups.is_empty());
+
+    // clean up
+    std::fs::remove_file(path).unwrap();
+    for name in backups {
+        let _ = std::fs::remove_file(name);
+    }
+}
+
+#[test]
+fn limits_number_of_backups() {
+    let path = "rotate_backup.db";
+    // ensure clean state
+    let _ = std::fs::remove_file(path);
+    for entry in std::fs::read_dir(".").unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("rotate_backup.db.backup-") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+
+    // create more backups than allowed
+    for _ in 0..(MAX_BACKUPS + 3) {
+        let _db = SqliteDb::new(path).expect("db open");
+    }
+
+    let backups: Vec<_> = std::fs::read_dir(".")
+        .unwrap()
+        .filter_map(|e| {
+            let name = e.unwrap().file_name().to_string_lossy().into_owned();
+            if name.starts_with("rotate_backup.db.backup-") {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert!(backups.len() <= MAX_BACKUPS);
 
     // clean up
     std::fs::remove_file(path).unwrap();
