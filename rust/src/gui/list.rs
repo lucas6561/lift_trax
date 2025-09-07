@@ -231,7 +231,7 @@ impl GuiApp {
                                     } else {
                                         self.editing_exec = None;
                                         self.error = None;
-                                        self.refresh_lifts();
+                                        self.needs_lift_refresh = true;
                                     }
                                 }
                             }
@@ -343,7 +343,7 @@ impl GuiApp {
             self.edit_muscle_select = None;
             self.edit_lift_notes.clear();
             self.error = None;
-            self.refresh_lifts();
+            self.needs_lift_refresh = true;
         }
     }
 
@@ -452,7 +452,7 @@ impl GuiApp {
                     self.edit_band_select = None;
                     self.edit_warmup = false;
                     self.error = None;
-                    self.refresh_lifts();
+                    self.needs_lift_refresh = true;
                 }
             }
         }
