@@ -254,6 +254,14 @@ fn alternates_main_lifts_across_weeks() {
         "",
     )
     .unwrap();
+    db.add_lift(
+        "Wrist Curl",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Forearm],
+        "",
+    )
+    .unwrap();
 
     let builder = ConjugateWorkoutBuilder;
     let wave = builder.get_wave(6, &db).unwrap();
@@ -283,7 +291,7 @@ fn alternates_main_lifts_across_weeks() {
 
     for (i, week) in wave.iter().enumerate() {
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert!(mon.lifts.len() == 8 || mon.lifts.len() == 10);
+        assert!(mon.lifts.len() == 9 || mon.lifts.len() == 11);
         match &mon.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -292,11 +300,15 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Core));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Core));
             }
             _ => panic!("expected circuit"),
         }
@@ -311,7 +323,13 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLiftKind::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = mon.lifts.len() - 7;
+        let has_forearm = mon
+            .lifts
+            .last()
+            .map(|l| l.name == "Forearm Finisher")
+            .unwrap_or(false);
+        let base = if has_forearm { 8 } else { 7 };
+        let backoff_count = mon.lifts.len() - base;
         for b in &mon.lifts[2..2 + backoff_count] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
@@ -359,7 +377,8 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        match &mon.lifts.last().expect("conditioning").kind {
+        let cond_idx = 6 + backoff_count;
+        match &mon.lifts[cond_idx].kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::Conditioning));
                 assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
@@ -367,9 +386,17 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         }
+        if has_forearm {
+            match &mon.lifts[cond_idx + 1].kind {
+                WorkoutLiftKind::Single(s) => {
+                    assert_eq!(s.lift.main, Some(LiftType::Accessory));
+                }
+                _ => panic!("expected single"),
+            }
+        }
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
-        assert!(tue.lifts.len() == 8 || tue.lifts.len() == 10);
+        assert!(tue.lifts.len() == 9 || tue.lifts.len() == 11);
         match &tue.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -378,11 +405,15 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[0].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Core));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Core));
             }
             _ => panic!("expected circuit"),
         }
@@ -397,7 +428,13 @@ fn alternates_main_lifts_across_weeks() {
             WorkoutLiftKind::Single(s) => s.percent,
             _ => panic!("expected single"),
         };
-        let backoff_count = tue.lifts.len() - 7;
+        let has_forearm = tue
+            .lifts
+            .last()
+            .map(|l| l.name == "Forearm Finisher")
+            .unwrap_or(false);
+        let base = if has_forearm { 8 } else { 7 };
+        let backoff_count = tue.lifts.len() - base;
         for b in &tue.lifts[2..2 + backoff_count] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
@@ -445,7 +482,8 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        match &tue.lifts.last().expect("conditioning").kind {
+        let cond_idx = 6 + backoff_count;
+        match &tue.lifts[cond_idx].kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::Conditioning));
                 assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
@@ -453,9 +491,17 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         }
+        if has_forearm {
+            match &tue.lifts[cond_idx + 1].kind {
+                WorkoutLiftKind::Single(s) => {
+                    assert_eq!(s.lift.main, Some(LiftType::Accessory));
+                }
+                _ => panic!("expected single"),
+            }
+        }
 
         let thu = week.get(&Weekday::Thu).expect("thursday");
-        assert_eq!(thu.lifts.len(), 15);
+        assert_eq!(thu.lifts.len(), 16);
         match &thu.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -464,7 +510,7 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[0].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
@@ -528,9 +574,15 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         }
+        match &thu.lifts[15].kind {
+            WorkoutLiftKind::Single(s) => {
+                assert_eq!(s.lift.main, Some(LiftType::Accessory));
+            }
+            _ => panic!("expected single"),
+        }
 
         let fri = week.get(&Weekday::Fri).expect("friday");
-        assert_eq!(fri.lifts.len(), 18);
+        assert_eq!(fri.lifts.len(), 19);
         match &fri.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -539,7 +591,7 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[0].lift.main, Some(LiftType::Mobility));
                 assert_eq!(lifts[1].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[2].lift.main, Some(LiftType::Accessory));
-                assert_eq!(lifts[3].lift.main, Some(LiftType::Conditioning));
+                assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[0].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
@@ -600,6 +652,12 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(s.lift.main, Some(LiftType::Conditioning));
                 assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
                 assert_eq!(s.percent, None);
+            }
+            _ => panic!("expected single"),
+        }
+        match &fri.lifts[18].kind {
+            WorkoutLiftKind::Single(s) => {
+                assert_eq!(s.lift.main, Some(LiftType::Accessory));
             }
             _ => panic!("expected single"),
         }

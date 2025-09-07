@@ -217,6 +217,9 @@ impl ConjugateWorkoutBuilder {
             .clone();
 
         let mut accessories = db.lifts_by_region_and_type(region, LiftType::Accessory)?;
+        accessories.retain(|l| {
+            !l.muscles.contains(&Muscle::Forearm) && !l.muscles.contains(&Muscle::Core)
+        });
         accessories.shuffle(&mut rng);
         if accessories.len() < 2 {
             return Err("not enough accessory lifts available".into());
