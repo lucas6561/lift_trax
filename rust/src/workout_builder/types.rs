@@ -41,12 +41,6 @@ pub enum WorkoutLiftKind {
     Single(SingleLift),
     Circuit(CircuitLift),
 }
-/// A lift entry within a workout, either a single lift or a circuit.
-// #[derive(Clone)]
-// pub enum WorkoutLift {
-//     Single(SingleLift),
-//     Circuit(CircuitLift),
-// }
 
 /// Collection of lifts to be performed in a workout.
 #[derive(Clone)]
