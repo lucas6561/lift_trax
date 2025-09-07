@@ -53,6 +53,9 @@ pub trait Database {
     /// Retrieve lifts matching the given main lift type.
     fn lifts_by_type(&self, lift_type: LiftType) -> DbResult<Vec<Lift>>;
 
+    /// Retrieve accessory lifts that target the specified muscle.
+    fn get_accessories_by_muscle(&self, muscle: Muscle) -> DbResult<Vec<Lift>>;
+
     /// Retrieve lifts filtered by region and main lift type.
     fn lifts_by_region_and_type(
         &self,

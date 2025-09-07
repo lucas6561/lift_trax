@@ -537,6 +537,13 @@ impl Database for SqliteDb {
         )
     }
 
+    fn get_accessories_by_muscle(&self, muscle: Muscle) -> DbResult<Vec<Lift>> {
+        self.load_lifts(
+            "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ?1 AND (',' || muscles || ',') LIKE ?2 ORDER BY name",
+            params![LiftType::Accessory.to_string(), format!("%,{},%", muscle.to_string())],
+        )
+    }
+
     fn lifts_by_region_and_type(
         &self,
         region: LiftRegion,
