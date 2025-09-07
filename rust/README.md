@@ -49,15 +49,18 @@ cargo run -- add Squat 315 3 5 --date 2024-05-20 --rpe 8.5 --muscle QUAD --muscl
 Display each lift with all recorded executions, most recent first.
 
 ```bash
-cargo run -- list [--exercise EXERCISE]
+cargo run -- list [--exercise EXERCISE] [--muscle MUSCLE]...
 ```
 
-Use `--exercise` to filter by a specific movement.
+Use `--exercise` to filter by a specific movement, or `--muscle` to only list
+lifts that target a particular muscle group. The `--muscle` flag may be
+supplied multiple times to match any of the given muscles.
 
-Example:
+Examples:
 
 ```bash
 cargo run -- list --exercise Bench
+cargo run -- list --muscle CHEST --muscle TRICEP
 ```
 
 The output is formatted as:

@@ -1,4 +1,5 @@
 use chrono::{NaiveDate, Utc};
+use clap::ValueEnum;
 use eframe::{Frame, NativeOptions, egui};
 
 use crate::weight::{BandColor, WeightUnit};
@@ -81,6 +82,8 @@ struct GuiApp {
     edit_notes: String,
     filter_region: Option<LiftRegion>,
     filter_type: Option<LiftType>,
+    filter_muscles: Vec<Muscle>,
+    filter_muscle_select: Option<Muscle>,
     lifts: Vec<Lift>,
     error: Option<String>,
 }
@@ -170,6 +173,8 @@ impl GuiApp {
             edit_notes: String::new(),
             filter_region: None,
             filter_type: None,
+            filter_muscles: Vec::new(),
+            filter_muscle_select: None,
             lifts: Vec::new(),
             error: None,
         };
@@ -186,6 +191,9 @@ impl GuiApp {
                 }
                 if let Some(typ) = self.filter_type {
                     l.retain(|lift| lift.main == Some(typ));
+                }
+                if !self.filter_muscles.is_empty() {
+                    l.retain(|lift| self.filter_muscles.iter().any(|m| lift.muscles.contains(m)));
                 }
                 let selected_name = self
                     .selected_lift
@@ -223,8 +231,9 @@ impl GuiApp {
                 .selected_text(selected_region)
                 .show_ui(ui, |ui| {
                     for (val, label) in &region_opts {
-                        region_changed |=
-                            ui.selectable_value(&mut self.filter_region, *val, *label).changed();
+                        region_changed |= ui
+                            .selectable_value(&mut self.filter_region, *val, *label)
+                            .changed();
                     }
                 });
             if region_changed || self.filter_region != prev_region {
@@ -233,8 +242,7 @@ impl GuiApp {
 
             // Type filter
             let type_opts = main_lift_options();
-            let type_strings: Vec<String> =
-                type_opts.iter().map(|(_, s)| s.to_string()).collect();
+            let type_strings: Vec<String> = type_opts.iter().map(|(_, s)| s.to_string()).collect();
             let type_width = combo_box_width(ui, &type_strings);
             let selected_type = match self.filter_type {
                 Some(t) => t.to_string(),
@@ -247,12 +255,58 @@ impl GuiApp {
                 .selected_text(selected_type)
                 .show_ui(ui, |ui| {
                     for (val, label) in &type_opts {
-                        type_changed |=
-                            ui.selectable_value(&mut self.filter_type, *val, *label).changed();
+                        type_changed |= ui
+                            .selectable_value(&mut self.filter_type, *val, *label)
+                            .changed();
                     }
                 });
             if type_changed || self.filter_type != prev_type {
                 self.refresh_lifts();
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Muscles:");
+            let mut remove_idx: Option<usize> = None;
+            for (i, m) in self.filter_muscles.iter().enumerate() {
+                ui.label(m.to_string());
+                if ui.small_button("x").clicked() {
+                    remove_idx = Some(i);
+                }
+            }
+            if let Some(i) = remove_idx {
+                self.filter_muscles.remove(i);
+                self.refresh_lifts();
+            }
+            let mut muscle_opts: Vec<Muscle> = Muscle::value_variants().to_vec();
+            muscle_opts.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            let mut muscle_strings: Vec<String> =
+                muscle_opts.iter().map(|m| m.to_string()).collect();
+            muscle_strings.push("Select muscle".into());
+            let muscle_width = combo_box_width(ui, &muscle_strings);
+            egui::ComboBox::from_id_source("filter_muscle_select")
+                .width(muscle_width)
+                .selected_text(
+                    self.filter_muscle_select
+                        .map(|m| m.to_string())
+                        .unwrap_or_else(|| "Select muscle".into()),
+                )
+                .show_ui(ui, |ui| {
+                    for m in &muscle_opts {
+                        ui.selectable_value(
+                            &mut self.filter_muscle_select,
+                            Some(*m),
+                            m.to_string(),
+                        );
+                    }
+                });
+            if ui.button("Add").clicked() {
+                if let Some(m) = self.filter_muscle_select {
+                    if !self.filter_muscles.contains(&m) {
+                        self.filter_muscles.push(m);
+                        self.refresh_lifts();
+                    }
+                }
             }
         });
     }

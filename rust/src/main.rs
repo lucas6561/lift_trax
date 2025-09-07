@@ -6,18 +6,20 @@ use std::fs;
 
 mod database;
 mod gui;
+mod list;
 mod models;
 mod sqlite_db;
+mod wave_view;
 mod weight;
 mod workout_builder;
-mod wave_view;
 
 use crate::weight::Weight;
 use crate::workout_builder::WorkoutWeek;
-use wave_view::workout_lines;
 use database::Database;
+use list::filter_lifts;
 use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
+use wave_view::workout_lines;
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -59,6 +61,9 @@ enum Commands {
         /// Filter by exercise
         #[arg(long)]
         exercise: Option<String>,
+        /// Only include lifts that target these muscles
+        #[arg(long = "muscle", value_enum)]
+        muscles: Vec<Muscle>,
     },
     /// Generate an example conjugate wave
     Wave {
@@ -140,7 +145,6 @@ fn seed_example_lifts(db: &dyn Database) {
     );
 }
 
-
 fn day_name(day: Weekday) -> &'static str {
     match day {
         Weekday::Mon => "Monday",
@@ -192,9 +196,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             db.add_lift_execution(&exercise, &exec)?;
             println!("Lift execution added.");
         }
-        Commands::List { exercise } => {
-            // TODO handle name specified
+        Commands::List { exercise, muscles } => {
             let lifts = db.list_lifts()?;
+            let lifts = filter_lifts(lifts, exercise, muscles);
             for l in lifts {
                 let main_str = l.main.map(|m| format!(" [{}]", m)).unwrap_or_default();
                 let muscles_str = if l.muscles.is_empty() {
