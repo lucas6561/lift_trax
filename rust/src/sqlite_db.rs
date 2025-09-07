@@ -18,6 +18,9 @@ use crate::{
 /// Current database schema version.
 const DB_VERSION: i32 = 8;
 
+/// Maximum number of timestamped backups to retain.
+pub const MAX_BACKUPS: usize = 5;
+
 /// Database persisted to a SQLite file.
 pub struct SqliteDb {
     conn: Connection,
@@ -30,6 +33,32 @@ impl SqliteDb {
             let timestamp = Utc::now().format("%Y%m%d%H%M%S");
             let backup_path = format!("{}.backup-{}", path, timestamp);
             fs::copy(path, &backup_path)?;
+
+            // remove old backups
+            let db_path = Path::new(path);
+            let dir = match db_path.parent() {
+                Some(p) if !p.as_os_str().is_empty() => p,
+                _ => Path::new("."),
+            };
+            let prefix = format!("{}.backup-", db_path.file_name().unwrap().to_string_lossy());
+            let mut backups: Vec<_> = fs::read_dir(dir)?
+                .filter_map(|e| e.ok())
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().into_owned();
+                    if name.starts_with(&prefix) {
+                        Some((name, e.path()))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            backups.sort_by(|a, b| a.0.cmp(&b.0));
+            while backups.len() > MAX_BACKUPS {
+                if let Some((_, path)) = backups.first() {
+                    fs::remove_file(path)?;
+                }
+                backups.remove(0);
+            }
         }
         let conn = Connection::open(path)?;
         init_db(&conn)?;
