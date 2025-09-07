@@ -303,6 +303,19 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
+    fn forearm_finisher(db: &dyn Database) -> DbResult<Option<WorkoutLift>> {
+        let all = db.list_lifts()?;
+        let mut rng = thread_rng();
+        if let Ok(lift) = Self::accessory_lift(&all, Muscle::Forearm, &mut rng) {
+            Ok(Some(WorkoutLift {
+                name: "Forearm Finisher".to_string(),
+                kind: WorkoutLiftKind::Single(lift),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn build_week(
         i: usize,
         me_lifts: &MaxEffortLiftPools,
@@ -326,6 +339,9 @@ impl ConjugateWorkoutBuilder {
             db,
         )?);
         mon_lifts.push(Self::conditioning(db)?);
+        if let Some(fl) = Self::forearm_finisher(db)? {
+            mon_lifts.push(fl);
+        }
         week.insert(Weekday::Mon, Workout { lifts: mon_lifts });
 
         let upper = me_lifts.upper_for_week(i);
@@ -350,6 +366,9 @@ impl ConjugateWorkoutBuilder {
             db,
         )?);
         tue_lifts.push(Self::conditioning(db)?);
+        if let Some(fl) = Self::forearm_finisher(db)? {
+            tue_lifts.push(fl);
+        }
         week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
         let percent = 60 + (i as u32) * 5;
@@ -363,6 +382,9 @@ impl ConjugateWorkoutBuilder {
             db,
         )?);
         thu_lifts.push(Self::conditioning(db)?);
+        if let Some(fl) = Self::forearm_finisher(db)? {
+            thu_lifts.push(fl);
+        }
         week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
 
         let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?];
@@ -375,6 +397,9 @@ impl ConjugateWorkoutBuilder {
             db,
         )?);
         fri_lifts.push(Self::conditioning(db)?);
+        if let Some(fl) = Self::forearm_finisher(db)? {
+            fri_lifts.push(fl);
+        }
         week.insert(Weekday::Fri, Workout { lifts: fri_lifts });
 
         Ok(week)
