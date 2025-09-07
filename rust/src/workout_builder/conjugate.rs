@@ -204,10 +204,10 @@ impl ConjugateWorkoutBuilder {
     fn warmup(region: LiftRegion, db: &dyn Database) -> DbResult<WorkoutLift> {
         let mut rng = thread_rng();
 
-        let cond = db
-            .lifts_by_type(LiftType::Conditioning)?
+        let core = db
+            .get_accessories_by_muscle(Muscle::Core)?
             .choose(&mut rng)
-            .ok_or("not enough conditioning lifts available")?
+            .ok_or("not enough core lifts available")?
             .clone();
 
         let mob = db
@@ -234,7 +234,7 @@ impl ConjugateWorkoutBuilder {
         Ok(WorkoutLift {
             name: "Warmup Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
-                circuit_lifts: vec![mk(mob), mk(acc1), mk(acc2), mk(cond)],
+                circuit_lifts: vec![mk(mob), mk(acc1), mk(acc2), mk(core)],
                 rest_time_sec: 60,
                 rounds: 3,
                 warmup: true,
