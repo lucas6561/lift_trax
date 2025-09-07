@@ -137,6 +137,31 @@ fn lifts_by_type_filters_main_lifts() {
 }
 
 #[test]
+fn get_accessories_by_muscle_filters_targeted_muscle() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift(
+        "Pushdown",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Tricep],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Curl",
+        LiftRegion::UPPER,
+        LiftType::Accessory,
+        &[Muscle::Bicep],
+        "",
+    )
+    .unwrap();
+
+    let lifts = db.get_accessories_by_muscle(Muscle::Tricep).unwrap();
+    assert_eq!(lifts.len(), 1);
+    assert_eq!(lifts[0].name, "Pushdown");
+}
+
+#[test]
 fn lifts_by_region_and_type_filters() {
     let db = SqliteDb::new(":memory:").expect("db open");
     db.add_lift("Curl", LiftRegion::UPPER, LiftType::Accessory, &[], "")
