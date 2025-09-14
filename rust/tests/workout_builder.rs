@@ -13,6 +13,7 @@ use chrono::Weekday;
 use database::Database;
 use models::{LiftRegion, LiftType, Muscle, SetMetric};
 use sqlite_db::SqliteDb;
+use std::collections::HashSet;
 use workout_builder::{
     AccommodatingResistance, ConjugateWorkoutBuilder, WorkoutBuilder, WorkoutLiftKind,
 };
@@ -199,6 +200,30 @@ fn alternates_main_lifts_across_weeks() {
     )
     .unwrap();
     db.add_lift(
+        "Sit-up",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[Muscle::Core],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Crunch",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[Muscle::Core],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Leg Raise",
+        LiftRegion::LOWER,
+        LiftType::Accessory,
+        &[Muscle::Core],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
         "Lat Pulldown",
         LiftRegion::UPPER,
         LiftType::Accessory,
@@ -290,6 +315,8 @@ fn alternates_main_lifts_across_weeks() {
     let mut de_ohp_ar = AccommodatingResistance::Straight;
 
     for (i, week) in wave.iter().enumerate() {
+        let mut warmup_cores = HashSet::new();
+
         let mon = week.get(&Weekday::Mon).expect("monday");
         assert!(mon.lifts.len() == 9 || mon.lifts.len() == 11);
         match &mon.lifts[0].kind {
@@ -303,12 +330,13 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[3].lift.main, Some(LiftType::Accessory));
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
-                assert_eq!(lifts[3].lift.region, LiftRegion::LOWER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
                 assert!(!lifts[1].lift.muscles.contains(&Muscle::Forearm));
                 assert!(!lifts[1].lift.muscles.contains(&Muscle::Core));
                 assert!(!lifts[2].lift.muscles.contains(&Muscle::Forearm));
                 assert!(!lifts[2].lift.muscles.contains(&Muscle::Core));
+                assert!(lifts[3].lift.muscles.contains(&Muscle::Core));
+                warmup_cores.insert(lifts[3].lift.name.clone());
             }
             _ => panic!("expected circuit"),
         }
@@ -414,6 +442,8 @@ fn alternates_main_lifts_across_weeks() {
                 assert!(!lifts[1].lift.muscles.contains(&Muscle::Core));
                 assert!(!lifts[2].lift.muscles.contains(&Muscle::Forearm));
                 assert!(!lifts[2].lift.muscles.contains(&Muscle::Core));
+                assert!(lifts[3].lift.muscles.contains(&Muscle::Core));
+                warmup_cores.insert(lifts[3].lift.name.clone());
             }
             _ => panic!("expected circuit"),
         }
@@ -515,6 +545,12 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[1].lift.region, LiftRegion::LOWER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::LOWER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Core));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Core));
+                assert!(lifts[3].lift.muscles.contains(&Muscle::Core));
+                warmup_cores.insert(lifts[3].lift.name.clone());
             }
             _ => panic!("expected circuit"),
         }
@@ -596,6 +632,12 @@ fn alternates_main_lifts_across_weeks() {
                 assert_eq!(lifts[1].lift.region, LiftRegion::UPPER);
                 assert_eq!(lifts[2].lift.region, LiftRegion::UPPER);
                 assert!(lifts.iter().all(|l| l.percent.is_none()));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[1].lift.muscles.contains(&Muscle::Core));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Forearm));
+                assert!(!lifts[2].lift.muscles.contains(&Muscle::Core));
+                assert!(lifts[3].lift.muscles.contains(&Muscle::Core));
+                warmup_cores.insert(lifts[3].lift.name.clone());
             }
             _ => panic!("expected circuit"),
         }
@@ -661,5 +703,6 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         }
+        assert_eq!(warmup_cores.len(), 4);
     }
 }

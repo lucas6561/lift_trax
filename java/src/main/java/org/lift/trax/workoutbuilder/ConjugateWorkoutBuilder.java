@@ -3,8 +3,10 @@ package org.lift.trax.workoutbuilder;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 import org.lift.trax.Database;
 import org.lift.trax.Lift;
@@ -143,29 +145,49 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
                 new SingleLift(lift, SetMetric.reps(5), 80, null));
     }
 
-    private static WorkoutLift warmup(LiftRegion region, Database db) throws Exception {
+    private static WorkoutLift warmup(
+            LiftRegion region, Database db, Set<String> usedCores) throws Exception {
         Random rng = new Random();
 
-        List<Lift> conds = db.liftsByType(LiftType.CONDITIONING);
-        if (conds.isEmpty()) throw new Exception("not enough conditioning lifts available");
-        Lift cond = conds.get(rng.nextInt(conds.size()));
+        List<Lift> all = db.listLifts(null);
+        List<Lift> cores = new ArrayList<>();
+        for (Lift l : all) {
+            if (l.main == LiftType.ACCESSORY
+                    && l.muscles.contains(Muscle.CORE)
+                    && !usedCores.contains(l.name)) {
+                cores.add(l);
+            }
+        }
+        if (cores.isEmpty()) throw new Exception("not enough core lifts available");
+        Lift core = cores.get(rng.nextInt(cores.size()));
+        usedCores.add(core.name);
 
         List<Lift> mobs = db.liftsByRegionAndType(region, LiftType.MOBILITY);
         if (mobs.isEmpty()) throw new Exception("not enough mobility lifts available");
         Lift mob = mobs.get(rng.nextInt(mobs.size()));
 
         List<Lift> accessories = db.liftsByRegionAndType(region, LiftType.ACCESSORY);
+        accessories.removeIf(
+                l -> l.muscles.contains(Muscle.FOREARM) || l.muscles.contains(Muscle.CORE));
         if (accessories.size() < 2) throw new Exception("not enough accessory lifts available");
         Collections.shuffle(accessories, rng);
         Lift acc1 = accessories.get(0);
         Lift acc2 = accessories.get(1);
 
         List<SingleLift> lifts = List.of(
-                mkWarmupLift(cond),
                 mkWarmupLift(mob),
                 mkWarmupLift(acc1),
-                mkWarmupLift(acc2));
+                mkWarmupLift(acc2),
+                mkWarmupLift(core));
         return new CircuitLift(lifts, 60, 3);
+    }
+
+    private static WorkoutLift conditioning(Database db) throws Exception {
+        Random rng = new Random();
+        List<Lift> conds = db.liftsByType(LiftType.CONDITIONING);
+        if (conds.isEmpty()) throw new Exception("not enough conditioning lifts available");
+        Lift cond = conds.get(rng.nextInt(conds.size()));
+        return new SingleLift(cond, SetMetric.timeSecs(600), null, null);
     }
 
     private static SingleLift accessoryLift(List<Lift> allLifts, Muscle muscle, Random rng) throws Exception {
@@ -195,20 +217,22 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
 
     private static WorkoutWeek buildWeek(int i, MaxEffortLiftPools meLifts, DynamicLifts deLifts, Database db) throws Exception {
         WorkoutWeek week = new WorkoutWeek();
+        Set<String> usedCores = new HashSet<>();
 
         Lift lower = meLifts.lowerForWeek(i);
         List<WorkoutLift> monLifts = new ArrayList<>();
-        monLifts.add(warmup(LiftRegion.LOWER, db));
+        monLifts.add(warmup(LiftRegion.LOWER, db, usedCores));
         monLifts.add(single(lower));
         monLifts.addAll(backoffSets(lower));
         Lift nextLower = meLifts.lowerForWeek((i + 1) % meLifts.numWeeks());
         monLifts.addAll(supplementalSets(nextLower));
         monLifts.add(accessoryCircuit(Muscle.HAMSTRING, Muscle.QUAD, Muscle.CALF, db));
+        monLifts.add(conditioning(db));
         week.put(DayOfWeek.MONDAY, new Workout(monLifts));
 
         Lift upper = meLifts.upperForWeek(i);
         List<WorkoutLift> tueLifts = new ArrayList<>();
-        tueLifts.add(warmup(LiftRegion.UPPER, db));
+        tueLifts.add(warmup(LiftRegion.UPPER, db, usedCores));
         tueLifts.add(single(upper));
         tueLifts.addAll(backoffSets(upper));
         Lift nextUpper = meLifts.upperForWeek((i + 1) % meLifts.numWeeks());
@@ -216,21 +240,24 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         Muscle[] upperOpts = new Muscle[] {Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP};
         Muscle third = upperOpts[new Random().nextInt(upperOpts.length)];
         tueLifts.add(accessoryCircuit(Muscle.LAT, Muscle.TRICEP, third, db));
+        tueLifts.add(conditioning(db));
         week.put(DayOfWeek.TUESDAY, new Workout(tueLifts));
 
         int percent = 50 + i * 5;
         List<WorkoutLift> thuLifts = new ArrayList<>();
-        thuLifts.add(warmup(LiftRegion.LOWER, db));
+        thuLifts.add(warmup(LiftRegion.LOWER, db, usedCores));
         thuLifts.add(new SingleLift(deLifts.squat.lift, null, percent, deLifts.squat.ar));
         thuLifts.add(new SingleLift(deLifts.deadlift.lift, null, percent, deLifts.deadlift.ar));
         thuLifts.add(accessoryCircuit(Muscle.HAMSTRING, Muscle.QUAD, Muscle.CORE, db));
+        thuLifts.add(conditioning(db));
         week.put(DayOfWeek.THURSDAY, new Workout(thuLifts));
 
         List<WorkoutLift> friLifts = new ArrayList<>();
-        friLifts.add(warmup(LiftRegion.UPPER, db));
+        friLifts.add(warmup(LiftRegion.UPPER, db, usedCores));
         friLifts.add(new SingleLift(deLifts.bench.lift, null, percent, deLifts.bench.ar));
         friLifts.add(new SingleLift(deLifts.overhead.lift, null, percent, deLifts.overhead.ar));
         friLifts.add(accessoryCircuit(Muscle.LAT, Muscle.TRICEP, Muscle.BICEP, db));
+        friLifts.add(conditioning(db));
         week.put(DayOfWeek.FRIDAY, new Workout(friLifts));
 
         return week;

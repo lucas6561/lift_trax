@@ -1,5 +1,6 @@
 use chrono::Weekday;
 use rand::{Rng, rngs::ThreadRng, seq::SliceRandom, thread_rng};
+use std::collections::HashSet;
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType, Muscle, SetMetric};
@@ -201,14 +202,20 @@ impl ConjugateWorkoutBuilder {
             .collect()
     }
 
-    fn warmup(region: LiftRegion, db: &dyn Database) -> DbResult<WorkoutLift> {
+    fn warmup(
+        region: LiftRegion,
+        db: &dyn Database,
+        used_cores: &mut HashSet<String>,
+    ) -> DbResult<WorkoutLift> {
         let mut rng = thread_rng();
 
-        let core = db
-            .get_accessories_by_muscle(Muscle::Core)?
+        let mut cores = db.get_accessories_by_muscle(Muscle::Core)?;
+        cores.retain(|l| !used_cores.contains(&l.name));
+        let core = cores
             .choose(&mut rng)
             .ok_or("not enough core lifts available")?
             .clone();
+        used_cores.insert(core.name.clone());
 
         let mob = db
             .lifts_by_region_and_type(region, LiftType::Mobility)?
@@ -326,10 +333,11 @@ impl ConjugateWorkoutBuilder {
         db: &dyn Database,
     ) -> DbResult<WorkoutWeek> {
         let mut week = WorkoutWeek::new();
+        let mut used_cores = HashSet::new();
 
         let lower = me_lifts.lower_for_week(i);
         let mut mon_lifts = vec![
-            Self::warmup(LiftRegion::LOWER, db)?,
+            Self::warmup(LiftRegion::LOWER, db, &mut used_cores)?,
             Self::max_effort_single(lower.clone()),
         ];
         mon_lifts.extend(Self::backoff_sets(lower));
@@ -349,7 +357,7 @@ impl ConjugateWorkoutBuilder {
 
         let upper = me_lifts.upper_for_week(i);
         let mut tue_lifts = vec![
-            Self::warmup(LiftRegion::UPPER, db)?,
+            Self::warmup(LiftRegion::UPPER, db, &mut used_cores)?,
             Self::max_effort_single(upper.clone()),
         ];
         tue_lifts.extend(Self::backoff_sets(upper));
@@ -375,7 +383,7 @@ impl ConjugateWorkoutBuilder {
         week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
         let percent = 60 + (i as u32) * 5;
-        let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db)?];
+        let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db, &mut used_cores)?];
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
         thu_lifts.push(Self::accessory_circuit(
@@ -390,7 +398,7 @@ impl ConjugateWorkoutBuilder {
         }
         week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
 
-        let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db)?];
+        let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db, &mut used_cores)?];
         fri_lifts.extend(Self::dynamic_sets(&de_lifts.bench, 9, 3, percent));
         fri_lifts.extend(Self::dynamic_sets(&de_lifts.overhead, 6, 2, percent));
         fri_lifts.push(Self::accessory_circuit(
