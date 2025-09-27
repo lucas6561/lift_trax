@@ -2,6 +2,8 @@
 mod database;
 #[path = "../src/models/mod.rs"]
 mod models;
+#[path = "../src/random_stack.rs"]
+pub mod random_stack;
 #[path = "../src/sqlite_db.rs"]
 mod sqlite_db;
 #[path = "../src/weight.rs"]
@@ -111,6 +113,14 @@ fn alternates_main_lifts_across_weeks() {
     // warmup lifts
     db.add_lift(
         "Jump Rope",
+        LiftRegion::LOWER,
+        LiftType::Conditioning,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Assault Bike",
         LiftRegion::LOWER,
         LiftType::Conditioning,
         &[],
@@ -291,6 +301,24 @@ fn alternates_main_lifts_across_weeks() {
     let builder = ConjugateWorkoutBuilder;
     let wave = builder.get_wave(6, &db).unwrap();
     assert_eq!(wave.len(), 6);
+
+    let mut last_conditioning = None;
+    for week in &wave {
+        for day in [Weekday::Mon, Weekday::Tue, Weekday::Thu, Weekday::Fri] {
+            if let Some(workout) = week.get(&day) {
+                for lift in &workout.lifts {
+                    if let WorkoutLiftKind::Single(single) = &lift.kind {
+                        if single.lift.main == Some(LiftType::Conditioning) {
+                            if let Some(prev) = &last_conditioning {
+                                assert_ne!(prev, &single.lift.name);
+                            }
+                            last_conditioning = Some(single.lift.name.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let expected_lower = [
         LiftType::Squat,

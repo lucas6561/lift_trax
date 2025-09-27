@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType, Muscle, SetMetric};
+use crate::random_stack::RandomStack;
 
 use super::{
     AccommodatingResistance, CircuitLift, SingleLift, Workout, WorkoutBuilder, WorkoutLift,
@@ -252,13 +253,11 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
-    fn conditioning(db: &dyn Database) -> DbResult<WorkoutLift> {
-        let mut rng = thread_rng();
-        let cond = db
-            .lifts_by_type(LiftType::Conditioning)?
-            .choose(&mut rng)
-            .ok_or("not enough conditioning lifts available")?
-            .clone();
+    fn conditioning(stack: &mut RandomStack<Lift>) -> DbResult<WorkoutLift> {
+        let cond = match stack.pop() {
+            Some(lift) => lift,
+            None => return Err("not enough conditioning lifts available".into()),
+        };
         Ok(WorkoutLift {
             name: "Conditioning".to_string(),
             kind: WorkoutLiftKind::Single(SingleLift {
@@ -330,6 +329,7 @@ impl ConjugateWorkoutBuilder {
         i: usize,
         me_lifts: &MaxEffortLiftPools,
         de_lifts: &DynamicLifts,
+        conditioning: &mut RandomStack<Lift>,
         db: &dyn Database,
     ) -> DbResult<WorkoutWeek> {
         let mut week = WorkoutWeek::new();
@@ -349,7 +349,7 @@ impl ConjugateWorkoutBuilder {
             Muscle::Calf,
             db,
         )?);
-        mon_lifts.push(Self::conditioning(db)?);
+        mon_lifts.push(Self::conditioning(conditioning)?);
         if let Some(fl) = Self::forearm_finisher(db)? {
             mon_lifts.push(fl);
         }
@@ -376,7 +376,7 @@ impl ConjugateWorkoutBuilder {
             third,
             db,
         )?);
-        tue_lifts.push(Self::conditioning(db)?);
+        tue_lifts.push(Self::conditioning(conditioning)?);
         if let Some(fl) = Self::forearm_finisher(db)? {
             tue_lifts.push(fl);
         }
@@ -392,7 +392,7 @@ impl ConjugateWorkoutBuilder {
             Muscle::Core,
             db,
         )?);
-        thu_lifts.push(Self::conditioning(db)?);
+        thu_lifts.push(Self::conditioning(conditioning)?);
         if let Some(fl) = Self::forearm_finisher(db)? {
             thu_lifts.push(fl);
         }
@@ -407,7 +407,7 @@ impl ConjugateWorkoutBuilder {
             Muscle::Bicep,
             db,
         )?);
-        fri_lifts.push(Self::conditioning(db)?);
+        fri_lifts.push(Self::conditioning(conditioning)?);
         if let Some(fl) = Self::forearm_finisher(db)? {
             fri_lifts.push(fl);
         }
@@ -419,11 +419,22 @@ impl ConjugateWorkoutBuilder {
 
 impl WorkoutBuilder for ConjugateWorkoutBuilder {
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
-        let mut me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
+        let me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
         let dynamic = DynamicLifts::new(db)?;
+        let cond_lifts = db.lifts_by_type(LiftType::Conditioning)?;
+        if cond_lifts.is_empty() {
+            return Err("not enough conditioning lifts available".into());
+        }
+        let mut conditioning = RandomStack::new(cond_lifts);
         let mut weeks = Vec::with_capacity(num_weeks);
         for i in 0..num_weeks {
-            weeks.push(Self::build_week(i, &me_pools, &dynamic, db)?);
+            weeks.push(Self::build_week(
+                i,
+                &me_pools,
+                &dynamic,
+                &mut conditioning,
+                db,
+            )?);
         }
         Ok(weeks)
     }
