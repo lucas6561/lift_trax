@@ -2,6 +2,8 @@
 mod database;
 #[path = "../src/models/mod.rs"]
 mod models;
+#[path = "../src/random_stack.rs"]
+pub mod random_stack;
 #[path = "../src/sqlite_db.rs"]
 mod sqlite_db;
 #[path = "../src/wave_view.rs"]

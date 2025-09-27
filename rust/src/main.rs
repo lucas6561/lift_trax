@@ -8,6 +8,7 @@ mod database;
 mod gui;
 mod list;
 mod models;
+mod random_stack;
 mod sqlite_db;
 mod wave_view;
 mod weight;
