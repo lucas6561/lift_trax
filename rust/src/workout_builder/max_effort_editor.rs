@@ -104,42 +104,61 @@ impl MaxEffortEditorApp {
 
     fn selection_row(
         ui: &mut egui::Ui,
+        id_prefix: &str,
         label: &str,
         idx: usize,
         selection: &mut [usize],
         options: &[Lift],
     ) {
-        ui.horizontal(|ui| {
-            ui.label(label);
-            let current_idx = selection[idx];
-            let current_name = options
-                .get(current_idx)
-                .map(|lift| lift.name.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
+        let mut value = selection[idx];
+        let mut move_up = false;
+        let mut move_down = false;
+        let selection_len = selection.len();
 
-            let mut value = selection[idx];
-            egui::ComboBox::from_id_source(format!("combo_{}_{}", label, idx))
-                .selected_text(current_name)
-                .show_ui(ui, |combo_ui| {
-                    for (opt_idx, lift) in options.iter().enumerate() {
-                        combo_ui.selectable_value(&mut value, opt_idx, lift.name.clone());
-                    }
-                });
-            selection[idx] = value;
+        ui.push_id((id_prefix, idx), |ui| {
+            ui.horizontal(|ui| {
+                ui.label(label);
+                let current_name = options
+                    .get(value)
+                    .map(|lift| lift.name.clone())
+                    .unwrap_or_else(|| "Unknown".to_string());
 
-            if ui.add_enabled(idx > 0, egui::Button::new("↑")).clicked() {
-                selection.swap(idx, idx - 1);
-            }
-            if ui
-                .add_enabled(idx + 1 < selection.len(), egui::Button::new("↓"))
-                .clicked()
-            {
-                selection.swap(idx, idx + 1);
-            }
+                egui::ComboBox::from_id_source("combo")
+                    .selected_text(current_name)
+                    .show_ui(ui, |combo_ui| {
+                        for (opt_idx, lift) in options.iter().enumerate() {
+                            combo_ui.selectable_value(&mut value, opt_idx, lift.name.clone());
+                        }
+                    });
+
+                if ui.add_enabled(idx > 0, egui::Button::new("↑")).clicked() {
+                    move_up = true;
+                }
+                if ui
+                    .add_enabled(idx + 1 < selection_len, egui::Button::new("↓"))
+                    .clicked()
+                {
+                    move_down = true;
+                }
+            });
         });
+
+        selection[idx] = value;
+        if move_up {
+            selection.swap(idx, idx - 1);
+        }
+        if move_down {
+            selection.swap(idx, idx + 1);
+        }
     }
 
-    fn render_section(ui: &mut egui::Ui, title: &str, selection: &mut [usize], options: &[Lift]) {
+    fn render_section(
+        ui: &mut egui::Ui,
+        title: &str,
+        id_prefix: &str,
+        selection: &mut [usize],
+        options: &[Lift],
+    ) {
         ui.heading(title);
         if options.is_empty() {
             ui.label("No lifts available for this section.");
@@ -147,7 +166,7 @@ impl MaxEffortEditorApp {
         }
         for week_idx in 0..selection.len() {
             let label = format!("Week {}:", week_idx + 1);
-            Self::selection_row(ui, &label, week_idx, selection, options);
+            Self::selection_row(ui, id_prefix, &label, week_idx, selection, options);
         }
     }
 }
@@ -161,9 +180,21 @@ impl App for MaxEffortEditorApp {
             );
             ui.add_space(12.0);
 
-            Self::render_section(ui, "Lower Body Max Effort", &mut self.lower_selection, &self.lower_options);
+            Self::render_section(
+                ui,
+                "Lower Body Max Effort",
+                "lower",
+                &mut self.lower_selection,
+                &self.lower_options,
+            );
             ui.add_space(16.0);
-            Self::render_section(ui, "Upper Body Max Effort", &mut self.upper_selection, &self.upper_options);
+            Self::render_section(
+                ui,
+                "Upper Body Max Effort",
+                "upper",
+                &mut self.upper_selection,
+                &self.upper_options,
+            );
 
             ui.add_space(20.0);
             ui.separator();
