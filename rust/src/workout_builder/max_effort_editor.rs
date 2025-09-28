@@ -131,11 +131,17 @@ impl MaxEffortEditorApp {
                         }
                     });
 
-                if ui.add_enabled(idx > 0, egui::Button::new("↑")).clicked() {
+                if ui
+                    .add_enabled(idx > 0, egui::Button::new("Move Up").small())
+                    .clicked()
+                {
                     move_up = true;
                 }
                 if ui
-                    .add_enabled(idx + 1 < selection_len, egui::Button::new("↓"))
+                    .add_enabled(
+                        idx + 1 < selection_len,
+                        egui::Button::new("Move Down").small(),
+                    )
                     .clicked()
                 {
                     move_down = true;
