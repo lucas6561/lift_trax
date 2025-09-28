@@ -128,23 +128,30 @@ impl DynamicLifts {
 }
 
 impl ConjugateWorkoutBuilder {
-    fn combined_options(mut primary: Vec<Lift>, secondary: Vec<Lift>) -> Vec<Lift> {
-        primary.extend(secondary);
-        primary.sort_by(|a, b| a.name.cmp(&b.name));
-        primary.dedup_by(|a, b| a.name == b.name);
-        primary
+    fn sorted_options(mut lifts: Vec<Lift>) -> Vec<Lift> {
+        lifts.sort_by(|a, b| a.name.cmp(&b.name));
+        lifts.dedup_by(|a, b| a.name == b.name);
+        lifts
     }
 
-    fn lower_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
-        let squats = db.lifts_by_type(LiftType::Squat)?;
-        let deadlifts = db.lifts_by_type(LiftType::Deadlift)?;
-        Ok(Self::combined_options(squats, deadlifts))
+    fn squat_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
+        Ok(Self::sorted_options(db.lifts_by_type(LiftType::Squat)?))
     }
 
-    fn upper_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
-        let benches = db.lifts_by_type(LiftType::BenchPress)?;
-        let overheads = db.lifts_by_type(LiftType::OverheadPress)?;
-        Ok(Self::combined_options(benches, overheads))
+    fn deadlift_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
+        Ok(Self::sorted_options(db.lifts_by_type(LiftType::Deadlift)?))
+    }
+
+    fn bench_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
+        Ok(Self::sorted_options(
+            db.lifts_by_type(LiftType::BenchPress)?,
+        ))
+    }
+
+    fn overhead_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
+        Ok(Self::sorted_options(
+            db.lifts_by_type(LiftType::OverheadPress)?,
+        ))
     }
 
     fn max_effort_single(lift: Lift) -> WorkoutLift {
@@ -434,11 +441,15 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
         let me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
         let (default_lower, default_upper) = me_pools.schedule();
-        let lower_options = Self::lower_options(db)?;
-        let upper_options = Self::upper_options(db)?;
+        let lower_squat_options = Self::squat_options(db)?;
+        let lower_deadlift_options = Self::deadlift_options(db)?;
+        let upper_bench_options = Self::bench_options(db)?;
+        let upper_ohp_options = Self::overhead_options(db)?;
         let (lower_plan, upper_plan) = max_effort_editor::edit_max_effort_plan(
-            lower_options,
-            upper_options,
+            lower_squat_options,
+            lower_deadlift_options,
+            upper_bench_options,
+            upper_ohp_options,
             default_lower,
             default_upper,
         )?;
