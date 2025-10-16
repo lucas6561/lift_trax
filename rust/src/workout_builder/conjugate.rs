@@ -1,3 +1,12 @@
+//! Utilities for building conjugate-style training waves.
+//!
+//! The conjugate method alternates "max effort" and "dynamic effort" training
+//! days for both the upper and lower body. This file contains the logic that
+//! stitches together the individual pieces of such a program using the data
+//! stored in the database. The goal of the documentation is to provide a
+//! readable walkthrough of how the builder makes decisions, so the comments
+//! prefer clarity over brevity.
+
 use chrono::Weekday;
 use rand::{Rng, rngs::ThreadRng, seq::SliceRandom, thread_rng};
 use std::collections::HashSet;
@@ -13,15 +22,30 @@ use super::{
 };
 
 /// Workout builder implementing a basic conjugate approach.
+///
+/// The builder is intentionally stateless. All of the state required to build
+/// a wave—what main lifts to perform, which accessories are available, etc.—is
+/// pulled from the database when [`WorkoutBuilder::get_wave`] is invoked.
 pub struct ConjugateWorkoutBuilder;
 
 /// Holds shuffled pools of main lifts per week.
+///
+/// A typical conjugate rotation alternates squat and deadlift variations on
+/// lower-body max effort days and bench or overhead press variations on the
+/// upper-body days. The `MaxEffortLiftPools` structure encapsulates this idea
+/// by pre-shuffling candidate lifts and assigning them to weeks, ensuring that
+/// no lift is repeated until the entire pool has been exhausted.
 struct MaxEffortLiftPools {
     lower_weeks: Vec<Lift>,
     upper_weeks: Vec<Lift>,
 }
 
 impl MaxEffortLiftPools {
+    /// Creates shuffled pools of lower and upper lifts for the requested wave.
+    ///
+    /// The database is queried for four categories of lifts. We guarantee that
+    /// there are enough options to cover the requested number of weeks before
+    /// shuffling so we can index into the vectors without fear of panics.
     fn new(num_weeks: usize, db: &dyn Database) -> DbResult<Self> {
         let mut squats = db.lifts_by_type(LiftType::Squat)?;
         let mut deadlifts = db.lifts_by_type(LiftType::Deadlift)?;
@@ -78,6 +102,11 @@ impl MaxEffortLiftPools {
         })
     }
 
+    /// Returns the scheduled lifts for lower and upper weeks.
+    ///
+    /// Cloning here is deliberate—`MaxEffortLiftPools` is a short-lived helper
+    /// and the returned vectors are inexpensive to duplicate compared to the
+    /// clarity of ownership it provides the caller.
     fn schedule(&self) -> (Vec<Lift>, Vec<Lift>) {
         (self.lower_weeks.clone(), self.upper_weeks.clone())
     }
@@ -96,6 +125,14 @@ struct DynamicLifts {
 }
 
 impl DynamicLifts {
+    /// Picks a main lift for each dynamic effort slot and pairs it with a
+    /// randomly chosen accommodating resistance (straight weight, chains, or
+    /// bands).
+    ///
+    /// The conjugate method typically uses one main variation per movement
+    /// pattern for dynamic work, so unlike the max-effort section we only grab
+    /// the canonical lift for each pattern. The random accommodating resistance
+    /// introduces weekly variety without changing the core movement.
     fn new(db: &dyn Database) -> DbResult<Self> {
         let mut rng = thread_rng();
         let ar_opts = [
@@ -128,32 +165,42 @@ impl DynamicLifts {
 }
 
 impl ConjugateWorkoutBuilder {
+    /// Sorts and deduplicates a set of lifts to provide a stable UI ordering.
+    ///
+    /// The editor that allows the user to tweak the max-effort plan benefits
+    /// from deterministic ordering, and removing duplicate names avoids showing
+    /// near-identical options.
     fn sorted_options(mut lifts: Vec<Lift>) -> Vec<Lift> {
         lifts.sort_by(|a, b| a.name.cmp(&b.name));
         lifts.dedup_by(|a, b| a.name == b.name);
         lifts
     }
 
+    /// Convenience wrapper for fetching squat variations.
     fn squat_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
         Ok(Self::sorted_options(db.lifts_by_type(LiftType::Squat)?))
     }
 
+    /// Convenience wrapper for fetching deadlift variations.
     fn deadlift_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
         Ok(Self::sorted_options(db.lifts_by_type(LiftType::Deadlift)?))
     }
 
+    /// Convenience wrapper for fetching bench press variations.
     fn bench_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
         Ok(Self::sorted_options(
             db.lifts_by_type(LiftType::BenchPress)?,
         ))
     }
 
+    /// Convenience wrapper for fetching overhead press variations.
     fn overhead_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
         Ok(Self::sorted_options(
             db.lifts_by_type(LiftType::OverheadPress)?,
         ))
     }
 
+    /// Builds the canonical "work up to a single" used on max effort days.
     fn max_effort_single(lift: Lift) -> WorkoutLift {
         WorkoutLift {
             name: "Max Effort Single".to_string(),
@@ -166,6 +213,12 @@ impl ConjugateWorkoutBuilder {
         }
     }
 
+    /// Generates backoff work to follow a max effort single.
+    ///
+    /// The conjugate approach is intentionally loose in how many sets/reps to
+    /// use after the top single. To mirror that flexibility we introduce a bit
+    /// of randomness: sometimes we prescribe a single heavier AMRAP-style set,
+    /// other times a small cluster of triples at a lower percentage.
     fn backoff_sets(lift: Lift) -> Vec<WorkoutLift> {
         let mut rng = thread_rng();
         if rng.gen_bool(0.5) {
@@ -194,6 +247,11 @@ impl ConjugateWorkoutBuilder {
         }
     }
 
+    /// Provides the lighter supplemental work that follows the backoff sets.
+    ///
+    /// These sets are intentionally consistent—a few sets of five at a fixed
+    /// percentage—so the lifter can accumulate volume on a closely related
+    /// variation without additional randomness.
     fn supplemental_sets(lift: Lift) -> Vec<WorkoutLift> {
         (0..3)
             .map(|_| WorkoutLift {
@@ -208,6 +266,10 @@ impl ConjugateWorkoutBuilder {
             .collect()
     }
 
+    /// Builds a block of dynamic-effort sets for the provided lift.
+    ///
+    /// The number of sets, reps, and percent are all chosen by the caller so
+    /// that the same helper can be re-used for both lower and upper sessions.
     fn dynamic_sets(dl: &DynamicLift, sets: usize, reps: i32, percent: u32) -> Vec<WorkoutLift> {
         (0..sets)
             .map(|_| WorkoutLift {
@@ -222,6 +284,12 @@ impl ConjugateWorkoutBuilder {
             .collect()
     }
 
+    /// Assembles a warmup circuit consisting of mobility, accessories, and a
+    /// core exercise.
+    ///
+    /// Warmups are tracked across the week so we do not repeat the same core
+    /// exercise twice. Mobility and accessory choices are constrained to the
+    /// requested region (upper or lower body) to keep the warmup targeted.
     fn warmup(
         region: LiftRegion,
         db: &dyn Database,
@@ -272,6 +340,11 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
+    /// Pops the next conditioning movement off a random stack.
+    ///
+    /// `RandomStack` behaves like a shuffled deck: each pull returns a random
+    /// item without replacement until the deck is exhausted. This mimics the
+    /// "grab bag" approach many conjugate templates take for conditioning work.
     fn conditioning(stack: &mut RandomStack<Lift>) -> DbResult<WorkoutLift> {
         let cond = match stack.pop() {
             Some(lift) => lift,
@@ -288,6 +361,7 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
+    /// Chooses a single accessory lift that trains the requested muscle group.
     fn accessory_lift(all: &[Lift], muscle: Muscle, rng: &mut ThreadRng) -> DbResult<SingleLift> {
         let matches: Vec<Lift> = all
             .iter()
@@ -307,6 +381,7 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
+    /// Creates a circuit of three accessories targeting the supplied muscles.
     fn accessory_circuit(
         m1: Muscle,
         m2: Muscle,
@@ -331,6 +406,10 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
+    /// Adds an optional single-lift finisher focusing on forearms.
+    ///
+    /// Not all databases will have forearm accessories, so the finisher is
+    /// treated as best-effort rather than required.
     fn forearm_finisher(db: &dyn Database) -> DbResult<Option<WorkoutLift>> {
         let all = db.list_lifts()?;
         let mut rng = thread_rng();
@@ -344,6 +423,17 @@ impl ConjugateWorkoutBuilder {
         }
     }
 
+    /// Builds out a single week of conjugate training.
+    ///
+    /// Each week features four primary training days:
+    ///
+    /// * **Monday** – Lower max effort
+    /// * **Tuesday** – Upper max effort
+    /// * **Thursday** – Lower dynamic effort
+    /// * **Friday** – Upper dynamic effort
+    ///
+    /// The structure within each day follows the typical template of warmup,
+    /// main work, accessories, conditioning, and an optional finisher.
     fn build_week(
         i: usize,
         lower_plan: &[Lift],
@@ -438,6 +528,18 @@ impl ConjugateWorkoutBuilder {
 }
 
 impl WorkoutBuilder for ConjugateWorkoutBuilder {
+    /// Constructs a complete conjugate wave of the requested length.
+    ///
+    /// High-level flow:
+    ///
+    /// 1. Build the pools of candidate max-effort lifts.
+    /// 2. Allow the user (via `max_effort_editor`) to customize those plans.
+    /// 3. Select dynamic-effort variations and shuffle conditioning work.
+    /// 4. Assemble each week using [`ConjugateWorkoutBuilder::build_week`].
+    ///
+    /// Any shortage of required lifts results in an error rather than a
+    /// partially constructed wave so that the caller can gracefully surface the
+    /// issue to the end user.
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
         let me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
         let (default_lower, default_upper) = me_pools.schedule();
