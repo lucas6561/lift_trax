@@ -8,8 +8,8 @@
 //! prefer clarity over brevity.
 
 use chrono::Weekday;
-use rand::{Rng, rngs::ThreadRng, seq::SliceRandom, thread_rng};
-use std::collections::HashSet;
+use rand::{Rng, seq::SliceRandom, thread_rng};
+use std::collections::HashMap;
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType, Muscle, SetMetric};
@@ -38,6 +38,173 @@ pub struct ConjugateWorkoutBuilder;
 struct MaxEffortLiftPools {
     lower_weeks: Vec<Lift>,
     upper_weeks: Vec<Lift>,
+}
+
+struct WarmupStacks {
+    core: RandomStack<Lift>,
+    lower_mobility: RandomStack<Lift>,
+    upper_mobility: RandomStack<Lift>,
+    lower_accessories: RandomStack<Lift>,
+    upper_accessories: RandomStack<Lift>,
+}
+
+impl WarmupStacks {
+    fn new(db: &dyn Database) -> DbResult<Self> {
+        let mut lower_accessories =
+            db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Accessory)?;
+        lower_accessories.retain(|l| {
+            !l.muscles.contains(&Muscle::Forearm) && !l.muscles.contains(&Muscle::Core)
+        });
+        if lower_accessories.len() < 2 {
+            return Err("not enough accessory lifts available".into());
+        }
+
+        let mut upper_accessories =
+            db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Accessory)?;
+        upper_accessories.retain(|l| {
+            !l.muscles.contains(&Muscle::Forearm) && !l.muscles.contains(&Muscle::Core)
+        });
+        if upper_accessories.len() < 2 {
+            return Err("not enough accessory lifts available".into());
+        }
+
+        let core = RandomStack::new(db.get_accessories_by_muscle(Muscle::Core)?);
+        if core.is_empty() {
+            return Err("not enough core lifts available".into());
+        }
+
+        let lower_mobility =
+            RandomStack::new(db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Mobility)?);
+        if lower_mobility.is_empty() {
+            return Err("not enough mobility lifts available".into());
+        }
+
+        let upper_mobility =
+            RandomStack::new(db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Mobility)?);
+        if upper_mobility.is_empty() {
+            return Err("not enough mobility lifts available".into());
+        }
+
+        Ok(Self {
+            core,
+            lower_mobility,
+            upper_mobility,
+            lower_accessories: RandomStack::new(lower_accessories),
+            upper_accessories: RandomStack::new(upper_accessories),
+        })
+    }
+
+    fn warmup(&mut self, region: LiftRegion) -> DbResult<WorkoutLift> {
+        let core = self.core.pop().ok_or("not enough core lifts available")?;
+
+        let (mobility_stack, accessory_stack) = match region {
+            LiftRegion::LOWER => (&mut self.lower_mobility, &mut self.lower_accessories),
+            LiftRegion::UPPER => (&mut self.upper_mobility, &mut self.upper_accessories),
+        };
+
+        let mob = mobility_stack
+            .pop()
+            .ok_or("not enough mobility lifts available")?;
+        let acc1 = accessory_stack
+            .pop()
+            .ok_or("not enough accessory lifts available")?;
+        let acc2 = accessory_stack
+            .pop()
+            .ok_or("not enough accessory lifts available")?;
+
+        let mk = |lift: Lift| SingleLift {
+            lift,
+            metric: None,
+            percent: None,
+            accommodating_resistance: None,
+        };
+
+        Ok(WorkoutLift {
+            name: "Warmup Circuit".to_string(),
+            kind: WorkoutLiftKind::Circuit(CircuitLift {
+                circuit_lifts: vec![mk(mob), mk(acc1), mk(acc2), mk(core)],
+                rest_time_sec: 60,
+                rounds: 3,
+                warmup: true,
+            }),
+        })
+    }
+}
+
+struct AccessoryStacks {
+    stacks: HashMap<Muscle, RandomStack<Lift>>,
+    forearms: Option<RandomStack<Lift>>,
+}
+
+impl AccessoryStacks {
+    fn new(db: &dyn Database) -> DbResult<Self> {
+        let required = [
+            Muscle::Hamstring,
+            Muscle::Quad,
+            Muscle::Calf,
+            Muscle::Lat,
+            Muscle::Tricep,
+            Muscle::RearDelt,
+            Muscle::Shoulder,
+            Muscle::FrontDelt,
+            Muscle::Trap,
+            Muscle::Core,
+            Muscle::Bicep,
+        ];
+
+        let mut stacks = HashMap::new();
+        for muscle in required {
+            let lifts = db.get_accessories_by_muscle(muscle)?;
+            if lifts.is_empty() {
+                return Err(format!("not enough accessory lifts available for {}", muscle).into());
+            }
+            stacks.insert(muscle, RandomStack::new(lifts));
+        }
+
+        let forearms = {
+            let lifts = db.get_accessories_by_muscle(Muscle::Forearm)?;
+            if lifts.is_empty() {
+                None
+            } else {
+                Some(RandomStack::new(lifts))
+            }
+        };
+
+        Ok(Self { stacks, forearms })
+    }
+
+    fn single(&mut self, muscle: Muscle) -> DbResult<SingleLift> {
+        let stack = match self.stacks.get_mut(&muscle) {
+            Some(stack) => stack,
+            None => {
+                return Err(format!("not enough accessory lifts available for {}", muscle).into());
+            }
+        };
+        let lift = match stack.pop() {
+            Some(lift) => lift,
+            None => {
+                return Err(format!("not enough accessory lifts available for {}", muscle).into());
+            }
+        };
+        let reps = thread_rng().gen_range(10..=12);
+        Ok(SingleLift {
+            lift,
+            metric: Some(SetMetric::Reps(reps)),
+            percent: None,
+            accommodating_resistance: None,
+        })
+    }
+
+    fn forearm(&mut self) -> Option<SingleLift> {
+        let stack = self.forearms.as_mut()?;
+        let reps = thread_rng().gen_range(10..=12);
+        stack.pop().map(|lift| SingleLift {
+            lift,
+            metric: Some(SetMetric::Reps(reps)),
+            percent: None,
+            accommodating_resistance: None,
+        })
+    }
 }
 
 impl MaxEffortLiftPools {
@@ -284,62 +451,6 @@ impl ConjugateWorkoutBuilder {
             .collect()
     }
 
-    /// Assembles a warmup circuit consisting of mobility, accessories, and a
-    /// core exercise.
-    ///
-    /// Warmups are tracked across the week so we do not repeat the same core
-    /// exercise twice. Mobility and accessory choices are constrained to the
-    /// requested region (upper or lower body) to keep the warmup targeted.
-    fn warmup(
-        region: LiftRegion,
-        db: &dyn Database,
-        used_cores: &mut HashSet<String>,
-    ) -> DbResult<WorkoutLift> {
-        let mut rng = thread_rng();
-
-        let mut cores = db.get_accessories_by_muscle(Muscle::Core)?;
-        cores.retain(|l| !used_cores.contains(&l.name));
-        let core = cores
-            .choose(&mut rng)
-            .ok_or("not enough core lifts available")?
-            .clone();
-        used_cores.insert(core.name.clone());
-
-        let mob = db
-            .lifts_by_region_and_type(region, LiftType::Mobility)?
-            .choose(&mut rng)
-            .ok_or("not enough mobility lifts available")?
-            .clone();
-
-        let mut accessories = db.lifts_by_region_and_type(region, LiftType::Accessory)?;
-        accessories.retain(|l| {
-            !l.muscles.contains(&Muscle::Forearm) && !l.muscles.contains(&Muscle::Core)
-        });
-        accessories.shuffle(&mut rng);
-        if accessories.len() < 2 {
-            return Err("not enough accessory lifts available".into());
-        }
-        let acc1 = accessories[0].clone();
-        let acc2 = accessories[1].clone();
-
-        let mk = |lift: Lift| SingleLift {
-            lift,
-            metric: None,
-            percent: None,
-            accommodating_resistance: None,
-        };
-
-        Ok(WorkoutLift {
-            name: "Warmup Circuit".to_string(),
-            kind: WorkoutLiftKind::Circuit(CircuitLift {
-                circuit_lifts: vec![mk(mob), mk(acc1), mk(acc2), mk(core)],
-                rest_time_sec: 60,
-                rounds: 3,
-                warmup: true,
-            }),
-        })
-    }
-
     /// Pops the next conditioning movement off a random stack.
     ///
     /// `RandomStack` behaves like a shuffled deck: each pull returns a random
@@ -361,40 +472,14 @@ impl ConjugateWorkoutBuilder {
         })
     }
 
-    /// Chooses a single accessory lift that trains the requested muscle group.
-    fn accessory_lift(all: &[Lift], muscle: Muscle, rng: &mut ThreadRng) -> DbResult<SingleLift> {
-        let matches: Vec<Lift> = all
-            .iter()
-            .filter(|l| l.main == Some(LiftType::Accessory) && l.muscles.contains(&muscle))
-            .cloned()
-            .collect();
-        if matches.is_empty() {
-            return Err(format!("not enough accessory lifts available for {}", muscle).into());
-        }
-        let lift = matches.choose(rng).unwrap().clone();
-        let reps = rng.gen_range(10..=12);
-        Ok(SingleLift {
-            lift,
-            metric: Some(SetMetric::Reps(reps)),
-            percent: None,
-            accommodating_resistance: None,
-        })
-    }
-
     /// Creates a circuit of three accessories targeting the supplied muscles.
     fn accessory_circuit(
+        stacks: &mut AccessoryStacks,
         m1: Muscle,
         m2: Muscle,
         m3: Muscle,
-        db: &dyn Database,
     ) -> DbResult<WorkoutLift> {
-        let all = db.list_lifts()?;
-        let mut rng = thread_rng();
-        let lifts = vec![
-            Self::accessory_lift(&all, m1, &mut rng)?,
-            Self::accessory_lift(&all, m2, &mut rng)?,
-            Self::accessory_lift(&all, m3, &mut rng)?,
-        ];
+        let lifts = vec![stacks.single(m1)?, stacks.single(m2)?, stacks.single(m3)?];
         Ok(WorkoutLift {
             name: "Accessory Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
@@ -410,10 +495,8 @@ impl ConjugateWorkoutBuilder {
     ///
     /// Not all databases will have forearm accessories, so the finisher is
     /// treated as best-effort rather than required.
-    fn forearm_finisher(db: &dyn Database) -> DbResult<Option<WorkoutLift>> {
-        let all = db.list_lifts()?;
-        let mut rng = thread_rng();
-        if let Ok(lift) = Self::accessory_lift(&all, Muscle::Forearm, &mut rng) {
+    fn forearm_finisher(accessories: &mut AccessoryStacks) -> DbResult<Option<WorkoutLift>> {
+        if let Some(lift) = accessories.forearm() {
             Ok(Some(WorkoutLift {
                 name: "Forearm Finisher".to_string(),
                 kind: WorkoutLiftKind::Single(lift),
@@ -440,34 +523,34 @@ impl ConjugateWorkoutBuilder {
         upper_plan: &[Lift],
         de_lifts: &DynamicLifts,
         conditioning: &mut RandomStack<Lift>,
-        db: &dyn Database,
+        warmups: &mut WarmupStacks,
+        accessories: &mut AccessoryStacks,
     ) -> DbResult<WorkoutWeek> {
         let mut week = WorkoutWeek::new();
-        let mut used_cores = HashSet::new();
 
         let lower = lower_plan[i].clone();
         let mut mon_lifts = vec![
-            Self::warmup(LiftRegion::LOWER, db, &mut used_cores)?,
+            warmups.warmup(LiftRegion::LOWER)?,
             Self::max_effort_single(lower.clone()),
         ];
         mon_lifts.extend(Self::backoff_sets(lower));
         let next_lower = lower_plan[(i + 1) % lower_plan.len()].clone();
         mon_lifts.extend(Self::supplemental_sets(next_lower));
         mon_lifts.push(Self::accessory_circuit(
+            accessories,
             Muscle::Hamstring,
             Muscle::Quad,
             Muscle::Calf,
-            db,
         )?);
         mon_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(db)? {
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
             mon_lifts.push(fl);
         }
         week.insert(Weekday::Mon, Workout { lifts: mon_lifts });
 
         let upper = upper_plan[i].clone();
         let mut tue_lifts = vec![
-            Self::warmup(LiftRegion::UPPER, db, &mut used_cores)?,
+            warmups.warmup(LiftRegion::UPPER)?,
             Self::max_effort_single(upper.clone()),
         ];
         tue_lifts.extend(Self::backoff_sets(upper));
@@ -481,44 +564,44 @@ impl ConjugateWorkoutBuilder {
         ];
         let third = *upper_opts.choose(&mut thread_rng()).unwrap();
         tue_lifts.push(Self::accessory_circuit(
+            accessories,
             Muscle::Lat,
             Muscle::Tricep,
             third,
-            db,
         )?);
         tue_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(db)? {
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
             tue_lifts.push(fl);
         }
         week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
         let percent = 60 + (i as u32) * 5;
-        let mut thu_lifts = vec![Self::warmup(LiftRegion::LOWER, db, &mut used_cores)?];
+        let mut thu_lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
         thu_lifts.push(Self::accessory_circuit(
+            accessories,
             Muscle::Hamstring,
             Muscle::Quad,
             Muscle::Core,
-            db,
         )?);
         thu_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(db)? {
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
             thu_lifts.push(fl);
         }
         week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
 
-        let mut fri_lifts = vec![Self::warmup(LiftRegion::UPPER, db, &mut used_cores)?];
+        let mut fri_lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
         fri_lifts.extend(Self::dynamic_sets(&de_lifts.bench, 9, 3, percent));
         fri_lifts.extend(Self::dynamic_sets(&de_lifts.overhead, 6, 2, percent));
         fri_lifts.push(Self::accessory_circuit(
+            accessories,
             Muscle::Lat,
             Muscle::Tricep,
             Muscle::Bicep,
-            db,
         )?);
         fri_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(db)? {
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
             fri_lifts.push(fl);
         }
         week.insert(Weekday::Fri, Workout { lifts: fri_lifts });
@@ -561,6 +644,8 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
             return Err("not enough conditioning lifts available".into());
         }
         let mut conditioning = RandomStack::new(cond_lifts);
+        let mut warmups = WarmupStacks::new(db)?;
+        let mut accessories = AccessoryStacks::new(db)?;
         let mut weeks = Vec::with_capacity(num_weeks);
         for i in 0..num_weeks {
             weeks.push(Self::build_week(
@@ -569,7 +654,8 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
                 &upper_plan,
                 &dynamic,
                 &mut conditioning,
-                db,
+                &mut warmups,
+                &mut accessories,
             )?);
         }
         Ok(weeks)

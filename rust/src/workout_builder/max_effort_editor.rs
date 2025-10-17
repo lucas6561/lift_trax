@@ -257,13 +257,7 @@ impl Column {
                 if triangle_button(ui, TriangleDirection::Up, idx > 0).clicked() {
                     move_up = true;
                 }
-                if triangle_button(
-                    ui,
-                    TriangleDirection::Down,
-                    idx + 1 < selection_len,
-                )
-                .clicked()
-                {
+                if triangle_button(ui, TriangleDirection::Down, idx + 1 < selection_len).clicked() {
                     move_down = true;
                 }
             });
@@ -336,7 +330,11 @@ fn triangle_button(ui: &mut egui::Ui, direction: TriangleDirection, enabled: boo
                 egui::pos2(rect.center().x, rect.bottom() - inset_y),
             ],
         };
-        painter.add(Shape::convex_polygon(points.to_vec(), visuals.fg_stroke.color, stroke));
+        painter.add(Shape::convex_polygon(
+            points.to_vec(),
+            visuals.fg_stroke.color,
+            stroke,
+        ));
     }
 
     response

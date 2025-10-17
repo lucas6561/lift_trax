@@ -3,7 +3,7 @@ use std::fmt;
 use std::str::FromStr;
 
 /// Muscles that a lift can train.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 #[clap(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Muscle {
     Bicep,
