@@ -185,6 +185,149 @@ impl ConjugateWorkoutBuilder {
         }
     }
 
+    /// Builds the Monday lower-body max-effort session for a given week.
+    ///
+    /// # Parameters
+    /// - `week_number`: Index of the week in the wave; used to select the main lift.
+    /// - `lower_plan`: Ordered list of lower-body max-effort variations.
+    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `warmups`: Collection of warm-up stacks for each region.
+    /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
+    fn build_lower_max_day(
+        week_number: usize,
+        lower_plan: &[Lift],
+        conditioning: &mut RandomStack<Lift>,
+        warmups: &mut WarmupStacks,
+        accessories: &mut AccessoryStacks,
+    ) -> DbResult<Workout> {
+        let lower = lower_plan[week_number].clone();
+        let mut lifts = vec![
+            warmups.warmup(LiftRegion::LOWER)?,
+            Self::max_effort_single(lower.clone()),
+        ];
+        lifts.extend(Self::backoff_sets(lower));
+        let next_lower = lower_plan[(week_number + 1) % lower_plan.len()].clone();
+        lifts.extend(Self::supplemental_sets(next_lower));
+        lifts.push(Self::accessory_circuit(
+            accessories,
+            Muscle::Hamstring,
+            Muscle::Quad,
+            Muscle::Calf,
+        )?);
+        lifts.push(Self::conditioning(conditioning)?);
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
+            lifts.push(fl);
+        }
+        Ok(Workout { lifts })
+    }
+
+    /// Builds the Tuesday upper-body max-effort session for a given week.
+    ///
+    /// # Parameters
+    /// - `week_number`: Index of the week in the wave; used to select the main lift.
+    /// - `upper_plan`: Ordered list of upper-body max-effort variations.
+    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `warmups`: Collection of warm-up stacks for each region.
+    /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
+    fn build_upper_max_day(
+        week_number: usize,
+        upper_plan: &[Lift],
+        conditioning: &mut RandomStack<Lift>,
+        warmups: &mut WarmupStacks,
+        accessories: &mut AccessoryStacks,
+    ) -> DbResult<Workout> {
+        let upper = upper_plan[week_number].clone();
+        let mut lifts = vec![
+            warmups.warmup(LiftRegion::UPPER)?,
+            Self::max_effort_single(upper.clone()),
+        ];
+        lifts.extend(Self::backoff_sets(upper));
+        let next_upper = upper_plan[(week_number + 1) % upper_plan.len()].clone();
+        lifts.extend(Self::supplemental_sets(next_upper));
+        let upper_opts = [
+            Muscle::RearDelt,
+            Muscle::Shoulder,
+            Muscle::FrontDelt,
+            Muscle::Trap,
+        ];
+        let third = *upper_opts.choose(&mut thread_rng()).unwrap();
+        lifts.push(Self::accessory_circuit(
+            accessories,
+            Muscle::Lat,
+            Muscle::Tricep,
+            third,
+        )?);
+        lifts.push(Self::conditioning(conditioning)?);
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
+            lifts.push(fl);
+        }
+        Ok(Workout { lifts })
+    }
+
+    /// Builds the Thursday lower-body dynamic-effort session for a given week.
+    ///
+    /// # Parameters
+    /// - `week_number`: Index of the week in the wave; controls the dynamic percentages.
+    /// - `de_lifts`: Collection of dynamic-effort lift variations.
+    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `warmups`: Collection of warm-up stacks for each region.
+    /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
+    fn build_lower_dynamic_day(
+        week_number: usize,
+        de_lifts: &DynamicLifts,
+        conditioning: &mut RandomStack<Lift>,
+        warmups: &mut WarmupStacks,
+        accessories: &mut AccessoryStacks,
+    ) -> DbResult<Workout> {
+        let percent = 60 + (week_number as u32) * 5;
+        let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
+        lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
+        lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
+        lifts.push(Self::accessory_circuit(
+            accessories,
+            Muscle::Hamstring,
+            Muscle::Quad,
+            Muscle::Core,
+        )?);
+        lifts.push(Self::conditioning(conditioning)?);
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
+            lifts.push(fl);
+        }
+        Ok(Workout { lifts })
+    }
+
+    /// Builds the Friday upper-body dynamic-effort session for a given week.
+    ///
+    /// # Parameters
+    /// - `week_number`: Index of the week in the wave; controls the dynamic percentages.
+    /// - `de_lifts`: Collection of dynamic-effort lift variations.
+    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `warmups`: Collection of warm-up stacks for each region.
+    /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
+    fn build_upper_dynamic_day(
+        week_number: usize,
+        de_lifts: &DynamicLifts,
+        conditioning: &mut RandomStack<Lift>,
+        warmups: &mut WarmupStacks,
+        accessories: &mut AccessoryStacks,
+    ) -> DbResult<Workout> {
+        let percent = 60 + (week_number as u32) * 5;
+        let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
+        lifts.extend(Self::dynamic_sets(&de_lifts.bench, 9, 3, percent));
+        lifts.extend(Self::dynamic_sets(&de_lifts.overhead, 6, 2, percent));
+        lifts.push(Self::accessory_circuit(
+            accessories,
+            Muscle::Lat,
+            Muscle::Tricep,
+            Muscle::Bicep,
+        )?);
+        lifts.push(Self::conditioning(conditioning)?);
+        if let Some(fl) = Self::forearm_finisher(accessories)? {
+            lifts.push(fl);
+        }
+        Ok(Workout { lifts })
+    }
+
     /// Builds out a single week of conjugate training.
     ///
     /// Each week features four primary training days:
@@ -196,6 +339,15 @@ impl ConjugateWorkoutBuilder {
     ///
     /// The structure within each day follows the typical template of warmup,
     /// main work, accessories, conditioning, and an optional finisher.
+    ///
+    /// # Parameters
+    /// - `week_number`: Index of the week in the wave being generated.
+    /// - `lower_plan`: Ordered list of lower-body max-effort variations.
+    /// - `upper_plan`: Ordered list of upper-body max-effort variations.
+    /// - `de_lifts`: Collection of dynamic-effort lift variations.
+    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `warmups`: Collection of warm-up stacks for each region.
+    /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_week(
         week_number: usize,
         lower_plan: &[Lift],
@@ -207,83 +359,49 @@ impl ConjugateWorkoutBuilder {
     ) -> DbResult<WorkoutWeek> {
         let mut week = WorkoutWeek::new();
 
-        let lower = lower_plan[week_number].clone();
-        let mut mon_lifts = vec![
-            warmups.warmup(LiftRegion::LOWER)?,
-            Self::max_effort_single(lower.clone()),
-        ];
-        mon_lifts.extend(Self::backoff_sets(lower));
-        let next_lower = lower_plan[(week_number + 1) % lower_plan.len()].clone();
-        mon_lifts.extend(Self::supplemental_sets(next_lower));
-        mon_lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Hamstring,
-            Muscle::Quad,
-            Muscle::Calf,
-        )?);
-        mon_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            mon_lifts.push(fl);
-        }
-        week.insert(Weekday::Mon, Workout { lifts: mon_lifts });
+        week.insert(
+            Weekday::Mon,
+            Self::build_lower_max_day(
+                week_number,
+                lower_plan,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
+        );
 
-        let upper = upper_plan[week_number].clone();
-        let mut tue_lifts = vec![
-            warmups.warmup(LiftRegion::UPPER)?,
-            Self::max_effort_single(upper.clone()),
-        ];
-        tue_lifts.extend(Self::backoff_sets(upper));
-        let next_upper = upper_plan[(week_number + 1) % upper_plan.len()].clone();
-        tue_lifts.extend(Self::supplemental_sets(next_upper));
-        let upper_opts = [
-            Muscle::RearDelt,
-            Muscle::Shoulder,
-            Muscle::FrontDelt,
-            Muscle::Trap,
-        ];
-        let third = *upper_opts.choose(&mut thread_rng()).unwrap();
-        tue_lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Lat,
-            Muscle::Tricep,
-            third,
-        )?);
-        tue_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            tue_lifts.push(fl);
-        }
-        week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
+        week.insert(
+            Weekday::Tue,
+            Self::build_upper_max_day(
+                week_number,
+                upper_plan,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
+        );
 
-        let percent = 60 + (week_number as u32) * 5;
-        let mut thu_lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
-        thu_lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
-        thu_lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
-        thu_lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Hamstring,
-            Muscle::Quad,
-            Muscle::Core,
-        )?);
-        thu_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            thu_lifts.push(fl);
-        }
-        week.insert(Weekday::Thu, Workout { lifts: thu_lifts });
+        week.insert(
+            Weekday::Thu,
+            Self::build_lower_dynamic_day(
+                week_number,
+                de_lifts,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
+        );
 
-        let mut fri_lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
-        fri_lifts.extend(Self::dynamic_sets(&de_lifts.bench, 9, 3, percent));
-        fri_lifts.extend(Self::dynamic_sets(&de_lifts.overhead, 6, 2, percent));
-        fri_lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Lat,
-            Muscle::Tricep,
-            Muscle::Bicep,
-        )?);
-        fri_lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            fri_lifts.push(fl);
-        }
-        week.insert(Weekday::Fri, Workout { lifts: fri_lifts });
+        week.insert(
+            Weekday::Fri,
+            Self::build_upper_dynamic_day(
+                week_number,
+                de_lifts,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
+        );
 
         Ok(week)
     }
@@ -302,6 +420,10 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
     /// Any shortage of required lifts results in an error rather than a
     /// partially constructed wave so that the caller can gracefully surface the
     /// issue to the end user.
+    ///
+    /// # Parameters
+    /// - `num_weeks`: Number of weeks to include in the generated wave.
+    /// - `db`: Database reference used to fetch all required training data.
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
         let me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
         let (default_lower, default_upper) = me_pools.schedule();
