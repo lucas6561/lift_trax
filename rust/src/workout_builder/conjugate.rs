@@ -42,28 +42,8 @@ impl ConjugateWorkoutBuilder {
         lifts
     }
 
-    /// Convenience wrapper for fetching squat variations.
-    fn squat_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
-        Ok(Self::sorted_options(db.lifts_by_type(LiftType::Squat)?))
-    }
-
-    /// Convenience wrapper for fetching deadlift variations.
-    fn deadlift_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
-        Ok(Self::sorted_options(db.lifts_by_type(LiftType::Deadlift)?))
-    }
-
-    /// Convenience wrapper for fetching bench press variations.
-    fn bench_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
-        Ok(Self::sorted_options(
-            db.lifts_by_type(LiftType::BenchPress)?,
-        ))
-    }
-
-    /// Convenience wrapper for fetching overhead press variations.
-    fn overhead_options(db: &dyn Database) -> DbResult<Vec<Lift>> {
-        Ok(Self::sorted_options(
-            db.lifts_by_type(LiftType::OverheadPress)?,
-        ))
+    fn get_lifts_by_type(db: &dyn Database, lift_type: LiftType) -> DbResult<Vec<Lift>> {
+        Ok(Self::sorted_options(db.lifts_by_type(lift_type)?))
     }
 
     /// Builds the canonical "work up to a single" used on max effort days.
@@ -217,7 +197,7 @@ impl ConjugateWorkoutBuilder {
     /// The structure within each day follows the typical template of warmup,
     /// main work, accessories, conditioning, and an optional finisher.
     fn build_week(
-        i: usize,
+        week_number: usize,
         lower_plan: &[Lift],
         upper_plan: &[Lift],
         de_lifts: &DynamicLifts,
@@ -227,13 +207,13 @@ impl ConjugateWorkoutBuilder {
     ) -> DbResult<WorkoutWeek> {
         let mut week = WorkoutWeek::new();
 
-        let lower = lower_plan[i].clone();
+        let lower = lower_plan[week_number].clone();
         let mut mon_lifts = vec![
             warmups.warmup(LiftRegion::LOWER)?,
             Self::max_effort_single(lower.clone()),
         ];
         mon_lifts.extend(Self::backoff_sets(lower));
-        let next_lower = lower_plan[(i + 1) % lower_plan.len()].clone();
+        let next_lower = lower_plan[(week_number + 1) % lower_plan.len()].clone();
         mon_lifts.extend(Self::supplemental_sets(next_lower));
         mon_lifts.push(Self::accessory_circuit(
             accessories,
@@ -247,13 +227,13 @@ impl ConjugateWorkoutBuilder {
         }
         week.insert(Weekday::Mon, Workout { lifts: mon_lifts });
 
-        let upper = upper_plan[i].clone();
+        let upper = upper_plan[week_number].clone();
         let mut tue_lifts = vec![
             warmups.warmup(LiftRegion::UPPER)?,
             Self::max_effort_single(upper.clone()),
         ];
         tue_lifts.extend(Self::backoff_sets(upper));
-        let next_upper = upper_plan[(i + 1) % upper_plan.len()].clone();
+        let next_upper = upper_plan[(week_number + 1) % upper_plan.len()].clone();
         tue_lifts.extend(Self::supplemental_sets(next_upper));
         let upper_opts = [
             Muscle::RearDelt,
@@ -274,7 +254,7 @@ impl ConjugateWorkoutBuilder {
         }
         week.insert(Weekday::Tue, Workout { lifts: tue_lifts });
 
-        let percent = 60 + (i as u32) * 5;
+        let percent = 60 + (week_number as u32) * 5;
         let mut thu_lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
         thu_lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
@@ -325,15 +305,15 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
         let me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
         let (default_lower, default_upper) = me_pools.schedule();
-        let lower_squat_options = Self::squat_options(db)?;
-        let lower_deadlift_options = Self::deadlift_options(db)?;
-        let upper_bench_options = Self::bench_options(db)?;
-        let upper_ohp_options = Self::overhead_options(db)?;
+        let squat_options = Self::get_lifts_by_type(db, LiftType::Squat)?;
+        let deadlift_options = Self::get_lifts_by_type(db, LiftType::Deadlift)?;
+        let bench_options = Self::get_lifts_by_type(db, LiftType::BenchPress)?;
+        let ohp_options = Self::get_lifts_by_type(db, LiftType::OverheadPress)?;
         let (lower_plan, upper_plan) = max_effort_editor::edit_max_effort_plan(
-            lower_squat_options,
-            lower_deadlift_options,
-            upper_bench_options,
-            upper_ohp_options,
+            squat_options,
+            deadlift_options,
+            bench_options,
+            ohp_options,
             default_lower,
             default_upper,
         )?;
@@ -346,9 +326,9 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
         let mut warmups = WarmupStacks::new(db)?;
         let mut accessories = AccessoryStacks::new(db)?;
         let mut weeks = Vec::with_capacity(num_weeks);
-        for i in 0..num_weeks {
+        for week_number in 0..num_weeks {
             weeks.push(Self::build_week(
-                i,
+                week_number,
                 &lower_plan,
                 &upper_plan,
                 &dynamic,
