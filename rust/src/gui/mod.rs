@@ -25,6 +25,7 @@ enum Tab {
     Add,
     Query,
     List,
+    LastWeek,
 }
 
 struct GuiApp {
@@ -319,6 +320,7 @@ impl eframe::App for GuiApp {
                 ui.selectable_value(&mut self.current_tab, Tab::Add, "Add Execution");
                 ui.selectable_value(&mut self.current_tab, Tab::Query, "Query");
                 ui.selectable_value(&mut self.current_tab, Tab::List, "Executions");
+                ui.selectable_value(&mut self.current_tab, Tab::LastWeek, "Last Week");
             });
         });
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -326,6 +328,7 @@ impl eframe::App for GuiApp {
                 Tab::Add => self.tab_add(ui, ctx),
                 Tab::Query => self.tab_query(ui),
                 Tab::List => self.tab_list(ui),
+                Tab::LastWeek => self.tab_last_week(ui),
             });
         });
     }
