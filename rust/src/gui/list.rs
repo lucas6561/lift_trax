@@ -1,8 +1,10 @@
 use chrono::{Duration, Utc};
 use clap::ValueEnum;
 use eframe::egui;
+use std::collections::BTreeMap;
 
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
+use crate::models::lift_execution::format_execution_sets;
 use crate::weight::{Weight, WeightUnit};
 
 use super::{
@@ -17,16 +19,7 @@ impl GuiApp {
     }
 
     pub(super) fn tab_last_week(&mut self, ui: &mut egui::Ui) {
-        let today = Utc::now().date_naive();
-        let start = today - Duration::days(6);
-        let recent_filter = |exec: &LiftExecution| exec.date >= start;
-        self.render_executions_tab(
-            ui,
-            "Last Week's Executions",
-            true,
-            "no executions in the last 7 days",
-            &recent_filter,
-        );
+        self.render_last_week_report(ui);
     }
 
     fn render_executions_tab<F>(
@@ -353,6 +346,82 @@ impl GuiApp {
         if let Some(err) = &self.error {
             ui.colored_label(egui::Color32::RED, err);
         }
+    }
+
+    fn render_last_week_report(&mut self, ui: &mut egui::Ui) {
+        let today = Utc::now().date_naive();
+        let start = today - Duration::days(6);
+        let mut days: BTreeMap<_, Vec<(usize, usize)>> = BTreeMap::new();
+
+        for (lift_idx, lift) in self.lifts.iter().enumerate() {
+            for (exec_idx, exec) in lift.executions.iter().enumerate() {
+                if exec.date < start || exec.date > today {
+                    continue;
+                }
+                days.entry(exec.date)
+                    .or_default()
+                    .push((lift_idx, exec_idx));
+            }
+        }
+
+        ui.heading("Last Week Report");
+        ui.label(format!(
+            "Showing {} through {}",
+            start.format("%a %b %-d"),
+            today.format("%a %b %-d")
+        ));
+
+        if days.is_empty() {
+            ui.add_space(8.0);
+            ui.label("no executions in the last 7 days");
+        } else {
+            let mut day_entries: Vec<_> = days.into_iter().collect();
+            day_entries.sort_by(|a, b| b.0.cmp(&a.0));
+
+            for (idx, (date, mut entries)) in day_entries.into_iter().enumerate() {
+                if idx > 0 {
+                    ui.add_space(12.0);
+                }
+                entries.sort_by(|a, b| {
+                    let name_a = &self.lifts[a.0].name;
+                    let name_b = &self.lifts[b.0].name;
+                    name_a.cmp(name_b).then_with(|| a.1.cmp(&b.1))
+                });
+
+                ui.group(|ui| {
+                    ui.heading(date.format("%A, %B %-d").to_string());
+                    ui.add_space(4.0);
+                    for (lift_idx, exec_idx) in entries {
+                        let lift = &self.lifts[lift_idx];
+                        let exec = &lift.executions[exec_idx];
+                        ui.label(format!(
+                            "{}: {}",
+                            lift.name,
+                            Self::execution_summary(exec)
+                        ));
+                    }
+                });
+            }
+        }
+
+        if self.needs_lift_refresh {
+            self.refresh_lifts();
+            self.needs_lift_refresh = false;
+        }
+        if let Some(err) = &self.error {
+            ui.add_space(8.0);
+            ui.colored_label(egui::Color32::RED, err);
+        }
+    }
+
+    fn execution_summary(exec: &LiftExecution) -> String {
+        let warmup = if exec.warmup { " (warm-up)" } else { "" };
+        let notes = if exec.notes.is_empty() {
+            String::new()
+        } else {
+            format!(" – {}", exec.notes)
+        };
+        format!("{}{}{}", format_execution_sets(&exec.sets), warmup, notes)
     }
 
     fn save_lift_edit(&mut self, idx: usize) {
