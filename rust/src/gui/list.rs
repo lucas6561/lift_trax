@@ -3,8 +3,8 @@ use clap::ValueEnum;
 use eframe::egui;
 use std::collections::BTreeMap;
 
-use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
 use crate::models::lift_execution::format_execution_sets;
+use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
 use crate::weight::{Weight, WeightUnit};
 
 use super::{
@@ -179,75 +179,7 @@ impl GuiApp {
                     ui.horizontal(|ui| {
                         ui.label(exec.to_string());
                         if ui.button("Edit").clicked() {
-                            self.editing_exec = Some((i, j));
-                            if let Some(first) = exec.sets.first() {
-                                match &first.weight {
-                                    Weight::Raw(p) => {
-                                        self.edit_weight_mode = WeightMode::Weight;
-                                        self.edit_weight_unit = WeightUnit::Pounds;
-                                        self.edit_weight_value = format!("{}", p);
-                                        self.edit_weight_left_value.clear();
-                                        self.edit_weight_right_value.clear();
-                                        self.edit_band_value.clear();
-                                        self.edit_band_select = None;
-                                    }
-                                    Weight::RawLr { left, right } => {
-                                        self.edit_weight_mode = WeightMode::WeightLr;
-                                        self.edit_weight_unit = WeightUnit::Pounds;
-                                        self.edit_weight_left_value = format!("{}", left);
-                                        self.edit_weight_right_value = format!("{}", right);
-                                        self.edit_weight_value.clear();
-                                        self.edit_band_value.clear();
-                                        self.edit_band_select = None;
-                                    }
-                                    Weight::Bands(bands) => {
-                                        self.edit_weight_mode = WeightMode::Bands;
-                                        self.edit_band_value = bands.clone();
-                                        self.edit_band_select = None;
-                                        self.edit_weight_value.clear();
-                                        self.edit_weight_left_value.clear();
-                                        self.edit_weight_right_value.clear();
-                                    }
-                                    Weight::Accommodating { raw, .. } => {
-                                        // Treat accommodating resistance as a simple raw weight for editing
-                                        self.edit_weight_mode = WeightMode::Weight;
-                                        self.edit_weight_unit = WeightUnit::Pounds;
-                                        self.edit_weight_value = format!("{}", raw);
-                                        self.edit_weight_left_value.clear();
-                                        self.edit_weight_right_value.clear();
-                                        self.edit_band_value.clear();
-                                        self.edit_band_select = None;
-                                    }
-                                    Weight::None => {
-                                        self.edit_weight_mode = WeightMode::None;
-                                        self.edit_weight_value.clear();
-                                        self.edit_weight_left_value.clear();
-                                        self.edit_weight_right_value.clear();
-                                        self.edit_band_value.clear();
-                                        self.edit_band_select = None;
-                                    }
-                                }
-                                self.edit_sets = exec.sets.len().to_string();
-                                match first.metric {
-                                    SetMetric::Reps(r) => {
-                                        self.edit_metric_mode = MetricMode::Reps;
-                                        self.edit_reps = r.to_string();
-                                    }
-                                    SetMetric::TimeSecs(s) => {
-                                        self.edit_metric_mode = MetricMode::Time;
-                                        self.edit_reps = s.to_string();
-                                    }
-                                    SetMetric::DistanceFeet(d) => {
-                                        self.edit_metric_mode = MetricMode::Distance;
-                                        self.edit_reps = d.to_string();
-                                    }
-                                }
-                                self.edit_date = exec.date;
-                                self.edit_rpe =
-                                    first.rpe.map(|r| r.to_string()).unwrap_or_default();
-                                self.edit_notes = exec.notes.clone();
-                                self.edit_warmup = exec.warmup;
-                            }
+                            self.begin_exec_edit(i, j);
                         }
                         if let Some(id) = exec.id {
                             if ui.button("Delete").clicked() {
@@ -348,6 +280,92 @@ impl GuiApp {
         }
     }
 
+    fn begin_exec_edit(&mut self, lift_idx: usize, exec_idx: usize) {
+        self.editing_exec = Some((lift_idx, exec_idx));
+        let exec = &self.lifts[lift_idx].executions[exec_idx];
+        if let Some(first) = exec.sets.first() {
+            match &first.weight {
+                Weight::Raw(p) => {
+                    self.edit_weight_mode = WeightMode::Weight;
+                    self.edit_weight_unit = WeightUnit::Pounds;
+                    self.edit_weight_value = format!("{}", p);
+                    self.edit_weight_left_value.clear();
+                    self.edit_weight_right_value.clear();
+                    self.edit_band_value.clear();
+                    self.edit_band_select = None;
+                }
+                Weight::RawLr { left, right } => {
+                    self.edit_weight_mode = WeightMode::WeightLr;
+                    self.edit_weight_unit = WeightUnit::Pounds;
+                    self.edit_weight_left_value = format!("{}", left);
+                    self.edit_weight_right_value = format!("{}", right);
+                    self.edit_weight_value.clear();
+                    self.edit_band_value.clear();
+                    self.edit_band_select = None;
+                }
+                Weight::Bands(bands) => {
+                    self.edit_weight_mode = WeightMode::Bands;
+                    self.edit_band_value = bands.clone();
+                    self.edit_band_select = None;
+                    self.edit_weight_value.clear();
+                    self.edit_weight_left_value.clear();
+                    self.edit_weight_right_value.clear();
+                }
+                Weight::Accommodating { raw, .. } => {
+                    // Treat accommodating resistance as a simple raw weight for editing
+                    self.edit_weight_mode = WeightMode::Weight;
+                    self.edit_weight_unit = WeightUnit::Pounds;
+                    self.edit_weight_value = format!("{}", raw);
+                    self.edit_weight_left_value.clear();
+                    self.edit_weight_right_value.clear();
+                    self.edit_band_value.clear();
+                    self.edit_band_select = None;
+                }
+                Weight::None => {
+                    self.edit_weight_mode = WeightMode::None;
+                    self.edit_weight_value.clear();
+                    self.edit_weight_left_value.clear();
+                    self.edit_weight_right_value.clear();
+                    self.edit_band_value.clear();
+                    self.edit_band_select = None;
+                }
+            }
+            self.edit_sets = exec.sets.len().to_string();
+            match first.metric {
+                SetMetric::Reps(r) => {
+                    self.edit_metric_mode = MetricMode::Reps;
+                    self.edit_reps = r.to_string();
+                }
+                SetMetric::TimeSecs(s) => {
+                    self.edit_metric_mode = MetricMode::Time;
+                    self.edit_reps = s.to_string();
+                }
+                SetMetric::DistanceFeet(d) => {
+                    self.edit_metric_mode = MetricMode::Distance;
+                    self.edit_reps = d.to_string();
+                }
+            }
+            self.edit_date = exec.date;
+            self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
+            self.edit_notes = exec.notes.clone();
+            self.edit_warmup = exec.warmup;
+        } else {
+            self.edit_weight_mode = WeightMode::None;
+            self.edit_weight_value.clear();
+            self.edit_weight_left_value.clear();
+            self.edit_weight_right_value.clear();
+            self.edit_band_value.clear();
+            self.edit_band_select = None;
+            self.edit_sets.clear();
+            self.edit_metric_mode = MetricMode::Reps;
+            self.edit_reps.clear();
+            self.edit_date = exec.date;
+            self.edit_rpe.clear();
+            self.edit_notes = exec.notes.clone();
+            self.edit_warmup = exec.warmup;
+        }
+    }
+
     fn render_last_week_report(&mut self, ui: &mut egui::Ui) {
         let today = Utc::now().date_naive();
         let start = today - Duration::days(6);
@@ -376,29 +394,87 @@ impl GuiApp {
             ui.label("no executions in the last 7 days");
         } else {
             let mut day_entries: Vec<_> = days.into_iter().collect();
-            day_entries.sort_by(|a, b| b.0.cmp(&a.0));
+            day_entries.sort_by(|a, b| a.0.cmp(&b.0));
 
             for (idx, (date, mut entries)) in day_entries.into_iter().enumerate() {
                 if idx > 0 {
                     ui.add_space(12.0);
                 }
-                entries.sort_by(|a, b| {
-                    let name_a = &self.lifts[a.0].name;
-                    let name_b = &self.lifts[b.0].name;
-                    name_a.cmp(name_b).then_with(|| a.1.cmp(&b.1))
-                });
+                entries.sort_by(|a, b| a.1.cmp(&b.1));
 
                 ui.group(|ui| {
                     ui.heading(date.format("%A, %B %-d").to_string());
                     ui.add_space(4.0);
                     for (lift_idx, exec_idx) in entries {
-                        let lift = &self.lifts[lift_idx];
-                        let exec = &lift.executions[exec_idx];
-                        ui.label(format!(
-                            "{}: {}",
-                            lift.name,
-                            Self::execution_summary(exec)
-                        ));
+                        let lift_name = self.lifts[lift_idx].name.clone();
+                        let exec = self.lifts[lift_idx].executions[exec_idx].clone();
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{}: {}", lift_name, Self::execution_summary(&exec)));
+                            if ui.button("Edit").clicked() {
+                                self.begin_exec_edit(lift_idx, exec_idx);
+                            }
+                            if let Some(id) = exec.id {
+                                if ui.button("Delete").clicked() {
+                                    if let Err(e) = self.db.delete_lift_execution(id) {
+                                        self.error = Some(e.to_string());
+                                    } else {
+                                        self.editing_exec = None;
+                                        self.error = None;
+                                        self.needs_lift_refresh = true;
+                                    }
+                                }
+                            }
+                        });
+                        if self.editing_exec == Some((lift_idx, exec_idx)) {
+                            execution_form(
+                                ui,
+                                "edit",
+                                &mut self.edit_weight_mode,
+                                &mut self.edit_weight_unit,
+                                &mut self.edit_weight_value,
+                                &mut self.edit_weight_left_value,
+                                &mut self.edit_weight_right_value,
+                                &mut self.edit_band_value,
+                                &mut self.edit_band_select,
+                                &mut self.chain_value,
+                                &mut self.accom_mode,
+                                &mut self.edit_metric_mode,
+                                &mut self.edit_warmup,
+                                &mut self.edit_date,
+                                &mut self.edit_notes,
+                                |ui, metric_mode| {
+                                    let metric_label = match metric_mode {
+                                        MetricMode::Reps => "Reps:",
+                                        MetricMode::Time => "Seconds:",
+                                        MetricMode::Distance => "Feet:",
+                                    };
+                                    ui.horizontal(|ui| {
+                                        ui.label(metric_label);
+                                        ui.text_edit_singleline(&mut self.edit_reps);
+                                    });
+                                    ui.horizontal(|ui| {
+                                        ui.label("Sets:");
+                                        ui.text_edit_singleline(&mut self.edit_sets);
+                                    });
+                                    ui.horizontal(|ui| {
+                                        ui.label("RPE:");
+                                        ui.text_edit_singleline(&mut self.edit_rpe);
+                                    });
+                                },
+                            );
+                            ui.horizontal(|ui| {
+                                if ui.button("Save").clicked() {
+                                    self.save_exec_edit();
+                                }
+                                if ui.button("Cancel").clicked() {
+                                    self.editing_exec = None;
+                                    self.edit_notes.clear();
+                                    self.edit_band_value.clear();
+                                    self.edit_band_select = None;
+                                    self.edit_warmup = false;
+                                }
+                            });
+                        }
                     }
                 });
             }
