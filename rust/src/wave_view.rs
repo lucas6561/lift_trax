@@ -9,6 +9,7 @@ fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
         use SetMetric::*;
         let metric_str = match metric {
             Reps(r) => format!("{} reps", r),
+            RepsRange { min, max } => format!("{}-{} reps", min, max),
             TimeSecs(t) => format!("{}s", t),
             DistanceFeet(d) => format!("{}ft", d),
         };
@@ -53,6 +54,7 @@ fn format_exec(exec: &LiftExecution) -> String {
     let rpe = first.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
     let metric_str = match first.metric {
         SetMetric::Reps(r) => format!("{} reps", r),
+        SetMetric::RepsRange { min, max } => format!("{}-{} reps", min, max),
         SetMetric::TimeSecs(t) => format!("{}s", t),
         SetMetric::DistanceFeet(d) => format!("{}ft", d),
     };
@@ -169,7 +171,11 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                 if !s.lift.notes.is_empty() {
                     lines.push(format!("   - Notes: {}", s.lift.notes));
                 }
-                if let Some(desc) = last_exec_desc(db, &s.lift.name, false, s.metric.clone()) {
+                let history_metric = match &s.metric {
+                    Some(SetMetric::RepsRange { .. }) => None,
+                    other => other.clone(),
+                };
+                if let Some(desc) = last_exec_desc(db, &s.lift.name, false, history_metric) {
                     lines.push(format!("   - Last: {}", desc));
                 }
                 if let Some(max) = last_one_rep_max(db, &s.lift.name) {
@@ -188,7 +194,7 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                     let desc = if c.warmup {
                         format!("**{}**", sl.lift.name)
                     } else {
-                        single_desc(sl, 1)
+                        single_desc(sl, c.rounds as usize)
                     };
                     lines.push(format!("  {}. {}", j + 1, desc));
                     if !sl.lift.notes.is_empty() {

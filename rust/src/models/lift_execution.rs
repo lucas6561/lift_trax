@@ -8,6 +8,8 @@ use std::fmt;
 pub enum SetMetric {
     /// Number of repetitions performed.
     Reps(i32),
+    /// Target rep range for a set.
+    RepsRange { min: i32, max: i32 },
     /// Duration in seconds.
     TimeSecs(i32),
     /// Distance covered in feet.
@@ -18,6 +20,9 @@ impl fmt::Display for SetMetric {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SetMetric::Reps(r) => write!(f, "{} reps", r),
+            SetMetric::RepsRange { min, max } => {
+                write!(f, "{}-{} reps", min, max)
+            }
             SetMetric::TimeSecs(s) => write!(f, "{} sec", s),
             SetMetric::DistanceFeet(d) => write!(f, "{} ft", d),
         }

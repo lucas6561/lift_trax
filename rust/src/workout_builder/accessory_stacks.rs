@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use rand::Rng;
-
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, Muscle, SetMetric};
 use crate::random_stack::RandomStack;
@@ -63,10 +61,9 @@ impl AccessoryStacks {
                 return Err(format!("not enough accessory lifts available for {}", muscle).into());
             }
         };
-        let reps = rand::thread_rng().gen_range(10..=12);
         Ok(SingleLift {
             lift,
-            metric: Some(SetMetric::Reps(reps)),
+            metric: Some(SetMetric::RepsRange { min: 8, max: 12 }),
             percent: None,
             accommodating_resistance: None,
         })
@@ -74,10 +71,9 @@ impl AccessoryStacks {
 
     pub(crate) fn forearm(&mut self) -> Option<SingleLift> {
         let stack = self.forearms.as_mut()?;
-        let reps = rand::thread_rng().gen_range(10..=12);
         stack.pop().map(|lift| SingleLift {
             lift,
-            metric: Some(SetMetric::Reps(reps)),
+            metric: Some(SetMetric::RepsRange { min: 8, max: 12 }),
             percent: None,
             accommodating_resistance: None,
         })
@@ -209,7 +205,9 @@ mod tests {
         let lift = stacks.single(Muscle::Lat).expect("lat accessory to exist");
 
         match lift.metric {
-            Some(SetMetric::Reps(reps)) => assert!((10..=12).contains(&reps)),
+            Some(SetMetric::RepsRange { min, max }) => {
+                assert_eq!((min, max), (8, 12));
+            }
             other => panic!("unexpected metric: {other:?}"),
         }
     }
@@ -221,7 +219,9 @@ mod tests {
 
         let lift = stacks.forearm().expect("forearm accessory to exist");
         match lift.metric {
-            Some(SetMetric::Reps(reps)) => assert!((10..=12).contains(&reps)),
+            Some(SetMetric::RepsRange { min, max }) => {
+                assert_eq!((min, max), (8, 12));
+            }
             other => panic!("unexpected metric: {other:?}"),
         }
     }

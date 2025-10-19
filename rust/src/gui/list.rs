@@ -336,6 +336,10 @@ impl GuiApp {
                     self.edit_metric_mode = MetricMode::Reps;
                     self.edit_reps = r.to_string();
                 }
+                SetMetric::RepsRange { .. } => {
+                    self.edit_metric_mode = MetricMode::Reps;
+                    self.edit_reps.clear();
+                }
                 SetMetric::TimeSecs(s) => {
                     self.edit_metric_mode = MetricMode::Time;
                     self.edit_reps = s.to_string();
