@@ -426,8 +426,10 @@ fn alternates_main_lifts_across_weeks() {
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
                     match l.metric {
-                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
-                        _ => panic!("expected reps"),
+                        Some(SetMetric::RepsRange { min, max }) => {
+                            assert_eq!((min, max), (8, 12));
+                        }
+                        _ => panic!("expected rep range"),
                     }
                 }
             }
@@ -533,8 +535,10 @@ fn alternates_main_lifts_across_weeks() {
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
                     match l.metric {
-                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
-                        _ => panic!("expected reps"),
+                        Some(SetMetric::RepsRange { min, max }) => {
+                            assert_eq!((min, max), (8, 12));
+                        }
+                        _ => panic!("expected rep range"),
                     }
                 }
             }
@@ -623,8 +627,10 @@ fn alternates_main_lifts_across_weeks() {
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
                     match l.metric {
-                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
-                        _ => panic!("expected reps"),
+                        Some(SetMetric::RepsRange { min, max }) => {
+                            assert_eq!((min, max), (8, 12));
+                        }
+                        _ => panic!("expected rep range"),
                     }
                 }
             }
@@ -710,8 +716,10 @@ fn alternates_main_lifts_across_weeks() {
                 for l in &c.circuit_lifts {
                     assert_eq!(l.lift.main, Some(LiftType::Accessory));
                     match l.metric {
-                        Some(SetMetric::Reps(r)) => assert!((10..=12).contains(&r)),
-                        _ => panic!("expected reps"),
+                        Some(SetMetric::RepsRange { min, max }) => {
+                            assert_eq!((min, max), (8, 12));
+                        }
+                        _ => panic!("expected rep range"),
                     }
                 }
             }

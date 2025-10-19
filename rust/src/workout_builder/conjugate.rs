@@ -361,24 +361,12 @@ impl ConjugateWorkoutBuilder {
 
         week.insert(
             Weekday::Mon,
-            Self::build_lower_max_day(
-                week_number,
-                lower_plan,
-                conditioning,
-                warmups,
-                accessories,
-            )?,
+            Self::build_lower_max_day(week_number, lower_plan, conditioning, warmups, accessories)?,
         );
 
         week.insert(
             Weekday::Tue,
-            Self::build_upper_max_day(
-                week_number,
-                upper_plan,
-                conditioning,
-                warmups,
-                accessories,
-            )?,
+            Self::build_upper_max_day(week_number, upper_plan, conditioning, warmups, accessories)?,
         );
 
         week.insert(

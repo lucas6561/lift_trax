@@ -82,4 +82,3 @@ impl<T: Clone> RandomStack<T> {
         }
     }
 }
-
