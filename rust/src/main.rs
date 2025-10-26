@@ -69,7 +69,7 @@ enum Commands {
     /// Generate an example conjugate wave
     Wave {
         /// Number of weeks to generate
-        #[arg(long, default_value_t = 6)]
+        #[arg(long, default_value_t = 7)]
         weeks: usize,
     },
     /// Launch graphical interface
