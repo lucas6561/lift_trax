@@ -1,10 +1,12 @@
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::{seq::SliceRandom, thread_rng};
 
 use crate::database::{Database, DbResult};
-use crate::models::Lift;
+use crate::models::{Lift, LiftType};
 
-use super::AccommodatingResistance;
+use super::{
+    dynamic_lift_selector::{edit_dynamic_lifts, DynamicLiftChoices},
+    AccommodatingResistance,
+};
 
 pub(crate) struct DynamicLift {
     pub(crate) lift: Lift,
@@ -26,27 +28,76 @@ impl DynamicLifts {
             AccommodatingResistance::Bands,
         ];
 
-        let mut pick = |lifts: Vec<Lift>| -> DbResult<DynamicLift> {
-            let lift = lifts
-                .choose(&mut rng)
-                .ok_or("not enough lifts available")?
-                .clone();
-            let ar = ar_opts.choose(&mut rng).unwrap().clone();
-            Ok(DynamicLift { lift, ar })
+        let squat_options = lifts_for_type(db, LiftType::Squat, "Squat")?;
+        let deadlift_options = lifts_for_type(db, LiftType::Deadlift, "Deadlift")?;
+        let bench_options = lifts_for_type(db, LiftType::BenchPress, "Bench Press")?;
+        let overhead_options = lifts_for_type(db, LiftType::OverheadPress, "Overhead Press")?;
+
+        let default_choices = DynamicLiftChoices {
+            squat: squat_options
+                .first()
+                .expect("squat options guaranteed to be non-empty")
+                .clone(),
+            deadlift: deadlift_options
+                .first()
+                .expect("deadlift options guaranteed to be non-empty")
+                .clone(),
+            bench: bench_options
+                .first()
+                .expect("bench options guaranteed to be non-empty")
+                .clone(),
+            overhead: overhead_options
+                .first()
+                .expect("overhead options guaranteed to be non-empty")
+                .clone(),
         };
 
-        let squat = db.get_lift("Squat")?;
-        let deadlift = db.get_lift("Deadlift")?;
-        let bench = db.get_lift("Bench Press")?;
-        let overhead = db.get_lift("Overhead Press")?;
+        let selections = edit_dynamic_lifts(
+            squat_options.clone(),
+            deadlift_options.clone(),
+            bench_options.clone(),
+            overhead_options.clone(),
+            default_choices.clone(),
+        )?;
+
+        let mut pick_ar = || ar_opts.choose(&mut rng).unwrap().clone();
 
         Ok(Self {
-            squat: pick(vec![squat])?,
-            deadlift: pick(vec![deadlift])?,
-            bench: pick(vec![bench])?,
-            overhead: pick(vec![overhead])?,
+            squat: DynamicLift {
+                lift: selections.squat,
+                ar: pick_ar(),
+            },
+            deadlift: DynamicLift {
+                lift: selections.deadlift,
+                ar: pick_ar(),
+            },
+            bench: DynamicLift {
+                lift: selections.bench,
+                ar: pick_ar(),
+            },
+            overhead: DynamicLift {
+                lift: selections.overhead,
+                ar: pick_ar(),
+            },
         })
     }
+}
+
+fn lifts_for_type(
+    db: &dyn Database,
+    lift_type: LiftType,
+    fallback: &str,
+) -> DbResult<Vec<Lift>> {
+    let mut lifts = db.lifts_by_type(lift_type)?;
+    if let Some(idx) = lifts.iter().position(|lift| lift.name == fallback) {
+        if idx != 0 {
+            let lift = lifts.remove(idx);
+            lifts.insert(0, lift);
+        }
+    } else {
+        lifts.insert(0, db.get_lift(fallback)?);
+    }
+    Ok(lifts)
 }
 
 #[cfg(test)]
@@ -126,8 +177,15 @@ mod tests {
             })
         }
 
-        fn lifts_by_type(&self, _lift_type: LiftType) -> DbResult<Vec<Lift>> {
-            unimplemented!()
+        fn lifts_by_type(&self, lift_type: LiftType) -> DbResult<Vec<Lift>> {
+            let lift = match lift_type {
+                LiftType::Squat => self.get_lift("Squat")?,
+                LiftType::Deadlift => self.get_lift("Deadlift")?,
+                LiftType::BenchPress => self.get_lift("Bench Press")?,
+                LiftType::OverheadPress => self.get_lift("Overhead Press")?,
+                _ => return Ok(Vec::new()),
+            };
+            Ok(vec![lift])
         }
 
         fn get_accessories_by_muscle(&self, _muscle: Muscle) -> DbResult<Vec<Lift>> {
