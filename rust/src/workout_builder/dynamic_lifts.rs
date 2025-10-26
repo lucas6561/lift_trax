@@ -4,8 +4,8 @@ use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftType};
 
 use super::{
-    dynamic_lift_selector::{edit_dynamic_lifts, DynamicLiftChoices},
     AccommodatingResistance,
+    dynamic_lift_selector::{DynamicLiftChoices, edit_dynamic_lifts},
 };
 
 pub(crate) struct DynamicLift {
@@ -83,11 +83,7 @@ impl DynamicLifts {
     }
 }
 
-fn lifts_for_type(
-    db: &dyn Database,
-    lift_type: LiftType,
-    fallback: &str,
-) -> DbResult<Vec<Lift>> {
+fn lifts_for_type(db: &dyn Database, lift_type: LiftType, fallback: &str) -> DbResult<Vec<Lift>> {
     let mut lifts = db.lifts_by_type(lift_type)?;
     if let Some(idx) = lifts.iter().position(|lift| lift.name == fallback) {
         if idx != 0 {

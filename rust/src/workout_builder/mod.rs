@@ -1,7 +1,7 @@
 mod accessory_stacks;
 mod conjugate;
-mod dynamic_lifts;
 mod dynamic_lift_selector;
+mod dynamic_lifts;
 mod max_effort_editor;
 mod max_effort_lift_pools;
 mod types;
