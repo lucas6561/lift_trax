@@ -19,6 +19,7 @@ pub struct SingleLift {
     pub lift: Lift,
     pub metric: Option<SetMetric>,
     pub percent: Option<u32>,
+    pub rpe: Option<f32>,
     pub accommodating_resistance: Option<AccommodatingResistance>,
 }
 

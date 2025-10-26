@@ -65,6 +65,7 @@ impl AccessoryStacks {
             lift,
             metric: Some(SetMetric::RepsRange { min: 8, max: 12 }),
             percent: None,
+            rpe: None,
             accommodating_resistance: None,
         })
     }
@@ -75,6 +76,7 @@ impl AccessoryStacks {
             lift,
             metric: Some(SetMetric::RepsRange { min: 8, max: 12 }),
             percent: None,
+            rpe: None,
             accommodating_resistance: None,
         })
     }
