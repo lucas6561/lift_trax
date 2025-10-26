@@ -81,6 +81,7 @@ impl WarmupStacks {
             metric: None,
             percent: None,
             accommodating_resistance: None,
+            rpe: None,
         };
 
         Ok(WorkoutLift {

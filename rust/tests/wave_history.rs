@@ -58,6 +58,7 @@ fn wave_shows_last_one_rep_max() {
         metric: Some(SetMetric::Reps(5)),
         percent: None,
         accommodating_resistance: None,
+        rpe: None,
     };
     let wl = WorkoutLift {
         name: lift.name.clone(),
@@ -103,6 +104,7 @@ fn wave_includes_lift_and_exec_notes() {
         metric: Some(SetMetric::Reps(5)),
         percent: None,
         accommodating_resistance: None,
+        rpe: None,
     };
     let wl = WorkoutLift {
         name: lift.name.clone(),

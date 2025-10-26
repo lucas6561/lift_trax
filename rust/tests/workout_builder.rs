@@ -346,7 +346,7 @@ fn alternates_main_lifts_across_weeks() {
         let mut warmup_cores = HashSet::new();
 
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert!(mon.lifts.len() == 9 || mon.lifts.len() == 11);
+        assert!(mon.lifts.len() == 9 || mon.lifts.len() == 10);
         match &mon.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -375,51 +375,35 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         };
-        let backoff_percent = match &mon.lifts[2].kind {
-            WorkoutLiftKind::Single(s) => s.percent,
-            _ => panic!("expected single"),
-        };
         let has_forearm = mon
             .lifts
             .last()
             .map(|l| l.name == "Forearm Finisher")
             .unwrap_or(false);
-        let base = if has_forearm { 8 } else { 7 };
-        let backoff_count = mon.lifts.len() - base;
-        for b in &mon.lifts[2..2 + backoff_count] {
+        for b in &mon.lifts[2..4] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, main_name);
-                    assert_eq!(s.percent, backoff_percent);
-                    match backoff_percent {
-                        Some(90) => match s.metric {
-                            Some(SetMetric::Reps(r)) => assert!((3..=5).contains(&r)),
-                            _ => panic!("expected reps"),
-                        },
-                        Some(80) => assert_eq!(s.metric, Some(SetMetric::Reps(3))),
-                        _ => panic!("unexpected percent"),
-                    }
+                    assert_eq!(s.percent, Some(70));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.rpe, Some(7.0));
                 }
                 _ => panic!("expected single"),
             }
         }
-        match backoff_percent {
-            Some(90) => assert_eq!(backoff_count, 1),
-            Some(80) => assert_eq!(backoff_count, 3),
-            _ => panic!("unexpected percent"),
-        }
         let next_lift = expected_lower[(i + 1) % expected_lower.len()];
-        for b in &mon.lifts[2 + backoff_count..5 + backoff_count] {
+        for b in &mon.lifts[4..7] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.main, Some(next_lift));
                     assert_eq!(s.percent, Some(80));
                     assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.rpe, None);
                 }
                 _ => panic!("expected single"),
             }
         }
-        match &mon.lifts[5 + backoff_count].kind {
+        match &mon.lifts[7].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 3);
                 assert_eq!(c.rounds, 3);
@@ -435,26 +419,27 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        let cond_idx = 6 + backoff_count;
-        match &mon.lifts[cond_idx].kind {
+        match &mon.lifts[8].kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::Conditioning));
                 assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
                 assert_eq!(s.percent, None);
+                assert_eq!(s.rpe, None);
             }
             _ => panic!("expected single"),
         }
         if has_forearm {
-            match &mon.lifts[cond_idx + 1].kind {
+            match &mon.lifts[9].kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(s.rpe, None);
                 }
                 _ => panic!("expected single"),
             }
         }
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
-        assert!(tue.lifts.len() == 9 || tue.lifts.len() == 11);
+        assert!(tue.lifts.len() == 9 || tue.lifts.len() == 10);
         match &tue.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -484,51 +469,35 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         };
-        let backoff_percent = match &tue.lifts[2].kind {
-            WorkoutLiftKind::Single(s) => s.percent,
-            _ => panic!("expected single"),
-        };
         let has_forearm = tue
             .lifts
             .last()
             .map(|l| l.name == "Forearm Finisher")
             .unwrap_or(false);
-        let base = if has_forearm { 8 } else { 7 };
-        let backoff_count = tue.lifts.len() - base;
-        for b in &tue.lifts[2..2 + backoff_count] {
+        for b in &tue.lifts[2..4] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, main_name);
-                    assert_eq!(s.percent, backoff_percent);
-                    match backoff_percent {
-                        Some(90) => match s.metric {
-                            Some(SetMetric::Reps(r)) => assert!((3..=5).contains(&r)),
-                            _ => panic!("expected reps"),
-                        },
-                        Some(80) => assert_eq!(s.metric, Some(SetMetric::Reps(3))),
-                        _ => panic!("unexpected percent"),
-                    }
+                    assert_eq!(s.percent, Some(70));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.rpe, Some(7.0));
                 }
                 _ => panic!("expected single"),
             }
         }
-        match backoff_percent {
-            Some(90) => assert_eq!(backoff_count, 1),
-            Some(80) => assert_eq!(backoff_count, 3),
-            _ => panic!("unexpected percent"),
-        }
         let next_lift = expected_upper[(i + 1) % expected_upper.len()];
-        for b in &tue.lifts[2 + backoff_count..5 + backoff_count] {
+        for b in &tue.lifts[4..7] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.main, Some(next_lift));
                     assert_eq!(s.percent, Some(80));
                     assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.rpe, None);
                 }
                 _ => panic!("expected single"),
             }
         }
-        match &tue.lifts[5 + backoff_count].kind {
+        match &tue.lifts[7].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 3);
                 assert_eq!(c.rounds, 3);
@@ -544,19 +513,20 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        let cond_idx = 6 + backoff_count;
-        match &tue.lifts[cond_idx].kind {
+        match &tue.lifts[8].kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::Conditioning));
                 assert_eq!(s.metric, Some(SetMetric::TimeSecs(600)));
                 assert_eq!(s.percent, None);
+                assert_eq!(s.rpe, None);
             }
             _ => panic!("expected single"),
         }
         if has_forearm {
-            match &tue.lifts[cond_idx + 1].kind {
+            match &tue.lifts[9].kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(s.rpe, None);
                 }
                 _ => panic!("expected single"),
             }

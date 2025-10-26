@@ -8,7 +8,7 @@
 //! prefer clarity over brevity.
 
 use chrono::Weekday;
-use rand::{Rng, seq::SliceRandom, thread_rng};
+use rand::{seq::SliceRandom, thread_rng};
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType, Muscle, SetMetric};
@@ -55,42 +55,28 @@ impl ConjugateWorkoutBuilder {
                 metric: Some(SetMetric::Reps(1)),
                 percent: None,
                 accommodating_resistance: None,
+                rpe: None,
             }),
         }
     }
 
     /// Generates backoff work to follow a max effort single.
     ///
-    /// The conjugate approach is intentionally loose in how many sets/reps to
-    /// use after the top single. To mirror that flexibility we introduce a bit
-    /// of randomness: sometimes we prescribe a single heavier AMRAP-style set,
-    /// other times a small cluster of triples at a lower percentage.
+    /// The backoff work now provides a consistent dose of volume after the
+    /// heavy single: two sets of five at 70% with an RPE target of 7.
     fn backoff_sets(lift: Lift) -> Vec<WorkoutLift> {
-        let mut rng = thread_rng();
-        if rng.gen_bool(0.5) {
-            let reps = rng.gen_range(3..=5);
-            vec![WorkoutLift {
-                name: "Backoff Set".to_string(),
+        (0..2)
+            .map(|_| WorkoutLift {
+                name: "Backoff Sets".to_string(),
                 kind: WorkoutLiftKind::Single(SingleLift {
-                    lift,
-                    metric: Some(SetMetric::Reps(reps)),
-                    percent: Some(90),
+                    lift: lift.clone(),
+                    metric: Some(SetMetric::Reps(5)),
+                    percent: Some(70),
                     accommodating_resistance: None,
+                    rpe: Some(7.0),
                 }),
-            }]
-        } else {
-            (0..3)
-                .map(|_| WorkoutLift {
-                    name: "Backoff Sets".to_string(),
-                    kind: WorkoutLiftKind::Single(SingleLift {
-                        lift: lift.clone(),
-                        metric: Some(SetMetric::Reps(3)),
-                        percent: Some(80),
-                        accommodating_resistance: None,
-                    }),
-                })
-                .collect()
-        }
+            })
+            .collect()
     }
 
     /// Provides the lighter supplemental work that follows the backoff sets.
@@ -107,6 +93,7 @@ impl ConjugateWorkoutBuilder {
                     metric: Some(SetMetric::Reps(5)),
                     percent: Some(80),
                     accommodating_resistance: None,
+                    rpe: None,
                 }),
             })
             .collect()
@@ -125,6 +112,7 @@ impl ConjugateWorkoutBuilder {
                     metric: Some(SetMetric::Reps(reps)),
                     percent: Some(percent),
                     accommodating_resistance: Some(dl.ar.clone()),
+                    rpe: None,
                 }),
             })
             .collect()
@@ -147,6 +135,7 @@ impl ConjugateWorkoutBuilder {
                 metric: Some(SetMetric::TimeSecs(600)),
                 percent: None,
                 accommodating_resistance: None,
+                rpe: None,
             }),
         })
     }

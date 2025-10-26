@@ -24,6 +24,13 @@ fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
     if let Some(percent) = s.percent {
         parts.push(format!("@ {}%", percent));
     }
+    if let Some(rpe) = s.rpe {
+        if (rpe.fract()).abs() < f32::EPSILON {
+            parts.push(format!("RPE {}", rpe as i32));
+        } else {
+            parts.push(format!("RPE {:.1}", rpe));
+        }
+    }
     if let Some(ar) = &s.accommodating_resistance {
         use workout_builder::AccommodatingResistance::*;
         match ar {
@@ -40,6 +47,7 @@ fn same_single(a: &workout_builder::SingleLift, b: &workout_builder::SingleLift)
         && a.metric == b.metric
         && a.percent == b.percent
         && a.accommodating_resistance == b.accommodating_resistance
+        && a.rpe == b.rpe
 }
 
 fn format_exec(exec: &LiftExecution) -> String {

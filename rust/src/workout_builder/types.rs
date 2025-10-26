@@ -20,6 +20,7 @@ pub struct SingleLift {
     pub metric: Option<SetMetric>,
     pub percent: Option<u32>,
     pub accommodating_resistance: Option<AccommodatingResistance>,
+    pub rpe: Option<f32>,
 }
 
 /// Represents a circuit of lifts with a prescribed rest time.
