@@ -168,7 +168,11 @@ impl App for DynamicLiftSelectorApp {
                             .selected_text(current)
                             .show_ui(ui, |combo_ui| {
                                 for (idx, lift) in selector.options.iter().enumerate() {
-                                    combo_ui.selectable_value(&mut selector.selected, idx, lift.name.clone());
+                                    combo_ui.selectable_value(
+                                        &mut selector.selected,
+                                        idx,
+                                        lift.name.clone(),
+                                    );
                                 }
                             });
                     });
@@ -193,12 +197,10 @@ impl App for DynamicLiftSelectorApp {
                             overhead: self.overhead.selected,
                         });
                     }
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::Close);
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
                 if ui.button("Use Defaults").clicked() {
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::Close);
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             });
             ui.add_space(4.0);

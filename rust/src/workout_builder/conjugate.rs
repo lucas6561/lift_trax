@@ -101,6 +101,95 @@ impl ConjugateWorkoutBuilder {
             .collect()
     }
 
+    /// Identifies whether the provided week should be treated as a deload.
+    ///
+    /// The template now follows a seven-week rhythm where the seventh week is
+    /// intentionally lighter to allow fatigue to dissipate. Treating every
+    /// seventh week as a deload also keeps longer waves predictable for the UI
+    /// and for users who want to chain multiple cycles together.
+    fn is_deload_week(week_number: usize) -> bool {
+        (week_number + 1) % 7 == 0
+    }
+
+    /// Builds a collection of light technique sets used during a deload week.
+    ///
+    /// The sets are intentionally easy—three sets of three around 70%—to align
+    /// with the guideline of roughly half the normal volume and ~70–75%
+    /// intensity. Each set is modeled as its own `WorkoutLift` so the UI keeps
+    /// a consistent presentation with the heavier training weeks.
+    fn deload_technique_sets(lift: Lift) -> Vec<WorkoutLift> {
+        (0..3)
+            .map(|_| WorkoutLift {
+                name: "Deload Technique".to_string(),
+                kind: WorkoutLiftKind::Single(SingleLift {
+                    lift: lift.clone(),
+                    metric: Some(SetMetric::Reps(3)),
+                    percent: Some(70),
+                    rpe: Some(6.0),
+                    accommodating_resistance: None,
+                }),
+            })
+            .collect()
+    }
+
+    /// Builds a lighter accessory circuit for deload weeks.
+    ///
+    /// Compared to the standard accessory circuit this version uses fewer
+    /// movements, shorter rest, and fewer rounds to keep the overall workload
+    /// closer to 50% of the normal volume.
+    fn deload_circuit(
+        accessories: &mut AccessoryStacks,
+        muscles: &[Muscle],
+    ) -> DbResult<WorkoutLift> {
+        let lifts = muscles
+            .iter()
+            .map(|muscle| accessories.single(*muscle))
+            .collect::<DbResult<Vec<_>>>()?;
+        Ok(WorkoutLift {
+            name: "Deload Circuit".to_string(),
+            kind: WorkoutLiftKind::Circuit(CircuitLift {
+                circuit_lifts: lifts,
+                rest_time_sec: 45,
+                rounds: 2,
+                warmup: false,
+            }),
+        })
+    }
+
+    /// Provides a shorter, easier conditioning block for deload weeks.
+    fn light_conditioning(stack: &mut RandomStack<Lift>) -> DbResult<WorkoutLift> {
+        let cond = match stack.pop() {
+            Some(lift) => lift,
+            None => return Err("not enough conditioning lifts available".into()),
+        };
+        Ok(WorkoutLift {
+            name: "Light Conditioning".to_string(),
+            kind: WorkoutLiftKind::Single(SingleLift {
+                lift: cond,
+                metric: Some(SetMetric::TimeSecs(300)),
+                percent: None,
+                rpe: None,
+                accommodating_resistance: None,
+            }),
+        })
+    }
+
+    /// Builds lighter dynamic-effort sets for deload weeks.
+    fn deload_dynamic_sets(dl: &DynamicLift, reps: i32) -> Vec<WorkoutLift> {
+        (0..3)
+            .map(|_| WorkoutLift {
+                name: "Deload Speed Work".to_string(),
+                kind: WorkoutLiftKind::Single(SingleLift {
+                    lift: dl.lift.clone(),
+                    metric: Some(SetMetric::Reps(reps)),
+                    percent: Some(55),
+                    rpe: None,
+                    accommodating_resistance: Some(dl.ar.clone()),
+                }),
+            })
+            .collect()
+    }
+
     /// Builds a block of dynamic-effort sets for the provided lift.
     ///
     /// The number of sets, reps, and percent are all chosen by the caller so
@@ -212,22 +301,29 @@ impl ConjugateWorkoutBuilder {
         accessories: &mut AccessoryStacks,
     ) -> DbResult<Workout> {
         let lower = lower_plan[week_number].clone();
-        let mut lifts = vec![
-            warmups.warmup(LiftRegion::LOWER)?,
-            Self::max_effort_single(lower.clone()),
-        ];
-        lifts.extend(Self::backoff_sets(lower));
-        let next_lower = lower_plan[(week_number + 1) % lower_plan.len()].clone();
-        lifts.extend(Self::supplemental_sets(next_lower));
-        lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Hamstring,
-            Muscle::Quad,
-            Muscle::Calf,
-        )?);
-        lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            lifts.push(fl);
+        let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
+        if Self::is_deload_week(week_number) {
+            lifts.extend(Self::deload_technique_sets(lower));
+            lifts.push(Self::deload_circuit(
+                accessories,
+                &[Muscle::Hamstring, Muscle::Quad],
+            )?);
+            lifts.push(Self::light_conditioning(conditioning)?);
+        } else {
+            lifts.push(Self::max_effort_single(lower.clone()));
+            lifts.extend(Self::backoff_sets(lower));
+            let next_lower = lower_plan[(week_number + 1) % lower_plan.len()].clone();
+            lifts.extend(Self::supplemental_sets(next_lower));
+            lifts.push(Self::accessory_circuit(
+                accessories,
+                Muscle::Hamstring,
+                Muscle::Quad,
+                Muscle::Calf,
+            )?);
+            lifts.push(Self::conditioning(conditioning)?);
+            if let Some(fl) = Self::forearm_finisher(accessories)? {
+                lifts.push(fl);
+            }
         }
         Ok(Workout { lifts })
     }
@@ -248,29 +344,36 @@ impl ConjugateWorkoutBuilder {
         accessories: &mut AccessoryStacks,
     ) -> DbResult<Workout> {
         let upper = upper_plan[week_number].clone();
-        let mut lifts = vec![
-            warmups.warmup(LiftRegion::UPPER)?,
-            Self::max_effort_single(upper.clone()),
-        ];
-        lifts.extend(Self::backoff_sets(upper));
-        let next_upper = upper_plan[(week_number + 1) % upper_plan.len()].clone();
-        lifts.extend(Self::supplemental_sets(next_upper));
-        let upper_opts = [
-            Muscle::RearDelt,
-            Muscle::Shoulder,
-            Muscle::FrontDelt,
-            Muscle::Trap,
-        ];
-        let third = *upper_opts.choose(&mut thread_rng()).unwrap();
-        lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Lat,
-            Muscle::Tricep,
-            third,
-        )?);
-        lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            lifts.push(fl);
+        let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
+        if Self::is_deload_week(week_number) {
+            lifts.extend(Self::deload_technique_sets(upper));
+            lifts.push(Self::deload_circuit(
+                accessories,
+                &[Muscle::Lat, Muscle::Tricep],
+            )?);
+            lifts.push(Self::light_conditioning(conditioning)?);
+        } else {
+            lifts.push(Self::max_effort_single(upper.clone()));
+            lifts.extend(Self::backoff_sets(upper));
+            let next_upper = upper_plan[(week_number + 1) % upper_plan.len()].clone();
+            lifts.extend(Self::supplemental_sets(next_upper));
+            let upper_opts = [
+                Muscle::RearDelt,
+                Muscle::Shoulder,
+                Muscle::FrontDelt,
+                Muscle::Trap,
+            ];
+            let third = *upper_opts.choose(&mut thread_rng()).unwrap();
+            lifts.push(Self::accessory_circuit(
+                accessories,
+                Muscle::Lat,
+                Muscle::Tricep,
+                third,
+            )?);
+            lifts.push(Self::conditioning(conditioning)?);
+            if let Some(fl) = Self::forearm_finisher(accessories)? {
+                lifts.push(fl);
+            }
         }
         Ok(Workout { lifts })
     }
@@ -290,32 +393,42 @@ impl ConjugateWorkoutBuilder {
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
     ) -> DbResult<Workout> {
-        let (squat_percent, squat_ar) = Self::dynamic_plan(week_number, &de_lifts.squat.ar);
         let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
-        lifts.extend(Self::dynamic_sets(
-            &de_lifts.squat,
-            6,
-            3,
-            squat_percent,
-            squat_ar.clone(),
-        ));
-        let (dead_percent, dead_ar) = Self::dynamic_plan(week_number, &de_lifts.deadlift.ar);
-        lifts.extend(Self::dynamic_sets(
-            &de_lifts.deadlift,
-            6,
-            2,
-            dead_percent,
-            dead_ar,
-        ));
-        lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Hamstring,
-            Muscle::Quad,
-            Muscle::Core,
-        )?);
-        lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            lifts.push(fl);
+        if Self::is_deload_week(week_number) {
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.squat, 3));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.deadlift, 2));
+            lifts.push(Self::deload_circuit(
+                accessories,
+                &[Muscle::Hamstring, Muscle::Core],
+            )?);
+            lifts.push(Self::light_conditioning(conditioning)?);
+        } else {
+            let (squat_percent, squat_ar) = Self::dynamic_plan(week_number, &de_lifts.squat.ar);
+            lifts.extend(Self::dynamic_sets(
+                &de_lifts.squat,
+                6,
+                3,
+                squat_percent,
+                squat_ar.clone(),
+            ));
+            let (dead_percent, dead_ar) = Self::dynamic_plan(week_number, &de_lifts.deadlift.ar);
+            lifts.extend(Self::dynamic_sets(
+                &de_lifts.deadlift,
+                6,
+                2,
+                dead_percent,
+                dead_ar,
+            ));
+            lifts.push(Self::accessory_circuit(
+                accessories,
+                Muscle::Hamstring,
+                Muscle::Quad,
+                Muscle::Core,
+            )?);
+            lifts.push(Self::conditioning(conditioning)?);
+            if let Some(fl) = Self::forearm_finisher(accessories)? {
+                lifts.push(fl);
+            }
         }
         Ok(Workout { lifts })
     }
@@ -335,32 +448,42 @@ impl ConjugateWorkoutBuilder {
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
     ) -> DbResult<Workout> {
-        let (bench_percent, bench_ar) = Self::dynamic_plan(week_number, &de_lifts.bench.ar);
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
-        lifts.extend(Self::dynamic_sets(
-            &de_lifts.bench,
-            9,
-            3,
-            bench_percent,
-            bench_ar.clone(),
-        ));
-        let (ohp_percent, ohp_ar) = Self::dynamic_plan(week_number, &de_lifts.overhead.ar);
-        lifts.extend(Self::dynamic_sets(
-            &de_lifts.overhead,
-            6,
-            2,
-            ohp_percent,
-            ohp_ar,
-        ));
-        lifts.push(Self::accessory_circuit(
-            accessories,
-            Muscle::Lat,
-            Muscle::Tricep,
-            Muscle::Bicep,
-        )?);
-        lifts.push(Self::conditioning(conditioning)?);
-        if let Some(fl) = Self::forearm_finisher(accessories)? {
-            lifts.push(fl);
+        if Self::is_deload_week(week_number) {
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.bench, 3));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.overhead, 2));
+            lifts.push(Self::deload_circuit(
+                accessories,
+                &[Muscle::Lat, Muscle::Tricep],
+            )?);
+            lifts.push(Self::light_conditioning(conditioning)?);
+        } else {
+            let (bench_percent, bench_ar) = Self::dynamic_plan(week_number, &de_lifts.bench.ar);
+            lifts.extend(Self::dynamic_sets(
+                &de_lifts.bench,
+                9,
+                3,
+                bench_percent,
+                bench_ar.clone(),
+            ));
+            let (ohp_percent, ohp_ar) = Self::dynamic_plan(week_number, &de_lifts.overhead.ar);
+            lifts.extend(Self::dynamic_sets(
+                &de_lifts.overhead,
+                6,
+                2,
+                ohp_percent,
+                ohp_ar,
+            ));
+            lifts.push(Self::accessory_circuit(
+                accessories,
+                Muscle::Lat,
+                Muscle::Tricep,
+                Muscle::Bicep,
+            )?);
+            lifts.push(Self::conditioning(conditioning)?);
+            if let Some(fl) = Self::forearm_finisher(accessories)? {
+                lifts.push(fl);
+            }
         }
         Ok(Workout { lifts })
     }
