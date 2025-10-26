@@ -20,7 +20,8 @@ use super::max_effort_editor;
 use super::max_effort_lift_pools::MaxEffortLiftPools;
 use super::warmup_stacks::WarmupStacks;
 use super::{
-    CircuitLift, SingleLift, Workout, WorkoutBuilder, WorkoutLift, WorkoutLiftKind, WorkoutWeek,
+    AccommodatingResistance, CircuitLift, SingleLift, Workout, WorkoutBuilder, WorkoutLift,
+    WorkoutLiftKind, WorkoutWeek,
 };
 
 /// Workout builder implementing a basic conjugate approach.
@@ -116,7 +117,13 @@ impl ConjugateWorkoutBuilder {
     ///
     /// The number of sets, reps, and percent are all chosen by the caller so
     /// that the same helper can be re-used for both lower and upper sessions.
-    fn dynamic_sets(dl: &DynamicLift, sets: usize, reps: i32, percent: u32) -> Vec<WorkoutLift> {
+    fn dynamic_sets(
+        dl: &DynamicLift,
+        sets: usize,
+        reps: i32,
+        percent: u32,
+        ar: AccommodatingResistance,
+    ) -> Vec<WorkoutLift> {
         (0..sets)
             .map(|_| WorkoutLift {
                 name: "Dynamic Effort".to_string(),
@@ -124,10 +131,24 @@ impl ConjugateWorkoutBuilder {
                     lift: dl.lift.clone(),
                     metric: Some(SetMetric::Reps(reps)),
                     percent: Some(percent),
-                    accommodating_resistance: Some(dl.ar.clone()),
+                    accommodating_resistance: Some(ar.clone()),
                 }),
             })
             .collect()
+    }
+
+    fn dynamic_plan(
+        week_number: usize,
+        resisted_ar: &AccommodatingResistance,
+    ) -> (u32, AccommodatingResistance) {
+        match week_number % 6 {
+            0 => (60, AccommodatingResistance::Straight),
+            1 => (65, AccommodatingResistance::Straight),
+            2 => (70, AccommodatingResistance::Straight),
+            3 => (50, resisted_ar.clone()),
+            4 => (55, resisted_ar.clone()),
+            _ => (60, resisted_ar.clone()),
+        }
     }
 
     /// Pops the next conditioning movement off a random stack.
@@ -279,10 +300,23 @@ impl ConjugateWorkoutBuilder {
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
     ) -> DbResult<Workout> {
-        let percent = 60 + (week_number as u32) * 5;
+        let (squat_percent, squat_ar) = Self::dynamic_plan(week_number, &de_lifts.squat.ar);
         let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
-        lifts.extend(Self::dynamic_sets(&de_lifts.squat, 6, 3, percent));
-        lifts.extend(Self::dynamic_sets(&de_lifts.deadlift, 6, 2, percent));
+        lifts.extend(Self::dynamic_sets(
+            &de_lifts.squat,
+            6,
+            3,
+            squat_percent,
+            squat_ar.clone(),
+        ));
+        let (dead_percent, dead_ar) = Self::dynamic_plan(week_number, &de_lifts.deadlift.ar);
+        lifts.extend(Self::dynamic_sets(
+            &de_lifts.deadlift,
+            6,
+            2,
+            dead_percent,
+            dead_ar,
+        ));
         lifts.push(Self::accessory_circuit(
             accessories,
             Muscle::Hamstring,
@@ -311,10 +345,23 @@ impl ConjugateWorkoutBuilder {
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
     ) -> DbResult<Workout> {
-        let percent = 60 + (week_number as u32) * 5;
+        let (bench_percent, bench_ar) = Self::dynamic_plan(week_number, &de_lifts.bench.ar);
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
-        lifts.extend(Self::dynamic_sets(&de_lifts.bench, 9, 3, percent));
-        lifts.extend(Self::dynamic_sets(&de_lifts.overhead, 6, 2, percent));
+        lifts.extend(Self::dynamic_sets(
+            &de_lifts.bench,
+            9,
+            3,
+            bench_percent,
+            bench_ar.clone(),
+        ));
+        let (ohp_percent, ohp_ar) = Self::dynamic_plan(week_number, &de_lifts.overhead.ar);
+        lifts.extend(Self::dynamic_sets(
+            &de_lifts.overhead,
+            6,
+            2,
+            ohp_percent,
+            ohp_ar,
+        ));
         lifts.push(Self::accessory_circuit(
             accessories,
             Muscle::Lat,

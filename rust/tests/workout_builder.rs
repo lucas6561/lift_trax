@@ -337,13 +337,16 @@ fn alternates_main_lifts_across_weeks() {
         LiftType::OverheadPress,
     ];
 
-    let mut de_squat_ar = AccommodatingResistance::Straight;
-    let mut de_dead_ar = AccommodatingResistance::Straight;
-    let mut de_bench_ar = AccommodatingResistance::Straight;
-    let mut de_ohp_ar = AccommodatingResistance::Straight;
+    let mut de_squat_resisted: Option<AccommodatingResistance> = None;
+    let mut de_dead_resisted: Option<AccommodatingResistance> = None;
+    let mut de_bench_resisted: Option<AccommodatingResistance> = None;
+    let mut de_ohp_resisted: Option<AccommodatingResistance> = None;
+    let dynamic_percents = [60, 65, 70, 50, 55, 60];
 
     for (i, week) in wave.iter().enumerate() {
         let mut warmup_cores = HashSet::new();
+        let week_in_cycle = i % dynamic_percents.len();
+        let expected_dynamic_percent = dynamic_percents[week_in_cycle];
 
         let mon = week.get(&Weekday::Mon).expect("monday");
         assert!(mon.lifts.len() == 9 || mon.lifts.len() == 11);
@@ -586,35 +589,51 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        for (idx, l) in thu.lifts[1..7].iter().enumerate() {
+        for l in &thu.lifts[1..7] {
             match &l.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, "Squat");
                     assert_eq!(s.lift.main, Some(LiftType::Squat));
-                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(expected_dynamic_percent));
                     assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
-                    if i == 0 && idx == 0 {
-                        de_squat_ar = ar;
+                    if week_in_cycle < 3 {
+                        assert_eq!(ar, AccommodatingResistance::Straight);
                     } else {
-                        assert_eq!(ar, de_squat_ar);
+                        assert_ne!(ar, AccommodatingResistance::Straight);
+                        assert!(matches!(
+                            ar,
+                            AccommodatingResistance::Chains | AccommodatingResistance::Bands
+                        ));
+                        match &mut de_squat_resisted {
+                            None => de_squat_resisted = Some(ar.clone()),
+                            Some(expected) => assert_eq!(expected, &ar),
+                        }
                     }
                 }
                 _ => panic!("expected single"),
             }
         }
-        for (idx, l) in thu.lifts[7..13].iter().enumerate() {
+        for l in &thu.lifts[7..13] {
             match &l.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, "Deadlift");
                     assert_eq!(s.lift.main, Some(LiftType::Deadlift));
-                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(expected_dynamic_percent));
                     assert_eq!(s.metric, Some(SetMetric::Reps(2)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
-                    if i == 0 && idx == 0 {
-                        de_dead_ar = ar;
+                    if week_in_cycle < 3 {
+                        assert_eq!(ar, AccommodatingResistance::Straight);
                     } else {
-                        assert_eq!(ar, de_dead_ar);
+                        assert_ne!(ar, AccommodatingResistance::Straight);
+                        assert!(matches!(
+                            ar,
+                            AccommodatingResistance::Chains | AccommodatingResistance::Bands
+                        ));
+                        match &mut de_dead_resisted {
+                            None => de_dead_resisted = Some(ar.clone()),
+                            Some(expected) => assert_eq!(expected, &ar),
+                        }
                     }
                 }
                 _ => panic!("expected single"),
@@ -675,35 +694,51 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected circuit"),
         }
-        for (idx, l) in fri.lifts[1..10].iter().enumerate() {
+        for l in &fri.lifts[1..10] {
             match &l.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, "Bench Press");
                     assert_eq!(s.lift.main, Some(LiftType::BenchPress));
-                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(expected_dynamic_percent));
                     assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
-                    if i == 0 && idx == 0 {
-                        de_bench_ar = ar;
+                    if week_in_cycle < 3 {
+                        assert_eq!(ar, AccommodatingResistance::Straight);
                     } else {
-                        assert_eq!(ar, de_bench_ar);
+                        assert_ne!(ar, AccommodatingResistance::Straight);
+                        assert!(matches!(
+                            ar,
+                            AccommodatingResistance::Chains | AccommodatingResistance::Bands
+                        ));
+                        match &mut de_bench_resisted {
+                            None => de_bench_resisted = Some(ar.clone()),
+                            Some(expected) => assert_eq!(expected, &ar),
+                        }
                     }
                 }
                 _ => panic!("expected single"),
             }
         }
-        for (idx, l) in fri.lifts[10..16].iter().enumerate() {
+        for l in &fri.lifts[10..16] {
             match &l.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, "Overhead Press");
                     assert_eq!(s.lift.main, Some(LiftType::OverheadPress));
-                    assert_eq!(s.percent, Some(60 + i as u32 * 5));
+                    assert_eq!(s.percent, Some(expected_dynamic_percent));
                     assert_eq!(s.metric, Some(SetMetric::Reps(2)));
                     let ar = s.accommodating_resistance.clone().expect("ar");
-                    if i == 0 && idx == 0 {
-                        de_ohp_ar = ar;
+                    if week_in_cycle < 3 {
+                        assert_eq!(ar, AccommodatingResistance::Straight);
                     } else {
-                        assert_eq!(ar, de_ohp_ar);
+                        assert_ne!(ar, AccommodatingResistance::Straight);
+                        assert!(matches!(
+                            ar,
+                            AccommodatingResistance::Chains | AccommodatingResistance::Bands
+                        ));
+                        match &mut de_ohp_resisted {
+                            None => de_ohp_resisted = Some(ar.clone()),
+                            Some(expected) => assert_eq!(expected, &ar),
+                        }
                     }
                 }
                 _ => panic!("expected single"),

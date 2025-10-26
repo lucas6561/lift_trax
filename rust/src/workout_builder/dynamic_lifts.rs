@@ -22,7 +22,6 @@ impl DynamicLifts {
     pub(crate) fn new(db: &dyn Database) -> DbResult<Self> {
         let mut rng = thread_rng();
         let ar_opts = [
-            AccommodatingResistance::Straight,
             AccommodatingResistance::Chains,
             AccommodatingResistance::Bands,
         ];
@@ -154,7 +153,6 @@ mod tests {
         assert_eq!(lifts.overhead.lift.name, "Overhead Press");
 
         let valid = [
-            AccommodatingResistance::Straight,
             AccommodatingResistance::Chains,
             AccommodatingResistance::Bands,
         ];
