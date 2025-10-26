@@ -80,6 +80,7 @@ impl WarmupStacks {
             lift,
             metric: None,
             percent: None,
+            rpe: None,
             accommodating_resistance: None,
         };
 

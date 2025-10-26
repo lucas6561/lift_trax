@@ -349,7 +349,7 @@ fn alternates_main_lifts_across_weeks() {
         let expected_dynamic_percent = dynamic_percents[week_in_cycle];
 
         let mon = week.get(&Weekday::Mon).expect("monday");
-        assert!(mon.lifts.len() == 9 || mon.lifts.len() == 11);
+        assert!(mon.lifts.len() == 9 || mon.lifts.len() == 10);
         match &mon.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -378,10 +378,6 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         };
-        let backoff_percent = match &mon.lifts[2].kind {
-            WorkoutLiftKind::Single(s) => s.percent,
-            _ => panic!("expected single"),
-        };
         let has_forearm = mon
             .lifts
             .last()
@@ -389,27 +385,17 @@ fn alternates_main_lifts_across_weeks() {
             .unwrap_or(false);
         let base = if has_forearm { 8 } else { 7 };
         let backoff_count = mon.lifts.len() - base;
-        for b in &mon.lifts[2..2 + backoff_count] {
+        assert_eq!(backoff_count, 2);
+        for b in &mon.lifts[2..4] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, main_name);
-                    assert_eq!(s.percent, backoff_percent);
-                    match backoff_percent {
-                        Some(90) => match s.metric {
-                            Some(SetMetric::Reps(r)) => assert!((3..=5).contains(&r)),
-                            _ => panic!("expected reps"),
-                        },
-                        Some(80) => assert_eq!(s.metric, Some(SetMetric::Reps(3))),
-                        _ => panic!("unexpected percent"),
-                    }
+                    assert_eq!(s.percent, Some(70));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.rpe, Some(7.0));
                 }
                 _ => panic!("expected single"),
             }
-        }
-        match backoff_percent {
-            Some(90) => assert_eq!(backoff_count, 1),
-            Some(80) => assert_eq!(backoff_count, 3),
-            _ => panic!("unexpected percent"),
         }
         let next_lift = expected_lower[(i + 1) % expected_lower.len()];
         for b in &mon.lifts[2 + backoff_count..5 + backoff_count] {
@@ -457,7 +443,7 @@ fn alternates_main_lifts_across_weeks() {
         }
 
         let tue = week.get(&Weekday::Tue).expect("tuesday");
-        assert!(tue.lifts.len() == 9 || tue.lifts.len() == 11);
+        assert!(tue.lifts.len() == 9 || tue.lifts.len() == 10);
         match &tue.lifts[0].kind {
             WorkoutLiftKind::Circuit(c) => {
                 assert_eq!(c.circuit_lifts.len(), 4);
@@ -487,10 +473,6 @@ fn alternates_main_lifts_across_weeks() {
             }
             _ => panic!("expected single"),
         };
-        let backoff_percent = match &tue.lifts[2].kind {
-            WorkoutLiftKind::Single(s) => s.percent,
-            _ => panic!("expected single"),
-        };
         let has_forearm = tue
             .lifts
             .last()
@@ -498,27 +480,17 @@ fn alternates_main_lifts_across_weeks() {
             .unwrap_or(false);
         let base = if has_forearm { 8 } else { 7 };
         let backoff_count = tue.lifts.len() - base;
-        for b in &tue.lifts[2..2 + backoff_count] {
+        assert_eq!(backoff_count, 2);
+        for b in &tue.lifts[2..4] {
             match &b.kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.name, main_name);
-                    assert_eq!(s.percent, backoff_percent);
-                    match backoff_percent {
-                        Some(90) => match s.metric {
-                            Some(SetMetric::Reps(r)) => assert!((3..=5).contains(&r)),
-                            _ => panic!("expected reps"),
-                        },
-                        Some(80) => assert_eq!(s.metric, Some(SetMetric::Reps(3))),
-                        _ => panic!("unexpected percent"),
-                    }
+                    assert_eq!(s.percent, Some(70));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.rpe, Some(7.0));
                 }
                 _ => panic!("expected single"),
             }
-        }
-        match backoff_percent {
-            Some(90) => assert_eq!(backoff_count, 1),
-            Some(80) => assert_eq!(backoff_count, 3),
-            _ => panic!("unexpected percent"),
         }
         let next_lift = expected_upper[(i + 1) % expected_upper.len()];
         for b in &tue.lifts[2 + backoff_count..5 + backoff_count] {
