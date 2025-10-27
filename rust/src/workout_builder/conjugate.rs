@@ -323,7 +323,7 @@ impl ConjugateWorkoutBuilder {
             } else {
                 lifts.extend(Self::deload_technique_sets(lower.clone()));
             }
-            let muscles = [Muscle::Hamstring, Muscle::Quad, Muscle::Calf];
+            let muscles = [Muscle::Hamstring, Muscle::Quad, Muscle::Core];
             lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
@@ -371,14 +371,7 @@ impl ConjugateWorkoutBuilder {
             } else {
                 lifts.extend(Self::deload_technique_sets(upper.clone()));
             }
-            let upper_opts = [
-                Muscle::RearDelt,
-                Muscle::Shoulder,
-                Muscle::FrontDelt,
-                Muscle::Trap,
-            ];
-            let third = *upper_opts.choose(&mut thread_rng()).unwrap();
-            let muscles = [Muscle::Lat, Muscle::Tricep, third];
+            let muscles = [Muscle::Lat, Muscle::Tricep, Muscle::Core];
             lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
@@ -479,7 +472,7 @@ impl ConjugateWorkoutBuilder {
         if Self::is_deload_week(week_number) {
             lifts.extend(Self::deload_dynamic_sets(&de_lifts.bench, 3));
             lifts.extend(Self::deload_dynamic_sets(&de_lifts.overhead, 2));
-            let muscles = [Muscle::Lat, Muscle::Tricep, Muscle::Bicep];
+            let muscles = [Muscle::Lat, Muscle::Tricep, Muscle::Core];
             lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
