@@ -16,7 +16,7 @@ use crate::random_stack::RandomStack;
 
 use super::accessory_stacks::AccessoryStacks;
 use super::dynamic_lifts::{DynamicLift, DynamicLifts};
-use super::max_effort_editor;
+use super::max_effort_editor::{self, MaxEffortPlan, ReloadLowerLifts, ReloadUpperLifts};
 use super::max_effort_lift_pools::MaxEffortLiftPools;
 use super::warmup_stacks::WarmupStacks;
 use super::{
@@ -290,12 +290,14 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `lower_plan`: Ordered list of lower-body max-effort variations.
+    /// - `lower_reload`: User-selected pairs of squat/deadlift lifts for reload weeks.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_lower_max_day(
         week_number: usize,
         lower_plan: &[Lift],
+        lower_reload: &[ReloadLowerLifts],
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
@@ -303,7 +305,12 @@ impl ConjugateWorkoutBuilder {
         let lower = lower_plan[week_number].clone();
         let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_technique_sets(lower));
+            if let Some(reload) = lower_reload.get(week_number / 7) {
+                lifts.extend(Self::deload_technique_sets(reload.squat.clone()));
+                lifts.extend(Self::deload_technique_sets(reload.deadlift.clone()));
+            } else {
+                lifts.extend(Self::deload_technique_sets(lower.clone()));
+            }
             lifts.push(Self::deload_circuit(
                 accessories,
                 &[Muscle::Hamstring, Muscle::Quad],
@@ -333,12 +340,14 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `upper_plan`: Ordered list of upper-body max-effort variations.
+    /// - `upper_reload`: User-selected bench/overhead pairs for reload weeks.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_upper_max_day(
         week_number: usize,
         upper_plan: &[Lift],
+        upper_reload: &[ReloadUpperLifts],
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
@@ -346,7 +355,12 @@ impl ConjugateWorkoutBuilder {
         let upper = upper_plan[week_number].clone();
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_technique_sets(upper));
+            if let Some(reload) = upper_reload.get(week_number / 7) {
+                lifts.extend(Self::deload_technique_sets(reload.bench.clone()));
+                lifts.extend(Self::deload_technique_sets(reload.overhead.clone()));
+            } else {
+                lifts.extend(Self::deload_technique_sets(upper.clone()));
+            }
             lifts.push(Self::deload_circuit(
                 accessories,
                 &[Muscle::Lat, Muscle::Tricep],
@@ -502,16 +516,15 @@ impl ConjugateWorkoutBuilder {
     ///
     /// # Parameters
     /// - `week_number`: Index of the week in the wave being generated.
-    /// - `lower_plan`: Ordered list of lower-body max-effort variations.
-    /// - `upper_plan`: Ordered list of upper-body max-effort variations.
+    /// - `plans`: Collection of user-selected max-effort rotations, including
+    ///   reload week preferences.
     /// - `de_lifts`: Collection of dynamic-effort lift variations.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_week(
         week_number: usize,
-        lower_plan: &[Lift],
-        upper_plan: &[Lift],
+        plans: &MaxEffortPlan,
         de_lifts: &DynamicLifts,
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
@@ -521,12 +534,26 @@ impl ConjugateWorkoutBuilder {
 
         week.insert(
             Weekday::Mon,
-            Self::build_lower_max_day(week_number, lower_plan, conditioning, warmups, accessories)?,
+            Self::build_lower_max_day(
+                week_number,
+                &plans.lower,
+                &plans.lower_reload,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
         );
 
         week.insert(
             Weekday::Tue,
-            Self::build_upper_max_day(week_number, upper_plan, conditioning, warmups, accessories)?,
+            Self::build_upper_max_day(
+                week_number,
+                &plans.upper,
+                &plans.upper_reload,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
         );
 
         week.insert(
@@ -579,7 +606,7 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
         let deadlift_options = Self::get_lifts_by_type(db, LiftType::Deadlift)?;
         let bench_options = Self::get_lifts_by_type(db, LiftType::BenchPress)?;
         let ohp_options = Self::get_lifts_by_type(db, LiftType::OverheadPress)?;
-        let (lower_plan, upper_plan) = max_effort_editor::edit_max_effort_plan(
+        let max_effort_plan = max_effort_editor::edit_max_effort_plan(
             squat_options,
             deadlift_options,
             bench_options,
@@ -599,8 +626,7 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
         for week_number in 0..num_weeks {
             weeks.push(Self::build_week(
                 week_number,
-                &lower_plan,
-                &upper_plan,
+                &max_effort_plan,
                 &dynamic,
                 &mut conditioning,
                 &mut warmups,

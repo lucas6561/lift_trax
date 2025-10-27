@@ -784,8 +784,19 @@ fn assert_deload_week(
         }
     };
 
+    let secondary_lower = match expected_lower {
+        LiftType::Squat => LiftType::Deadlift,
+        LiftType::Deadlift => LiftType::Squat,
+        other => panic!("unexpected lower lift type: {other:?}"),
+    };
+    let secondary_upper = match expected_upper {
+        LiftType::BenchPress => LiftType::OverheadPress,
+        LiftType::OverheadPress => LiftType::BenchPress,
+        other => panic!("unexpected upper lift type: {other:?}"),
+    };
+
     let mon = week.get(&Weekday::Mon).expect("monday");
-    assert_eq!(mon.lifts.len(), 6);
+    assert_eq!(mon.lifts.len(), 9);
     match &mon.lifts[0].kind {
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 4);
@@ -804,7 +815,18 @@ fn assert_deload_week(
             _ => panic!("expected deload technique sets"),
         }
     }
-    match &mon.lifts[4].kind {
+    for lift in &mon.lifts[4..7] {
+        match &lift.kind {
+            WorkoutLiftKind::Single(s) => {
+                assert_eq!(s.lift.main, Some(secondary_lower));
+                assert_eq!(s.percent, Some(70));
+                assert_eq!(s.metric, Some(SetMetric::Reps(3)));
+                assert_eq!(s.rpe, Some(6.0));
+            }
+            _ => panic!("expected deload technique sets"),
+        }
+    }
+    match &mon.lifts[7].kind {
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 2);
             assert_eq!(c.rounds, 2);
@@ -821,7 +843,7 @@ fn assert_deload_week(
         }
         _ => panic!("expected deload circuit"),
     }
-    match &mon.lifts[5].kind {
+    match &mon.lifts[8].kind {
         WorkoutLiftKind::Single(s) => {
             assert_eq!(s.lift.main, Some(LiftType::Conditioning));
             assert_eq!(s.metric, Some(SetMetric::TimeSecs(300)));
@@ -832,7 +854,7 @@ fn assert_deload_week(
     }
 
     let tue = week.get(&Weekday::Tue).expect("tuesday");
-    assert_eq!(tue.lifts.len(), 6);
+    assert_eq!(tue.lifts.len(), 9);
     match &tue.lifts[0].kind {
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 4);
@@ -851,7 +873,18 @@ fn assert_deload_week(
             _ => panic!("expected deload technique sets"),
         }
     }
-    match &tue.lifts[4].kind {
+    for lift in &tue.lifts[4..7] {
+        match &lift.kind {
+            WorkoutLiftKind::Single(s) => {
+                assert_eq!(s.lift.main, Some(secondary_upper));
+                assert_eq!(s.percent, Some(70));
+                assert_eq!(s.metric, Some(SetMetric::Reps(3)));
+                assert_eq!(s.rpe, Some(6.0));
+            }
+            _ => panic!("expected deload technique sets"),
+        }
+    }
+    match &tue.lifts[7].kind {
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 2);
             assert_eq!(c.rounds, 2);
@@ -868,7 +901,7 @@ fn assert_deload_week(
         }
         _ => panic!("expected deload circuit"),
     }
-    match &tue.lifts[5].kind {
+    match &tue.lifts[8].kind {
         WorkoutLiftKind::Single(s) => {
             assert_eq!(s.lift.main, Some(LiftType::Conditioning));
             assert_eq!(s.metric, Some(SetMetric::TimeSecs(300)));
