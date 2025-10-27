@@ -145,10 +145,12 @@ impl ConjugateWorkoutBuilder {
         accessories: &mut AccessoryStacks,
         muscles: &[Muscle],
     ) -> DbResult<WorkoutLift> {
-        let lifts = muscles
-            .iter()
-            .map(|muscle| accessories.single(*muscle))
-            .collect::<DbResult<Vec<_>>>()?;
+        let mut lifts = Vec::with_capacity(muscles.len());
+        for muscle in muscles {
+            let mut lift = accessories.single(*muscle)?;
+            lift.deload = true;
+            lifts.push(lift);
+        }
         Ok(WorkoutLift {
             name: "Deload Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
@@ -321,10 +323,8 @@ impl ConjugateWorkoutBuilder {
             } else {
                 lifts.extend(Self::deload_technique_sets(lower.clone()));
             }
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Hamstring, Muscle::Quad],
-            )?);
+            let muscles = [Muscle::Hamstring, Muscle::Quad, Muscle::Calf];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             lifts.push(Self::max_effort_single(lower.clone()));
@@ -371,10 +371,15 @@ impl ConjugateWorkoutBuilder {
             } else {
                 lifts.extend(Self::deload_technique_sets(upper.clone()));
             }
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Lat, Muscle::Tricep],
-            )?);
+            let upper_opts = [
+                Muscle::RearDelt,
+                Muscle::Shoulder,
+                Muscle::FrontDelt,
+                Muscle::Trap,
+            ];
+            let third = *upper_opts.choose(&mut thread_rng()).unwrap();
+            let muscles = [Muscle::Lat, Muscle::Tricep, third];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             lifts.push(Self::max_effort_single(upper.clone()));
@@ -421,10 +426,8 @@ impl ConjugateWorkoutBuilder {
         if Self::is_deload_week(week_number) {
             lifts.extend(Self::deload_dynamic_sets(&de_lifts.squat, 3));
             lifts.extend(Self::deload_dynamic_sets(&de_lifts.deadlift, 2));
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Hamstring, Muscle::Core],
-            )?);
+            let muscles = [Muscle::Hamstring, Muscle::Quad, Muscle::Core];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             let (squat_percent, squat_ar) = Self::dynamic_plan(week_number, &de_lifts.squat.ar);
@@ -476,10 +479,8 @@ impl ConjugateWorkoutBuilder {
         if Self::is_deload_week(week_number) {
             lifts.extend(Self::deload_dynamic_sets(&de_lifts.bench, 3));
             lifts.extend(Self::deload_dynamic_sets(&de_lifts.overhead, 2));
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Lat, Muscle::Tricep],
-            )?);
+            let muscles = [Muscle::Lat, Muscle::Tricep, Muscle::Bicep];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             let (bench_percent, bench_ar) = Self::dynamic_plan(week_number, &de_lifts.bench.ar);

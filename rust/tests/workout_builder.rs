@@ -834,7 +834,7 @@ fn assert_deload_week(
     }
     match &mon.lifts[7].kind {
         WorkoutLiftKind::Circuit(c) => {
-            assert_eq!(c.circuit_lifts.len(), 2);
+            assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
             assert_eq!(c.rest_time_sec, 45);
             for l in &c.circuit_lifts {
@@ -845,6 +845,7 @@ fn assert_deload_week(
                     _ => panic!("expected rep range"),
                 }
                 assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                assert!(l.deload);
             }
         }
         _ => panic!("expected deload circuit"),
@@ -895,7 +896,7 @@ fn assert_deload_week(
     }
     match &tue.lifts[7].kind {
         WorkoutLiftKind::Circuit(c) => {
-            assert_eq!(c.circuit_lifts.len(), 2);
+            assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
             assert_eq!(c.rest_time_sec, 45);
             for l in &c.circuit_lifts {
@@ -906,6 +907,7 @@ fn assert_deload_week(
                     _ => panic!("expected rep range"),
                 }
                 assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                assert!(l.deload);
             }
         }
         _ => panic!("expected deload circuit"),
@@ -954,9 +956,19 @@ fn assert_deload_week(
     }
     match &thu.lifts[7].kind {
         WorkoutLiftKind::Circuit(c) => {
-            assert_eq!(c.circuit_lifts.len(), 2);
+            assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
             assert_eq!(c.rest_time_sec, 45);
+            for l in &c.circuit_lifts {
+                match l.metric {
+                    Some(SetMetric::RepsRange { min, max }) => {
+                        assert_eq!((min, max), (8, 12));
+                    }
+                    _ => panic!("expected rep range"),
+                }
+                assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                assert!(l.deload);
+            }
         }
         _ => panic!("expected deload circuit"),
     }
@@ -1004,9 +1016,19 @@ fn assert_deload_week(
     }
     match &fri.lifts[7].kind {
         WorkoutLiftKind::Circuit(c) => {
-            assert_eq!(c.circuit_lifts.len(), 2);
+            assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
             assert_eq!(c.rest_time_sec, 45);
+            for l in &c.circuit_lifts {
+                match l.metric {
+                    Some(SetMetric::RepsRange { min, max }) => {
+                        assert_eq!((min, max), (8, 12));
+                    }
+                    _ => panic!("expected rep range"),
+                }
+                assert_eq!(l.lift.main, Some(LiftType::Accessory));
+                assert!(l.deload);
+            }
         }
         _ => panic!("expected deload circuit"),
     }
