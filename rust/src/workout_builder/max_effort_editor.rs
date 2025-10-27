@@ -13,18 +13,18 @@ use crate::{database::DbResult, models::Lift};
 pub struct MaxEffortPlan {
     pub lower: Vec<Lift>,
     pub upper: Vec<Lift>,
-    pub lower_reload: Vec<ReloadLowerLifts>,
-    pub upper_reload: Vec<ReloadUpperLifts>,
+    pub lower_deload: Vec<DeloadLowerLifts>,
+    pub upper_deload: Vec<DeloadUpperLifts>,
 }
 
 #[derive(Clone)]
-pub struct ReloadLowerLifts {
+pub struct DeloadLowerLifts {
     pub squat: Lift,
     pub deadlift: Lift,
 }
 
 #[derive(Clone)]
-pub struct ReloadUpperLifts {
+pub struct DeloadUpperLifts {
     pub bench: Lift,
     pub overhead: Lift,
 }
@@ -70,11 +70,20 @@ pub fn edit_max_effort_plan(
     let upper_bench_indices = indices_for_defaults(&upper_bench_options, &upper_bench_defaults);
     let upper_ohp_indices = indices_for_defaults(&upper_ohp_options, &upper_ohp_defaults);
 
-    let lower_reload_defaults =
-        reload_indices_for_defaults(weeks, &lower_squat_indices, &lower_deadlift_indices);
-    let upper_reload_defaults =
-        reload_indices_for_defaults(weeks, &upper_bench_indices, &upper_ohp_indices);
-    let reload_weeks = reload_week_numbers(weeks);
+    let lower_deload_pairs = derive_lower_deload_from_plan(&default_lower);
+    let upper_deload_pairs = derive_upper_deload_from_plan(&default_upper);
+
+    let lower_deload_defaults = deload_lower_indices_from_pairs(
+        &lower_deload_pairs,
+        &lower_squat_options,
+        &lower_deadlift_options,
+    );
+    let upper_deload_defaults = deload_upper_indices_from_pairs(
+        &upper_deload_pairs,
+        &upper_bench_options,
+        &upper_ohp_options,
+    );
+    let deload_weeks = deload_week_numbers(weeks);
 
     let (tx, rx) = mpsc::channel();
 
@@ -86,9 +95,9 @@ pub fn edit_max_effort_plan(
     let app_lower_deadlift_indices = lower_deadlift_indices.clone();
     let app_upper_bench_indices = upper_bench_indices.clone();
     let app_upper_ohp_indices = upper_ohp_indices.clone();
-    let app_lower_reload_defaults = lower_reload_defaults.clone();
-    let app_upper_reload_defaults = upper_reload_defaults.clone();
-    let app_reload_weeks = reload_weeks.clone();
+    let app_lower_deload_defaults = lower_deload_defaults.clone();
+    let app_upper_deload_defaults = upper_deload_defaults.clone();
+    let app_deload_weeks = deload_weeks.clone();
     let sender = tx.clone();
 
     if let Err(err) = eframe::run_native(
@@ -99,50 +108,50 @@ pub fn edit_max_effort_plan(
                 Column::new(
                     "Squat Weeks",
                     "lower_squat",
-                    0,
+                    column_week_numbers(weeks, 0),
                     app_lower_squat_options.clone(),
                     app_lower_squat_indices,
                 ),
                 Column::new(
                     "Deadlift Weeks",
                     "lower_deadlift",
-                    1,
+                    column_week_numbers(weeks, 1),
                     app_lower_deadlift_options.clone(),
                     app_lower_deadlift_indices,
                 ),
                 Column::new(
                     "Bench Press Weeks",
                     "upper_bench",
-                    0,
+                    column_week_numbers(weeks, 0),
                     app_upper_bench_options.clone(),
                     app_upper_bench_indices,
                 ),
                 Column::new(
                     "Overhead Press Weeks",
                     "upper_ohp",
-                    1,
+                    column_week_numbers(weeks, 1),
                     app_upper_ohp_options.clone(),
                     app_upper_ohp_indices,
                 ),
-                ReloadColumn::new(
-                    "Lower Reload Weeks",
-                    "lower_reload",
-                    app_reload_weeks.clone(),
+                DeloadColumn::new(
+                    "Lower Deload Weeks",
+                    "lower_deload",
+                    app_deload_weeks.clone(),
                     "Squat",
                     app_lower_squat_options.clone(),
                     "Deadlift",
                     app_lower_deadlift_options.clone(),
-                    app_lower_reload_defaults,
+                    app_lower_deload_defaults,
                 ),
-                ReloadColumn::new(
-                    "Upper Reload Weeks",
-                    "upper_reload",
-                    app_reload_weeks,
+                DeloadColumn::new(
+                    "Upper Deload Weeks",
+                    "upper_deload",
+                    app_deload_weeks,
                     "Bench Press",
                     app_upper_bench_options.clone(),
                     "Overhead Press",
                     app_upper_ohp_options.clone(),
-                    app_upper_reload_defaults,
+                    app_upper_deload_defaults,
                 ),
                 sender.clone(),
             ))
@@ -159,33 +168,33 @@ pub fn edit_max_effort_plan(
             lower_deadlift: lower_deadlift_indices,
             upper_bench: upper_bench_indices,
             upper_ohp: upper_ohp_indices,
-            lower_reload: lower_reload_defaults,
-            upper_reload: upper_reload_defaults,
+            lower_deload: lower_deload_defaults,
+            upper_deload: upper_deload_defaults,
         },
     };
 
     let lower_plan = build_plan(
-        weeks,
+        &default_lower,
         &selections.lower_squat,
         &selections.lower_deadlift,
         &lower_squat_options,
         &lower_deadlift_options,
     );
     let upper_plan = build_plan(
-        weeks,
+        &default_upper,
         &selections.upper_bench,
         &selections.upper_ohp,
         &upper_bench_options,
         &upper_ohp_options,
     );
 
-    let lower_reload = build_reload_lower_plan(
-        &selections.lower_reload,
+    let lower_deload = build_deload_lower_plan(
+        &selections.lower_deload,
         &lower_squat_options,
         &lower_deadlift_options,
     );
-    let upper_reload = build_reload_upper_plan(
-        &selections.upper_reload,
+    let upper_deload = build_deload_upper_plan(
+        &selections.upper_deload,
         &upper_bench_options,
         &upper_ohp_options,
     );
@@ -193,8 +202,8 @@ pub fn edit_max_effort_plan(
     Ok(MaxEffortPlan {
         lower: lower_plan,
         upper: upper_plan,
-        lower_reload,
-        upper_reload,
+        lower_deload,
+        upper_deload,
     })
 }
 
@@ -214,22 +223,43 @@ fn split_defaults_by_parity(defaults: &[Lift], parity: usize) -> Vec<Lift> {
     defaults
         .iter()
         .enumerate()
-        .filter_map(|(idx, lift)| (idx % 2 == parity).then(|| lift.clone()))
+        .filter_map(|(idx, lift)| {
+            let is_matching_parity = idx % 2 == parity;
+            let is_deload_week = (idx + 1) % 7 == 0;
+            if is_matching_parity && !is_deload_week {
+                Some(lift.clone())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn column_week_numbers(total_weeks: usize, parity: usize) -> Vec<usize> {
+    (0..total_weeks)
+        .filter(|week| week % 2 == parity && (week + 1) % 7 != 0)
+        .map(|week| week + 1)
         .collect()
 }
 
 fn build_plan(
-    weeks: usize,
+    defaults: &[Lift],
     primary_selection: &[usize],
     secondary_selection: &[usize],
     primary_options: &[Lift],
     secondary_options: &[Lift],
 ) -> Vec<Lift> {
+    let weeks = defaults.len();
     let mut plan = Vec::with_capacity(weeks);
     let mut primary_idx = 0usize;
     let mut secondary_idx = 0usize;
 
-    for week in 0..weeks {
+    for (week, default) in defaults.iter().enumerate() {
+        if (week + 1) % 7 == 0 {
+            plan.push(default.clone());
+            continue;
+        }
+
         if week % 2 == 0 {
             let selection = primary_selection
                 .get(primary_idx)
@@ -260,57 +290,58 @@ fn build_plan(
     plan
 }
 
-fn reload_week_numbers(weeks: usize) -> Vec<usize> {
+fn deload_week_numbers(weeks: usize) -> Vec<usize> {
     (1..=weeks).filter(|week| week % 7 == 0).collect::<Vec<_>>()
 }
 
-fn reload_indices_for_defaults(
-    weeks: usize,
-    primary: &[usize],
-    secondary: &[usize],
-) -> Vec<ReloadSelectionIndices> {
-    let mut selections = Vec::new();
-    if weeks < 7 {
-        return selections;
-    }
-
-    let reload_weeks = weeks / 7;
-    for reload_idx in 0..reload_weeks {
-        let week_number = (reload_idx + 1) * 7 - 1; // zero-based index
-        let (primary_week, secondary_week) = if week_number % 2 == 0 {
-            (week_number / 2, (week_number - 1) / 2)
-        } else {
-            ((week_number - 1) / 2, week_number / 2)
-        };
-
-        let primary_idx = primary
-            .get(primary_week)
-            .copied()
-            .or_else(|| primary.first().copied())
-            .unwrap_or(0);
-        let secondary_idx = secondary
-            .get(secondary_week)
-            .copied()
-            .or_else(|| secondary.first().copied())
-            .unwrap_or(0);
-
-        selections.push(ReloadSelectionIndices {
-            primary: primary_idx,
-            secondary: secondary_idx,
-        });
-    }
-
-    selections
-}
-
-fn build_reload_lower_plan(
-    selections: &[ReloadSelectionIndices],
+fn deload_lower_indices_from_pairs(
+    pairs: &[DeloadLowerLifts],
     squat_options: &[Lift],
     deadlift_options: &[Lift],
-) -> Vec<ReloadLowerLifts> {
+) -> Vec<DeloadSelectionIndices> {
+    pairs
+        .iter()
+        .map(|pair| DeloadSelectionIndices {
+            primary: squat_options
+                .iter()
+                .position(|opt| opt.name == pair.squat.name)
+                .unwrap_or(0),
+            secondary: deadlift_options
+                .iter()
+                .position(|opt| opt.name == pair.deadlift.name)
+                .unwrap_or(0),
+        })
+        .collect()
+}
+
+fn deload_upper_indices_from_pairs(
+    pairs: &[DeloadUpperLifts],
+    bench_options: &[Lift],
+    ohp_options: &[Lift],
+) -> Vec<DeloadSelectionIndices> {
+    pairs
+        .iter()
+        .map(|pair| DeloadSelectionIndices {
+            primary: bench_options
+                .iter()
+                .position(|opt| opt.name == pair.bench.name)
+                .unwrap_or(0),
+            secondary: ohp_options
+                .iter()
+                .position(|opt| opt.name == pair.overhead.name)
+                .unwrap_or(0),
+        })
+        .collect()
+}
+
+fn build_deload_lower_plan(
+    selections: &[DeloadSelectionIndices],
+    squat_options: &[Lift],
+    deadlift_options: &[Lift],
+) -> Vec<DeloadLowerLifts> {
     selections
         .iter()
-        .map(|selection| ReloadLowerLifts {
+        .map(|selection| DeloadLowerLifts {
             squat: squat_options
                 .get(selection.primary)
                 .or_else(|| squat_options.first())
@@ -325,14 +356,14 @@ fn build_reload_lower_plan(
         .collect()
 }
 
-fn build_reload_upper_plan(
-    selections: &[ReloadSelectionIndices],
+fn build_deload_upper_plan(
+    selections: &[DeloadSelectionIndices],
     bench_options: &[Lift],
     ohp_options: &[Lift],
-) -> Vec<ReloadUpperLifts> {
+) -> Vec<DeloadUpperLifts> {
     selections
         .iter()
-        .map(|selection| ReloadUpperLifts {
+        .map(|selection| DeloadUpperLifts {
             bench: bench_options
                 .get(selection.primary)
                 .or_else(|| bench_options.first())
@@ -348,72 +379,72 @@ fn build_reload_upper_plan(
 }
 
 fn plan_from_defaults(default_lower: Vec<Lift>, default_upper: Vec<Lift>) -> MaxEffortPlan {
-    let lower_reload = derive_lower_reload_from_plan(&default_lower);
-    let upper_reload = derive_upper_reload_from_plan(&default_upper);
+    let lower_deload = derive_lower_deload_from_plan(&default_lower);
+    let upper_deload = derive_upper_deload_from_plan(&default_upper);
     MaxEffortPlan {
         lower: default_lower,
         upper: default_upper,
-        lower_reload,
-        upper_reload,
+        lower_deload,
+        upper_deload,
     }
 }
 
-fn derive_lower_reload_from_plan(plan: &[Lift]) -> Vec<ReloadLowerLifts> {
+fn derive_lower_deload_from_plan(plan: &[Lift]) -> Vec<DeloadLowerLifts> {
     if plan.len() < 7 {
         return Vec::new();
     }
 
-    let mut reload = Vec::new();
-    let reload_weeks = plan.len() / 7;
-    for reload_idx in 0..reload_weeks {
-        let week_number = (reload_idx + 1) * 7 - 1;
+    let mut deload = Vec::new();
+    let deload_weeks = plan.len() / 7;
+    for deload_idx in 0..deload_weeks {
+        let week_number = (deload_idx + 1) * 7 - 1;
         if week_number == 0 {
             continue;
         }
         let current = plan[week_number].clone();
         let prior = plan[week_number - 1].clone();
         if week_number % 2 == 0 {
-            reload.push(ReloadLowerLifts {
+            deload.push(DeloadLowerLifts {
                 squat: current,
                 deadlift: prior,
             });
         } else {
-            reload.push(ReloadLowerLifts {
+            deload.push(DeloadLowerLifts {
                 squat: prior,
                 deadlift: current,
             });
         }
     }
-    reload
+    deload
 }
 
-fn derive_upper_reload_from_plan(plan: &[Lift]) -> Vec<ReloadUpperLifts> {
+fn derive_upper_deload_from_plan(plan: &[Lift]) -> Vec<DeloadUpperLifts> {
     if plan.len() < 7 {
         return Vec::new();
     }
 
-    let mut reload = Vec::new();
-    let reload_weeks = plan.len() / 7;
-    for reload_idx in 0..reload_weeks {
-        let week_number = (reload_idx + 1) * 7 - 1;
+    let mut deload = Vec::new();
+    let deload_weeks = plan.len() / 7;
+    for deload_idx in 0..deload_weeks {
+        let week_number = (deload_idx + 1) * 7 - 1;
         if week_number == 0 {
             continue;
         }
         let current = plan[week_number].clone();
         let prior = plan[week_number - 1].clone();
         if week_number % 2 == 0 {
-            reload.push(ReloadUpperLifts {
+            deload.push(DeloadUpperLifts {
                 bench: current,
                 overhead: prior,
             });
         } else {
-            reload.push(ReloadUpperLifts {
+            deload.push(DeloadUpperLifts {
                 bench: prior,
                 overhead: current,
             });
         }
     }
-    reload
+    deload
 }
 
 struct MaxEffortSelections {
@@ -421,14 +452,14 @@ struct MaxEffortSelections {
     lower_deadlift: Vec<usize>,
     upper_bench: Vec<usize>,
     upper_ohp: Vec<usize>,
-    lower_reload: Vec<ReloadSelectionIndices>,
-    upper_reload: Vec<ReloadSelectionIndices>,
+    lower_deload: Vec<DeloadSelectionIndices>,
+    upper_deload: Vec<DeloadSelectionIndices>,
 }
 
 struct Column {
     title: &'static str,
     id_prefix: &'static str,
-    first_week_index: usize,
+    week_numbers: Vec<usize>,
     options: Vec<Lift>,
     selection: Vec<usize>,
 }
@@ -437,21 +468,24 @@ impl Column {
     fn new(
         title: &'static str,
         id_prefix: &'static str,
-        first_week_index: usize,
+        week_numbers: Vec<usize>,
         options: Vec<Lift>,
         selection: Vec<usize>,
     ) -> Self {
         Self {
             title,
             id_prefix,
-            first_week_index,
+            week_numbers,
             options,
             selection,
         }
     }
 
     fn week_number(&self, idx: usize) -> usize {
-        self.first_week_index + idx * 2 + 1
+        self.week_numbers
+            .get(idx)
+            .copied()
+            .unwrap_or(self.week_numbers.last().copied().unwrap_or(1))
     }
 
     fn selection_row(&mut self, ui: &mut egui::Ui, idx: usize) {
@@ -503,7 +537,8 @@ impl Column {
             ui.label("No lifts available for this column.");
             return;
         }
-        for idx in 0..self.selection.len() {
+        let rows = self.selection.len().min(self.week_numbers.len());
+        for idx in 0..rows {
             self.selection_row(ui, idx);
         }
     }
@@ -566,12 +601,12 @@ fn triangle_button(ui: &mut egui::Ui, direction: TriangleDirection, enabled: boo
 }
 
 #[derive(Clone)]
-struct ReloadSelectionIndices {
+struct DeloadSelectionIndices {
     primary: usize,
     secondary: usize,
 }
 
-struct ReloadColumn {
+struct DeloadColumn {
     title: &'static str,
     id_prefix: &'static str,
     week_numbers: Vec<usize>,
@@ -579,10 +614,10 @@ struct ReloadColumn {
     primary_options: Vec<Lift>,
     secondary_label: &'static str,
     secondary_options: Vec<Lift>,
-    selection: Vec<ReloadSelectionIndices>,
+    selection: Vec<DeloadSelectionIndices>,
 }
 
-impl ReloadColumn {
+impl DeloadColumn {
     fn new(
         title: &'static str,
         id_prefix: &'static str,
@@ -591,7 +626,7 @@ impl ReloadColumn {
         primary_options: Vec<Lift>,
         secondary_label: &'static str,
         secondary_options: Vec<Lift>,
-        selection: Vec<ReloadSelectionIndices>,
+        selection: Vec<DeloadSelectionIndices>,
     ) -> Option<Self> {
         if week_numbers.is_empty() {
             return None;
@@ -616,7 +651,7 @@ impl ReloadColumn {
         ui.push_id((self.id_prefix, idx), |ui| {
             ui.group(|ui| {
                 ui.vertical(|ui| {
-                    ui.label(format!("Reload Week {week}"));
+                    ui.label(format!("Deload Week {week}"));
                     ui.horizontal(|ui| {
                         ui.label(self.primary_label);
                         let current = self
@@ -668,13 +703,14 @@ impl ReloadColumn {
             return;
         }
         ui.heading(self.title);
-        for idx in 0..self.selection.len() {
+        let rows = self.selection.len().min(self.week_numbers.len());
+        for idx in 0..rows {
             self.render_row(ui, idx);
             ui.add_space(8.0);
         }
     }
 
-    fn selections(&self) -> Vec<ReloadSelectionIndices> {
+    fn selections(&self) -> Vec<DeloadSelectionIndices> {
         self.selection.clone()
     }
 }
@@ -684,8 +720,8 @@ struct MaxEffortEditorApp {
     lower_deadlift: Column,
     upper_bench: Column,
     upper_ohp: Column,
-    lower_reload: Option<ReloadColumn>,
-    upper_reload: Option<ReloadColumn>,
+    lower_deload: Option<DeloadColumn>,
+    upper_deload: Option<DeloadColumn>,
     sender: Option<Sender<MaxEffortSelections>>,
 }
 
@@ -695,8 +731,8 @@ impl MaxEffortEditorApp {
         lower_deadlift: Column,
         upper_bench: Column,
         upper_ohp: Column,
-        lower_reload: Option<ReloadColumn>,
-        upper_reload: Option<ReloadColumn>,
+        lower_deload: Option<DeloadColumn>,
+        upper_deload: Option<DeloadColumn>,
         sender: Sender<MaxEffortSelections>,
     ) -> Self {
         Self {
@@ -704,8 +740,8 @@ impl MaxEffortEditorApp {
             lower_deadlift,
             upper_bench,
             upper_ohp,
-            lower_reload,
-            upper_reload,
+            lower_deload,
+            upper_deload,
             sender: Some(sender),
         }
     }
@@ -718,16 +754,16 @@ impl MaxEffortEditorApp {
         });
     }
 
-    fn render_reload_section(
+    fn render_deload_section(
         ui: &mut egui::Ui,
-        lower: Option<&mut ReloadColumn>,
-        upper: Option<&mut ReloadColumn>,
+        lower: Option<&mut DeloadColumn>,
+        upper: Option<&mut DeloadColumn>,
     ) {
         if lower.is_none() && upper.is_none() {
             return;
         }
 
-        ui.heading("Reload Week Max Effort");
+        ui.heading("Deload Week Max Effort");
         ui.columns(2, |columns| {
             if let Some(lower_col) = lower {
                 columns[0].vertical(|ui| lower_col.render(ui));
@@ -763,7 +799,7 @@ impl App for MaxEffortEditorApp {
             );
 
             ui.add_space(16.0);
-            Self::render_reload_section(ui, self.lower_reload.as_mut(), self.upper_reload.as_mut());
+            Self::render_deload_section(ui, self.lower_deload.as_mut(), self.upper_deload.as_mut());
 
             ui.add_space(20.0);
             ui.separator();
@@ -771,13 +807,13 @@ impl App for MaxEffortEditorApp {
             ui.horizontal(|ui| {
                 if ui.button("Save & Generate").clicked() {
                     if let Some(sender) = self.sender.take() {
-                        let lower_reload = self
-                            .lower_reload
+                        let lower_deload = self
+                            .lower_deload
                             .as_ref()
                             .map(|c| c.selections())
                             .unwrap_or_default();
-                        let upper_reload = self
-                            .upper_reload
+                        let upper_deload = self
+                            .upper_deload
                             .as_ref()
                             .map(|c| c.selections())
                             .unwrap_or_default();
@@ -786,8 +822,8 @@ impl App for MaxEffortEditorApp {
                             lower_deadlift: self.lower_deadlift.selection.clone(),
                             upper_bench: self.upper_bench.selection.clone(),
                             upper_ohp: self.upper_ohp.selection.clone(),
-                            lower_reload,
-                            upper_reload,
+                            lower_deload,
+                            upper_deload,
                         });
                     }
                     ui.ctx()

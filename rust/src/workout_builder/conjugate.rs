@@ -16,7 +16,7 @@ use crate::random_stack::RandomStack;
 
 use super::accessory_stacks::AccessoryStacks;
 use super::dynamic_lifts::{DynamicLift, DynamicLifts};
-use super::max_effort_editor::{self, MaxEffortPlan, ReloadLowerLifts, ReloadUpperLifts};
+use super::max_effort_editor::{self, DeloadLowerLifts, DeloadUpperLifts, MaxEffortPlan};
 use super::max_effort_lift_pools::MaxEffortLiftPools;
 use super::warmup_stacks::WarmupStacks;
 use super::{
@@ -302,14 +302,14 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `lower_plan`: Ordered list of lower-body max-effort variations.
-    /// - `lower_reload`: User-selected pairs of squat/deadlift lifts for reload weeks.
+    /// - `lower_deload`: User-selected pairs of squat/deadlift lifts for deload weeks.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_lower_max_day(
         week_number: usize,
         lower_plan: &[Lift],
-        lower_reload: &[ReloadLowerLifts],
+        lower_deload: &[DeloadLowerLifts],
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
@@ -317,9 +317,9 @@ impl ConjugateWorkoutBuilder {
         let lower = lower_plan[week_number].clone();
         let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
         if Self::is_deload_week(week_number) {
-            if let Some(reload) = lower_reload.get(week_number / 7) {
-                lifts.extend(Self::deload_technique_sets(reload.squat.clone()));
-                lifts.extend(Self::deload_technique_sets(reload.deadlift.clone()));
+            if let Some(deload) = lower_deload.get(week_number / 7) {
+                lifts.extend(Self::deload_technique_sets(deload.squat.clone()));
+                lifts.extend(Self::deload_technique_sets(deload.deadlift.clone()));
             } else {
                 lifts.extend(Self::deload_technique_sets(lower.clone()));
             }
@@ -350,14 +350,14 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `upper_plan`: Ordered list of upper-body max-effort variations.
-    /// - `upper_reload`: User-selected bench/overhead pairs for reload weeks.
+    /// - `upper_deload`: User-selected bench/overhead pairs for deload weeks.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_upper_max_day(
         week_number: usize,
         upper_plan: &[Lift],
-        upper_reload: &[ReloadUpperLifts],
+        upper_deload: &[DeloadUpperLifts],
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
@@ -365,9 +365,9 @@ impl ConjugateWorkoutBuilder {
         let upper = upper_plan[week_number].clone();
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
         if Self::is_deload_week(week_number) {
-            if let Some(reload) = upper_reload.get(week_number / 7) {
-                lifts.extend(Self::deload_technique_sets(reload.bench.clone()));
-                lifts.extend(Self::deload_technique_sets(reload.overhead.clone()));
+            if let Some(deload) = upper_deload.get(week_number / 7) {
+                lifts.extend(Self::deload_technique_sets(deload.bench.clone()));
+                lifts.extend(Self::deload_technique_sets(deload.overhead.clone()));
             } else {
                 lifts.extend(Self::deload_technique_sets(upper.clone()));
             }
@@ -521,7 +521,7 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave being generated.
     /// - `plans`: Collection of user-selected max-effort rotations, including
-    ///   reload week preferences.
+    ///   deload week preferences.
     /// - `de_lifts`: Collection of dynamic-effort lift variations.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
@@ -541,7 +541,7 @@ impl ConjugateWorkoutBuilder {
             Self::build_lower_max_day(
                 week_number,
                 &plans.lower,
-                &plans.lower_reload,
+                &plans.lower_deload,
                 conditioning,
                 warmups,
                 accessories,
@@ -553,7 +553,7 @@ impl ConjugateWorkoutBuilder {
             Self::build_upper_max_day(
                 week_number,
                 &plans.upper,
-                &plans.upper_reload,
+                &plans.upper_deload,
                 conditioning,
                 warmups,
                 accessories,

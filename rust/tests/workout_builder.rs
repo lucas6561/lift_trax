@@ -847,12 +847,7 @@ fn assert_deload_week(
                 assert_eq!(l.lift.main, Some(LiftType::Accessory));
                 assert!(l.deload);
             }
-            assert!(
-                c.circuit_lifts[2]
-                    .lift
-                    .muscles
-                    .contains(&Muscle::Core)
-            );
+            assert!(c.circuit_lifts[2].lift.muscles.contains(&Muscle::Core));
         }
         _ => panic!("expected deload circuit"),
     }
@@ -915,12 +910,7 @@ fn assert_deload_week(
                 assert_eq!(l.lift.main, Some(LiftType::Accessory));
                 assert!(l.deload);
             }
-            assert!(
-                c.circuit_lifts[2]
-                    .lift
-                    .muscles
-                    .contains(&Muscle::Core)
-            );
+            assert!(c.circuit_lifts[2].lift.muscles.contains(&Muscle::Core));
         }
         _ => panic!("expected deload circuit"),
     }
@@ -981,12 +971,7 @@ fn assert_deload_week(
                 assert_eq!(l.lift.main, Some(LiftType::Accessory));
                 assert!(l.deload);
             }
-            assert!(
-                c.circuit_lifts[2]
-                    .lift
-                    .muscles
-                    .contains(&Muscle::Core)
-            );
+            assert!(c.circuit_lifts[2].lift.muscles.contains(&Muscle::Core));
         }
         _ => panic!("expected deload circuit"),
     }
@@ -1047,12 +1032,7 @@ fn assert_deload_week(
                 assert_eq!(l.lift.main, Some(LiftType::Accessory));
                 assert!(l.deload);
             }
-            assert!(
-                c.circuit_lifts[2]
-                    .lift
-                    .muscles
-                    .contains(&Muscle::Core)
-            );
+            assert!(c.circuit_lifts[2].lift.muscles.contains(&Muscle::Core));
         }
         _ => panic!("expected deload circuit"),
     }
