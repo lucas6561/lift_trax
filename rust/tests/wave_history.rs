@@ -59,6 +59,7 @@ fn wave_shows_last_one_rep_max() {
         percent: None,
         rpe: None,
         accommodating_resistance: None,
+        deload: false,
     };
     let wl = WorkoutLift {
         name: lift.name.clone(),
@@ -105,6 +106,7 @@ fn wave_includes_lift_and_exec_notes() {
         percent: None,
         rpe: None,
         accommodating_resistance: None,
+        deload: false,
     };
     let wl = WorkoutLift {
         name: lift.name.clone(),

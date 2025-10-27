@@ -21,6 +21,7 @@ pub struct SingleLift {
     pub percent: Option<u32>,
     pub rpe: Option<f32>,
     pub accommodating_resistance: Option<AccommodatingResistance>,
+    pub deload: bool,
 }
 
 /// Represents a circuit of lifts with a prescribed rest time.

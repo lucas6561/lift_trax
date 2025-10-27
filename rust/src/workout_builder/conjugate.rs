@@ -57,6 +57,7 @@ impl ConjugateWorkoutBuilder {
                 percent: None,
                 rpe: None,
                 accommodating_resistance: None,
+                deload: false,
             }),
         }
     }
@@ -76,6 +77,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(70),
                     rpe: Some(7.0),
                     accommodating_resistance: None,
+                    deload: false,
                 }),
             })
             .collect()
@@ -96,6 +98,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(80),
                     rpe: None,
                     accommodating_resistance: None,
+                    deload: false,
                 }),
             })
             .collect()
@@ -127,6 +130,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(70),
                     rpe: Some(6.0),
                     accommodating_resistance: None,
+                    deload: true,
                 }),
             })
             .collect()
@@ -170,21 +174,25 @@ impl ConjugateWorkoutBuilder {
                 percent: None,
                 rpe: None,
                 accommodating_resistance: None,
+                deload: true,
             }),
         })
     }
 
     /// Builds lighter dynamic-effort sets for deload weeks.
     fn deload_dynamic_sets(dl: &DynamicLift, reps: i32) -> Vec<WorkoutLift> {
-        (0..3)
-            .map(|_| WorkoutLift {
+        let total_sets = 3;
+        let light_sets = (total_sets + 1) / 2;
+        (0..total_sets)
+            .map(|idx| WorkoutLift {
                 name: "Deload Speed Work".to_string(),
                 kind: WorkoutLiftKind::Single(SingleLift {
                     lift: dl.lift.clone(),
                     metric: Some(SetMetric::Reps(reps)),
-                    percent: Some(55),
+                    percent: Some(if idx < light_sets { 50 } else { 55 }),
                     rpe: None,
                     accommodating_resistance: Some(dl.ar.clone()),
+                    deload: true,
                 }),
             })
             .collect()
@@ -210,6 +218,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(percent),
                     rpe: None,
                     accommodating_resistance: Some(ar.clone()),
+                    deload: false,
                 }),
             })
             .collect()
@@ -247,6 +256,7 @@ impl ConjugateWorkoutBuilder {
                 percent: None,
                 rpe: None,
                 accommodating_resistance: None,
+                deload: false,
             }),
         })
     }

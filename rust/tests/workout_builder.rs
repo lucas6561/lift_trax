@@ -776,6 +776,10 @@ fn assert_deload_week(
     last_conditioning: &mut Option<String>,
 ) {
     let mut record_conditioning = |single: &workout_builder::SingleLift| {
+        assert!(
+            single.deload,
+            "conditioning lifts should be marked as deload"
+        );
         if single.lift.main == Some(LiftType::Conditioning) {
             if let Some(prev) = last_conditioning.as_ref() {
                 assert_ne!(prev, &single.lift.name);
@@ -811,6 +815,7 @@ fn assert_deload_week(
                 assert_eq!(s.percent, Some(70));
                 assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                 assert_eq!(s.rpe, Some(6.0));
+                assert!(s.deload);
             }
             _ => panic!("expected deload technique sets"),
         }
@@ -822,6 +827,7 @@ fn assert_deload_week(
                 assert_eq!(s.percent, Some(70));
                 assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                 assert_eq!(s.rpe, Some(6.0));
+                assert!(s.deload);
             }
             _ => panic!("expected deload technique sets"),
         }
@@ -848,6 +854,7 @@ fn assert_deload_week(
             assert_eq!(s.lift.main, Some(LiftType::Conditioning));
             assert_eq!(s.metric, Some(SetMetric::TimeSecs(300)));
             assert_eq!(s.percent, None);
+            assert!(s.deload);
             record_conditioning(s);
         }
         _ => panic!("expected light conditioning"),
@@ -869,6 +876,7 @@ fn assert_deload_week(
                 assert_eq!(s.percent, Some(70));
                 assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                 assert_eq!(s.rpe, Some(6.0));
+                assert!(s.deload);
             }
             _ => panic!("expected deload technique sets"),
         }
@@ -880,6 +888,7 @@ fn assert_deload_week(
                 assert_eq!(s.percent, Some(70));
                 assert_eq!(s.metric, Some(SetMetric::Reps(3)));
                 assert_eq!(s.rpe, Some(6.0));
+                assert!(s.deload);
             }
             _ => panic!("expected deload technique sets"),
         }
@@ -906,6 +915,7 @@ fn assert_deload_week(
             assert_eq!(s.lift.main, Some(LiftType::Conditioning));
             assert_eq!(s.metric, Some(SetMetric::TimeSecs(300)));
             assert_eq!(s.percent, None);
+            assert!(s.deload);
             record_conditioning(s);
         }
         _ => panic!("expected light conditioning"),
@@ -920,22 +930,24 @@ fn assert_deload_week(
         }
         _ => panic!("expected warmup circuit"),
     }
-    for lift in &thu.lifts[1..4] {
+    for (idx, lift) in thu.lifts[1..4].iter().enumerate() {
         match &lift.kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::Squat));
-                assert_eq!(s.percent, Some(55));
+                assert_eq!(s.percent, Some(if idx < 2 { 50 } else { 55 }));
                 assert_eq!(s.metric, Some(SetMetric::Reps(3)));
+                assert!(s.deload);
             }
             _ => panic!("expected squat deload sets"),
         }
     }
-    for lift in &thu.lifts[4..7] {
+    for (idx, lift) in thu.lifts[4..7].iter().enumerate() {
         match &lift.kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::Deadlift));
-                assert_eq!(s.percent, Some(55));
+                assert_eq!(s.percent, Some(if idx < 2 { 50 } else { 55 }));
                 assert_eq!(s.metric, Some(SetMetric::Reps(2)));
+                assert!(s.deload);
             }
             _ => panic!("expected deadlift deload sets"),
         }
@@ -953,6 +965,7 @@ fn assert_deload_week(
             assert_eq!(s.lift.main, Some(LiftType::Conditioning));
             assert_eq!(s.metric, Some(SetMetric::TimeSecs(300)));
             assert_eq!(s.percent, None);
+            assert!(s.deload);
             record_conditioning(s);
         }
         _ => panic!("expected light conditioning"),
@@ -967,22 +980,24 @@ fn assert_deload_week(
         }
         _ => panic!("expected warmup circuit"),
     }
-    for lift in &fri.lifts[1..4] {
+    for (idx, lift) in fri.lifts[1..4].iter().enumerate() {
         match &lift.kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::BenchPress));
-                assert_eq!(s.percent, Some(55));
+                assert_eq!(s.percent, Some(if idx < 2 { 50 } else { 55 }));
                 assert_eq!(s.metric, Some(SetMetric::Reps(3)));
+                assert!(s.deload);
             }
             _ => panic!("expected bench deload sets"),
         }
     }
-    for lift in &fri.lifts[4..7] {
+    for (idx, lift) in fri.lifts[4..7].iter().enumerate() {
         match &lift.kind {
             WorkoutLiftKind::Single(s) => {
                 assert_eq!(s.lift.main, Some(LiftType::OverheadPress));
-                assert_eq!(s.percent, Some(55));
+                assert_eq!(s.percent, Some(if idx < 2 { 50 } else { 55 }));
                 assert_eq!(s.metric, Some(SetMetric::Reps(2)));
+                assert!(s.deload);
             }
             _ => panic!("expected overhead deload sets"),
         }
@@ -1000,6 +1015,7 @@ fn assert_deload_week(
             assert_eq!(s.lift.main, Some(LiftType::Conditioning));
             assert_eq!(s.metric, Some(SetMetric::TimeSecs(300)));
             assert_eq!(s.percent, None);
+            assert!(s.deload);
             record_conditioning(s);
         }
         _ => panic!("expected light conditioning"),

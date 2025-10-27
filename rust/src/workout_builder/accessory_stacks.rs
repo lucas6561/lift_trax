@@ -67,6 +67,7 @@ impl AccessoryStacks {
             percent: None,
             rpe: None,
             accommodating_resistance: None,
+            deload: false,
         })
     }
 
@@ -78,6 +79,7 @@ impl AccessoryStacks {
             percent: None,
             rpe: None,
             accommodating_resistance: None,
+            deload: false,
         })
     }
 }
