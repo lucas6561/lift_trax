@@ -4,23 +4,14 @@ use chrono::{NaiveDate, Utc, Weekday};
 use clap::{Parser, Subcommand};
 use std::fs;
 
-mod database;
-mod gui;
-mod list;
-mod models;
-mod random_stack;
-mod sqlite_db;
-mod wave_view;
-mod weight;
-mod workout_builder;
-
-use crate::weight::Weight;
-use crate::workout_builder::WorkoutWeek;
-use database::Database;
-use list::filter_lifts;
-use models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
-use sqlite_db::SqliteDb;
-use wave_view::workout_lines;
+use lift_trax_cli::database::Database;
+use lift_trax_cli::gui;
+use lift_trax_cli::list::filter_lifts;
+use lift_trax_cli::models::{ExecutionSet, LiftExecution, LiftRegion, LiftType, Muscle, SetMetric};
+use lift_trax_cli::sqlite_db::SqliteDb;
+use lift_trax_cli::wave_view::workout_lines;
+use lift_trax_cli::weight::Weight;
+use lift_trax_cli::workout_builder::{self, WorkoutWeek};
 
 #[derive(Parser)]
 #[command(name = "lift_trax", version, about = "Track your lifts")]
@@ -77,7 +68,7 @@ enum Commands {
 }
 
 fn seed_example_lifts(db: &dyn Database) {
-    use models::{LiftRegion, LiftType};
+    use lift_trax_cli::models::{LiftRegion, LiftType};
     let _ = db.add_lift("Back Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
     let _ = db.add_lift("Front Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
     let _ = db.add_lift("Box Squat", LiftRegion::LOWER, LiftType::Squat, &[], "");
