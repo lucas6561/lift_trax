@@ -182,18 +182,21 @@ impl ConjugateWorkoutBuilder {
     }
 
     /// Builds lighter dynamic-effort sets for deload weeks.
-    fn deload_dynamic_sets(dl: &DynamicLift, reps: i32) -> Vec<WorkoutLift> {
-        let total_sets = 3;
-        let light_sets = (total_sets + 1) / 2;
-        (0..total_sets)
-            .map(|idx| WorkoutLift {
+    fn deload_dynamic_sets(
+        dl: &DynamicLift,
+        normal_sets: usize,
+        reps: i32,
+    ) -> Vec<WorkoutLift> {
+        let deload_sets = ((normal_sets + 1) / 2).max(1);
+        (0..deload_sets)
+            .map(|_| WorkoutLift {
                 name: "Deload Speed Work".to_string(),
                 kind: WorkoutLiftKind::Single(SingleLift {
                     lift: dl.lift.clone(),
                     metric: Some(SetMetric::Reps(reps)),
-                    percent: Some(if idx < light_sets { 50 } else { 55 }),
+                    percent: Some(50),
                     rpe: None,
-                    accommodating_resistance: Some(dl.ar.clone()),
+                    accommodating_resistance: Some(AccommodatingResistance::Straight),
                     deload: true,
                 }),
             })
@@ -417,8 +420,8 @@ impl ConjugateWorkoutBuilder {
     ) -> DbResult<Workout> {
         let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.squat, 3));
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.deadlift, 2));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.squat, 6, 3));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.deadlift, 6, 2));
             let muscles = [Muscle::Hamstring, Muscle::Quad, Muscle::Core];
             lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
@@ -470,8 +473,8 @@ impl ConjugateWorkoutBuilder {
     ) -> DbResult<Workout> {
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.bench, 3));
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.overhead, 2));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.bench, 9, 3));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.overhead, 6, 2));
             let muscles = [Muscle::Lat, Muscle::Tricep, Muscle::Core];
             lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
