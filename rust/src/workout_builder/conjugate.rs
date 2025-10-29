@@ -16,7 +16,7 @@ use crate::random_stack::RandomStack;
 
 use super::accessory_stacks::AccessoryStacks;
 use super::dynamic_lifts::{DynamicLift, DynamicLifts};
-use super::max_effort_editor;
+use super::max_effort_editor::{self, DeloadLowerLifts, DeloadUpperLifts, MaxEffortPlan};
 use super::max_effort_lift_pools::MaxEffortLiftPools;
 use super::warmup_stacks::WarmupStacks;
 use super::{
@@ -57,6 +57,7 @@ impl ConjugateWorkoutBuilder {
                 percent: None,
                 rpe: None,
                 accommodating_resistance: None,
+                deload: false,
             }),
         }
     }
@@ -76,6 +77,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(70),
                     rpe: Some(7.0),
                     accommodating_resistance: None,
+                    deload: false,
                 }),
             })
             .collect()
@@ -96,6 +98,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(80),
                     rpe: None,
                     accommodating_resistance: None,
+                    deload: false,
                 }),
             })
             .collect()
@@ -127,6 +130,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(70),
                     rpe: Some(6.0),
                     accommodating_resistance: None,
+                    deload: true,
                 }),
             })
             .collect()
@@ -141,10 +145,12 @@ impl ConjugateWorkoutBuilder {
         accessories: &mut AccessoryStacks,
         muscles: &[Muscle],
     ) -> DbResult<WorkoutLift> {
-        let lifts = muscles
-            .iter()
-            .map(|muscle| accessories.single(*muscle))
-            .collect::<DbResult<Vec<_>>>()?;
+        let mut lifts = Vec::with_capacity(muscles.len());
+        for muscle in muscles {
+            let mut lift = accessories.single(*muscle)?;
+            lift.deload = true;
+            lifts.push(lift);
+        }
         Ok(WorkoutLift {
             name: "Deload Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
@@ -170,21 +176,28 @@ impl ConjugateWorkoutBuilder {
                 percent: None,
                 rpe: None,
                 accommodating_resistance: None,
+                deload: true,
             }),
         })
     }
 
     /// Builds lighter dynamic-effort sets for deload weeks.
-    fn deload_dynamic_sets(dl: &DynamicLift, reps: i32) -> Vec<WorkoutLift> {
-        (0..3)
+    fn deload_dynamic_sets(
+        dl: &DynamicLift,
+        normal_sets: usize,
+        reps: i32,
+    ) -> Vec<WorkoutLift> {
+        let deload_sets = ((normal_sets + 1) / 2).max(1);
+        (0..deload_sets)
             .map(|_| WorkoutLift {
                 name: "Deload Speed Work".to_string(),
                 kind: WorkoutLiftKind::Single(SingleLift {
                     lift: dl.lift.clone(),
                     metric: Some(SetMetric::Reps(reps)),
-                    percent: Some(55),
+                    percent: Some(50),
                     rpe: None,
-                    accommodating_resistance: Some(dl.ar.clone()),
+                    accommodating_resistance: Some(AccommodatingResistance::Straight),
+                    deload: true,
                 }),
             })
             .collect()
@@ -210,6 +223,7 @@ impl ConjugateWorkoutBuilder {
                     percent: Some(percent),
                     rpe: None,
                     accommodating_resistance: Some(ar.clone()),
+                    deload: false,
                 }),
             })
             .collect()
@@ -247,6 +261,7 @@ impl ConjugateWorkoutBuilder {
                 percent: None,
                 rpe: None,
                 accommodating_resistance: None,
+                deload: false,
             }),
         })
     }
@@ -290,12 +305,14 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `lower_plan`: Ordered list of lower-body max-effort variations.
+    /// - `lower_deload`: User-selected pairs of squat/deadlift lifts for deload weeks.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_lower_max_day(
         week_number: usize,
         lower_plan: &[Lift],
+        lower_deload: &[DeloadLowerLifts],
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
@@ -303,11 +320,14 @@ impl ConjugateWorkoutBuilder {
         let lower = lower_plan[week_number].clone();
         let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_technique_sets(lower));
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Hamstring, Muscle::Quad],
-            )?);
+            if let Some(deload) = lower_deload.get(week_number / 7) {
+                lifts.extend(Self::deload_technique_sets(deload.squat.clone()));
+                lifts.extend(Self::deload_technique_sets(deload.deadlift.clone()));
+            } else {
+                lifts.extend(Self::deload_technique_sets(lower.clone()));
+            }
+            let muscles = [Muscle::Hamstring, Muscle::Quad, Muscle::Core];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             lifts.push(Self::max_effort_single(lower.clone()));
@@ -333,12 +353,14 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `upper_plan`: Ordered list of upper-body max-effort variations.
+    /// - `upper_deload`: User-selected bench/overhead pairs for deload weeks.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_upper_max_day(
         week_number: usize,
         upper_plan: &[Lift],
+        upper_deload: &[DeloadUpperLifts],
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
@@ -346,11 +368,14 @@ impl ConjugateWorkoutBuilder {
         let upper = upper_plan[week_number].clone();
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_technique_sets(upper));
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Lat, Muscle::Tricep],
-            )?);
+            if let Some(deload) = upper_deload.get(week_number / 7) {
+                lifts.extend(Self::deload_technique_sets(deload.bench.clone()));
+                lifts.extend(Self::deload_technique_sets(deload.overhead.clone()));
+            } else {
+                lifts.extend(Self::deload_technique_sets(upper.clone()));
+            }
+            let muscles = [Muscle::Lat, Muscle::Tricep, Muscle::Core];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             lifts.push(Self::max_effort_single(upper.clone()));
@@ -395,12 +420,10 @@ impl ConjugateWorkoutBuilder {
     ) -> DbResult<Workout> {
         let mut lifts = vec![warmups.warmup(LiftRegion::LOWER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.squat, 3));
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.deadlift, 2));
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Hamstring, Muscle::Core],
-            )?);
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.squat, 6, 3));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.deadlift, 6, 2));
+            let muscles = [Muscle::Hamstring, Muscle::Quad, Muscle::Core];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             let (squat_percent, squat_ar) = Self::dynamic_plan(week_number, &de_lifts.squat.ar);
@@ -450,12 +473,10 @@ impl ConjugateWorkoutBuilder {
     ) -> DbResult<Workout> {
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
         if Self::is_deload_week(week_number) {
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.bench, 3));
-            lifts.extend(Self::deload_dynamic_sets(&de_lifts.overhead, 2));
-            lifts.push(Self::deload_circuit(
-                accessories,
-                &[Muscle::Lat, Muscle::Tricep],
-            )?);
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.bench, 9, 3));
+            lifts.extend(Self::deload_dynamic_sets(&de_lifts.overhead, 6, 2));
+            let muscles = [Muscle::Lat, Muscle::Tricep, Muscle::Core];
+            lifts.push(Self::deload_circuit(accessories, &muscles)?);
             lifts.push(Self::light_conditioning(conditioning)?);
         } else {
             let (bench_percent, bench_ar) = Self::dynamic_plan(week_number, &de_lifts.bench.ar);
@@ -502,16 +523,15 @@ impl ConjugateWorkoutBuilder {
     ///
     /// # Parameters
     /// - `week_number`: Index of the week in the wave being generated.
-    /// - `lower_plan`: Ordered list of lower-body max-effort variations.
-    /// - `upper_plan`: Ordered list of upper-body max-effort variations.
+    /// - `plans`: Collection of user-selected max-effort rotations, including
+    ///   deload week preferences.
     /// - `de_lifts`: Collection of dynamic-effort lift variations.
     /// - `conditioning`: Random stack used to draw conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_week(
         week_number: usize,
-        lower_plan: &[Lift],
-        upper_plan: &[Lift],
+        plans: &MaxEffortPlan,
         de_lifts: &DynamicLifts,
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
@@ -521,12 +541,26 @@ impl ConjugateWorkoutBuilder {
 
         week.insert(
             Weekday::Mon,
-            Self::build_lower_max_day(week_number, lower_plan, conditioning, warmups, accessories)?,
+            Self::build_lower_max_day(
+                week_number,
+                &plans.lower,
+                &plans.lower_deload,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
         );
 
         week.insert(
             Weekday::Tue,
-            Self::build_upper_max_day(week_number, upper_plan, conditioning, warmups, accessories)?,
+            Self::build_upper_max_day(
+                week_number,
+                &plans.upper,
+                &plans.upper_deload,
+                conditioning,
+                warmups,
+                accessories,
+            )?,
         );
 
         week.insert(
@@ -579,7 +613,7 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
         let deadlift_options = Self::get_lifts_by_type(db, LiftType::Deadlift)?;
         let bench_options = Self::get_lifts_by_type(db, LiftType::BenchPress)?;
         let ohp_options = Self::get_lifts_by_type(db, LiftType::OverheadPress)?;
-        let (lower_plan, upper_plan) = max_effort_editor::edit_max_effort_plan(
+        let max_effort_plan = max_effort_editor::edit_max_effort_plan(
             squat_options,
             deadlift_options,
             bench_options,
@@ -599,8 +633,7 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
         for week_number in 0..num_weeks {
             weeks.push(Self::build_week(
                 week_number,
-                &lower_plan,
-                &upper_plan,
+                &max_effort_plan,
                 &dynamic,
                 &mut conditioning,
                 &mut warmups,
