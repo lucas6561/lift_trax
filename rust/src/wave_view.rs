@@ -71,13 +71,15 @@ fn format_exec(exec: &LiftExecution) -> String {
     } else {
         format!(" - {}", exec.notes)
     };
+    let tags = exec.tag_suffix();
 
     format!(
-        "{} sets x {} {}{}{}",
+        "{} sets x {} {}{}{}{}",
         exec.sets.len(),
         metric_str,
         weight_str,
         rpe,
+        tags,
         notes
     )
 }

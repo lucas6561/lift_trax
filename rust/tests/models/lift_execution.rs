@@ -52,6 +52,7 @@ fn create_lift_execution() {
             rpe: Some(8.5),
         }],
         warmup: false,
+        deload: false,
         notes: "felt good".into(),
     };
     assert_eq!(exec.sets.len(), 1);
@@ -70,9 +71,30 @@ fn display_includes_warmup_flag() {
             rpe: None,
         }],
         warmup: true,
+        deload: false,
         notes: String::new(),
     };
     assert_eq!(exec.to_string(), "2024-05-20: 5 reps @ 100 lb (warm-up)");
+}
+
+#[test]
+fn display_combines_warmup_and_deload_flags() {
+    let exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 5, 21).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(3),
+            weight: Weight::Raw(110.0),
+            rpe: None,
+        }],
+        warmup: true,
+        deload: true,
+        notes: String::new(),
+    };
+    assert_eq!(
+        exec.to_string(),
+        "2024-05-21: 3 reps @ 110 lb (warm-up, deload)"
+    );
 }
 
 #[test]

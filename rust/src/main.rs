@@ -180,6 +180,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 date,
                 sets: sets_vec,
                 warmup: false,
+                deload: false,
                 notes: notes.unwrap_or_default(),
             };
             if let Some(main) = lift_type {
@@ -232,7 +233,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         } else {
                             format!(" - {}", exec.notes)
                         };
-                        println!("  - {}: {}{}", exec.date, set_desc, notes_str);
+                        let tags = exec.tag_suffix();
+                        println!("  - {}: {}{}{}", exec.date, set_desc, tags, notes_str);
                     }
                 }
             }

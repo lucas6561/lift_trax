@@ -89,8 +89,27 @@ pub struct LiftExecution {
     pub sets: Vec<ExecutionSet>,
     /// Whether this execution was a warm-up.
     pub warmup: bool,
+    /// Whether this execution was part of a deload.
+    pub deload: bool,
     /// Free-form notes about this execution.
     pub notes: String,
+}
+
+impl LiftExecution {
+    pub fn tag_suffix(&self) -> String {
+        let mut tags = Vec::new();
+        if self.warmup {
+            tags.push("warm-up");
+        }
+        if self.deload {
+            tags.push("deload");
+        }
+        if tags.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", tags.join(", "))
+        }
+    }
 }
 
 /// Format a slice of execution sets into a human-readable description,
@@ -129,7 +148,7 @@ pub fn format_execution_sets(sets: &[ExecutionSet]) -> String {
 
 impl fmt::Display for LiftExecution {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let warm = if self.warmup { " (warm-up)" } else { "" };
+        let tags = self.tag_suffix();
         let notes = if self.notes.is_empty() {
             String::new()
         } else {
@@ -140,7 +159,7 @@ impl fmt::Display for LiftExecution {
             "{}: {}{}{}",
             self.date,
             format_execution_sets(&self.sets),
-            warm,
+            tags,
             notes
         )
     }

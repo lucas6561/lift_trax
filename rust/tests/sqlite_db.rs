@@ -44,6 +44,7 @@ fn add_and_list_lift_with_execution() {
             3
         ],
         warmup: false,
+        deload: false,
         notes: "solid".into(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -54,6 +55,7 @@ fn add_and_list_lift_with_execution() {
     assert_eq!(stored.sets.len(), 3);
     assert_eq!(stored.sets[0].weight.to_string(), "135 lb");
     assert_eq!(stored.notes, "solid");
+    assert!(!stored.deload);
 }
 
 #[test]
@@ -71,6 +73,7 @@ fn delete_execution_removes_record() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -98,6 +101,7 @@ fn delete_lift_removes_lift_and_history() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -252,6 +256,7 @@ fn lift_stats_provides_summary() {
             3
         ],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     let exec2 = LiftExecution {
@@ -266,6 +271,7 @@ fn lift_stats_provides_summary() {
             3
         ],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     let exec3 = LiftExecution {
@@ -280,6 +286,7 @@ fn lift_stats_provides_summary() {
             2
         ],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     db.add_lift_execution("Squat", &exec1).unwrap();
@@ -344,7 +351,7 @@ fn upgrades_legacy_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 8);
+    assert_eq!(user_version, 9);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -363,6 +370,8 @@ fn upgrades_legacy_database() {
         .collect::<Result<_, _>>()
         .unwrap();
     assert!(record_cols.contains(&"notes".to_string()));
+    assert!(record_cols.contains(&"warmup".to_string()));
+    assert!(record_cols.contains(&"deload".to_string()));
 
     // close connection before removing file
     drop(conn);
@@ -421,7 +430,7 @@ fn upgrades_unversioned_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 8);
+    assert_eq!(user_version, 9);
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -440,6 +449,8 @@ fn upgrades_unversioned_database() {
         .collect::<Result<_, _>>()
         .unwrap();
     assert!(record_cols.contains(&"notes".to_string()));
+    assert!(record_cols.contains(&"warmup".to_string()));
+    assert!(record_cols.contains(&"deload".to_string()));
 
     // close connection before removing file
     drop(conn);
@@ -509,7 +520,7 @@ fn repairs_misreported_version() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 8);
+    assert_eq!(user_version, 9);
 
     // close connection before removing file
     drop(conn);

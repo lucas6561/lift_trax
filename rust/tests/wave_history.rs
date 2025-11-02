@@ -35,6 +35,7 @@ fn wave_shows_last_one_rep_max() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     db.add_lift_execution("Bench", &one_rm).unwrap();
@@ -48,6 +49,7 @@ fn wave_shows_last_one_rep_max() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     db.add_lift_execution("Bench", &recent).unwrap();
@@ -95,6 +97,7 @@ fn wave_includes_lift_and_exec_notes() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: "felt strong".into(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();

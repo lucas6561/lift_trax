@@ -51,6 +51,7 @@ impl GuiApp {
             &mut self.accom_mode,
             &mut self.metric_mode,
             &mut self.warmup,
+            &mut self.deload,
             &mut self.date,
             &mut self.notes,
             |ui, metric_mode| {
@@ -472,6 +473,7 @@ impl GuiApp {
             date,
             sets: sets_vec,
             warmup: self.warmup,
+            deload: self.deload,
             notes: self.notes.clone(),
         };
         if let Some(idx) = self.selected_lift {
@@ -490,6 +492,7 @@ impl GuiApp {
                 self.sets.clear();
                 self.rpe.clear();
                 self.warmup = false;
+                self.deload = false;
                 self.notes.clear();
                 self.detailed_sets.clear();
                 self.error = None;
