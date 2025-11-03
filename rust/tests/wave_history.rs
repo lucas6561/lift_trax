@@ -182,7 +182,10 @@ fn wave_skips_deload_history_for_normal_weeks() {
         .iter()
         .find(|l| l.contains("- Last:"))
         .expect("expected last line");
-    assert!(last_line.contains("5 reps"), "unexpected last line: {last_line}");
+    assert!(
+        last_line.contains("5 reps"),
+        "unexpected last line: {last_line}"
+    );
     assert!(
         !last_line.contains("deload"),
         "deload history should be hidden outside deload weeks: {last_line}"
@@ -242,7 +245,10 @@ fn wave_includes_deload_history_during_deload_weeks() {
         .iter()
         .find(|l| l.contains("- Last:"))
         .expect("expected last line");
-    assert!(last_line.contains("3 reps"), "unexpected last line: {last_line}");
+    assert!(
+        last_line.contains("3 reps"),
+        "unexpected last line: {last_line}"
+    );
     assert!(
         last_line.contains("deload"),
         "deload history should be shown during deload weeks: {last_line}"

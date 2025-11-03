@@ -185,13 +185,9 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                     Some(SetMetric::RepsRange { .. }) => None,
                     other => other.clone(),
                 };
-                if let Some(desc) = last_exec_desc(
-                    db,
-                    &s.lift.name,
-                    false,
-                    history_metric,
-                    s.deload,
-                ) {
+                if let Some(desc) =
+                    last_exec_desc(db, &s.lift.name, false, history_metric, s.deload)
+                {
                     lines.push(format!("   - Last: {}", desc));
                 }
                 if let Some(max) = last_one_rep_max(db, &s.lift.name) {
@@ -216,13 +212,8 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                     if !sl.lift.notes.is_empty() {
                         lines.push(format!("     - Notes: {}", sl.lift.notes));
                     }
-                    if let Some(desc) = last_exec_desc(
-                        db,
-                        &sl.lift.name,
-                        c.warmup,
-                        None,
-                        sl.deload,
-                    ) {
+                    if let Some(desc) = last_exec_desc(db, &sl.lift.name, c.warmup, None, sl.deload)
+                    {
                         lines.push(format!("     - Last: {}", desc));
                     }
                     if let Some(max) = last_one_rep_max(db, &sl.lift.name) {
