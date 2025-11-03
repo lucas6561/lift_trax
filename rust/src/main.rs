@@ -218,24 +218,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if l.executions.is_empty() {
                     println!("  - no records");
                 } else {
-                    for exec in l.executions {
-                        let set_desc = exec
-                            .sets
-                            .iter()
-                            .map(|s| {
-                                let rpe = s.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-                                format!("{} @ {}{}", s.metric, s.weight, rpe)
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        let notes_str = if exec.notes.is_empty() {
-                            String::new()
-                        } else {
-                            format!(" - {}", exec.notes)
-                        };
-                        let tags = exec.tag_suffix();
-                        println!("  - {}: {}{}{}", exec.date, set_desc, tags, notes_str);
-                    }
+                    let summaries: Vec<String> = l
+                        .executions
+                        .iter()
+                        .take(3)
+                        .map(|exec| {
+                            let set_desc = exec
+                                .sets
+                                .iter()
+                                .map(|s| {
+                                    let rpe = s
+                                        .rpe
+                                        .map(|r| format!(" RPE {}", r))
+                                        .unwrap_or_default();
+                                    format!("{} @ {}{}", s.metric, s.weight, rpe)
+                                })
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            let notes_str = if exec.notes.is_empty() {
+                                String::new()
+                            } else {
+                                format!(" - {}", exec.notes)
+                            };
+                            let tags = exec.tag_suffix();
+                            format!("{}: {}{}{}", exec.date, set_desc, tags, notes_str)
+                        })
+                        .collect();
+                    println!("  - {}", summaries.join(" | "));
                 }
             }
         }
