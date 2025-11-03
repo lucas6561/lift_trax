@@ -71,13 +71,15 @@ fn format_exec(exec: &LiftExecution) -> String {
     } else {
         format!(" - {}", exec.notes)
     };
+    let tags = exec.tag_suffix();
 
     format!(
-        "{} sets x {} {}{}{}",
+        "{} sets x {} {}{}{}{}",
         exec.sets.len(),
         metric_str,
         weight_str,
         rpe,
+        tags,
         notes
     )
 }
@@ -87,6 +89,7 @@ fn last_exec_desc(
     name: &str,
     warmup: bool,
     num_reps: Option<SetMetric>,
+    include_deload: bool,
 ) -> Option<String> {
     let lift = db.get_lift(name).ok()?;
     if let Some(target_metric) = num_reps {
@@ -95,6 +98,9 @@ fn last_exec_desc(
         let mut closest_diff: i32 = i32::MAX;
         for exec in &lift.executions {
             if exec.warmup != warmup {
+                continue;
+            }
+            if !include_deload && exec.deload {
                 continue;
             }
             if fallback.is_none() {
@@ -126,7 +132,7 @@ fn last_exec_desc(
         return fallback.map(|e| format_exec(e));
     }
     for exec in lift.executions {
-        if exec.warmup == warmup {
+        if exec.warmup == warmup && (include_deload || !exec.deload) {
             return Some(format_exec(&exec));
         }
     }
@@ -179,7 +185,13 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                     Some(SetMetric::RepsRange { .. }) => None,
                     other => other.clone(),
                 };
-                if let Some(desc) = last_exec_desc(db, &s.lift.name, false, history_metric) {
+                if let Some(desc) = last_exec_desc(
+                    db,
+                    &s.lift.name,
+                    false,
+                    history_metric,
+                    s.deload,
+                ) {
                     lines.push(format!("   - Last: {}", desc));
                 }
                 if let Some(max) = last_one_rep_max(db, &s.lift.name) {
@@ -204,7 +216,13 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                     if !sl.lift.notes.is_empty() {
                         lines.push(format!("     - Notes: {}", sl.lift.notes));
                     }
-                    if let Some(desc) = last_exec_desc(db, &sl.lift.name, c.warmup, None) {
+                    if let Some(desc) = last_exec_desc(
+                        db,
+                        &sl.lift.name,
+                        c.warmup,
+                        None,
+                        sl.deload,
+                    ) {
                         lines.push(format!("     - Last: {}", desc));
                     }
                     if let Some(max) = last_one_rep_max(db, &sl.lift.name) {

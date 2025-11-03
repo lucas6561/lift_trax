@@ -35,6 +35,7 @@ fn wave_shows_last_one_rep_max() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     db.add_lift_execution("Bench", &one_rm).unwrap();
@@ -48,6 +49,7 @@ fn wave_shows_last_one_rep_max() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: String::new(),
     };
     db.add_lift_execution("Bench", &recent).unwrap();
@@ -95,6 +97,7 @@ fn wave_includes_lift_and_exec_notes() {
             rpe: None,
         }],
         warmup: false,
+        deload: false,
         notes: "felt strong".into(),
     };
     db.add_lift_execution("Bench", &exec).unwrap();
@@ -123,5 +126,125 @@ fn wave_includes_lift_and_exec_notes() {
         lines.iter().any(|l| l.contains("felt strong")),
         "lines did not contain execution notes: {:?}",
         lines
+    );
+}
+
+#[test]
+fn wave_skips_deload_history_for_normal_weeks() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
+
+    let normal_exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(5),
+            weight: Weight::Raw(150.0),
+            rpe: None,
+        }],
+        warmup: false,
+        deload: false,
+        notes: String::new(),
+    };
+    db.add_lift_execution("Bench", &normal_exec).unwrap();
+
+    let deload_exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 6, 8).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(3),
+            weight: Weight::Raw(95.0),
+            rpe: None,
+        }],
+        warmup: false,
+        deload: true,
+        notes: String::new(),
+    };
+    db.add_lift_execution("Bench", &deload_exec).unwrap();
+
+    let lift = db.get_lift("Bench").unwrap();
+    let sl = SingleLift {
+        lift: lift.clone(),
+        metric: Some(SetMetric::Reps(5)),
+        percent: None,
+        rpe: None,
+        accommodating_resistance: None,
+        deload: false,
+    };
+    let wl = WorkoutLift {
+        name: lift.name.clone(),
+        kind: WorkoutLiftKind::Single(sl),
+    };
+    let workout = Workout { lifts: vec![wl] };
+    let lines = wave_view::workout_lines(&workout, &db);
+    let last_line = lines
+        .iter()
+        .find(|l| l.contains("- Last:"))
+        .expect("expected last line");
+    assert!(last_line.contains("5 reps"), "unexpected last line: {last_line}");
+    assert!(
+        !last_line.contains("deload"),
+        "deload history should be hidden outside deload weeks: {last_line}"
+    );
+}
+
+#[test]
+fn wave_includes_deload_history_during_deload_weeks() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
+
+    let normal_exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(5),
+            weight: Weight::Raw(150.0),
+            rpe: None,
+        }],
+        warmup: false,
+        deload: false,
+        notes: String::new(),
+    };
+    db.add_lift_execution("Bench", &normal_exec).unwrap();
+
+    let deload_exec = LiftExecution {
+        id: None,
+        date: NaiveDate::from_ymd_opt(2024, 6, 8).unwrap(),
+        sets: vec![ExecutionSet {
+            metric: SetMetric::Reps(3),
+            weight: Weight::Raw(95.0),
+            rpe: None,
+        }],
+        warmup: false,
+        deload: true,
+        notes: String::new(),
+    };
+    db.add_lift_execution("Bench", &deload_exec).unwrap();
+
+    let lift = db.get_lift("Bench").unwrap();
+    let sl = SingleLift {
+        lift: lift.clone(),
+        metric: Some(SetMetric::Reps(3)),
+        percent: None,
+        rpe: None,
+        accommodating_resistance: None,
+        deload: true,
+    };
+    let wl = WorkoutLift {
+        name: lift.name.clone(),
+        kind: WorkoutLiftKind::Single(sl),
+    };
+    let workout = Workout { lifts: vec![wl] };
+    let lines = wave_view::workout_lines(&workout, &db);
+    let last_line = lines
+        .iter()
+        .find(|l| l.contains("- Last:"))
+        .expect("expected last line");
+    assert!(last_line.contains("3 reps"), "unexpected last line: {last_line}");
+    assert!(
+        last_line.contains("deload"),
+        "deload history should be shown during deload weeks: {last_line}"
     );
 }

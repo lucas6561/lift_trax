@@ -20,6 +20,7 @@ pub(super) fn execution_form<F>(
     accom_mode: &mut AccommodatingMode,
     metric_mode: &mut MetricMode,
     warmup: &mut bool,
+    deload: &mut bool,
     date: &mut NaiveDate,
     notes: &mut String,
     mut sets_ui: F,
@@ -212,7 +213,10 @@ pub(super) fn execution_form<F>(
         ui.selectable_value(metric_mode, MetricMode::Distance, "Feet");
     });
     sets_ui(ui, *metric_mode);
-    ui.checkbox(warmup, "Warm-up");
+    ui.horizontal(|ui| {
+        ui.checkbox(warmup, "Warm-up");
+        ui.checkbox(deload, "Deload");
+    });
     ui.horizontal(|ui| {
         ui.label("Date:");
         ui.add(DatePickerButton::new(date).id_source(id_prefix));

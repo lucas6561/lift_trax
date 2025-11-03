@@ -182,11 +182,7 @@ impl ConjugateWorkoutBuilder {
     }
 
     /// Builds lighter dynamic-effort sets for deload weeks.
-    fn deload_dynamic_sets(
-        dl: &DynamicLift,
-        normal_sets: usize,
-        reps: i32,
-    ) -> Vec<WorkoutLift> {
+    fn deload_dynamic_sets(dl: &DynamicLift, normal_sets: usize, reps: i32) -> Vec<WorkoutLift> {
         let deload_sets = ((normal_sets + 1) / 2).max(1);
         (0..deload_sets)
             .map(|_| WorkoutLift {

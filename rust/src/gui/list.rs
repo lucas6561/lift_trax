@@ -208,6 +208,7 @@ impl GuiApp {
                             &mut self.accom_mode,
                             &mut self.edit_metric_mode,
                             &mut self.edit_warmup,
+                            &mut self.edit_deload,
                             &mut self.edit_date,
                             &mut self.edit_notes,
                             |ui, metric_mode| {
@@ -240,6 +241,7 @@ impl GuiApp {
                                 self.edit_band_value.clear();
                                 self.edit_band_select = None;
                                 self.edit_warmup = false;
+                                self.edit_deload = false;
                             }
                         });
                     }
@@ -353,6 +355,7 @@ impl GuiApp {
             self.edit_rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
             self.edit_notes = exec.notes.clone();
             self.edit_warmup = exec.warmup;
+            self.edit_deload = exec.deload;
         } else {
             self.edit_weight_mode = WeightMode::None;
             self.edit_weight_value.clear();
@@ -367,6 +370,7 @@ impl GuiApp {
             self.edit_rpe.clear();
             self.edit_notes = exec.notes.clone();
             self.edit_warmup = exec.warmup;
+            self.edit_deload = exec.deload;
         }
     }
 
@@ -444,6 +448,7 @@ impl GuiApp {
                                 &mut self.accom_mode,
                                 &mut self.edit_metric_mode,
                                 &mut self.edit_warmup,
+                                &mut self.edit_deload,
                                 &mut self.edit_date,
                                 &mut self.edit_notes,
                                 |ui, metric_mode| {
@@ -495,13 +500,13 @@ impl GuiApp {
     }
 
     fn execution_summary(exec: &LiftExecution) -> String {
-        let warmup = if exec.warmup { " (warm-up)" } else { "" };
+        let tags = exec.tag_suffix();
         let notes = if exec.notes.is_empty() {
             String::new()
         } else {
             format!(" – {}", exec.notes)
         };
-        format!("{}{}{}", format_execution_sets(&exec.sets), warmup, notes)
+        format!("{}{}{}", format_execution_sets(&exec.sets), tags, notes)
     }
 
     fn save_lift_edit(&mut self, idx: usize) {
@@ -623,6 +628,7 @@ impl GuiApp {
                 date,
                 sets: sets_vec,
                 warmup: self.edit_warmup,
+                deload: self.edit_deload,
                 notes: self.edit_notes.clone(),
             };
             if let Some(id) = exec.id {
@@ -634,6 +640,7 @@ impl GuiApp {
                     self.edit_band_value.clear();
                     self.edit_band_select = None;
                     self.edit_warmup = false;
+                    self.edit_deload = false;
                     self.error = None;
                     self.needs_lift_refresh = true;
                 }
