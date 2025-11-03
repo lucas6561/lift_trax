@@ -46,7 +46,8 @@ cargo run -- add Squat 315 3 5 --date 2024-05-20 --rpe 8.5 --muscle QUAD --muscl
 
 ### List lifts
 
-Display each lift with all recorded executions, most recent first.
+Display each lift with up to the three most recent executions summarized on a
+single line.
 
 ```bash
 cargo run -- list [--exercise EXERCISE] [--muscle MUSCLE]...
@@ -67,8 +68,7 @@ The output is formatted as:
 
 ```
 Bench (UPPER) [CHEST, TRICEP]
-  - 2024-05-20: 3 sets x 5 reps @ 225 lbs RPE 8.5
-  - 2024-05-15: 3 sets x 5 reps @ 220 lbs
+  - 2024-05-20: 3x 5 reps @ 225 lb RPE 8.5 | 2024-05-15: 3x 5 reps @ 220 lb | 2024-05-10: 3x 5 reps @ 215 lb
 ```
 
 ## Help
