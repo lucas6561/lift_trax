@@ -254,3 +254,67 @@ fn wave_includes_deload_history_during_deload_weeks() {
         "deload history should be shown during deload weeks: {last_line}"
     );
 }
+
+#[test]
+fn wave_lists_three_recent_history_entries() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift("Bench", LiftRegion::UPPER, LiftType::BenchPress, &[], "")
+        .unwrap();
+
+    for (idx, note) in [(1, "one"), (2, "two"), (3, "three"), (4, "four")].into_iter() {
+        let exec = LiftExecution {
+            id: None,
+            date: NaiveDate::from_ymd_opt(2024, 6, idx).unwrap(),
+            sets: vec![ExecutionSet {
+                metric: SetMetric::Reps(5),
+                weight: Weight::Raw(150.0 + (idx as f64)),
+                rpe: None,
+            }],
+            warmup: false,
+            deload: false,
+            notes: format!("note {note}"),
+        };
+        db.add_lift_execution("Bench", &exec).unwrap();
+    }
+
+    let lift = db.get_lift("Bench").unwrap();
+    let sl = SingleLift {
+        lift: lift.clone(),
+        metric: Some(SetMetric::Reps(5)),
+        percent: None,
+        rpe: None,
+        accommodating_resistance: None,
+        deload: false,
+    };
+    let wl = WorkoutLift {
+        name: lift.name.clone(),
+        kind: WorkoutLiftKind::Single(sl),
+    };
+    let workout = Workout { lifts: vec![wl] };
+    let lines = wave_view::workout_lines(&workout, &db);
+    let history_line = lines
+        .iter()
+        .find(|line| line.contains("- Last:"))
+        .expect("expected last line");
+
+    let history = history_line
+        .strip_prefix("   - Last: ")
+        .expect("history line prefix");
+    let parts: Vec<&str> = history.split(" | ").collect();
+    assert_eq!(parts.len(), 3, "expected three history entries: {parts:?}");
+    assert!(
+        parts[0].contains("note four"),
+        "unexpected first entry: {}",
+        parts[0]
+    );
+    assert!(
+        parts[1].contains("note three"),
+        "unexpected second entry: {}",
+        parts[1]
+    );
+    assert!(
+        parts[2].contains("note two"),
+        "unexpected third entry: {}",
+        parts[2]
+    );
+}

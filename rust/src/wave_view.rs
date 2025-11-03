@@ -84,6 +84,52 @@ fn format_exec(exec: &LiftExecution) -> String {
     )
 }
 
+fn exec_sort_key(exec: &LiftExecution) -> (chrono::NaiveDate, i32) {
+    let id = exec.id.unwrap_or(i32::MIN);
+    (exec.date, id)
+}
+
+fn metric_distance(candidate: &SetMetric, target: &SetMetric) -> Option<i32> {
+    use SetMetric::*;
+    match (candidate, target) {
+        (Reps(a), Reps(b)) => Some((a - b).abs()),
+        (TimeSecs(a), TimeSecs(b)) => Some((a - b).abs()),
+        (DistanceFeet(a), DistanceFeet(b)) => Some((a - b).abs()),
+        _ => None,
+    }
+}
+
+fn prioritize_metric<'a>(executions: &mut Vec<&'a LiftExecution>, target: &SetMetric) {
+    if let Some(exact_index) = executions.iter().position(|exec| {
+        exec.sets
+            .first()
+            .map(|set| &set.metric == target)
+            .unwrap_or(false)
+    }) {
+        let matched = executions.remove(exact_index);
+        executions.insert(0, matched);
+        return;
+    }
+
+    let mut best_index: Option<usize> = None;
+    let mut best_diff = i32::MAX;
+    for (idx, exec) in executions.iter().enumerate() {
+        if let Some(metric) = exec.sets.first().map(|set| &set.metric) {
+            if let Some(diff) = metric_distance(metric, target) {
+                if diff < best_diff {
+                    best_diff = diff;
+                    best_index = Some(idx);
+                }
+            }
+        }
+    }
+
+    if let Some(idx) = best_index {
+        let matched = executions.remove(idx);
+        executions.insert(0, matched);
+    }
+}
+
 fn last_exec_desc(
     db: &dyn Database,
     name: &str,
@@ -92,51 +138,29 @@ fn last_exec_desc(
     include_deload: bool,
 ) -> Option<String> {
     let lift = db.get_lift(name).ok()?;
-    if let Some(target_metric) = num_reps {
-        let mut fallback: Option<&LiftExecution> = None;
-        let mut closest: Option<&LiftExecution> = None;
-        let mut closest_diff: i32 = i32::MAX;
-        for exec in &lift.executions {
-            if exec.warmup != warmup {
-                continue;
-            }
-            if !include_deload && exec.deload {
-                continue;
-            }
-            if fallback.is_none() {
-                fallback = Some(exec);
-            }
-            let first_metric = match exec.sets.first() {
-                Some(set) => &set.metric,
-                None => continue,
-            };
-            if *first_metric == target_metric {
-                return Some(format_exec(exec));
-            }
-            let diff = match (first_metric, &target_metric) {
-                (SetMetric::Reps(a), SetMetric::Reps(b)) => Some((a - b).abs()),
-                (SetMetric::TimeSecs(a), SetMetric::TimeSecs(b)) => Some((a - b).abs()),
-                (SetMetric::DistanceFeet(a), SetMetric::DistanceFeet(b)) => Some((a - b).abs()),
-                _ => None,
-            };
-            if let Some(d) = diff {
-                if d < closest_diff {
-                    closest_diff = d;
-                    closest = Some(exec);
-                }
-            }
-        }
-        if let Some(exec) = closest {
-            return Some(format_exec(exec));
-        }
-        return fallback.map(|e| format_exec(e));
+    let mut executions: Vec<&LiftExecution> = lift
+        .executions
+        .iter()
+        .filter(|exec| exec.warmup == warmup && (include_deload || !exec.deload))
+        .collect();
+
+    if executions.is_empty() {
+        return None;
     }
-    for exec in lift.executions {
-        if exec.warmup == warmup && (include_deload || !exec.deload) {
-            return Some(format_exec(&exec));
-        }
+
+    executions.sort_by(|a, b| {
+        let (date_b, id_b) = exec_sort_key(b);
+        let (date_a, id_a) = exec_sort_key(a);
+        date_b.cmp(&date_a).then_with(|| id_b.cmp(&id_a))
+    });
+
+    if let Some(target_metric) = num_reps.as_ref() {
+        prioritize_metric(&mut executions, target_metric);
     }
-    None
+
+    let summaries: Vec<String> = executions.into_iter().take(3).map(format_exec).collect();
+
+    Some(summaries.join(" | "))
 }
 
 fn last_one_rep_max(db: &dyn Database, name: &str) -> Option<String> {
