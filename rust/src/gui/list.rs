@@ -376,12 +376,13 @@ impl GuiApp {
 
     fn render_last_week_report(&mut self, ui: &mut egui::Ui) {
         let today = Utc::now().date_naive();
-        let start = today - Duration::days(6);
+        let end = today + Duration::days((self.last_week_offset * 7) as i64);
+        let start = end - Duration::days(6);
         let mut days: BTreeMap<_, Vec<(usize, usize)>> = BTreeMap::new();
 
         for (lift_idx, lift) in self.lifts.iter().enumerate() {
             for (exec_idx, exec) in lift.executions.iter().enumerate() {
-                if exec.date < start || exec.date > today {
+                if exec.date < start || exec.date > end {
                     continue;
                 }
                 days.entry(exec.date)
@@ -391,15 +392,28 @@ impl GuiApp {
         }
 
         ui.heading("Last Week Report");
+        ui.horizontal(|ui| {
+            if ui.button("← Previous Week").clicked() {
+                self.last_week_offset -= 1;
+            }
+            let next_button =
+                ui.add_enabled(self.last_week_offset < 0, egui::Button::new("Next Week →"));
+            if next_button.clicked() {
+                self.last_week_offset += 1;
+            }
+            if ui.button("Current Week").clicked() {
+                self.last_week_offset = 0;
+            }
+        });
         ui.label(format!(
             "Showing {} through {}",
             start.format("%a %b %-d"),
-            today.format("%a %b %-d")
+            end.format("%a %b %-d")
         ));
 
         if days.is_empty() {
             ui.add_space(8.0);
-            ui.label("no executions in the last 7 days");
+            ui.label("no executions in this 7-day range");
         } else {
             let mut day_entries: Vec<_> = days.into_iter().collect();
             day_entries.sort_by(|a, b| a.0.cmp(&b.0));

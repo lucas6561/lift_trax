@@ -89,6 +89,7 @@ struct GuiApp {
     filter_muscle_select: Option<Muscle>,
     lifts: Vec<Lift>,
     error: Option<String>,
+    last_week_offset: i32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -182,6 +183,7 @@ impl GuiApp {
             filter_muscle_select: None,
             lifts: Vec::new(),
             error: None,
+            last_week_offset: 0,
         };
         app.refresh_lifts();
         app
