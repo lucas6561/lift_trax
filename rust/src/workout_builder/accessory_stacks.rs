@@ -75,8 +75,8 @@ impl AccessoryStacks {
         let stack = self.forearms.as_mut()?;
         stack.pop().map(|lift| SingleLift {
             lift,
-            metric: Some(SetMetric::RepsRange { min: 8, max: 12 }),
-            percent: None,
+            metric: Some(SetMetric::Reps(5)),
+            percent: Some(80),
             rpe: None,
             accommodating_resistance: None,
             deload: false,
@@ -222,11 +222,7 @@ mod tests {
         let mut stacks = AccessoryStacks::new(&db).expect("stacks to build");
 
         let lift = stacks.forearm().expect("forearm accessory to exist");
-        match lift.metric {
-            Some(SetMetric::RepsRange { min, max }) => {
-                assert_eq!((min, max), (8, 12));
-            }
-            other => panic!("unexpected metric: {other:?}"),
-        }
+        assert_eq!(lift.metric, Some(SetMetric::Reps(5)));
+        assert_eq!(lift.percent, Some(80));
     }
 }

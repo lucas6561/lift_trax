@@ -456,6 +456,8 @@ fn alternates_main_lifts_across_weeks() {
             match &mon.lifts[cond_idx + 1].kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.percent, Some(80));
                 }
                 _ => panic!("expected single"),
             }
@@ -551,6 +553,8 @@ fn alternates_main_lifts_across_weeks() {
             match &tue.lifts[cond_idx + 1].kind {
                 WorkoutLiftKind::Single(s) => {
                     assert_eq!(s.lift.main, Some(LiftType::Accessory));
+                    assert_eq!(s.metric, Some(SetMetric::Reps(5)));
+                    assert_eq!(s.percent, Some(80));
                 }
                 _ => panic!("expected single"),
             }
