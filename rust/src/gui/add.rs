@@ -121,9 +121,14 @@ impl GuiApp {
         if add_set_clicked {
             self.add_detail_set();
         }
-        if ui.button("Add").clicked() {
-            self.add_execution();
-        }
+        ui.horizontal(|ui| {
+            if ui.button("Load Last Execution").clicked() {
+                self.load_last_execution();
+            }
+            if ui.button("Add").clicked() {
+                self.add_execution();
+            }
+        });
         if ctx.input(|i| i.key_pressed(egui::Key::Enter)) && !self.show_new_lift {
             self.add_execution();
         }
@@ -340,6 +345,128 @@ impl GuiApp {
         self.accom_mode = AccommodatingMode::Chains;
         self.reps.clear();
         self.rpe.clear();
+    }
+
+    fn load_last_execution(&mut self) {
+        let Some(lift_idx) = self.selected_lift else {
+            self.error = Some("No lift selected".into());
+            return;
+        };
+        let exec = self
+            .lifts
+            .get(lift_idx)
+            .and_then(|lift| lift.executions.first())
+            .cloned();
+        let Some(exec) = exec else {
+            self.error = Some("No previous executions for this lift".into());
+            return;
+        };
+        self.warmup = exec.warmup;
+        self.deload = exec.deload;
+        self.notes = exec.notes.clone();
+        let sets = exec.sets.clone();
+        if let Some(first) = sets.first() {
+            self.apply_weight_to_add_form(&first.weight);
+            let (metric_mode, metric_value) = Self::metric_mode_and_value(&first.metric);
+            self.metric_mode = metric_mode;
+            self.reps = metric_value.map(|v| v.to_string()).unwrap_or_default();
+            self.rpe = first.rpe.map(|r| r.to_string()).unwrap_or_default();
+            let uniform_sets = metric_value.is_some() && sets.iter().all(|set| set == first);
+            if uniform_sets {
+                self.set_mode = SetMode::Simple;
+                self.sets = sets.len().to_string();
+                self.detailed_sets.clear();
+            } else {
+                self.set_mode = SetMode::Detailed;
+                self.detailed_sets = sets.clone();
+                self.sets.clear();
+            }
+        } else {
+            self.set_mode = SetMode::Simple;
+            self.apply_weight_to_add_form(&Weight::None);
+            self.metric_mode = MetricMode::Reps;
+            self.reps.clear();
+            self.sets.clear();
+            self.rpe.clear();
+            self.detailed_sets.clear();
+        }
+        self.error = None;
+    }
+
+    fn apply_weight_to_add_form(&mut self, weight: &Weight) {
+        match weight {
+            Weight::Raw(p) => {
+                self.weight_mode = WeightMode::Weight;
+                self.weight_unit = WeightUnit::Pounds;
+                self.weight_value = format!("{}", p);
+                self.weight_left_value.clear();
+                self.weight_right_value.clear();
+                self.band_value.clear();
+                self.band_select = None;
+                self.chain_value.clear();
+                self.accom_mode = AccommodatingMode::Chains;
+            }
+            Weight::RawLr { left, right } => {
+                self.weight_mode = WeightMode::WeightLr;
+                self.weight_unit = WeightUnit::Pounds;
+                self.weight_left_value = format!("{}", left);
+                self.weight_right_value = format!("{}", right);
+                self.weight_value.clear();
+                self.band_value.clear();
+                self.band_select = None;
+                self.chain_value.clear();
+                self.accom_mode = AccommodatingMode::Chains;
+            }
+            Weight::Bands(bands) => {
+                self.weight_mode = WeightMode::Bands;
+                self.weight_value.clear();
+                self.weight_left_value.clear();
+                self.weight_right_value.clear();
+                self.band_value = bands.clone();
+                self.band_select = None;
+                self.chain_value.clear();
+                self.accom_mode = AccommodatingMode::Chains;
+            }
+            Weight::Accommodating { raw, resistance } => {
+                self.weight_mode = WeightMode::Accommodating;
+                self.weight_unit = WeightUnit::Pounds;
+                self.weight_value = format!("{}", raw);
+                self.weight_left_value.clear();
+                self.weight_right_value.clear();
+                self.band_select = None;
+                match resistance {
+                    AccommodatingResist::Chains(c) => {
+                        self.accom_mode = AccommodatingMode::Chains;
+                        self.chain_value = format!("{}", c);
+                        self.band_value.clear();
+                    }
+                    AccommodatingResist::Bands(bands) => {
+                        self.accom_mode = AccommodatingMode::Bands;
+                        self.chain_value.clear();
+                        self.band_value = bands.clone();
+                    }
+                }
+            }
+            Weight::None => {
+                self.weight_mode = WeightMode::None;
+                self.weight_value.clear();
+                self.weight_left_value.clear();
+                self.weight_right_value.clear();
+                self.band_value.clear();
+                self.band_select = None;
+                self.chain_value.clear();
+                self.accom_mode = AccommodatingMode::Chains;
+            }
+        }
+    }
+
+    fn metric_mode_and_value(metric: &SetMetric) -> (MetricMode, Option<i32>) {
+        match metric {
+            SetMetric::Reps(v) => (MetricMode::Reps, Some(*v)),
+            SetMetric::TimeSecs(v) => (MetricMode::Time, Some(*v)),
+            SetMetric::DistanceFeet(v) => (MetricMode::Distance, Some(*v)),
+            SetMetric::RepsRange { .. } => (MetricMode::Reps, None),
+        }
     }
 
     fn add_execution(&mut self) {
