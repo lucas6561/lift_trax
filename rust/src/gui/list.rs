@@ -1,6 +1,7 @@
 use chrono::{Duration, Utc};
 use clap::ValueEnum;
 use eframe::egui;
+use egui_extras::DatePickerButton;
 use std::collections::BTreeMap;
 
 use crate::models::lift_execution::format_execution_sets;
@@ -376,13 +377,41 @@ impl GuiApp {
 
     fn render_last_week_report(&mut self, ui: &mut egui::Ui) {
         let today = Utc::now().date_naive();
-        let end = today + Duration::days((self.last_week_offset * 7) as i64);
-        let start = end - Duration::days(6);
-        let mut days: BTreeMap<_, Vec<(usize, usize)>> = BTreeMap::new();
 
+        ui.heading("Last Week Report");
+        ui.horizontal(|ui| {
+            if ui.button("← Previous Week").clicked() {
+                self.shift_last_week_range(-7);
+            }
+            let next_button =
+                ui.add_enabled(self.last_week_end < today, egui::Button::new("Next Week →"));
+            if next_button.clicked() {
+                self.shift_last_week_range(7);
+            }
+            if ui.button("Current Week").clicked() {
+                self.set_last_week_current();
+            }
+            if ui.button("Last Week").clicked() {
+                self.set_last_week_previous();
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Start Date:");
+            ui.add(
+                DatePickerButton::new(&mut self.last_week_start)
+                    .id_source("last_week_start_picker"),
+            );
+            ui.label("End Date:");
+            ui.add(
+                DatePickerButton::new(&mut self.last_week_end).id_source("last_week_end_picker"),
+            );
+        });
+        self.normalize_last_week_range();
+
+        let mut days: BTreeMap<_, Vec<(usize, usize)>> = BTreeMap::new();
         for (lift_idx, lift) in self.lifts.iter().enumerate() {
             for (exec_idx, exec) in lift.executions.iter().enumerate() {
-                if exec.date < start || exec.date > end {
+                if exec.date < self.last_week_start || exec.date > self.last_week_end {
                     continue;
                 }
                 days.entry(exec.date)
@@ -390,25 +419,10 @@ impl GuiApp {
                     .push((lift_idx, exec_idx));
             }
         }
-
-        ui.heading("Last Week Report");
-        ui.horizontal(|ui| {
-            if ui.button("← Previous Week").clicked() {
-                self.last_week_offset -= 1;
-            }
-            let next_button =
-                ui.add_enabled(self.last_week_offset < 0, egui::Button::new("Next Week →"));
-            if next_button.clicked() {
-                self.last_week_offset += 1;
-            }
-            if ui.button("Current Week").clicked() {
-                self.last_week_offset = 0;
-            }
-        });
         ui.label(format!(
             "Showing {} through {}",
-            start.format("%a %b %-d"),
-            end.format("%a %b %-d")
+            self.last_week_start.format("%a %b %-d"),
+            self.last_week_end.format("%a %b %-d")
         ));
 
         if days.is_empty() {
@@ -511,6 +525,29 @@ impl GuiApp {
             ui.add_space(8.0);
             ui.colored_label(egui::Color32::RED, err);
         }
+    }
+
+    fn normalize_last_week_range(&mut self) {
+        if self.last_week_start > self.last_week_end {
+            std::mem::swap(&mut self.last_week_start, &mut self.last_week_end);
+        }
+    }
+
+    fn shift_last_week_range(&mut self, days: i64) {
+        self.last_week_start += Duration::days(days);
+        self.last_week_end += Duration::days(days);
+    }
+
+    fn set_last_week_current(&mut self) {
+        let today = Utc::now().date_naive();
+        self.last_week_end = today;
+        self.last_week_start = today - Duration::days(6);
+    }
+
+    fn set_last_week_previous(&mut self) {
+        let today = Utc::now().date_naive();
+        self.last_week_end = today - Duration::days(7);
+        self.last_week_start = self.last_week_end - Duration::days(6);
     }
 
     fn execution_summary(exec: &LiftExecution) -> String {

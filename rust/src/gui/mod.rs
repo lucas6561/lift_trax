@@ -89,7 +89,8 @@ struct GuiApp {
     filter_muscle_select: Option<Muscle>,
     lifts: Vec<Lift>,
     error: Option<String>,
-    last_week_offset: i32,
+    last_week_start: NaiveDate,
+    last_week_end: NaiveDate,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -183,7 +184,8 @@ impl GuiApp {
             filter_muscle_select: None,
             lifts: Vec::new(),
             error: None,
-            last_week_offset: 0,
+            last_week_start: Utc::now().date_naive() - chrono::Duration::days(6),
+            last_week_end: Utc::now().date_naive(),
         };
         app.refresh_lifts();
         app
