@@ -35,6 +35,9 @@ impl GuiApp {
             if ui.button("New Lift").clicked() {
                 self.show_new_lift = true;
             }
+            if ui.button("Load Last Execution").clicked() {
+                self.load_last_execution();
+            }
         });
         let mut add_set_clicked = false;
         execution_form(
@@ -122,9 +125,6 @@ impl GuiApp {
             self.add_detail_set();
         }
         ui.horizontal(|ui| {
-            if ui.button("Load Last Execution").clicked() {
-                self.load_last_execution();
-            }
             if ui.button("Add").clicked() {
                 self.add_execution();
             }
