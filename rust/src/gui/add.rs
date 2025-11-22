@@ -623,8 +623,6 @@ impl GuiApp {
                 self.reps.clear();
                 self.sets.clear();
                 self.rpe.clear();
-                self.warmup = false;
-                self.deload = false;
                 self.notes.clear();
                 self.detailed_sets.clear();
                 self.error = None;
