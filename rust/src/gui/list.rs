@@ -379,6 +379,7 @@ impl GuiApp {
         let today = Utc::now().date_naive();
 
         ui.heading("Last Week Report");
+        self.lift_filter_ui(ui);
         ui.horizontal(|ui| {
             if ui.button("← Previous Week").clicked() {
                 self.shift_last_week_range(-7);
