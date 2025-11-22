@@ -352,13 +352,18 @@ impl GuiApp {
             self.error = Some("No lift selected".into());
             return;
         };
-        let exec = self
-            .lifts
-            .get(lift_idx)
-            .and_then(|lift| lift.executions.first())
+        let Some(lift) = self.lifts.get(lift_idx) else {
+            self.error = Some("No previous executions for this lift".into());
+            return;
+        };
+        let exec = lift
+            .executions
+            .iter()
+            .find(|exec| exec.warmup == self.warmup && exec.deload == self.deload)
             .cloned();
         let Some(exec) = exec else {
-            self.error = Some("No previous executions for this lift".into());
+            self.error =
+                Some("No previous executions for this lift with the selected options".into());
             return;
         };
         self.warmup = exec.warmup;
