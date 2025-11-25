@@ -36,6 +36,8 @@ pub trait Database {
     /// Delete an existing lift and all of its executions.
     fn delete_lift(&self, name: &str) -> DbResult<()>;
 
+    fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution>;
+
     /// Update a recorded execution by id.
     fn update_lift_execution(&self, exec_id: i32, execution: &LiftExecution) -> DbResult<()>;
 

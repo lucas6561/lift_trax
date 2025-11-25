@@ -52,7 +52,7 @@ impl GuiApp {
                     .join(", ");
                 format!("{} [{}]", name, muscles_str)
             };
-            let executions = self.lifts[i].executions.clone();
+            let executions = self.db.get_executions(&self.lifts[i].name);
             ui.collapsing(title, |ui| {
                 if self.editing_lift == Some(i) {
                     ui.horizontal(|ui| {

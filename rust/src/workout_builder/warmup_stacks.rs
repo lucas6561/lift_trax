@@ -182,7 +182,6 @@ mod tests {
             main: Some(main),
             muscles,
             notes: String::new(),
-            executions: Vec::<LiftExecution>::new(),
         }
     }
 
@@ -215,6 +214,10 @@ mod tests {
         }
 
         fn delete_lift(&self, _name: &str) -> DbResult<()> {
+            unimplemented!()
+        }
+
+        fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution> {
             unimplemented!()
         }
 

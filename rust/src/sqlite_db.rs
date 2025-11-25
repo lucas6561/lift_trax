@@ -122,7 +122,6 @@ impl SqliteDb {
                 main,
                 muscles: Self::parse_muscles(muscles_str),
                 notes,
-                executions: Vec::new(),
             },
         ))
     }

@@ -356,8 +356,8 @@ impl GuiApp {
             self.error = Some("No previous executions for this lift".into());
             return;
         };
-        let exec = lift
-            .executions
+        let executions = self.db.get_executions(&lift.name);
+        let exec = executions
             .iter()
             .find(|exec| exec.warmup == self.warmup && exec.deload == self.deload)
             .cloned();

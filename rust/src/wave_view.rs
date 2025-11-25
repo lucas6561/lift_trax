@@ -137,9 +137,8 @@ fn last_exec_desc(
     num_reps: Option<SetMetric>,
     include_deload: bool,
 ) -> Option<String> {
-    let lift = db.get_lift(name).ok()?;
-    let mut executions: Vec<&LiftExecution> = lift
-        .executions
+    let mut executions: Vec<&LiftExecution> = db
+        .get_executions(&name)
         .iter()
         .filter(|exec| exec.warmup == warmup && (include_deload || !exec.deload))
         .collect();
@@ -164,8 +163,7 @@ fn last_exec_desc(
 }
 
 fn last_one_rep_max(db: &dyn Database, name: &str) -> Option<String> {
-    let lift = db.get_lift(name).ok()?;
-    for exec in lift.executions {
+    for exec in db.get_executions(name) {
         if exec.warmup {
             continue;
         }
@@ -221,10 +219,7 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
                 i += count;
             }
             workout_builder::WorkoutLiftKind::Circuit(c) => {
-                lines.push(format!(
-                    "- Circuit: {} rounds",
-                    c.rounds
-                ));
+                lines.push(format!("- Circuit: {} rounds", c.rounds));
 
                 for (j, sl) in c.circuit_lifts.iter().enumerate() {
                     let desc = if c.warmup {
