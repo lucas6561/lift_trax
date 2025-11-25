@@ -222,8 +222,8 @@ pub fn workout_lines(w: &workout_builder::Workout, db: &dyn Database) -> Vec<Str
             }
             workout_builder::WorkoutLiftKind::Circuit(c) => {
                 lines.push(format!(
-                    "- Circuit: {} rounds, {}s rest",
-                    c.rounds, c.rest_time_sec
+                    "- Circuit: {} rounds",
+                    c.rounds
                 ));
 
                 for (j, sl) in c.circuit_lifts.iter().enumerate() {

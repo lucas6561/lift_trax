@@ -32,20 +32,6 @@ use super::{
 pub struct ConjugateWorkoutBuilder;
 
 impl ConjugateWorkoutBuilder {
-    /// Sorts and deduplicates a set of lifts to provide a stable UI ordering.
-    ///
-    /// The editor that allows the user to tweak the max-effort plan benefits
-    /// from deterministic ordering, and removing duplicate names avoids showing
-    /// near-identical options.
-    fn sorted_options(mut lifts: Vec<Lift>) -> Vec<Lift> {
-        lifts.sort_by(|a, b| a.name.cmp(&b.name));
-        lifts.dedup_by(|a, b| a.name == b.name);
-        lifts
-    }
-
-    fn get_lifts_by_type(db: &dyn Database, lift_type: LiftType) -> DbResult<Vec<Lift>> {
-        Ok(Self::sorted_options(db.lifts_by_type(lift_type)?))
-    }
 
     /// Builds the canonical "work up to a single" used on max effort days.
     fn max_effort_single(lift: Lift) -> WorkoutLift {
@@ -155,7 +141,6 @@ impl ConjugateWorkoutBuilder {
             name: "Deload Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
                 circuit_lifts: lifts,
-                rest_time_sec: 45,
                 rounds: 2,
                 warmup: false,
             }),
@@ -274,7 +259,6 @@ impl ConjugateWorkoutBuilder {
             name: "Accessory Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
                 circuit_lifts: lifts,
-                rest_time_sec: 60,
                 rounds: 3,
                 warmup: false,
             }),
@@ -605,10 +589,10 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
         let me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
         let (default_lower, default_upper) = me_pools.schedule();
-        let squat_options = Self::get_lifts_by_type(db, LiftType::Squat)?;
-        let deadlift_options = Self::get_lifts_by_type(db, LiftType::Deadlift)?;
-        let bench_options = Self::get_lifts_by_type(db, LiftType::BenchPress)?;
-        let ohp_options = Self::get_lifts_by_type(db, LiftType::OverheadPress)?;
+        let squat_options = db.lifts_by_type(LiftType::Squat)?;
+        let deadlift_options = db.lifts_by_type(LiftType::Deadlift)?;
+        let bench_options = db.lifts_by_type(LiftType::BenchPress)?;
+        let ohp_options = db.lifts_by_type(LiftType::OverheadPress)?;
         let max_effort_plan = max_effort_editor::edit_max_effort_plan(
             squat_options,
             deadlift_options,

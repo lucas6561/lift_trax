@@ -840,7 +840,6 @@ fn assert_deload_week(
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
-            assert_eq!(c.rest_time_sec, 45);
             for l in &c.circuit_lifts {
                 match l.metric {
                     Some(SetMetric::RepsRange { min, max }) => {
@@ -903,7 +902,6 @@ fn assert_deload_week(
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
-            assert_eq!(c.rest_time_sec, 45);
             for l in &c.circuit_lifts {
                 match l.metric {
                     Some(SetMetric::RepsRange { min, max }) => {
@@ -972,7 +970,6 @@ fn assert_deload_week(
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
-            assert_eq!(c.rest_time_sec, 45);
             for l in &c.circuit_lifts {
                 match l.metric {
                     Some(SetMetric::RepsRange { min, max }) => {
@@ -1041,7 +1038,6 @@ fn assert_deload_week(
         WorkoutLiftKind::Circuit(c) => {
             assert_eq!(c.circuit_lifts.len(), 3);
             assert_eq!(c.rounds, 2);
-            assert_eq!(c.rest_time_sec, 45);
             for l in &c.circuit_lifts {
                 match l.metric {
                     Some(SetMetric::RepsRange { min, max }) => {

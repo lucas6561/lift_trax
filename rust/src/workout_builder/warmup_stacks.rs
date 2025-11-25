@@ -89,7 +89,6 @@ impl WarmupStacks {
             name: "Warmup Circuit".to_string(),
             kind: WorkoutLiftKind::Circuit(CircuitLift {
                 circuit_lifts: vec![mk(mobility), mk(accessory_one), mk(accessory_two), mk(core)],
-                rest_time_sec: 60,
                 rounds: 3,
                 warmup: true,
             }),
@@ -281,7 +280,6 @@ mod tests {
         match warmup.kind {
             WorkoutLiftKind::Circuit(circuit) => {
                 assert!(circuit.warmup);
-                assert_eq!(circuit.rest_time_sec, 60);
                 assert_eq!(circuit.rounds, 3);
                 assert_eq!(circuit.circuit_lifts.len(), 4);
             }

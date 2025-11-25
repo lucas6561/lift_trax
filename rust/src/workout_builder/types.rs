@@ -24,11 +24,10 @@ pub struct SingleLift {
     pub deload: bool,
 }
 
-/// Represents a circuit of lifts with a prescribed rest time.
+/// Represents a circuit of lifts.
 #[derive(Clone)]
 pub struct CircuitLift {
     pub circuit_lifts: Vec<SingleLift>,
-    pub rest_time_sec: u32,
     pub rounds: u32,
     pub warmup: bool,
 }
