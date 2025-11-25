@@ -52,7 +52,7 @@ impl GuiApp {
                     .join(", ");
                 format!("{} [{}]", name, muscles_str)
             };
-            let executions = self.lifts[i].executions.clone();
+            let executions = self.db.get_executions(&self.lifts[i].name);
             ui.collapsing(title, |ui| {
                 if self.editing_lift == Some(i) {
                     ui.horizontal(|ui| {
@@ -284,8 +284,16 @@ impl GuiApp {
     }
 
     fn begin_exec_edit(&mut self, lift_idx: usize, exec_idx: usize) {
+        let lift_name = match self.lifts.get(lift_idx) {
+            Some(lift) => lift.name.clone(),
+            None => return,
+        };
+        let executions = self.db.get_executions(&lift_name);
+        let Some(exec) = executions.get(exec_idx) else {
+            return;
+        };
+
         self.editing_exec = Some((lift_idx, exec_idx));
-        let exec = &self.lifts[lift_idx].executions[exec_idx];
         if let Some(first) = exec.sets.first() {
             match &first.weight {
                 Weight::Raw(p) => {
@@ -411,7 +419,7 @@ impl GuiApp {
 
         let mut days: BTreeMap<_, Vec<(usize, usize)>> = BTreeMap::new();
         for (lift_idx, lift) in self.lifts.iter().enumerate() {
-            for (exec_idx, exec) in lift.executions.iter().enumerate() {
+            for (exec_idx, exec) in self.db.get_executions(&lift.name).iter().enumerate() {
                 if exec.date < self.last_week_start || exec.date > self.last_week_end {
                     continue;
                 }
@@ -444,7 +452,10 @@ impl GuiApp {
                     ui.add_space(4.0);
                     for (lift_idx, exec_idx) in entries {
                         let lift_name = self.lifts[lift_idx].name.clone();
-                        let exec = self.lifts[lift_idx].executions[exec_idx].clone();
+                        let execs = self.db.get_executions(&lift_name);
+                        let Some(exec) = execs.get(exec_idx).cloned() else {
+                            continue;
+                        };
                         ui.horizontal(|ui| {
                             ui.label(format!("{}: {}", lift_name, Self::execution_summary(&exec)));
                             if ui.button("Edit").clicked() {
@@ -589,8 +600,14 @@ impl GuiApp {
 
     fn save_exec_edit(&mut self) {
         if let Some((lift_idx, exec_idx)) = self.editing_exec {
-            let lift = &self.lifts[lift_idx];
-            let exec = &lift.executions[exec_idx];
+            let lift = match self.lifts.get(lift_idx) {
+                Some(lift) => lift,
+                None => return,
+            };
+            let executions = self.db.get_executions(&lift.name);
+            let Some(exec) = executions.get(exec_idx) else {
+                return;
+            };
             let weight = match self.edit_weight_mode {
                 WeightMode::Weight => {
                     let val: f64 = match self.edit_weight_value.parse() {

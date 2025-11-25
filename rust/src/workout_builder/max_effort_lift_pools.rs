@@ -92,7 +92,6 @@ mod tests {
                 main: Some(lift_type),
                 muscles: Vec::new(),
                 notes: String::new(),
-                executions: Vec::<LiftExecution>::new(),
             };
             Self {
                 squats: vec![
@@ -144,6 +143,10 @@ mod tests {
         }
 
         fn delete_lift(&self, _name: &str) -> DbResult<()> {
+            unimplemented!()
+        }
+
+        fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution> {
             unimplemented!()
         }
 

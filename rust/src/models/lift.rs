@@ -1,4 +1,4 @@
-use super::{LiftExecution, LiftRegion, LiftType, Muscle};
+use super::{LiftRegion, LiftType, Muscle};
 
 /// A weight-lifting movement tracked by the application.
 ///
@@ -16,6 +16,4 @@ pub struct Lift {
     pub muscles: Vec<Muscle>,
     /// Free-form notes about this lift.
     pub notes: String,
-    /// Recorded executions of this lift, most recent first.
-    pub executions: Vec<LiftExecution>,
 }

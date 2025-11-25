@@ -136,6 +136,10 @@ mod tests {
             unimplemented!()
         }
 
+        fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution> {
+            unimplemented!()
+        }
+
         fn update_lift_execution(&self, _exec_id: i32, _execution: &LiftExecution) -> DbResult<()> {
             unimplemented!()
         }
@@ -169,7 +173,6 @@ mod tests {
                 }),
                 muscles: Vec::new(),
                 notes: String::new(),
-                executions: Vec::<LiftExecution>::new(),
             })
         }
 

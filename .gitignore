@@ -1,3 +1,5 @@
 /target
 rust/target
 lifts.db*
+rust/.idea
+rust/wave.md

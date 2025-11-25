@@ -122,7 +122,6 @@ impl SqliteDb {
                 main,
                 muscles: Self::parse_muscles(muscles_str),
                 notes,
-                executions: Vec::new(),
             },
         ))
     }
@@ -136,7 +135,6 @@ impl SqliteDb {
         let mut lifts = Vec::new();
         for row in iter {
             let (id, mut lift) = row?;
-            lift.executions = self.fetch_executions(id)?;
             lifts.push(lift);
         }
         Ok(lifts)
@@ -570,5 +568,17 @@ impl Database for SqliteDb {
             "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE region = ?1 AND main_lift = ?2 ORDER BY name",
             params![region.to_string(), lift_type.to_string()],
         )
+    }
+
+    fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution> {
+        let lift = self.get_lift(lift_name).unwrap();
+
+        let lift_id: i32 = self.conn.query_row(
+            "SELECT id FROM lifts WHERE name = ?1",
+            params![lift_name],
+            |row| row.get(0),
+        ).unwrap();
+
+        return self.fetch_executions(lift_id).unwrap()
     }
 }

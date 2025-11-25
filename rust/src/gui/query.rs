@@ -33,7 +33,8 @@ impl GuiApp {
                     ui.heading("Last Year");
                     let one_year_ago = Utc::now().date_naive() - Duration::days(365);
                     let mut any = false;
-                    for exec in lift.executions.iter().filter(|e| e.date >= one_year_ago) {
+                    let all_execs = self.db.get_executions(&lift.name);
+                    for exec in all_execs.iter().filter(|e| e.date >= one_year_ago) {
                         ui.label(exec.to_string());
                         any = true;
                     }

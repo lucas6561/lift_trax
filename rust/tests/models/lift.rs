@@ -40,11 +40,9 @@ fn create_lift_with_execution() {
         main: Some(LiftType::Squat),
         muscles: vec![Muscle::Quad, Muscle::Glute],
         notes: String::new(),
-        executions: vec![exec.clone()],
     };
     assert_eq!(lift.name, "Squat");
-    assert_eq!(lift.executions.len(), 1);
-    match lift.executions[0].sets[0].metric {
+    match exec.sets[0].metric {
         SetMetric::Reps(r) => assert_eq!(r, 3),
         _ => panic!("expected reps"),
     }
