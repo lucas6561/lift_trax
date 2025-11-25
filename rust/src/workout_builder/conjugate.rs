@@ -32,7 +32,6 @@ use super::{
 pub struct ConjugateWorkoutBuilder;
 
 impl ConjugateWorkoutBuilder {
-
     /// Builds the canonical "work up to a single" used on max effort days.
     fn max_effort_single(lift: Lift) -> WorkoutLift {
         WorkoutLift {
