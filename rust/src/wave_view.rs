@@ -137,8 +137,8 @@ fn last_exec_desc(
     num_reps: Option<SetMetric>,
     include_deload: bool,
 ) -> Option<String> {
-    let mut executions: Vec<&LiftExecution> = db
-        .get_executions(&name)
+    let all_execs = db.get_executions(name);
+    let mut executions: Vec<&LiftExecution> = all_execs
         .iter()
         .filter(|exec| exec.warmup == warmup && (include_deload || !exec.deload))
         .collect();
