@@ -236,10 +236,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "{} ({}){}{}{}",
                     l.name, l.region, main_str, muscles_str, notes_str
                 );
-                if l.executions.is_empty() {
+                let executions = db.get_executions(&l.name);
+                if executions.is_empty() {
                     println!("  - no records");
                 } else {
-                    let summaries = summarize_recent_executions(&l.executions, 3);
+                    let summaries = summarize_recent_executions(&executions, 3);
                     println!("  - {}", summaries.join(" | "));
                 }
             }
