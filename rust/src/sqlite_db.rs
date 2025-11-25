@@ -571,6 +571,14 @@ impl Database for SqliteDb {
     }
 
     fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution> {
-        unimplemented!()
+        let lift = self.get_lift(lift_name).unwrap();
+
+        let lift_id: i32 = self.conn.query_row(
+            "SELECT id FROM lifts WHERE name = ?1",
+            params![lift_name],
+            |row| row.get(0),
+        ).unwrap();
+
+        return self.fetch_executions(lift_id).unwrap()
     }
 }
