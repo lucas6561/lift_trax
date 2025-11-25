@@ -50,8 +50,9 @@ fn add_and_list_lift_with_execution() {
     db.add_lift_execution("Bench", &exec).unwrap();
 
     let bench = db.get_lift("Bench").unwrap();
-    assert_eq!(bench.executions.len(), 1);
-    let stored = &bench.executions[0];
+    let executions = db.get_executions(&bench.name);
+    assert_eq!(executions.len(), 1);
+    let stored = &executions[0];
     assert_eq!(stored.sets.len(), 3);
     assert_eq!(stored.sets[0].weight.to_string(), "135 lb");
     assert_eq!(stored.notes, "solid");
@@ -78,12 +79,14 @@ fn delete_execution_removes_record() {
     };
     db.add_lift_execution("Bench", &exec).unwrap();
 
-    let bench = db.get_lift("Bench").unwrap();
-    let exec_id = bench.executions[0].id.unwrap();
+    let exec_id = db
+        .get_executions("Bench")
+        .first()
+        .and_then(|e| e.id)
+        .expect("execution id");
     db.delete_lift_execution(exec_id).unwrap();
 
-    let bench = db.get_lift("Bench").unwrap();
-    assert!(bench.executions.is_empty());
+    assert!(db.get_executions("Bench").is_empty());
 }
 
 #[test]
@@ -216,8 +219,9 @@ fn reads_legacy_execution_sets() {
     drop(conn);
 
     let lift = db.get_lift("Row").unwrap();
-    assert_eq!(lift.executions.len(), 1);
-    let set = &lift.executions[0].sets[0];
+    let executions = db.get_executions(&lift.name);
+    assert_eq!(executions.len(), 1);
+    let set = &executions[0].sets[0];
     match set.metric {
         SetMetric::Reps(r) => assert_eq!(r, 10),
         _ => panic!("expected reps"),

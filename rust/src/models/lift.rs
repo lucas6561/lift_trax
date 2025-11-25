@@ -1,4 +1,4 @@
-use super::{LiftExecution, LiftRegion, LiftType, Muscle};
+use super::{LiftRegion, LiftType, Muscle};
 
 /// A weight-lifting movement tracked by the application.
 ///
