@@ -6,11 +6,11 @@ use std::collections::BTreeMap;
 
 use crate::models::lift_execution::format_execution_sets;
 use crate::models::{ExecutionSet, LiftExecution, LiftRegion, Muscle, SetMetric};
-use crate::weight::{Weight, WeightUnit};
+use crate::weight::{AccommodatingResist, Weight, WeightUnit};
 
 use super::{
-    GuiApp, MetricMode, WeightMode, combo_box_width, execution_form::execution_form,
-    main_lift_options,
+    AccommodatingMode, GuiApp, MetricMode, WeightMode, combo_box_width,
+    execution_form::execution_form, main_lift_options,
 };
 
 impl GuiApp {
@@ -322,15 +322,26 @@ impl GuiApp {
                     self.edit_weight_left_value.clear();
                     self.edit_weight_right_value.clear();
                 }
-                Weight::Accommodating { raw, .. } => {
-                    // Treat accommodating resistance as a simple raw weight for editing
-                    self.edit_weight_mode = WeightMode::Weight;
+                Weight::Accommodating { raw, resistance } => {
+                    self.edit_weight_mode = WeightMode::Accommodating;
                     self.edit_weight_unit = WeightUnit::Pounds;
                     self.edit_weight_value = format!("{}", raw);
                     self.edit_weight_left_value.clear();
                     self.edit_weight_right_value.clear();
-                    self.edit_band_value.clear();
-                    self.edit_band_select = None;
+                    match resistance {
+                        AccommodatingResist::Chains(chain) => {
+                            self.accom_mode = AccommodatingMode::Chains;
+                            self.chain_value = format!("{}", chain);
+                            self.edit_band_value.clear();
+                            self.edit_band_select = None;
+                        }
+                        AccommodatingResist::Bands(bands) => {
+                            self.accom_mode = AccommodatingMode::Bands;
+                            self.edit_band_value = bands.clone();
+                            self.edit_band_select = None;
+                            self.chain_value.clear();
+                        }
+                    }
                 }
                 Weight::None => {
                     self.edit_weight_mode = WeightMode::None;
@@ -620,14 +631,44 @@ impl GuiApp {
                     Weight::from_unit(val, self.edit_weight_unit)
                 }
                 WeightMode::Accommodating => {
-                    let val: f64 = match self.edit_weight_value.parse() {
+                    let raw: f64 = match self.edit_weight_value.parse() {
                         Ok(v) => v,
                         Err(_) => {
                             self.error = Some("Invalid weight".into());
                             return;
                         }
                     };
-                    Weight::from_unit(val, self.edit_weight_unit)
+                    let raw_lbs = match Weight::from_unit(raw, self.edit_weight_unit) {
+                        Weight::Raw(p) => p,
+                        _ => unreachable!(),
+                    };
+                    let resistance = match self.accom_mode {
+                        AccommodatingMode::Chains => {
+                            let chain: f64 = match self.chain_value.parse() {
+                                Ok(v) => v,
+                                Err(_) => {
+                                    self.error = Some("Invalid chain weight".into());
+                                    return;
+                                }
+                            };
+                            let chain_lbs = match Weight::from_unit(chain, self.edit_weight_unit) {
+                                Weight::Raw(p) => p,
+                                _ => unreachable!(),
+                            };
+                            AccommodatingResist::Chains(chain_lbs)
+                        }
+                        AccommodatingMode::Bands => {
+                            if self.edit_band_value.is_empty() {
+                                self.error = Some("No bands selected".into());
+                                return;
+                            }
+                            AccommodatingResist::Bands(self.edit_band_value.clone())
+                        }
+                    };
+                    Weight::Accommodating {
+                        raw: raw_lbs,
+                        resistance,
+                    }
                 }
                 WeightMode::WeightLr => {
                     let left: f64 = match self.edit_weight_left_value.parse() {
