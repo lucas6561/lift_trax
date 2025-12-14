@@ -27,7 +27,14 @@ enum Commands {
         /// Exercise name
         exercise: String,
         /// Weight lifted
-        weight: String,
+        #[arg(required_unless_present_all = ["left_weight", "right_weight"])]
+        weight: Option<String>,
+        /// Weight used on the left side when different from the right
+        #[arg(long = "left-weight", requires = "right_weight")]
+        left_weight: Option<String>,
+        /// Weight used on the right side when different from the left
+        #[arg(long = "right-weight", requires = "left_weight")]
+        right_weight: Option<String>,
         /// Number of reps
         reps: i32,
         /// Number of sets
@@ -162,13 +169,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             rpe,
             muscles,
             lift_type,
+            left_weight,
+            right_weight,
             notes,
         } => {
             let date = match date {
                 Some(d) => NaiveDate::parse_from_str(&d, "%Y-%m-%d")?,
                 None => Utc::now().date_naive(),
             };
-            let real_weight: Weight = weight.parse().map_err(|_| "Invalid weight supplied")?;
+            let real_weight: Weight = match (weight, left_weight, right_weight) {
+                (Some(w), None, None) => w.parse().map_err(|_| "Invalid weight supplied")?,
+                (None, Some(left), Some(right)) => format!("{}|{}", left, right)
+                    .parse()
+                    .map_err(|_| "Invalid left/right weight supplied")?,
+                _ => {
+                    return Err(
+                        "Provide a single weight or both --left-weight and --right-weight".into(),
+                    );
+                }
+            };
             let set = ExecutionSet {
                 metric: SetMetric::Reps(reps),
                 weight: real_weight.clone(),

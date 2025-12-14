@@ -24,11 +24,15 @@ Record a new performance of a lift in the database. If the lift does not
 exist yet it will be created when a lift `--type` is supplied.
 
 ```bash
-cargo run -- add <EXERCISE> <WEIGHT> <REPS> <SETS> [--date YYYY-MM-DD] [--rpe RPE] [--muscle MUSCLE]... [--type LIFT_TYPE]
+cargo run -- add <EXERCISE> <WEIGHT> <REPS> <SETS> [--date YYYY-MM-DD] [--rpe RPE] [--muscle MUSCLE]... [--type LIFT_TYPE] [--left-weight WEIGHT --right-weight WEIGHT]
 ```
 
 * `<EXERCISE>` – name of the movement (e.g. `Bench`)
-* `<WEIGHT>` – weight lifted in pounds
+* `<WEIGHT>` – weight lifted in pounds. For unilateral movements you can supply
+  separate values either by entering `LEFT|RIGHT` as the weight (e.g.
+  `35|40`) or by providing the `--left-weight` and `--right-weight` flags to
+  let the tool format the left/right weight for you. Kilograms are accepted by
+  appending `kg`.
 * `<REPS>` – number of repetitions per set. For exercises measured by time or
   distance, provide the seconds or feet in place of a rep count
 * `<SETS>` – number of sets performed
@@ -42,6 +46,8 @@ Examples:
 ```bash
 cargo run -- add Bench 225 5 3
 cargo run -- add Squat 315 3 5 --date 2024-05-20 --rpe 8.5 --muscle QUAD --muscle GLUTE
+cargo run -- add Single-Arm-Press 35|40 8 3
+cargo run -- add Single-Arm-Row 50 10 4 --left-weight 50 --right-weight 60
 ```
 
 ### List lifts
