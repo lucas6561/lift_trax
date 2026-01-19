@@ -213,14 +213,26 @@ impl GuiApp {
                             &mut self.edit_date,
                             &mut self.edit_notes,
                             |ui, metric_mode| {
-                                let metric_label = match metric_mode {
-                                    MetricMode::Reps => "Reps:",
-                                    MetricMode::Time => "Seconds:",
-                                    MetricMode::Distance => "Feet:",
-                                };
-                                ui.horizontal(|ui| {
-                                    ui.label(metric_label);
-                                    ui.text_edit_singleline(&mut self.edit_reps);
+                                ui.horizontal(|ui| match metric_mode {
+                                    MetricMode::Reps => {
+                                        ui.label("Reps:");
+                                        ui.text_edit_singleline(&mut self.edit_reps);
+                                    }
+                                    MetricMode::RepsLr => {
+                                        ui.label("Reps:");
+                                        ui.label("L:");
+                                        ui.text_edit_singleline(&mut self.edit_reps_left);
+                                        ui.label("R:");
+                                        ui.text_edit_singleline(&mut self.edit_reps_right);
+                                    }
+                                    MetricMode::Time => {
+                                        ui.label("Seconds:");
+                                        ui.text_edit_singleline(&mut self.edit_reps);
+                                    }
+                                    MetricMode::Distance => {
+                                        ui.label("Feet:");
+                                        ui.text_edit_singleline(&mut self.edit_reps);
+                                    }
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("Sets:");
@@ -357,18 +369,32 @@ impl GuiApp {
                 SetMetric::Reps(r) => {
                     self.edit_metric_mode = MetricMode::Reps;
                     self.edit_reps = r.to_string();
+                    self.edit_reps_left.clear();
+                    self.edit_reps_right.clear();
+                }
+                SetMetric::RepsLr { left, right } => {
+                    self.edit_metric_mode = MetricMode::RepsLr;
+                    self.edit_reps_left = left.to_string();
+                    self.edit_reps_right = right.to_string();
+                    self.edit_reps.clear();
                 }
                 SetMetric::RepsRange { .. } => {
                     self.edit_metric_mode = MetricMode::Reps;
                     self.edit_reps.clear();
+                    self.edit_reps_left.clear();
+                    self.edit_reps_right.clear();
                 }
                 SetMetric::TimeSecs(s) => {
                     self.edit_metric_mode = MetricMode::Time;
                     self.edit_reps = s.to_string();
+                    self.edit_reps_left.clear();
+                    self.edit_reps_right.clear();
                 }
                 SetMetric::DistanceFeet(d) => {
                     self.edit_metric_mode = MetricMode::Distance;
                     self.edit_reps = d.to_string();
+                    self.edit_reps_left.clear();
+                    self.edit_reps_right.clear();
                 }
             }
             self.edit_date = exec.date;
@@ -386,6 +412,8 @@ impl GuiApp {
             self.edit_sets.clear();
             self.edit_metric_mode = MetricMode::Reps;
             self.edit_reps.clear();
+            self.edit_reps_left.clear();
+            self.edit_reps_right.clear();
             self.edit_date = exec.date;
             self.edit_rpe.clear();
             self.edit_notes = exec.notes.clone();
@@ -503,14 +531,26 @@ impl GuiApp {
                                 &mut self.edit_date,
                                 &mut self.edit_notes,
                                 |ui, metric_mode| {
-                                    let metric_label = match metric_mode {
-                                        MetricMode::Reps => "Reps:",
-                                        MetricMode::Time => "Seconds:",
-                                        MetricMode::Distance => "Feet:",
-                                    };
-                                    ui.horizontal(|ui| {
-                                        ui.label(metric_label);
-                                        ui.text_edit_singleline(&mut self.edit_reps);
+                                    ui.horizontal(|ui| match metric_mode {
+                                        MetricMode::Reps => {
+                                            ui.label("Reps:");
+                                            ui.text_edit_singleline(&mut self.edit_reps);
+                                        }
+                                        MetricMode::RepsLr => {
+                                            ui.label("Reps:");
+                                            ui.label("L:");
+                                            ui.text_edit_singleline(&mut self.edit_reps_left);
+                                            ui.label("R:");
+                                            ui.text_edit_singleline(&mut self.edit_reps_right);
+                                        }
+                                        MetricMode::Time => {
+                                            ui.label("Seconds:");
+                                            ui.text_edit_singleline(&mut self.edit_reps);
+                                        }
+                                        MetricMode::Distance => {
+                                            ui.label("Feet:");
+                                            ui.text_edit_singleline(&mut self.edit_reps);
+                                        }
                                     });
                                     ui.horizontal(|ui| {
                                         ui.label("Sets:");
@@ -696,13 +736,6 @@ impl GuiApp {
                 }
                 WeightMode::None => Weight::None,
             };
-            let metric_val: i32 = match self.edit_reps.parse() {
-                Ok(r) => r,
-                Err(_) => {
-                    self.error = Some("Invalid value".into());
-                    return;
-                }
-            };
             let sets: i32 = match self.edit_sets.parse() {
                 Ok(s) => s,
                 Err(_) => {
@@ -723,9 +756,53 @@ impl GuiApp {
                 }
             };
             let metric = match self.edit_metric_mode {
-                MetricMode::Reps => SetMetric::Reps(metric_val),
-                MetricMode::Time => SetMetric::TimeSecs(metric_val),
-                MetricMode::Distance => SetMetric::DistanceFeet(metric_val),
+                MetricMode::Reps => {
+                    let metric_val: i32 = match self.edit_reps.parse() {
+                        Ok(r) => r,
+                        Err(_) => {
+                            self.error = Some("Invalid value".into());
+                            return;
+                        }
+                    };
+                    SetMetric::Reps(metric_val)
+                }
+                MetricMode::RepsLr => {
+                    let left: i32 = match self.edit_reps_left.parse() {
+                        Ok(r) => r,
+                        Err(_) => {
+                            self.error = Some("Invalid left reps".into());
+                            return;
+                        }
+                    };
+                    let right: i32 = match self.edit_reps_right.parse() {
+                        Ok(r) => r,
+                        Err(_) => {
+                            self.error = Some("Invalid right reps".into());
+                            return;
+                        }
+                    };
+                    SetMetric::RepsLr { left, right }
+                }
+                MetricMode::Time => {
+                    let metric_val: i32 = match self.edit_reps.parse() {
+                        Ok(r) => r,
+                        Err(_) => {
+                            self.error = Some("Invalid value".into());
+                            return;
+                        }
+                    };
+                    SetMetric::TimeSecs(metric_val)
+                }
+                MetricMode::Distance => {
+                    let metric_val: i32 = match self.edit_reps.parse() {
+                        Ok(r) => r,
+                        Err(_) => {
+                            self.error = Some("Invalid value".into());
+                            return;
+                        }
+                    };
+                    SetMetric::DistanceFeet(metric_val)
+                }
             };
             let set = ExecutionSet {
                 metric,

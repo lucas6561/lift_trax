@@ -209,6 +209,7 @@ pub(super) fn execution_form<F>(
     ui.horizontal(|ui| {
         ui.label("Metric:");
         ui.selectable_value(metric_mode, MetricMode::Reps, "Reps");
+        ui.selectable_value(metric_mode, MetricMode::RepsLr, "L/R Reps");
         ui.selectable_value(metric_mode, MetricMode::Time, "Seconds");
         ui.selectable_value(metric_mode, MetricMode::Distance, "Feet");
     });
