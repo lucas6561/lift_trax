@@ -43,6 +43,8 @@ struct GuiApp {
     metric_mode: MetricMode,
     set_mode: SetMode,
     reps: String,
+    reps_left: String,
+    reps_right: String,
     sets: String,
     date: NaiveDate,
     rpe: String,
@@ -77,6 +79,8 @@ struct GuiApp {
     edit_weight_mode: WeightMode,
     edit_metric_mode: MetricMode,
     edit_reps: String,
+    edit_reps_left: String,
+    edit_reps_right: String,
     edit_sets: String,
     edit_date: NaiveDate,
     edit_rpe: String,
@@ -117,6 +121,7 @@ enum SetMode {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum MetricMode {
     Reps,
+    RepsLr,
     Time,
     Distance,
 }
@@ -138,6 +143,8 @@ impl GuiApp {
             metric_mode: MetricMode::Reps,
             set_mode: SetMode::Simple,
             reps: String::new(),
+            reps_left: String::new(),
+            reps_right: String::new(),
             sets: String::new(),
             date: Utc::now().date_naive(),
             rpe: String::new(),
@@ -172,6 +179,8 @@ impl GuiApp {
             edit_weight_mode: WeightMode::Weight,
             edit_metric_mode: MetricMode::Reps,
             edit_reps: String::new(),
+            edit_reps_left: String::new(),
+            edit_reps_right: String::new(),
             edit_sets: String::new(),
             edit_date: Utc::now().date_naive(),
             edit_rpe: String::new(),

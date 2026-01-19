@@ -6,13 +6,7 @@ use crate::workout_builder;
 fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
     let mut parts = vec![format!("**{}**", s.lift.name)];
     if let Some(metric) = &s.metric {
-        use SetMetric::*;
-        let metric_str = match metric {
-            Reps(r) => format!("{} reps", r),
-            RepsRange { min, max } => format!("{}-{} reps", min, max),
-            TimeSecs(t) => format!("{}s", t),
-            DistanceFeet(d) => format!("{}ft", d),
-        };
+        let metric_str = metric.to_string();
         if count > 1 {
             parts.push(format!("{}x {}", count, metric_str));
         } else {
@@ -56,12 +50,7 @@ fn format_exec(exec: &LiftExecution) -> String {
     }
     let first = &exec.sets[0];
     let rpe = first.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
-    let metric_str = match first.metric {
-        SetMetric::Reps(r) => format!("{} reps", r),
-        SetMetric::RepsRange { min, max } => format!("{}-{} reps", min, max),
-        SetMetric::TimeSecs(t) => format!("{}s", t),
-        SetMetric::DistanceFeet(d) => format!("{}ft", d),
-    };
+    let metric_str = first.metric.to_string();
     let weight_str = match &first.weight {
         Weight::None => String::from(""),
         other => format!("@ {}", other),
@@ -93,6 +82,19 @@ fn metric_distance(candidate: &SetMetric, target: &SetMetric) -> Option<i32> {
     use SetMetric::*;
     match (candidate, target) {
         (Reps(a), Reps(b)) => Some((a - b).abs()),
+        (
+            RepsLr {
+                left: a_l,
+                right: a_r,
+            },
+            RepsLr {
+                left: b_l,
+                right: b_r,
+            },
+        ) => Some((a_l - b_l).abs() + (a_r - b_r).abs()),
+        (RepsLr { left, right }, Reps(b)) | (Reps(b), RepsLr { left, right }) => {
+            Some(((left + right) / 2 - b).abs())
+        }
         (TimeSecs(a), TimeSecs(b)) => Some((a - b).abs()),
         (DistanceFeet(a), DistanceFeet(b)) => Some((a - b).abs()),
         _ => None,
