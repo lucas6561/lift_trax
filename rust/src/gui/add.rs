@@ -257,6 +257,24 @@ impl GuiApp {
     }
 
     fn add_detail_set(&mut self) {
+        if self.metric_mode == MetricMode::Reps
+            && self
+                .detailed_sets
+                .iter()
+                .any(|set| matches!(set.metric, SetMetric::RepsLr { .. }))
+        {
+            self.error = Some("Cannot mix reps and L/R reps in one execution".into());
+            return;
+        }
+        if self.metric_mode == MetricMode::RepsLr
+            && self
+                .detailed_sets
+                .iter()
+                .any(|set| matches!(set.metric, SetMetric::Reps(_)))
+        {
+            self.error = Some("Cannot mix reps and L/R reps in one execution".into());
+            return;
+        }
         let weight = match self.weight_mode {
             WeightMode::Weight => {
                 let val: f64 = match self.weight_value.parse() {
@@ -716,6 +734,18 @@ impl GuiApp {
             SetMode::Detailed => {
                 if self.detailed_sets.is_empty() {
                     self.error = Some("No sets entered".into());
+                    return;
+                }
+                if self
+                    .detailed_sets
+                    .iter()
+                    .any(|set| matches!(set.metric, SetMetric::Reps(_)))
+                    && self
+                        .detailed_sets
+                        .iter()
+                        .any(|set| matches!(set.metric, SetMetric::RepsLr { .. }))
+                {
+                    self.error = Some("Cannot mix reps and L/R reps in one execution".into());
                     return;
                 }
                 self.detailed_sets.clone()
