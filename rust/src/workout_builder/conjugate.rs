@@ -285,7 +285,7 @@ impl ConjugateWorkoutBuilder {
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `lower_plan`: Ordered list of lower-body max-effort variations.
     /// - `lower_deload`: User-selected pairs of squat/deadlift lifts for deload weeks.
-    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `conditioning`: Random stack used to draw lower-body conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_lower_max_day(
@@ -333,7 +333,7 @@ impl ConjugateWorkoutBuilder {
     /// - `week_number`: Index of the week in the wave; used to select the main lift.
     /// - `upper_plan`: Ordered list of upper-body max-effort variations.
     /// - `upper_deload`: User-selected bench/overhead pairs for deload weeks.
-    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `conditioning`: Random stack used to draw upper-body conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_upper_max_day(
@@ -387,7 +387,7 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; controls the dynamic percentages.
     /// - `de_lifts`: Collection of dynamic-effort lift variations.
-    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `conditioning`: Random stack used to draw lower-body conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_lower_dynamic_day(
@@ -440,7 +440,7 @@ impl ConjugateWorkoutBuilder {
     /// # Parameters
     /// - `week_number`: Index of the week in the wave; controls the dynamic percentages.
     /// - `de_lifts`: Collection of dynamic-effort lift variations.
-    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `conditioning`: Random stack used to draw upper-body conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_upper_dynamic_day(
@@ -505,14 +505,16 @@ impl ConjugateWorkoutBuilder {
     /// - `plans`: Collection of user-selected max-effort rotations, including
     ///   deload week preferences.
     /// - `de_lifts`: Collection of dynamic-effort lift variations.
-    /// - `conditioning`: Random stack used to draw conditioning movements.
+    /// - `lower_conditioning`: Random stack used to draw lower-body conditioning movements.
+    /// - `upper_conditioning`: Random stack used to draw upper-body conditioning movements.
     /// - `warmups`: Collection of warm-up stacks for each region.
     /// - `accessories`: Accessory stacks used to assemble circuits and finishers.
     fn build_week(
         week_number: usize,
         plans: &MaxEffortPlan,
         de_lifts: &DynamicLifts,
-        conditioning: &mut RandomStack<Lift>,
+        lower_conditioning: &mut RandomStack<Lift>,
+        upper_conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
     ) -> DbResult<WorkoutWeek> {
@@ -524,7 +526,7 @@ impl ConjugateWorkoutBuilder {
                 week_number,
                 &plans.lower,
                 &plans.lower_deload,
-                conditioning,
+                lower_conditioning,
                 warmups,
                 accessories,
             )?,
@@ -536,7 +538,7 @@ impl ConjugateWorkoutBuilder {
                 week_number,
                 &plans.upper,
                 &plans.upper_deload,
-                conditioning,
+                upper_conditioning,
                 warmups,
                 accessories,
             )?,
@@ -547,7 +549,7 @@ impl ConjugateWorkoutBuilder {
             Self::build_lower_dynamic_day(
                 week_number,
                 de_lifts,
-                conditioning,
+                lower_conditioning,
                 warmups,
                 accessories,
             )?,
@@ -558,7 +560,7 @@ impl ConjugateWorkoutBuilder {
             Self::build_upper_dynamic_day(
                 week_number,
                 de_lifts,
-                conditioning,
+                upper_conditioning,
                 warmups,
                 accessories,
             )?,
@@ -605,7 +607,8 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
         if cond_lifts.is_empty() {
             return Err("not enough conditioning lifts available".into());
         }
-        let mut conditioning = RandomStack::new(cond_lifts);
+        let mut lower_conditioning = RandomStack::new(cond_lifts.clone());
+        let mut upper_conditioning = RandomStack::new(cond_lifts);
         let mut warmups = WarmupStacks::new(db)?;
         let mut accessories = AccessoryStacks::new(db)?;
         let mut weeks = Vec::with_capacity(num_weeks);
@@ -614,7 +617,8 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
                 week_number,
                 &max_effort_plan,
                 &dynamic,
-                &mut conditioning,
+                &mut lower_conditioning,
+                &mut upper_conditioning,
                 &mut warmups,
                 &mut accessories,
             )?);
