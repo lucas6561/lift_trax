@@ -603,12 +603,15 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
             default_upper,
         )?;
         let dynamic = DynamicLifts::new(db)?;
-        let cond_lifts = db.lifts_by_type(LiftType::Conditioning)?;
-        if cond_lifts.is_empty() {
+        let lower_cond_lifts =
+            db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Conditioning)?;
+        let upper_cond_lifts =
+            db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Conditioning)?;
+        if lower_cond_lifts.is_empty() || upper_cond_lifts.is_empty() {
             return Err("not enough conditioning lifts available".into());
         }
-        let mut lower_conditioning = RandomStack::new(cond_lifts.clone());
-        let mut upper_conditioning = RandomStack::new(cond_lifts);
+        let mut lower_conditioning = RandomStack::new(lower_cond_lifts);
+        let mut upper_conditioning = RandomStack::new(upper_cond_lifts);
         let mut warmups = WarmupStacks::new(db)?;
         let mut accessories = AccessoryStacks::new(db)?;
         let mut weeks = Vec::with_capacity(num_weeks);
