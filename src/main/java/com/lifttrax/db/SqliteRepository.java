@@ -59,8 +59,18 @@ public class SqliteRepository {
                     FOREIGN KEY(lift_id) REFERENCES lifts(id) ON DELETE CASCADE
                 )
                 """);
+
+            addColumnIfMissing(connection, "lifts", "region", "TEXT NOT NULL DEFAULT 'FULL_BODY'");
+            addColumnIfMissing(connection, "lifts", "main_type", "TEXT");
+            addColumnIfMissing(connection, "lifts", "notes", "TEXT NOT NULL DEFAULT ''");
+
+            addColumnIfMissing(connection, "lift_executions", "rpe", "REAL");
+            addColumnIfMissing(connection, "lift_executions", "notes", "TEXT NOT NULL DEFAULT ''");
             addColumnIfMissing(connection, "lift_executions", "warmup", "INTEGER NOT NULL DEFAULT 0");
             addColumnIfMissing(connection, "lift_executions", "deload", "INTEGER NOT NULL DEFAULT 0");
+
+            migrateLegacyLiftColumns(connection);
+            migrateLegacyMuscles(connection);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to initialize database", e);
         }
@@ -357,17 +367,76 @@ public class SqliteRepository {
         return LiftRegion.FULL_BODY;
     }
 
+    private void migrateLegacyLiftColumns(Connection connection) throws SQLException {
+        if (hasColumn(connection, "lifts", "main_lift") && hasColumn(connection, "lifts", "main_type")) {
+            try (Statement stmt = connection.createStatement()) {
+                stmt.executeUpdate("UPDATE lifts SET main_type = main_lift WHERE main_type IS NULL AND main_lift IS NOT NULL");
+            }
+        }
+    }
+
+    private void migrateLegacyMuscles(Connection connection) throws SQLException {
+        if (!hasColumn(connection, "lifts", "muscles")) {
+            return;
+        }
+        String sql = "SELECT id, muscles FROM lifts";
+        try (PreparedStatement stmt = connection.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                long id = rs.getLong("id");
+                String muscles = rs.getString("muscles");
+                if (muscles == null || muscles.isBlank()) {
+                    continue;
+                }
+                for (String token : muscles.split(",")) {
+                    String trimmed = token.trim();
+                    if (trimmed.isEmpty()) {
+                        continue;
+                    }
+                    try {
+                        Muscle muscle = Muscle.valueOf(trimmed);
+                        try (PreparedStatement insert = connection.prepareStatement("INSERT OR IGNORE INTO lift_muscles(lift_id, muscle) VALUES(?, ?)")) {
+                            insert.setLong(1, id);
+                            insert.setString(2, muscle.name());
+                            insert.executeUpdate();
+                        }
+                    } catch (IllegalArgumentException ignored) {
+                        // Skip unknown legacy values.
+                    }
+                }
+            }
+        }
+    }
+
     private void addColumnIfMissing(Connection connection, String table, String column, String columnDef) throws SQLException {
+        if (!tableExists(connection, table)) {
+            return;
+        }
+        if (hasColumn(connection, table, column)) {
+            return;
+        }
+        try (Statement alter = connection.createStatement()) {
+            alter.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + columnDef);
+        }
+    }
+
+    private boolean tableExists(Connection connection, String table) throws SQLException {
+        try (PreparedStatement stmt = connection.prepareStatement("SELECT name FROM sqlite_master WHERE type='table' AND name=?");) {
+            stmt.setString(1, table);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private boolean hasColumn(Connection connection, String table, String column) throws SQLException {
         try (PreparedStatement stmt = connection.prepareStatement("PRAGMA table_info(" + table + ")");
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 if (column.equalsIgnoreCase(rs.getString("name"))) {
-                    return;
+                    return true;
                 }
             }
-        }
-        try (Statement alter = connection.createStatement()) {
-            alter.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + columnDef);
+            return false;
         }
     }
 

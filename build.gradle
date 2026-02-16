@@ -23,6 +23,10 @@ javafx {
 
 dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.46.0.0'
+    runtimeOnly 'org.slf4j:slf4j-simple:1.7.36'
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
 application {
@@ -31,4 +35,8 @@ application {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
 }
