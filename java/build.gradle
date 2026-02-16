@@ -1,5 +1,6 @@
 plugins {
     id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 group = 'com.lifttrax'
@@ -15,14 +16,12 @@ repositories {
     mavenCentral()
 }
 
-ext {
-    javafxVersion = '21.0.4'
+javafx {
+    version = '21.0.4'
+    modules = [ 'javafx.controls' ]
 }
 
 dependencies {
-    implementation "org.openjfx:javafx-base:${javafxVersion}:linux"
-    implementation "org.openjfx:javafx-graphics:${javafxVersion}:linux"
-    implementation "org.openjfx:javafx-controls:${javafxVersion}:linux"
     implementation 'org.xerial:sqlite-jdbc:3.46.0.0'
 }
 

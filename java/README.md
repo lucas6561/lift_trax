@@ -23,6 +23,8 @@ gradle build -Dorg.gradle.java.home=$HOME/.local/share/mise/installs/java/21.0.2
 
 The app creates and uses `lifts.db` in the working directory.
 
+Gradle now selects the correct JavaFX runtime classifier for your OS (Windows/macOS/Linux).
+
 ## Features ported
 
 - Record lift executions with weight/reps/sets/date/RPE/notes
