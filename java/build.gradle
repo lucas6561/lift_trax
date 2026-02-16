@@ -8,7 +8,7 @@ version = '1.0.0'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(24)
     }
 }
 
@@ -26,7 +26,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.lifttrax.ui.LiftTraxApp'
+    mainClass = 'com.lifttrax.ui.MainLauncher'
 }
 
 tasks.withType(JavaCompile).configureEach {

@@ -4,21 +4,21 @@ This directory contains a Java + JavaFX port of lift_trax with SQLite-backed lif
 
 ## Requirements
 
-- Java 21+
+- Java 24+
 - Gradle 8+
 
 ## Run
 
 ```bash
 cd java
-gradle run -Dorg.gradle.java.home=$HOME/.local/share/mise/installs/java/21.0.2
+gradle run -Dorg.gradle.java.home=$HOME/.local/share/mise/installs/java/24.0.2
 ```
 
 ## Build
 
 ```bash
 cd java
-gradle build -Dorg.gradle.java.home=$HOME/.local/share/mise/installs/java/21.0.2
+gradle build -Dorg.gradle.java.home=$HOME/.local/share/mise/installs/java/24.0.2
 ```
 
 The app creates and uses `lifts.db` in the working directory.
