@@ -24,3 +24,10 @@ tasks.named('test') {
 application {
     mainClass = 'com.lifttrax.cli.DumpDatabaseCli'
 }
+
+tasks.register('runUi', JavaExec) {
+    group = 'application'
+    description = 'Launches the desktop Swing app with the Executions tab.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.lifttrax.ui.LiftTraxDesktopApp'
+}
