@@ -23,7 +23,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -33,6 +38,7 @@ import java.util.Locale;
 
 final class AddExecutionTabPanel extends JPanel {
     private final Database database;
+    private final LiftFilterPanel filterPanel;
 
     private final JComboBox<String> liftCombo;
     private final JTextField weightField;
@@ -53,255 +59,244 @@ final class AddExecutionTabPanel extends JPanel {
     private final List<ExecutionSet> detailedSets;
 
     private final JPanel newLiftPanel;
-    private JTextField newLiftName;
-    private JComboBox<LiftRegion> newLiftRegion;
-    private JComboBox<LiftType> newLiftType;
-    private JList<Muscle> newLiftMuscles;
-    private JTextField newLiftNotes;
+    private final JTextField newLiftName;
+    private final JComboBox<LiftRegion> newLiftRegion;
+    private final JComboBox<LiftType> newLiftType;
+    private final JList<Muscle> newLiftMuscles;
+    private final JTextField newLiftNotes;
 
-    private List<Lift> lifts = new ArrayList<>();
+    private List<Lift> allLifts = new ArrayList<>();
 
     AddExecutionTabPanel(Database database) {
-        super(new BorderLayout());
+        super(new BorderLayout(0, 4));
         this.database = database;
 
-        JPanel root = new JPanel();
-        root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
-        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        filterPanel = new LiftFilterPanel(() -> refreshLiftOptions(true));
 
-        JPanel liftRow = new JPanel();
-        liftRow.setLayout(new BoxLayout(liftRow, BoxLayout.X_AXIS));
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBorder(BorderFactory.createEmptyBorder(6, 8, 8, 8));
+
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createTitledBorder("Add Lift Execution"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(2, 4, 2, 4);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
         liftCombo = new JComboBox<>();
-        liftCombo.setMaximumSize(new Dimension(320, 30));
+        liftCombo.setPreferredSize(new Dimension(250, 26));
         JButton refreshButton = new JButton("Refresh");
-        JButton loadLastButton = new JButton("Load Last Execution");
+        JButton loadLastButton = new JButton("Load Last");
         JButton newLiftButton = new JButton("New Lift");
-        liftRow.add(new JLabel("Lift:"));
-        liftRow.add(Box.createHorizontalStrut(8));
+
+        int row = 0;
+        addRowLabel(formPanel, gbc, row, "Lift:");
+        JPanel liftRow = inlinePanel();
         liftRow.add(liftCombo);
-        liftRow.add(Box.createHorizontalStrut(8));
         liftRow.add(refreshButton);
-        liftRow.add(Box.createHorizontalStrut(8));
         liftRow.add(loadLastButton);
-        liftRow.add(Box.createHorizontalStrut(8));
         liftRow.add(newLiftButton);
+        addRowValue(formPanel, gbc, row++, liftRow);
 
-        JPanel weightRow = row("Weight:");
-        weightField = new JTextField();
-        weightField.setMaximumSize(new Dimension(180, 30));
-        weightRow.add(weightField);
+        addRowLabel(formPanel, gbc, row, "Weight:");
+        weightField = sizedField(180);
+        addRowValue(formPanel, gbc, row++, weightField);
 
-        JPanel setModeRow = row("Set Input:");
-        setModeCombo = new JComboBox<>(SetInputMode.values());
-        setModeCombo.setMaximumSize(new Dimension(220, 30));
-        setModeRow.add(setModeCombo);
-
-        JPanel metricRow = row("Metric:");
+        addRowLabel(formPanel, gbc, row, "Metric:");
         metricModeCombo = new JComboBox<>(MetricInputMode.values());
-        metricModeCombo.setMaximumSize(new Dimension(220, 30));
-        metricRow.add(metricModeCombo);
+        metricModeCombo.setPreferredSize(new Dimension(160, 26));
+        addRowValue(formPanel, gbc, row++, metricModeCombo);
 
-        JPanel setsRow = row("Sets:");
-        setsField = new JTextField();
-        setsField.setMaximumSize(new Dimension(120, 30));
-        setsRow.add(setsField);
+        addRowLabel(formPanel, gbc, row, "Set Input:");
+        setModeCombo = new JComboBox<>(SetInputMode.values());
+        setModeCombo.setPreferredSize(new Dimension(160, 26));
+        addRowValue(formPanel, gbc, row++, setModeCombo);
 
-        JPanel valueRow = row("Value:");
-        valueField = new JTextField();
-        valueField.setMaximumSize(new Dimension(120, 30));
-        leftValueField = new JTextField();
-        leftValueField.setMaximumSize(new Dimension(80, 30));
-        rightValueField = new JTextField();
-        rightValueField.setMaximumSize(new Dimension(80, 30));
+        addRowLabel(formPanel, gbc, row, "Sets:");
+        setsField = sizedField(90);
+        addRowValue(formPanel, gbc, row++, setsField);
+
+        addRowLabel(formPanel, gbc, row, "Value:");
+        valueField = sizedField(90);
+        leftValueField = sizedField(70);
+        rightValueField = sizedField(70);
+        JPanel valueRow = inlinePanel();
         valueRow.add(valueField);
         valueRow.add(new JLabel("L:"));
         valueRow.add(leftValueField);
         valueRow.add(new JLabel("R:"));
         valueRow.add(rightValueField);
+        addRowValue(formPanel, gbc, row++, valueRow);
 
-        JPanel rpeRow = row("RPE:");
-        rpeField = new JTextField();
-        rpeField.setMaximumSize(new Dimension(120, 30));
+        addRowLabel(formPanel, gbc, row, "RPE:");
+        rpeField = sizedField(90);
         JButton addSetButton = new JButton("Add Set");
-        JButton removeSetButton = new JButton("Remove Selected");
+        JButton removeSetButton = new JButton("Remove Set");
+        JPanel rpeRow = inlinePanel();
         rpeRow.add(rpeField);
-        rpeRow.add(Box.createHorizontalStrut(8));
         rpeRow.add(addSetButton);
-        rpeRow.add(Box.createHorizontalStrut(8));
         rpeRow.add(removeSetButton);
+        addRowValue(formPanel, gbc, row++, rpeRow);
 
+        addRowLabel(formPanel, gbc, row, "Detailed Sets:");
         detailedSetsModel = new DefaultListModel<>();
         detailedSets = new ArrayList<>();
         JList<String> detailedSetList = new JList<>(detailedSetsModel);
         JScrollPane setScroll = new JScrollPane(detailedSetList);
-        setScroll.setPreferredSize(new Dimension(700, 110));
+        setScroll.setPreferredSize(new Dimension(460, 95));
+        addRowValue(formPanel, gbc, row++, setScroll);
 
-        JPanel flagsRow = new JPanel();
-        flagsRow.setLayout(new BoxLayout(flagsRow, BoxLayout.X_AXIS));
+        addRowLabel(formPanel, gbc, row, "Flags:");
         warmupCheck = new JCheckBox("Warm-up");
         deloadCheck = new JCheckBox("Deload");
-        flagsRow.add(warmupCheck);
-        flagsRow.add(Box.createHorizontalStrut(16));
-        flagsRow.add(deloadCheck);
+        JPanel flags = inlinePanel();
+        flags.add(warmupCheck);
+        flags.add(deloadCheck);
+        addRowValue(formPanel, gbc, row++, flags);
 
-        JPanel dateRow = row("Date (YYYY-MM-DD):");
-        dateField = new JTextField(LocalDate.now().toString());
-        dateField.setMaximumSize(new Dimension(160, 30));
-        dateRow.add(dateField);
+        addRowLabel(formPanel, gbc, row, "Date:");
+        dateField = sizedField(120);
+        dateField.setText(LocalDate.now().toString());
+        addRowValue(formPanel, gbc, row++, dateField);
 
-        JPanel notesRow = row("Notes:");
-        notesField = new JTextField();
-        notesField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-        notesRow.add(notesField);
+        addRowLabel(formPanel, gbc, row, "Notes:");
+        notesField = sizedField(460);
+        addRowValue(formPanel, gbc, row++, notesField);
 
-        JPanel actionRow = new JPanel();
-        actionRow.setLayout(new BoxLayout(actionRow, BoxLayout.X_AXIS));
         JButton addExecutionButton = new JButton("Add Execution");
-        actionRow.add(addExecutionButton);
+        addRowLabel(formPanel, gbc, row, "");
+        addRowValue(formPanel, gbc, row++, addExecutionButton);
 
         statusLabel = new JLabel(" ");
+        statusLabel.setForeground(new Color(160, 160, 160));
 
-        newLiftPanel = buildNewLiftPanel();
+        newLiftPanel = new JPanel();
+        newLiftPanel.setLayout(new BoxLayout(newLiftPanel, BoxLayout.Y_AXIS));
+        newLiftPanel.setBorder(BorderFactory.createTitledBorder("Create New Lift"));
         newLiftPanel.setVisible(false);
 
-        root.add(liftRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(weightRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(metricRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(setModeRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(setsRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(valueRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(rpeRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(new JLabel("Detailed Sets:"));
-        root.add(setScroll);
-        root.add(Box.createVerticalStrut(8));
-        root.add(flagsRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(dateRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(notesRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(actionRow);
-        root.add(Box.createVerticalStrut(8));
-        root.add(statusLabel);
-        root.add(Box.createVerticalStrut(16));
-        root.add(newLiftPanel);
+        newLiftName = sizedField(220);
+        newLiftRegion = new JComboBox<>(LiftRegion.values());
+        newLiftType = new JComboBox<>(LiftType.values());
+        newLiftMuscles = buildMuscleList();
+        newLiftNotes = sizedField(320);
 
-        add(new JScrollPane(root), BorderLayout.CENTER);
+        newLiftPanel.add(labeledRow("Name:", newLiftName));
+        newLiftPanel.add(labeledRow("Region:", newLiftRegion));
+        newLiftPanel.add(labeledRow("Type:", newLiftType));
+        JScrollPane muscleScroll = new JScrollPane(newLiftMuscles);
+        muscleScroll.setPreferredSize(new Dimension(260, 82));
+        newLiftPanel.add(labeledRow("Muscles:", muscleScroll));
+        newLiftPanel.add(labeledRow("Notes:", newLiftNotes));
 
-        refreshButton.addActionListener(e -> reloadLifts(true));
-        newLiftButton.addActionListener(e -> newLiftPanel.setVisible(!newLiftPanel.isVisible()));
-        loadLastButton.addActionListener(e -> loadLastExecution());
-        addSetButton.addActionListener(e -> addDetailedSet());
-        removeSetButton.addActionListener(e -> {
+        JPanel newLiftActions = inlinePanel();
+        JButton createLiftButton = new JButton("Create");
+        JButton cancelLiftButton = new JButton("Cancel");
+        newLiftActions.add(createLiftButton);
+        newLiftActions.add(cancelLiftButton);
+        newLiftPanel.add(newLiftActions);
+
+        content.add(formPanel);
+        content.add(Box.createVerticalStrut(4));
+        content.add(statusLabel);
+        content.add(Box.createVerticalStrut(6));
+        content.add(newLiftPanel);
+
+        add(filterPanel, BorderLayout.NORTH);
+        add(new JScrollPane(content), BorderLayout.CENTER);
+
+        refreshButton.addActionListener(event -> reloadLifts(true));
+        newLiftButton.addActionListener(event -> newLiftPanel.setVisible(!newLiftPanel.isVisible()));
+        loadLastButton.addActionListener(event -> loadLastExecution());
+        addSetButton.addActionListener(event -> addDetailedSet());
+        removeSetButton.addActionListener(event -> {
             int index = detailedSetList.getSelectedIndex();
             if (index >= 0) {
                 detailedSets.remove(index);
                 detailedSetsModel.remove(index);
             }
         });
-        addExecutionButton.addActionListener(e -> addExecution());
-        setModeCombo.addActionListener(e -> updateSetModeVisibility());
-        metricModeCombo.addActionListener(e -> updateMetricInputVisibility());
+        addExecutionButton.addActionListener(event -> addExecution());
+        setModeCombo.addActionListener(event -> updateSetModeVisibility());
+        metricModeCombo.addActionListener(event -> updateMetricInputVisibility());
+        createLiftButton.addActionListener(event -> createLift());
+        cancelLiftButton.addActionListener(event -> {
+            newLiftPanel.setVisible(false);
+            clearNewLiftForm();
+        });
 
         updateSetModeVisibility();
         updateMetricInputVisibility();
         reloadLifts(true);
     }
 
-    private JPanel buildNewLiftPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder("Create New Lift"));
+    private void addRowLabel(JPanel panel, GridBagConstraints gbc, int row, String label) {
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = 0;
+        panel.add(new JLabel(label), gbc);
+    }
 
-        JPanel nameRow = row("Name:");
-        newLiftName = new JTextField();
-        newLiftName.setMaximumSize(new Dimension(240, 30));
-        nameRow.add(newLiftName);
+    private void addRowValue(JPanel panel, GridBagConstraints gbc, int row, java.awt.Component component) {
+        gbc.gridx = 1;
+        gbc.gridy = row;
+        gbc.weightx = 1;
+        panel.add(component, gbc);
+    }
 
-        JPanel regionRow = row("Region:");
-        newLiftRegion = new JComboBox<>(LiftRegion.values());
-        newLiftRegion.setMaximumSize(new Dimension(150, 30));
-        regionRow.add(newLiftRegion);
+    private JPanel inlinePanel() {
+        return new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+    }
 
-        JPanel typeRow = row("Type:");
-        newLiftType = new JComboBox<>(LiftType.values());
-        newLiftType.setMaximumSize(new Dimension(220, 30));
-        typeRow.add(newLiftType);
+    private JPanel labeledRow(String label, java.awt.Component component) {
+        JPanel panel = inlinePanel();
+        panel.add(new JLabel(label));
+        panel.add(component);
+        return panel;
+    }
 
-        JPanel musclesRow = row("Muscles:");
+    private JTextField sizedField(int width) {
+        JTextField field = new JTextField();
+        field.setPreferredSize(new Dimension(width, 26));
+        return field;
+    }
+
+    private JList<Muscle> buildMuscleList() {
         DefaultListModel<Muscle> musclesModel = new DefaultListModel<>();
         List<Muscle> sortedMuscles = new ArrayList<>(List.of(Muscle.values()));
-        sortedMuscles.sort(Comparator.comparing(this::toDisplayLabel));
+        sortedMuscles.sort(Comparator.comparing(LiftFilterPanel::toDisplayLabel));
         for (Muscle muscle : sortedMuscles) {
             musclesModel.addElement(muscle);
         }
-        newLiftMuscles = new JList<>(musclesModel);
-        newLiftMuscles.setVisibleRowCount(4);
-        JScrollPane muscleScroll = new JScrollPane(newLiftMuscles);
-        muscleScroll.setPreferredSize(new Dimension(260, 90));
-        musclesRow.add(muscleScroll);
-
-        JPanel notesRow = row("Notes:");
-        newLiftNotes = new JTextField();
-        newLiftNotes.setMaximumSize(new Dimension(320, 30));
-        notesRow.add(newLiftNotes);
-
-        JPanel actions = new JPanel();
-        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
-        JButton createButton = new JButton("Create");
-        JButton cancelButton = new JButton("Cancel");
-        actions.add(createButton);
-        actions.add(Box.createHorizontalStrut(8));
-        actions.add(cancelButton);
-
-        createButton.addActionListener(e -> createLift());
-        cancelButton.addActionListener(e -> {
-            newLiftPanel.setVisible(false);
-            clearNewLiftForm();
-        });
-
-        panel.add(nameRow);
-        panel.add(regionRow);
-        panel.add(typeRow);
-        panel.add(musclesRow);
-        panel.add(notesRow);
-        panel.add(actions);
-        return panel;
-    }
-
-    private JPanel row(String label) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-        panel.add(new JLabel(label));
-        panel.add(Box.createHorizontalStrut(8));
-        return panel;
+        return new JList<>(musclesModel);
     }
 
     private void reloadLifts(boolean keepSelection) {
-        String selected = keepSelection ? (String) liftCombo.getSelectedItem() : null;
         try {
-            lifts = database.listLifts();
-            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
-            for (Lift lift : lifts) {
-                model.addElement(lift.name());
-            }
-            liftCombo.setModel(model);
-            if (selected != null) {
-                liftCombo.setSelectedItem(selected);
-            }
-            if (liftCombo.getSelectedIndex() < 0 && model.getSize() > 0) {
-                liftCombo.setSelectedIndex(0);
-            }
+            allLifts = database.listLifts();
+            refreshLiftOptions(keepSelection);
             setStatus("Lifts loaded", false);
         } catch (Exception e) {
             setStatus("Failed to load lifts: " + e.getMessage(), true);
+        }
+    }
+
+    private void refreshLiftOptions(boolean keepSelection) {
+        String selected = keepSelection ? (String) liftCombo.getSelectedItem() : null;
+        List<Lift> filtered = filterPanel.apply(allLifts);
+
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+        for (Lift lift : filtered) {
+            model.addElement(lift.name());
+        }
+        liftCombo.setModel(model);
+
+        if (selected != null) {
+            liftCombo.setSelectedItem(selected);
+        }
+        if (liftCombo.getSelectedIndex() < 0 && model.getSize() > 0) {
+            liftCombo.setSelectedIndex(0);
         }
     }
 
@@ -323,7 +318,7 @@ final class AddExecutionTabPanel extends JPanel {
             detailedSets.add(set);
             detailedSetsModel.addElement(formatSet(set));
             setStatus("Added set", false);
-        } catch (IllegalArgumentException ex) {
+        } catch (RuntimeException ex) {
             setStatus(ex.getMessage(), true);
         }
     }
@@ -376,7 +371,7 @@ final class AddExecutionTabPanel extends JPanel {
             setStatus("Execution added", false);
         } catch (DateTimeParseException e) {
             setStatus("Date must be YYYY-MM-DD", true);
-        } catch (IllegalArgumentException e) {
+        } catch (RuntimeException e) {
             setStatus(e.getMessage(), true);
         } catch (Exception e) {
             setStatus("Failed to add execution: " + e.getMessage(), true);
@@ -528,22 +523,9 @@ final class AddExecutionTabPanel extends JPanel {
         return "unknown";
     }
 
-    private String toDisplayLabel(Enum<?> value) {
-        String lower = value.name().toLowerCase(Locale.ROOT).replace('_', ' ');
-        String[] parts = lower.split(" ");
-        StringBuilder builder = new StringBuilder();
-        for (String part : parts) {
-            if (!builder.isEmpty()) {
-                builder.append(' ');
-            }
-            builder.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
-        }
-        return builder.toString();
-    }
-
     private void setStatus(String message, boolean error) {
         statusLabel.setText(message);
-        statusLabel.setForeground(error ? java.awt.Color.RED : java.awt.Color.GRAY);
+        statusLabel.setForeground(error ? new Color(220, 110, 110) : new Color(160, 160, 160));
     }
 
     private enum MetricInputMode {
