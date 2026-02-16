@@ -56,13 +56,17 @@ final class ExecutionTabPanel extends JPanel {
         filters.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         nameFilter = new JTextField();
-        nameFilter.setMaximumSize(new Dimension(180, 28));
+        nameFilter.setPreferredSize(new Dimension(220, 28));
+        nameFilter.setMinimumSize(new Dimension(120, 28));
+        nameFilter.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 
         regionFilter = new JComboBox<>(buildRegionOptions());
-        regionFilter.setMaximumSize(new Dimension(140, 28));
+        regionFilter.setPreferredSize(new Dimension(120, 28));
+        regionFilter.setMaximumSize(new Dimension(120, 28));
 
         typeFilter = new JComboBox<>(buildTypeOptions());
-        typeFilter.setMaximumSize(new Dimension(200, 28));
+        typeFilter.setPreferredSize(new Dimension(170, 28));
+        typeFilter.setMaximumSize(new Dimension(170, 28));
 
         DefaultListModel<Muscle> muscleModel = new DefaultListModel<>();
         Arrays.stream(Muscle.values())
@@ -93,6 +97,11 @@ final class ExecutionTabPanel extends JPanel {
                 return label;
             }
         });
+
+        JScrollPane muscleScroll = new JScrollPane(muscleFilter);
+        muscleScroll.setPreferredSize(new Dimension(210, 84));
+        muscleScroll.setMinimumSize(new Dimension(180, 84));
+        muscleScroll.setMaximumSize(new Dimension(210, 84));
 
         JButton clearFilters = new JButton("Clear Filters");
         clearFilters.addActionListener(_ -> {
@@ -141,8 +150,9 @@ final class ExecutionTabPanel extends JPanel {
         filters.add(Box.createHorizontalStrut(12));
         filters.add(new JLabel("Muscles:"));
         filters.add(Box.createHorizontalStrut(8));
-        filters.add(new JScrollPane(muscleFilter));
+        filters.add(muscleScroll);
         filters.add(Box.createHorizontalStrut(12));
+        clearFilters.setMaximumSize(new Dimension(120, 30));
         filters.add(clearFilters);
 
         liftsContainer = new JPanel();

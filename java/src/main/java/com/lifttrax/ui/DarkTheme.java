@@ -48,6 +48,13 @@ final class DarkTheme {
         UIManager.put("Button.foreground", text);
         UIManager.put("ComboBox.background", controlBackground);
         UIManager.put("ComboBox.foreground", text);
+        UIManager.put("ComboBox.selectionBackground", selection);
+        UIManager.put("ComboBox.selectionForeground", Color.WHITE);
+        UIManager.put("ComboBox.buttonBackground", controlBackground);
+        UIManager.put("ComboBox.buttonDarkShadow", Color.WHITE);
+        UIManager.put("ComboBox.buttonHighlight", Color.WHITE);
+        UIManager.put("ComboBox.buttonShadow", text);
+        UIManager.put("ComboBox.disabledForeground", new Color(170, 170, 170));
         UIManager.put("TextField.background", controlBackground);
         UIManager.put("TextField.foreground", text);
         UIManager.put("TextField.caretForeground", Color.WHITE);
