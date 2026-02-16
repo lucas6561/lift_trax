@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 public class SqliteRepository {
@@ -105,9 +106,8 @@ public class SqliteRepository {
             while (rs.next()) {
                 long id = rs.getLong("id");
                 String name = rs.getString("name");
-                LiftRegion region = LiftRegion.valueOf(rs.getString("region"));
-                String main = rs.getString("main_type");
-                LiftType mainType = main == null ? null : LiftType.valueOf(main);
+                LiftRegion region = parseLiftRegion(rs.getString("region"));
+                LiftType mainType = parseLiftType(rs.getString("main_type"));
 
                 if (exerciseFilter != null && !exerciseFilter.isBlank() && !name.toLowerCase().contains(exerciseFilter.trim().toLowerCase())) {
                     continue;
@@ -279,7 +279,10 @@ public class SqliteRepository {
             stmt.setLong(1, liftId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    muscles.add(Muscle.valueOf(rs.getString(1)));
+                    Muscle parsed = parseMuscle(rs.getString(1));
+                    if (parsed != null) {
+                        muscles.add(parsed);
+                    }
                 }
             }
         }
@@ -369,8 +372,39 @@ public class SqliteRepository {
 
     private void migrateLegacyLiftColumns(Connection connection) throws SQLException {
         if (hasColumn(connection, "lifts", "main_lift") && hasColumn(connection, "lifts", "main_type")) {
-            try (Statement stmt = connection.createStatement()) {
-                stmt.executeUpdate("UPDATE lifts SET main_type = main_lift WHERE main_type IS NULL AND main_lift IS NOT NULL");
+            try (PreparedStatement select = connection.prepareStatement("SELECT id, main_lift, main_type FROM lifts");
+                 ResultSet rs = select.executeQuery()) {
+                while (rs.next()) {
+                    long id = rs.getLong("id");
+                    String source = rs.getString("main_type");
+                    if (source == null || source.isBlank()) {
+                        source = rs.getString("main_lift");
+                    }
+                    LiftType parsed = parseLiftType(source);
+                    if (parsed == null) {
+                        continue;
+                    }
+                    try (PreparedStatement update = connection.prepareStatement("UPDATE lifts SET main_type=? WHERE id=?")) {
+                        update.setString(1, parsed.name());
+                        update.setLong(2, id);
+                        update.executeUpdate();
+                    }
+                }
+            }
+        }
+
+        if (hasColumn(connection, "lifts", "region")) {
+            try (PreparedStatement select = connection.prepareStatement("SELECT id, region FROM lifts");
+                 ResultSet rs = select.executeQuery()) {
+                while (rs.next()) {
+                    long id = rs.getLong("id");
+                    LiftRegion parsed = parseLiftRegion(rs.getString("region"));
+                    try (PreparedStatement update = connection.prepareStatement("UPDATE lifts SET region=? WHERE id=?")) {
+                        update.setString(1, parsed.name());
+                        update.setLong(2, id);
+                        update.executeUpdate();
+                    }
+                }
             }
         }
     }
@@ -388,19 +422,14 @@ public class SqliteRepository {
                     continue;
                 }
                 for (String token : muscles.split(",")) {
-                    String trimmed = token.trim();
-                    if (trimmed.isEmpty()) {
+                    Muscle muscle = parseMuscle(token);
+                    if (muscle == null) {
                         continue;
                     }
-                    try {
-                        Muscle muscle = Muscle.valueOf(trimmed);
-                        try (PreparedStatement insert = connection.prepareStatement("INSERT OR IGNORE INTO lift_muscles(lift_id, muscle) VALUES(?, ?)")) {
-                            insert.setLong(1, id);
-                            insert.setString(2, muscle.name());
-                            insert.executeUpdate();
-                        }
-                    } catch (IllegalArgumentException ignored) {
-                        // Skip unknown legacy values.
+                    try (PreparedStatement insert = connection.prepareStatement("INSERT OR IGNORE INTO lift_muscles(lift_id, muscle) VALUES(?, ?)")) {
+                        insert.setLong(1, id);
+                        insert.setString(2, muscle.name());
+                        insert.executeUpdate();
                     }
                 }
             }
@@ -420,7 +449,7 @@ public class SqliteRepository {
     }
 
     private boolean tableExists(Connection connection, String table) throws SQLException {
-        try (PreparedStatement stmt = connection.prepareStatement("SELECT name FROM sqlite_master WHERE type='table' AND name=?");) {
+        try (PreparedStatement stmt = connection.prepareStatement("SELECT name FROM sqlite_master WHERE type='table' AND name=?")) {
             stmt.setString(1, table);
             try (ResultSet rs = stmt.executeQuery()) {
                 return rs.next();
@@ -438,6 +467,52 @@ public class SqliteRepository {
             }
             return false;
         }
+    }
+
+    private LiftType parseLiftType(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = normalizeEnumToken(value);
+        try {
+            return LiftType.valueOf(normalized);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private LiftRegion parseLiftRegion(String value) {
+        if (value == null || value.isBlank()) {
+            return LiftRegion.FULL_BODY;
+        }
+        String normalized = normalizeEnumToken(value);
+        try {
+            return LiftRegion.valueOf(normalized);
+        } catch (IllegalArgumentException ignored) {
+            return LiftRegion.FULL_BODY;
+        }
+    }
+
+    private Muscle parseMuscle(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = normalizeEnumToken(value);
+        try {
+            return Muscle.valueOf(normalized);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private String normalizeEnumToken(String value) {
+        return value
+            .trim()
+            .toUpperCase(Locale.ROOT)
+            .replaceAll("[^A-Z0-9]+", "_")
+            .replaceAll("_+", "_")
+            .replaceAll("^_", "")
+            .replaceAll("_$", "");
     }
 
     private Connection connect() throws SQLException {

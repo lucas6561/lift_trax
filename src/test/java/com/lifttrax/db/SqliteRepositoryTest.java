@@ -35,7 +35,7 @@ class SqliteRepositoryTest {
                 """);
             statement.execute("""
                 INSERT INTO lifts(name, region, main_lift, muscles, notes)
-                VALUES ('Bench Press', 'UPPER', 'BENCH_PRESS', 'CHEST,TRICEP', 'legacy')
+                VALUES ('Bench Press', 'upper body', 'BENCH PRESS', 'CHEST,TRICEP', 'legacy')
                 """);
         }
 
