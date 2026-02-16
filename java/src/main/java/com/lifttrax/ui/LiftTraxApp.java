@@ -20,6 +20,7 @@ public class LiftTraxApp {
                 frame.setSize(960, 720);
 
                 JTabbedPane tabs = new JTabbedPane();
+                tabs.addTab("Add Execution", new AddExecutionTabPanel(database));
                 tabs.addTab("Executions", new ExecutionTabPanel(database));
 
                 frame.setContentPane(tabs);

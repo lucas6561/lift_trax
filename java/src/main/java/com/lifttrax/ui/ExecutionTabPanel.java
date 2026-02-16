@@ -4,33 +4,18 @@ import com.lifttrax.db.Database;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
-import com.lifttrax.models.LiftRegion;
-import com.lifttrax.models.LiftType;
-import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.DefaultListModel;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Dimension;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -39,10 +24,7 @@ final class ExecutionTabPanel extends JPanel {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final Database database;
-    private final JTextField nameFilter;
-    private final JComboBox<FilterOption<LiftRegion>> regionFilter;
-    private final JComboBox<FilterOption<LiftType>> typeFilter;
-    private final JList<Muscle> muscleFilter;
+    private final LiftFilterPanel filterPanel;
     private final JPanel liftsContainer;
 
     private List<Lift> allLifts = new ArrayList<>();
@@ -51,115 +33,13 @@ final class ExecutionTabPanel extends JPanel {
         super(new BorderLayout());
         this.database = database;
 
-        JPanel filters = new JPanel();
-        filters.setLayout(new BoxLayout(filters, BoxLayout.X_AXIS));
-        filters.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-
-        nameFilter = new JTextField();
-        nameFilter.setPreferredSize(new Dimension(220, 28));
-        nameFilter.setMinimumSize(new Dimension(120, 28));
-        nameFilter.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-
-        regionFilter = new JComboBox<>(buildRegionOptions());
-        regionFilter.setPreferredSize(new Dimension(120, 28));
-        regionFilter.setMaximumSize(new Dimension(120, 28));
-
-        typeFilter = new JComboBox<>(buildTypeOptions());
-        typeFilter.setPreferredSize(new Dimension(170, 28));
-        typeFilter.setMaximumSize(new Dimension(170, 28));
-
-        DefaultListModel<Muscle> muscleModel = new DefaultListModel<>();
-        Arrays.stream(Muscle.values())
-                .sorted(Comparator.comparing(this::toDisplayLabel))
-                .forEach(muscleModel::addElement);
-        muscleFilter = new JList<>(muscleModel);
-        muscleFilter.setVisibleRowCount(4);
-        muscleFilter.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        muscleFilter.setCellRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(
-                    JList<?> list,
-                    Object value,
-                    int index,
-                    boolean isSelected,
-                    boolean cellHasFocus
-            ) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(
-                        list,
-                        value,
-                        index,
-                        isSelected,
-                        cellHasFocus
-                );
-                if (value instanceof Muscle muscle) {
-                    label.setText(toDisplayLabel(muscle));
-                }
-                return label;
-            }
-        });
-
-        JScrollPane muscleScroll = new JScrollPane(muscleFilter);
-        muscleScroll.setPreferredSize(new Dimension(210, 84));
-        muscleScroll.setMinimumSize(new Dimension(180, 84));
-        muscleScroll.setMaximumSize(new Dimension(210, 84));
-
-        JButton clearFilters = new JButton("Clear Filters");
-        clearFilters.addActionListener(_ -> {
-            nameFilter.setText("");
-            regionFilter.setSelectedIndex(0);
-            typeFilter.setSelectedIndex(0);
-            muscleFilter.clearSelection();
-            refreshView();
-        });
-
-        nameFilter.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                refreshView();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                refreshView();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                refreshView();
-            }
-        });
-        regionFilter.addItemListener(_ -> refreshView());
-        typeFilter.addItemListener(_ -> refreshView());
-        muscleFilter.addListSelectionListener(_ -> {
-            if (!muscleFilter.getValueIsAdjusting()) {
-                refreshView();
-            }
-        });
-
-        filters.add(new JLabel("Name:"));
-        filters.add(Box.createHorizontalStrut(8));
-        filters.add(nameFilter);
-        filters.add(Box.createHorizontalStrut(12));
-        filters.add(new JLabel("Region:"));
-        filters.add(Box.createHorizontalStrut(8));
-        filters.add(regionFilter);
-        filters.add(Box.createHorizontalStrut(12));
-        filters.add(new JLabel("Type:"));
-        filters.add(Box.createHorizontalStrut(8));
-        filters.add(typeFilter);
-        filters.add(Box.createHorizontalStrut(12));
-        filters.add(new JLabel("Muscles:"));
-        filters.add(Box.createHorizontalStrut(8));
-        filters.add(muscleScroll);
-        filters.add(Box.createHorizontalStrut(12));
-        clearFilters.setMaximumSize(new Dimension(120, 30));
-        filters.add(clearFilters);
+        filterPanel = new LiftFilterPanel(this::refreshView);
 
         liftsContainer = new JPanel();
         liftsContainer.setLayout(new BoxLayout(liftsContainer, BoxLayout.Y_AXIS));
-        liftsContainer.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        liftsContainer.setBorder(BorderFactory.createEmptyBorder(6, 8, 8, 8));
 
-        add(filters, BorderLayout.NORTH);
+        add(filterPanel, BorderLayout.NORTH);
         add(new JScrollPane(liftsContainer), BorderLayout.CENTER);
 
         reloadData();
@@ -177,19 +57,14 @@ final class ExecutionTabPanel extends JPanel {
     private void refreshView() {
         liftsContainer.removeAll();
 
-        List<Lift> filtered = allLifts.stream()
-                .filter(this::matchesName)
-                .filter(this::matchesRegion)
-                .filter(this::matchesType)
-                .filter(this::matchesMuscles)
-                .toList();
+        List<Lift> filtered = filterPanel.apply(allLifts);
 
         if (filtered.isEmpty()) {
             liftsContainer.add(new JLabel("No lifts found for current filters."));
         } else {
             for (Lift lift : filtered) {
                 liftsContainer.add(buildLiftPanel(lift));
-                liftsContainer.add(Box.createVerticalStrut(8));
+                liftsContainer.add(Box.createVerticalStrut(6));
             }
         }
 
@@ -199,12 +74,16 @@ final class ExecutionTabPanel extends JPanel {
 
     private JPanel buildLiftPanel(Lift lift) {
         JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new java.awt.Color(56, 62, 70)),
+                BorderFactory.createEmptyBorder(2, 4, 4, 4)
+        ));
 
         String muscles = lift.muscles().stream()
-                .map(this::toDisplayLabel)
+                .map(LiftFilterPanel::toDisplayLabel)
                 .collect(Collectors.joining(", "));
         String subtitle = muscles.isBlank() ? "" : " [" + muscles + "]";
-        String main = lift.main() == null ? "" : " • " + toDisplayLabel(lift.main());
+        String main = lift.main() == null ? "" : " • " + LiftFilterPanel.toDisplayLabel(lift.main());
 
         JButton toggle = new JButton("▸ " + lift.name() + subtitle + main);
         toggle.setHorizontalAlignment(JButton.LEFT);
@@ -214,7 +93,7 @@ final class ExecutionTabPanel extends JPanel {
 
         JPanel body = new JPanel();
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
-        body.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+        body.setBorder(BorderFactory.createEmptyBorder(2, 14, 2, 2));
         body.setVisible(false);
 
         try {
@@ -224,14 +103,14 @@ final class ExecutionTabPanel extends JPanel {
             } else {
                 for (LiftExecution execution : executions) {
                     body.add(new JLabel(formatExecution(execution)));
-                    body.add(Box.createVerticalStrut(4));
+                    body.add(Box.createVerticalStrut(3));
                 }
             }
         } catch (Exception e) {
             body.add(new JLabel("Failed to load executions: " + e.getMessage()));
         }
 
-        toggle.addActionListener(_ -> {
+        toggle.addActionListener(event -> {
             boolean show = !body.isVisible();
             body.setVisible(show);
             toggle.setText((show ? "▾ " : "▸ ") + lift.name() + subtitle + main);
@@ -284,71 +163,10 @@ final class ExecutionTabPanel extends JPanel {
         return "unknown";
     }
 
-    private boolean matchesName(Lift lift) {
-        String filter = nameFilter.getText();
-        if (filter == null || filter.isBlank()) {
-            return true;
-        }
-        return lift.name().toLowerCase(Locale.ROOT).contains(filter.trim().toLowerCase(Locale.ROOT));
-    }
-
-    private boolean matchesRegion(Lift lift) {
-        FilterOption<LiftRegion> selected = (FilterOption<LiftRegion>) regionFilter.getSelectedItem();
-        return selected == null || selected.value() == null || lift.region() == selected.value();
-    }
-
-    private boolean matchesType(Lift lift) {
-        FilterOption<LiftType> selected = (FilterOption<LiftType>) typeFilter.getSelectedItem();
-        return selected == null || selected.value() == null || lift.main() == selected.value();
-    }
-
-    private boolean matchesMuscles(Lift lift) {
-        List<Muscle> selected = muscleFilter.getSelectedValuesList();
-        return selected.isEmpty() || selected.stream().allMatch(lift.muscles()::contains);
-    }
-
-    @SuppressWarnings("unchecked")
-    private FilterOption<LiftRegion>[] buildRegionOptions() {
-        return new FilterOption[]{
-                new FilterOption<>("All", null),
-                new FilterOption<>("Upper", LiftRegion.UPPER),
-                new FilterOption<>("Lower", LiftRegion.LOWER)
-        };
-    }
-
-    private FilterOption<LiftType>[] buildTypeOptions() {
-        List<FilterOption<LiftType>> options = new ArrayList<>();
-        options.add(new FilterOption<>("All", null));
-        Arrays.stream(LiftType.values())
-                .sorted(Comparator.comparing(this::toDisplayLabel))
-                .forEach(type -> options.add(new FilterOption<>(toDisplayLabel(type), type)));
-        return options.toArray(new FilterOption[0]);
-    }
-
-    private String toDisplayLabel(Enum<?> value) {
-        String lower = value.name().toLowerCase(Locale.ROOT).replace('_', ' ');
-        String[] parts = lower.split(" ");
-        StringBuilder builder = new StringBuilder();
-        for (String part : parts) {
-            if (!builder.isEmpty()) {
-                builder.append(' ');
-            }
-            builder.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
-        }
-        return builder.toString();
-    }
-
     private String trimTrailingZero(float value) {
         if (value == (long) value) {
             return String.format(Locale.ROOT, "%d", (long) value);
         }
         return String.format(Locale.ROOT, "%s", value);
-    }
-
-    private record FilterOption<T>(String label, T value) {
-        @Override
-        public String toString() {
-            return label;
-        }
     }
 }

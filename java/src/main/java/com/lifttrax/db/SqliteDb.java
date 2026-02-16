@@ -153,18 +153,56 @@ public class SqliteDb implements Database, AutoCloseable {
         connection.close();
     }
 
+    private Integer findLiftId(String name) throws Exception {
+        String sql = "SELECT id FROM lifts WHERE name = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, name);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id");
+                }
+                return null;
+            }
+        }
+    }
+
     private UnsupportedOperationException notYet(String methodName) {
         return new UnsupportedOperationException(methodName + " is not implemented yet in the Java port");
     }
 
     @Override
-    public void addLift(String name, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) {
-        throw notYet("addLift");
+    public void addLift(String name, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) throws Exception {
+        String sql = "INSERT INTO lifts (name, region, main_lift, muscles, notes) VALUES (?, ?, ?, ?, ?)";
+        String musclesValue = muscles == null || muscles.isEmpty()
+                ? ""
+                : muscles.stream().map(Enum::name).reduce((a, b) -> a + "," + b).orElse("");
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, name);
+            statement.setString(2, region.name());
+            statement.setString(3, main == null ? null : main.toDbValue());
+            statement.setString(4, musclesValue);
+            statement.setString(5, notes == null ? "" : notes);
+            statement.executeUpdate();
+        }
     }
 
     @Override
-    public void addLiftExecution(String name, LiftExecution execution) {
-        throw notYet("addLiftExecution");
+    public void addLiftExecution(String name, LiftExecution execution) throws Exception {
+        Integer liftId = findLiftId(name);
+        if (liftId == null) {
+            throw new IllegalArgumentException("Lift not found: " + name);
+        }
+        String setsJson = objectMapper.writeValueAsString(execution.sets());
+        String sql = "INSERT INTO lift_records (lift_id, date, sets, warmup, deload, notes) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, liftId);
+            statement.setString(2, execution.date().toString());
+            statement.setString(3, setsJson);
+            statement.setInt(4, execution.warmup() ? 1 : 0);
+            statement.setInt(5, execution.deload() ? 1 : 0);
+            statement.setString(6, execution.notes() == null ? "" : execution.notes());
+            statement.executeUpdate();
+        }
     }
 
     @Override
