@@ -28,8 +28,15 @@ final class DarkTheme {
         UIManager.put("Panel.background", panelBackground);
         UIManager.put("Viewport.background", background);
         UIManager.put("ScrollPane.background", background);
+
         UIManager.put("TabbedPane.background", panelBackground);
         UIManager.put("TabbedPane.foreground", text);
+        UIManager.put("TabbedPane.selected", controlBackground);
+        UIManager.put("TabbedPane.selectedForeground", Color.WHITE);
+        UIManager.put("TabbedPane.unselectedBackground", panelBackground);
+        UIManager.put("TabbedPane.unselectedForeground", text);
+        UIManager.put("TabbedPane.focus", panelBackground);
+        UIManager.put("TabbedPane.contentAreaColor", background);
 
         UIManager.put("Label.foreground", text);
         UIManager.put("List.background", controlBackground);
@@ -43,5 +50,6 @@ final class DarkTheme {
         UIManager.put("ComboBox.foreground", text);
         UIManager.put("TextField.background", controlBackground);
         UIManager.put("TextField.foreground", text);
+        UIManager.put("TextField.caretForeground", Color.WHITE);
     }
 }

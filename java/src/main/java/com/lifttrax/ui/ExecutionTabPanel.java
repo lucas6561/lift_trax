@@ -20,7 +20,10 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -36,6 +39,7 @@ final class ExecutionTabPanel extends JPanel {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final Database database;
+    private final JTextField nameFilter;
     private final JComboBox<FilterOption<LiftRegion>> regionFilter;
     private final JComboBox<FilterOption<LiftType>> typeFilter;
     private final JList<Muscle> muscleFilter;
@@ -51,11 +55,14 @@ final class ExecutionTabPanel extends JPanel {
         filters.setLayout(new BoxLayout(filters, BoxLayout.X_AXIS));
         filters.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
+        nameFilter = new JTextField();
+        nameFilter.setMaximumSize(new Dimension(180, 28));
+
         regionFilter = new JComboBox<>(buildRegionOptions());
-        regionFilter.setMaximumSize(new Dimension(180, 28));
+        regionFilter.setMaximumSize(new Dimension(140, 28));
 
         typeFilter = new JComboBox<>(buildTypeOptions());
-        typeFilter.setMaximumSize(new Dimension(220, 28));
+        typeFilter.setMaximumSize(new Dimension(200, 28));
 
         DefaultListModel<Muscle> muscleModel = new DefaultListModel<>();
         Arrays.stream(Muscle.values())
@@ -87,30 +94,55 @@ final class ExecutionTabPanel extends JPanel {
             }
         });
 
-        JButton applyFilters = new JButton("Apply Filters");
-        applyFilters.addActionListener(_ -> refreshView());
         JButton clearFilters = new JButton("Clear Filters");
         clearFilters.addActionListener(_ -> {
+            nameFilter.setText("");
             regionFilter.setSelectedIndex(0);
             typeFilter.setSelectedIndex(0);
             muscleFilter.clearSelection();
             refreshView();
         });
 
+        nameFilter.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                refreshView();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                refreshView();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                refreshView();
+            }
+        });
+        regionFilter.addItemListener(_ -> refreshView());
+        typeFilter.addItemListener(_ -> refreshView());
+        muscleFilter.addListSelectionListener(_ -> {
+            if (!muscleFilter.getValueIsAdjusting()) {
+                refreshView();
+            }
+        });
+
+        filters.add(new JLabel("Name:"));
+        filters.add(Box.createHorizontalStrut(8));
+        filters.add(nameFilter);
+        filters.add(Box.createHorizontalStrut(12));
         filters.add(new JLabel("Region:"));
         filters.add(Box.createHorizontalStrut(8));
         filters.add(regionFilter);
-        filters.add(Box.createHorizontalStrut(16));
+        filters.add(Box.createHorizontalStrut(12));
         filters.add(new JLabel("Type:"));
         filters.add(Box.createHorizontalStrut(8));
         filters.add(typeFilter);
-        filters.add(Box.createHorizontalStrut(16));
+        filters.add(Box.createHorizontalStrut(12));
         filters.add(new JLabel("Muscles:"));
         filters.add(Box.createHorizontalStrut(8));
         filters.add(new JScrollPane(muscleFilter));
         filters.add(Box.createHorizontalStrut(12));
-        filters.add(applyFilters);
-        filters.add(Box.createHorizontalStrut(8));
         filters.add(clearFilters);
 
         liftsContainer = new JPanel();
@@ -136,6 +168,7 @@ final class ExecutionTabPanel extends JPanel {
         liftsContainer.removeAll();
 
         List<Lift> filtered = allLifts.stream()
+                .filter(this::matchesName)
                 .filter(this::matchesRegion)
                 .filter(this::matchesType)
                 .filter(this::matchesMuscles)
@@ -239,6 +272,14 @@ final class ExecutionTabPanel extends JPanel {
             return distanceFeet.feet() + " ft";
         }
         return "unknown";
+    }
+
+    private boolean matchesName(Lift lift) {
+        String filter = nameFilter.getText();
+        if (filter == null || filter.isBlank()) {
+            return true;
+        }
+        return lift.name().toLowerCase(Locale.ROOT).contains(filter.trim().toLowerCase(Locale.ROOT));
     }
 
     private boolean matchesRegion(Lift lift) {
