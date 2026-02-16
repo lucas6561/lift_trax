@@ -1,0 +1,35 @@
+plugins {
+    id 'application'
+}
+
+group = 'com.lifttrax'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    javafxVersion = '21.0.4'
+}
+
+dependencies {
+    implementation "org.openjfx:javafx-base:${javafxVersion}:linux"
+    implementation "org.openjfx:javafx-graphics:${javafxVersion}:linux"
+    implementation "org.openjfx:javafx-controls:${javafxVersion}:linux"
+    implementation 'org.xerial:sqlite-jdbc:3.46.0.0'
+}
+
+application {
+    mainClass = 'com.lifttrax.ui.LiftTraxApp'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

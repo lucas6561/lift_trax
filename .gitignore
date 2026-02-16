@@ -3,3 +3,5 @@ rust/target
 lifts.db*
 rust/.idea
 rust/wave.md
+java/build
+java/.gradle

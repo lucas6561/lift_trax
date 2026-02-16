@@ -1,5 +1,8 @@
 # lift_trax
 
-This repository contains a Rust command-line application for recording lifts.
+This repository now includes:
 
-- `rust/` – See `rust/README.md` for build and usage details.
+- `rust/` – the original Rust implementation.
+- `java/` – a Java + JavaFX port backed by SQLite.
+
+See each subdirectory's `README.md` for run/build details.
