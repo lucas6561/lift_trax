@@ -1,7 +1,7 @@
 /target
-rust/target
+/build
+/.gradle
 lifts.db*
-rust/.idea
-rust/wave.md
-java/build
-java/.gradle
+*.iml
+.idea/
+out/
