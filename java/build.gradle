@@ -1,0 +1,26 @@
+plugins {
+    id 'application'
+}
+
+group = 'com.lifttrax'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
+    runtimeOnly 'org.slf4j:slf4j-nop:2.0.16'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+application {
+    mainClass = 'com.lifttrax.cli.DumpDatabaseCli'
+}
