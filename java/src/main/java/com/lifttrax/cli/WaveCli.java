@@ -12,7 +12,7 @@ public final class WaveCli {
 
     public static void main(String[] args) throws Exception {
         String dbPath = args.length > 0 ? args[0] : "lifts.db";
-        int weeks = args.length > 1 ? Integer.parseInt(args[1]) : 4;
+        int weeks = args.length > 1 ? Integer.parseInt(args[1]) : 7;
         String output = args.length > 2 ? args[2] : "wave.md";
 
         try (SqliteDb db = new SqliteDb(dbPath)) {
