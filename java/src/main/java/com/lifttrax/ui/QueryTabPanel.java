@@ -101,9 +101,9 @@ final class QueryTabPanel extends JPanel {
 
         StringBuilder text = new StringBuilder();
 
+        text.append("Last Year\n");
+        text.append("========\n");
         try {
-            text.append("Last Year\n");
-            text.append("========\n");
             LocalDate oneYearAgo = LocalDate.now().minusDays(365);
             List<LiftExecution> recentExecutions = database.getExecutions(liftName).stream()
                     .filter(exec -> !exec.date().isBefore(oneYearAgo))
@@ -119,9 +119,13 @@ final class QueryTabPanel extends JPanel {
                             .append("\n");
                 }
             }
+        } catch (Exception e) {
+            text.append("Failed to load last-year data: ").append(e.getMessage()).append("\n");
+        }
 
-            text.append("\nBest by reps\n");
-            text.append("============\n");
+        text.append("\nBest by reps\n");
+        text.append("============\n");
+        try {
             LiftStats stats = database.liftStats(liftName);
             if (stats.bestByReps().isEmpty()) {
                 text.append("no records\n");
@@ -134,9 +138,10 @@ final class QueryTabPanel extends JPanel {
                                 .append(entry.getValue())
                                 .append("\n"));
             }
+        } catch (UnsupportedOperationException e) {
+            text.append("Not available in the Java port yet.\n");
         } catch (Exception e) {
-            text.setLength(0);
-            text.append("Failed to load query data: ").append(e.getMessage());
+            text.append("Failed to load best-by-reps data: ").append(e.getMessage()).append("\n");
         }
 
         output.setText(text.toString());
