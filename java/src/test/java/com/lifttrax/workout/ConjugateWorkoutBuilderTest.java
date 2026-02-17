@@ -1,6 +1,7 @@
 package com.lifttrax.workout;
 
 import com.lifttrax.db.Database;
+import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftRegion;
@@ -11,8 +12,11 @@ import com.lifttrax.models.SetMetric;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -60,7 +64,6 @@ class ConjugateWorkoutBuilderTest {
         assertEquals(6, deSquatSets);
         assertEquals(6, deDeadSets);
 
-        // week 1 in the 6-week DE cycle should be straight weight @60%
         assertTrue(thu.lifts().stream()
                 .filter(l -> l.kind() instanceof WorkoutLiftKind.SingleKind && l.name().equals("Dynamic Effort"))
                 .allMatch(l -> {
@@ -70,18 +73,22 @@ class ConjugateWorkoutBuilderTest {
     }
 
     @Test
-    void markdownWriterIncludesWeekHeaders() throws Exception {
+    void markdownWriterIncludesRichFormattingAndHistory() throws Exception {
         FakeDb db = FakeDb.withSeedData();
         var wave = new ConjugateWorkoutBuilder().getWave(1, db);
 
-        List<String> markdown = WaveMarkdownWriter.createMarkdown(wave);
+        List<String> markdown = WaveMarkdownWriter.createMarkdown(wave, db);
 
         assertTrue(markdown.stream().anyMatch(line -> line.equals("# Week 1")));
         assertTrue(markdown.stream().anyMatch(line -> line.equals("## Monday")));
+        assertTrue(markdown.stream().anyMatch(line -> line.startsWith("- Circuit: 3 rounds")));
+        assertTrue(markdown.stream().anyMatch(line -> line.contains("**Back Squat** 1 reps")));
+        assertTrue(markdown.stream().anyMatch(line -> line.contains("- Last:")));
     }
 
     static class FakeDb implements Database {
         private final List<Lift> lifts = new ArrayList<>();
+        private final Map<String, List<LiftExecution>> executions = new HashMap<>();
 
         static FakeDb withSeedData() {
             FakeDb db = new FakeDb();
@@ -118,11 +125,19 @@ class ConjugateWorkoutBuilderTest {
             db.add("Deadbug", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.CORE));
             db.add("Curl", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.BICEP));
             db.add("Wrist Curl", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.FOREARM));
+
+            db.exec("Back Squat", new LiftExecution(1, LocalDate.now().minusDays(1), List.of(new ExecutionSet(new SetMetric.Reps(1), "345 lb", 9f)), false, false, ""));
+            db.exec("Back Squat", new LiftExecution(2, LocalDate.now().minusDays(2), List.of(new ExecutionSet(new SetMetric.Reps(5), "245 lb", null)), false, false, ""));
+            db.exec("Leg Swings", new LiftExecution(3, LocalDate.now().minusDays(1), List.of(new ExecutionSet(new SetMetric.Reps(3), "none", null)), true, false, ""));
             return db;
         }
 
         void add(String name, LiftRegion region, LiftType type, List<Muscle> muscles) {
             lifts.add(new Lift(name, region, type, muscles, ""));
+        }
+
+        void exec(String name, LiftExecution execution) {
+            executions.computeIfAbsent(name, k -> new ArrayList<>()).add(execution);
         }
 
         @Override
@@ -149,7 +164,7 @@ class ConjugateWorkoutBuilderTest {
         @Override public void addLiftExecution(String name, LiftExecution execution) {}
         @Override public void updateLift(String currentName, String newName, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) {}
         @Override public void deleteLift(String name) {}
-        @Override public List<LiftExecution> getExecutions(String liftName) { return List.of(); }
+        @Override public List<LiftExecution> getExecutions(String liftName) { return executions.getOrDefault(liftName, List.of()); }
         @Override public void updateLiftExecution(int execId, LiftExecution execution) {}
         @Override public void deleteLiftExecution(int execId) {}
         @Override public LiftStats liftStats(String name) { throw new UnsupportedOperationException(); }

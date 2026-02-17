@@ -18,7 +18,7 @@ public final class WaveCli {
         try (SqliteDb db = new SqliteDb(dbPath)) {
             ConjugateWorkoutBuilder builder = new ConjugateWorkoutBuilder();
             var wave = builder.getWave(weeks, db);
-            Files.write(Path.of(output), WaveMarkdownWriter.createMarkdown(wave));
+            Files.write(Path.of(output), WaveMarkdownWriter.createMarkdown(wave, db));
             System.out.println("Wrote wave markdown to " + output);
         }
     }

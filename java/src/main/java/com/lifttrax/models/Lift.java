@@ -8,4 +8,9 @@ public record Lift(
         LiftType main,
         List<Muscle> muscles,
         String notes
-) {}
+) {
+    @Override
+    public String toString() {
+        return name;
+    }
+}
