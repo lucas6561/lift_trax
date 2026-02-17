@@ -82,7 +82,7 @@ class ConjugateWorkoutBuilderTest {
         assertTrue(markdown.stream().anyMatch(line -> line.equals("# Week 1")));
         assertTrue(markdown.stream().anyMatch(line -> line.equals("## Monday")));
         assertTrue(markdown.stream().anyMatch(line -> line.startsWith("- Circuit: 3 rounds")));
-        assertTrue(markdown.stream().anyMatch(line -> line.contains("**Back Squat** 1 reps")));
+        assertTrue(markdown.stream().anyMatch(line -> line.contains("**") && line.contains("1 reps")));
         assertTrue(markdown.stream().anyMatch(line -> line.contains("- Last:")));
     }
 

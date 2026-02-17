@@ -22,6 +22,8 @@ public class LiftTraxApp {
                 JTabbedPane tabs = new JTabbedPane();
                 tabs.addTab("Add Execution", new AddExecutionTabPanel(database));
                 tabs.addTab("Executions", new ExecutionTabPanel(database));
+                tabs.addTab("Query", new QueryTabPanel(database));
+                tabs.addTab("Last Week", new LastWeekTabPanel(database));
 
                 frame.setContentPane(tabs);
                 frame.setLocationRelativeTo(null);

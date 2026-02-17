@@ -57,7 +57,7 @@ public record DynamicLifts(
         if (idx > 0) {
             Lift fallback = options.remove(idx);
             options.add(0, fallback);
-        } else if (idx < 0) {
+        } else if (idx < 0 && options.isEmpty()) {
             options.add(0, db.getLift(fallbackName));
         }
         return options;
