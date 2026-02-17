@@ -231,17 +231,52 @@ public class SqliteDb implements Database, AutoCloseable {
     }
 
     @Override
-    public List<Lift> liftsByType(LiftType liftType) {
-        throw notYet("liftsByType");
+    public List<Lift> liftsByType(LiftType liftType) throws Exception {
+        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? ORDER BY name";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, liftType.toDbValue());
+            try (ResultSet rs = statement.executeQuery()) {
+                List<Lift> lifts = new ArrayList<>();
+                while (rs.next()) {
+                    lifts.add(mapLift(rs));
+                }
+                return lifts;
+            }
+        }
     }
 
     @Override
-    public List<Lift> getAccessoriesByMuscle(Muscle muscle) {
-        throw notYet("getAccessoriesByMuscle");
+    public List<Lift> getAccessoriesByMuscle(Muscle muscle) throws Exception {
+        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? AND muscles LIKE ? ORDER BY name";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, LiftType.ACCESSORY.toDbValue());
+            statement.setString(2, "%" + muscle.name() + "%");
+            try (ResultSet rs = statement.executeQuery()) {
+                List<Lift> lifts = new ArrayList<>();
+                while (rs.next()) {
+                    Lift lift = mapLift(rs);
+                    if (lift.muscles().contains(muscle)) {
+                        lifts.add(lift);
+                    }
+                }
+                return lifts;
+            }
+        }
     }
 
     @Override
-    public List<Lift> liftsByRegionAndType(LiftRegion region, LiftType liftType) {
-        throw notYet("liftsByRegionAndType");
+    public List<Lift> liftsByRegionAndType(LiftRegion region, LiftType liftType) throws Exception {
+        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE region = ? AND main_lift = ? ORDER BY name";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, region.name());
+            statement.setString(2, liftType.toDbValue());
+            try (ResultSet rs = statement.executeQuery()) {
+                List<Lift> lifts = new ArrayList<>();
+                while (rs.next()) {
+                    lifts.add(mapLift(rs));
+                }
+                return lifts;
+            }
+        }
     }
 }
