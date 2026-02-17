@@ -7,15 +7,15 @@ import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
+import com.lifttrax.models.SetMetric;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConjugateWorkoutBuilderTest {
@@ -34,6 +34,39 @@ class ConjugateWorkoutBuilderTest {
             assertTrue(week.containsKey(DayOfWeek.THURSDAY));
             assertTrue(week.containsKey(DayOfWeek.FRIDAY));
         }
+    }
+
+    @Test
+    void lowerDynamicDayUsesRustSetRepAndPercentScheme() throws Exception {
+        FakeDb db = FakeDb.withSeedData();
+        var week = new ConjugateWorkoutBuilder().getWave(1, db).get(0);
+
+        Workout thu = week.get(DayOfWeek.THURSDAY);
+        assertNotNull(thu);
+
+        long deSquatSets = thu.lifts().stream()
+                .filter(l -> l.kind() instanceof WorkoutLiftKind.SingleKind sk
+                        && l.name().equals("Dynamic Effort")
+                        && sk.singleLift().metric() instanceof SetMetric.Reps reps
+                        && reps.reps() == 3)
+                .count();
+        long deDeadSets = thu.lifts().stream()
+                .filter(l -> l.kind() instanceof WorkoutLiftKind.SingleKind sk
+                        && l.name().equals("Dynamic Effort")
+                        && sk.singleLift().metric() instanceof SetMetric.Reps reps
+                        && reps.reps() == 2)
+                .count();
+
+        assertEquals(6, deSquatSets);
+        assertEquals(6, deDeadSets);
+
+        // week 1 in the 6-week DE cycle should be straight weight @60%
+        assertTrue(thu.lifts().stream()
+                .filter(l -> l.kind() instanceof WorkoutLiftKind.SingleKind && l.name().equals("Dynamic Effort"))
+                .allMatch(l -> {
+                    var s = ((WorkoutLiftKind.SingleKind) l.kind()).singleLift();
+                    return Integer.valueOf(60).equals(s.percent());
+                }));
     }
 
     @Test

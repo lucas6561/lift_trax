@@ -4,6 +4,7 @@ import com.lifttrax.db.Database;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -17,24 +18,48 @@ public record DynamicLifts(
         Random random = new Random();
         AccommodatingResistance[] arOpts = {AccommodatingResistance.CHAINS, AccommodatingResistance.BANDS};
 
-        Lift squat = firstLiftOrFallback(db, LiftType.SQUAT, "Squat");
-        Lift deadlift = firstLiftOrFallback(db, LiftType.DEADLIFT, "Deadlift");
-        Lift bench = firstLiftOrFallback(db, LiftType.BENCH_PRESS, "Bench Press");
-        Lift overhead = firstLiftOrFallback(db, LiftType.OVERHEAD_PRESS, "Overhead Press");
+        List<Lift> squatOptions = liftsForType(db, LiftType.SQUAT, "Squat");
+        List<Lift> deadliftOptions = liftsForType(db, LiftType.DEADLIFT, "Deadlift");
+        List<Lift> benchOptions = liftsForType(db, LiftType.BENCH_PRESS, "Bench Press");
+        List<Lift> overheadOptions = liftsForType(db, LiftType.OVERHEAD_PRESS, "Overhead Press");
+
+        var defaults = new DynamicLiftSelector.DynamicLiftChoices(
+                squatOptions.get(0),
+                deadliftOptions.get(0),
+                benchOptions.get(0),
+                overheadOptions.get(0)
+        );
+        var chosen = DynamicLiftSelector.choose(
+                squatOptions,
+                deadliftOptions,
+                benchOptions,
+                overheadOptions,
+                defaults
+        );
 
         return new DynamicLifts(
-                new DynamicLift(squat, arOpts[random.nextInt(arOpts.length)]),
-                new DynamicLift(deadlift, arOpts[random.nextInt(arOpts.length)]),
-                new DynamicLift(bench, arOpts[random.nextInt(arOpts.length)]),
-                new DynamicLift(overhead, arOpts[random.nextInt(arOpts.length)])
+                new DynamicLift(chosen.squat(), arOpts[random.nextInt(arOpts.length)]),
+                new DynamicLift(chosen.deadlift(), arOpts[random.nextInt(arOpts.length)]),
+                new DynamicLift(chosen.bench(), arOpts[random.nextInt(arOpts.length)]),
+                new DynamicLift(chosen.overhead(), arOpts[random.nextInt(arOpts.length)])
         );
     }
 
-    private static Lift firstLiftOrFallback(Database db, LiftType liftType, String fallbackName) throws Exception {
-        List<Lift> options = db.liftsByType(liftType);
-        if (!options.isEmpty()) {
-            return options.get(0);
+    private static List<Lift> liftsForType(Database db, LiftType liftType, String fallbackName) throws Exception {
+        List<Lift> options = new ArrayList<>(db.liftsByType(liftType));
+        int idx = -1;
+        for (int i = 0; i < options.size(); i++) {
+            if (options.get(i).name().equals(fallbackName)) {
+                idx = i;
+                break;
+            }
         }
-        return db.getLift(fallbackName);
+        if (idx > 0) {
+            Lift fallback = options.remove(idx);
+            options.add(0, fallback);
+        } else if (idx < 0) {
+            options.add(0, db.getLift(fallbackName));
+        }
+        return options;
     }
 }
