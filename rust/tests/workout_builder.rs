@@ -136,6 +136,14 @@ fn alternates_main_lifts_across_weeks() {
     )
     .unwrap();
     db.add_lift(
+        "Battle Rope",
+        LiftRegion::UPPER,
+        LiftType::Conditioning,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
         "Upper Mobility",
         LiftRegion::UPPER,
         LiftType::Mobility,

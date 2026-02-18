@@ -8,10 +8,15 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -96,7 +101,7 @@ final class ExecutionTabPanel extends JPanel {
                 body.add(new JLabel("No records"));
             } else {
                 for (LiftExecution execution : executions) {
-                    body.add(new JLabel(ExecutionFormatter.formatExecution(execution)));
+                    body.add(buildExecutionRow(lift, execution));
                     body.add(Box.createVerticalStrut(3));
                 }
             }
@@ -114,5 +119,98 @@ final class ExecutionTabPanel extends JPanel {
         wrapper.add(toggle, BorderLayout.NORTH);
         wrapper.add(body, BorderLayout.CENTER);
         return wrapper;
+    }
+
+    private JPanel buildExecutionRow(Lift lift, LiftExecution execution) {
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.add(new JLabel(ExecutionFormatter.formatExecution(execution)), BorderLayout.CENTER);
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        JButton editButton = new JButton("Edit");
+        JButton deleteButton = new JButton("Delete");
+        actions.add(editButton);
+        actions.add(deleteButton);
+        row.add(actions, BorderLayout.EAST);
+
+        editButton.addActionListener(event -> editExecution(lift, execution));
+        deleteButton.addActionListener(event -> deleteExecution(execution));
+        return row;
+    }
+
+    private void editExecution(Lift lift, LiftExecution execution) {
+        if (execution.id() == null) {
+            JOptionPane.showMessageDialog(this, "Execution has no ID and cannot be edited.", "Edit Execution", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        javax.swing.JTextField dateField = new javax.swing.JTextField(execution.date().toString());
+        javax.swing.JTextField notesField = new javax.swing.JTextField(execution.notes());
+        JCheckBox warmupBox = new JCheckBox("Warm-up", execution.warmup());
+        JCheckBox deloadBox = new JCheckBox("Deload", execution.deload());
+
+        JPanel panel = new JPanel(new GridLayout(0, 1, 0, 6));
+        panel.add(new JLabel("Date (YYYY-MM-DD):"));
+        panel.add(dateField);
+        panel.add(new JLabel("Notes:"));
+        panel.add(notesField);
+        panel.add(warmupBox);
+        panel.add(deloadBox);
+
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                panel,
+                "Edit Execution: " + lift.name(),
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        if (choice != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        try {
+            LiftExecution updated = new LiftExecution(
+                    execution.id(),
+                    java.time.LocalDate.parse(dateField.getText().trim()),
+                    execution.sets(),
+                    warmupBox.isSelected(),
+                    deloadBox.isSelected(),
+                    notesField.getText().trim()
+            );
+            database.updateLiftExecution(execution.id(), updated);
+            reloadData();
+            refreshView();
+        } catch (DateTimeParseException parseException) {
+            JOptionPane.showMessageDialog(this, "Invalid date. Use YYYY-MM-DD.", "Edit Execution", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to update execution: " + ex.getMessage(), "Edit Execution", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void deleteExecution(LiftExecution execution) {
+        if (execution.id() == null) {
+            JOptionPane.showMessageDialog(this, "Execution has no ID and cannot be deleted.", "Delete Execution", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Delete this execution?",
+                "Delete Execution",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (choice != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        try {
+            database.deleteLiftExecution(execution.id());
+            reloadData();
+            refreshView();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to delete execution: " + ex.getMessage(), "Delete Execution", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
