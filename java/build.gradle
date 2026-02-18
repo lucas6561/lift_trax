@@ -15,10 +15,12 @@ dependencies {
     runtimeOnly 'org.slf4j:slf4j-nop:2.0.16'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.0'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'java.awt.headless', 'true'
 }
 
 application {

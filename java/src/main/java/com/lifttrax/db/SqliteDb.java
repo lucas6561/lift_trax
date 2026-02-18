@@ -19,8 +19,10 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class SqliteDb implements Database, AutoCloseable {
     private final Connection connection;
@@ -170,6 +172,110 @@ public class SqliteDb implements Database, AutoCloseable {
         return new UnsupportedOperationException(methodName + " is not implemented yet in the Java port");
     }
 
+    private LiftExecution getLastExecution(int liftId) throws Exception {
+        String sql = """
+                SELECT id, date, sets, warmup, deload, notes
+                FROM lift_records
+                WHERE lift_id = ?
+                ORDER BY date DESC
+                LIMIT 1
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, liftId);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                return new LiftExecution(
+                        rs.getInt("id"),
+                        LocalDate.parse(rs.getString("date")),
+                        parseSets(rs.getString("sets")),
+                        rs.getInt("warmup") != 0,
+                        rs.getInt("deload") != 0,
+                        rs.getString("notes")
+                );
+            }
+        }
+    }
+
+    private double weightToLbs(String weight) {
+        if (weight == null) {
+            return 0.0;
+        }
+        String trimmed = weight.trim().toLowerCase();
+        if (trimmed.isEmpty() || "none".equals(trimmed)) {
+            return 0.0;
+        }
+        if (trimmed.contains("|")) {
+            String[] parts = trimmed.split("\\|", 2);
+            try {
+                return parseSide(parts[0]) + parseSide(parts[1]);
+            } catch (IllegalArgumentException e) {
+                return 0.0;
+            }
+        }
+        if (trimmed.contains("+")) {
+            String[] parts = trimmed.split("\\+");
+            try {
+                double raw = parseSide(parts[0]);
+                if (parts.length == 2 && parts[1].trim().endsWith("c")) {
+                    String chain = parts[1].trim().substring(0, parts[1].trim().length() - 1);
+                    return raw + parseSide(chain);
+                }
+                return raw;
+            } catch (IllegalArgumentException e) {
+                return 0.0;
+            }
+        }
+        try {
+            return parseSide(trimmed);
+        } catch (IllegalArgumentException e) {
+            return 0.0;
+        }
+    }
+
+    private double parseSide(String value) {
+        String trimmed = value.trim();
+        if (trimmed.endsWith("kg")) {
+            String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
+            return Double.parseDouble(stripped) * 2.20462;
+        }
+        if (trimmed.endsWith("lb")) {
+            String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
+            return Double.parseDouble(stripped);
+        }
+        return Double.parseDouble(trimmed);
+    }
+
+    private Map<Integer, String> collectBestByReps(int liftId) throws Exception {
+        String sql = "SELECT sets FROM lift_records WHERE lift_id = ?";
+        Map<Integer, String> bestByReps = new TreeMap<>();
+        Map<Integer, Double> bestByRepsWeight = new HashMap<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, liftId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    List<ExecutionSet> sets = parseSets(rs.getString("sets"));
+                    for (ExecutionSet set : sets) {
+                        if (set.metric() instanceof SetMetric.Reps reps) {
+                            int repCount = reps.reps();
+                            String weight = set.weight() == null || set.weight().isBlank()
+                                    ? "none"
+                                    : set.weight();
+                            double lbs = weightToLbs(weight);
+                            Double currentBest = bestByRepsWeight.get(repCount);
+                            if (currentBest == null || lbs > currentBest) {
+                                bestByRepsWeight.put(repCount, lbs);
+                                bestByReps.put(repCount, weight);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return bestByReps;
+    }
+
     @Override
     public void addLift(String name, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) throws Exception {
         String sql = "INSERT INTO lifts (name, region, main_lift, muscles, notes) VALUES (?, ?, ?, ?, ?)";
@@ -206,28 +312,70 @@ public class SqliteDb implements Database, AutoCloseable {
     }
 
     @Override
-    public void updateLift(String currentName, String newName, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) {
-        throw notYet("updateLift");
+    public void updateLift(String currentName, String newName, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) throws Exception {
+        String sql = "UPDATE lifts SET name = ?, region = ?, main_lift = ?, muscles = ?, notes = ? WHERE name = ?";
+        String musclesValue = muscles == null || muscles.isEmpty()
+                ? ""
+                : muscles.stream().map(Enum::name).reduce((a, b) -> a + "," + b).orElse("");
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, newName);
+            statement.setString(2, region.name());
+            statement.setString(3, main == null ? null : main.toDbValue());
+            statement.setString(4, musclesValue);
+            statement.setString(5, notes == null ? "" : notes);
+            statement.setString(6, currentName);
+            statement.executeUpdate();
+        }
     }
 
     @Override
-    public void deleteLift(String name) {
-        throw notYet("deleteLift");
+    public void deleteLift(String name) throws Exception {
+        Integer liftId = findLiftId(name);
+        if (liftId == null) {
+            return;
+        }
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM lift_records WHERE lift_id = ?")) {
+            statement.setInt(1, liftId);
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM lifts WHERE id = ?")) {
+            statement.setInt(1, liftId);
+            statement.executeUpdate();
+        }
     }
 
     @Override
-    public void updateLiftExecution(int execId, LiftExecution execution) {
-        throw notYet("updateLiftExecution");
+    public void updateLiftExecution(int execId, LiftExecution execution) throws Exception {
+        String setsJson = objectMapper.writeValueAsString(execution.sets());
+        String sql = "UPDATE lift_records SET date = ?, sets = ?, warmup = ?, deload = ?, notes = ? WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, execution.date().toString());
+            statement.setString(2, setsJson);
+            statement.setInt(3, execution.warmup() ? 1 : 0);
+            statement.setInt(4, execution.deload() ? 1 : 0);
+            statement.setString(5, execution.notes() == null ? "" : execution.notes());
+            statement.setInt(6, execId);
+            statement.executeUpdate();
+        }
     }
 
     @Override
-    public void deleteLiftExecution(int execId) {
-        throw notYet("deleteLiftExecution");
+    public void deleteLiftExecution(int execId) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM lift_records WHERE id = ?")) {
+            statement.setInt(1, execId);
+            statement.executeUpdate();
+        }
     }
 
     @Override
-    public LiftStats liftStats(String name) {
-        throw notYet("liftStats");
+    public LiftStats liftStats(String name) throws Exception {
+        Integer liftId = findLiftId(name);
+        if (liftId == null) {
+            throw new IllegalArgumentException("Lift not found: " + name);
+        }
+        LiftExecution last = getLastExecution(liftId);
+        Map<Integer, String> bestByReps = collectBestByReps(liftId);
+        return new LiftStats(last, bestByReps);
     }
 
     @Override
