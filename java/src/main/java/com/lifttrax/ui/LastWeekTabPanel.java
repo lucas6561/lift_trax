@@ -128,7 +128,7 @@ final class LastWeekTabPanel extends JPanel {
                         continue;
                     }
                     byDate.computeIfAbsent(execution.date(), ignored -> new ArrayList<>())
-                            .add(lift.name() + ": " + execution);
+                            .add(lift.name() + ": " + ExecutionFormatter.formatExecution(execution));
                 }
             } catch (Exception e) {
                 content.add(new JLabel("Failed to load executions for " + lift.name() + ": " + e.getMessage()));

@@ -15,15 +15,12 @@ import javax.swing.JTextArea;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
 final class QueryTabPanel extends JPanel {
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
-
     private final Database database;
     private final LiftFilterPanel filterPanel;
     private final JComboBox<String> liftSelector;
@@ -113,9 +110,7 @@ final class QueryTabPanel extends JPanel {
                 text.append("no records\n");
             } else {
                 for (LiftExecution execution : recentExecutions) {
-                    text.append(execution.date().format(DATE_FORMAT))
-                            .append(": ")
-                            .append(execution)
+                    text.append(ExecutionFormatter.formatExecution(execution))
                             .append("\n");
                 }
             }
