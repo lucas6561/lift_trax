@@ -16,6 +16,9 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,12 +26,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public class SqliteDb implements Database, AutoCloseable {
+    public static final int MAX_BACKUPS = 5;
+
     private final Connection connection;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SqliteDb(String dbPath) throws Exception {
+        createBackupIfExists(dbPath);
         this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
     }
 
@@ -274,6 +285,39 @@ public class SqliteDb implements Database, AutoCloseable {
             }
         }
         return bestByReps;
+    }
+
+    private static void createBackupIfExists(String dbPath) throws Exception {
+        Path dbFile = Paths.get(dbPath);
+        if (!Files.exists(dbFile)) {
+            return;
+        }
+
+        String timestamp = ZonedDateTime.now(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        Path backupPath = Paths.get(dbPath + ".backup-" + timestamp);
+        Files.copy(dbFile, backupPath, StandardCopyOption.COPY_ATTRIBUTES);
+
+        Path dir = dbFile.getParent();
+        if (dir == null || dir.toString().isBlank()) {
+            dir = Paths.get(".");
+        }
+        String prefix = dbFile.getFileName().toString() + ".backup-";
+        List<Path> backups = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            for (Path entry : stream) {
+                String name = entry.getFileName().toString();
+                if (name.startsWith(prefix)) {
+                    backups.add(entry);
+                }
+            }
+        }
+
+        backups.sort((a, b) -> a.getFileName().toString().compareTo(b.getFileName().toString()));
+        while (backups.size() > MAX_BACKUPS) {
+            Path oldest = backups.remove(0);
+            Files.deleteIfExists(oldest);
+        }
     }
 
     @Override
