@@ -23,5 +23,11 @@ Generate a wave markdown file:
 
 ```bash
 gradle run --args='path/to/lifts.db'
-java -cp build/libs/lift_trax-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 wave.md
+java -cp build/libs/lift_trax-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 wave.md conjugate
 ```
+
+
+Program options for the 4th argument:
+
+- `conjugate` (default)
+- `hypertrophy` (4-day upper/lower hypertrophy split)
