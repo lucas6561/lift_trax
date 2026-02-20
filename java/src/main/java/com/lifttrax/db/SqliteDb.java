@@ -142,23 +142,51 @@ public class SqliteDb implements Database, AutoCloseable {
 
     private SetMetric parseMetric(JsonNode metric) {
         if (metric.has("Reps")) {
-            return new SetMetric.Reps(metric.get("Reps").asInt());
+            JsonNode reps = metric.get("Reps");
+            return new SetMetric.Reps(readIntValue(reps, "reps"));
         }
         if (metric.has("RepsLr")) {
             JsonNode lr = metric.get("RepsLr");
-            return new SetMetric.RepsLr(lr.path("left").asInt(), lr.path("right").asInt());
+            return new SetMetric.RepsLr(readIntValue(lr, "left"), readIntValue(lr, "right"));
         }
         if (metric.has("RepsRange")) {
             JsonNode range = metric.get("RepsRange");
-            return new SetMetric.RepsRange(range.path("min").asInt(), range.path("max").asInt());
+            return new SetMetric.RepsRange(readIntValue(range, "min"), readIntValue(range, "max"));
         }
         if (metric.has("TimeSecs")) {
-            return new SetMetric.TimeSecs(metric.get("TimeSecs").asInt());
+            JsonNode seconds = metric.get("TimeSecs");
+            return new SetMetric.TimeSecs(readIntValue(seconds, "seconds"));
         }
         if (metric.has("DistanceFeet")) {
-            return new SetMetric.DistanceFeet(metric.get("DistanceFeet").asInt());
+            JsonNode feet = metric.get("DistanceFeet");
+            return new SetMetric.DistanceFeet(readIntValue(feet, "feet"));
+        }
+        if (metric.has("reps")) {
+            return new SetMetric.Reps(metric.path("reps").asInt());
+        }
+        if (metric.has("left") || metric.has("right")) {
+            return new SetMetric.RepsLr(metric.path("left").asInt(), metric.path("right").asInt());
+        }
+        if (metric.has("min") || metric.has("max")) {
+            return new SetMetric.RepsRange(metric.path("min").asInt(), metric.path("max").asInt());
+        }
+        if (metric.has("seconds")) {
+            return new SetMetric.TimeSecs(metric.path("seconds").asInt());
+        }
+        if (metric.has("feet")) {
+            return new SetMetric.DistanceFeet(metric.path("feet").asInt());
         }
         return new SetMetric.Reps(0);
+    }
+
+    private int readIntValue(JsonNode node, String field) {
+        if (node == null || node.isNull()) {
+            return 0;
+        }
+        if (node.isInt() || node.isLong()) {
+            return node.asInt();
+        }
+        return node.path(field).asInt();
     }
 
     @Override
@@ -177,10 +205,6 @@ public class SqliteDb implements Database, AutoCloseable {
                 return null;
             }
         }
-    }
-
-    private UnsupportedOperationException notYet(String methodName) {
-        return new UnsupportedOperationException(methodName + " is not implemented yet in the Java port");
     }
 
     private LiftExecution getLastExecution(int liftId) throws Exception {
