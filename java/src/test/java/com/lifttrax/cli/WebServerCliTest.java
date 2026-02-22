@@ -1,6 +1,7 @@
 package com.lifttrax.cli;
 
 import com.lifttrax.models.ExecutionSet;
+import com.lifttrax.models.Lift;
 import com.lifttrax.models.SetMetric;
 import org.junit.jupiter.api.Test;
 
@@ -49,4 +50,15 @@ class WebServerCliTest {
         assertTrue(formatted.contains("5 reps @ 225 lb rpe 8.5"));
         assertTrue(formatted.contains("3 reps @ 245 lb"));
     }
+    @Test
+    void formatMainTypeHandlesNullMain() throws Exception {
+        Method method = WebServerCli.class.getDeclaredMethod("formatMainType", Lift.class);
+        method.setAccessible(true);
+
+        Lift lift = new Lift("Mystery Lift", null, null, List.of(), "");
+        String formatted = (String) method.invoke(null, lift);
+
+        assertEquals("Unknown", formatted);
+    }
+
 }

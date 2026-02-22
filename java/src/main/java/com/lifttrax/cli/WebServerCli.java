@@ -77,7 +77,7 @@ public class WebServerCli {
                         .append("</a> — ")
                         .append(escapeHtml(lift.region().toString()))
                         .append(" / ")
-                        .append(escapeHtml(lift.main().toDbValue()))
+                        .append(escapeHtml(formatMainType(lift)))
                         .append("</li>");
             }
 
@@ -109,7 +109,7 @@ public class WebServerCli {
             body.append("<p><a href='/'>← Back to all lifts</a></p>")
                     .append("<h1>").append(escapeHtml(lift.name())).append("</h1>")
                     .append("<p><strong>Region:</strong> ").append(escapeHtml(lift.region().toString())).append("</p>")
-                    .append("<p><strong>Main type:</strong> ").append(escapeHtml(lift.main().toDbValue())).append("</p>")
+                    .append("<p><strong>Main type:</strong> ").append(escapeHtml(formatMainType(lift))).append("</p>")
                     .append("<p><strong>Muscles:</strong> ").append(escapeHtml(joinList(lift.muscles().stream().map(Object::toString).toList()))).append("</p>")
                     .append("<p><strong>Notes:</strong> ").append(escapeHtml(lift.notes() == null ? "" : lift.notes())).append("</p>")
                     .append("<h2>Executions</h2>");
@@ -166,6 +166,13 @@ public class WebServerCli {
             return distanceFeet.feet() + " ft";
         }
         return "unknown";
+    }
+
+    private static String formatMainType(Lift lift) {
+        if (lift == null || lift.main() == null) {
+            return "Unknown";
+        }
+        return lift.main().toDbValue();
     }
 
     private static String joinList(List<String> values) {
