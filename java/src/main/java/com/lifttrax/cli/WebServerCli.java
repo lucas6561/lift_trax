@@ -60,7 +60,8 @@ public class WebServerCli {
             lifts.sort(Comparator.comparing(Lift::name));
 
             StringBuilder body = new StringBuilder();
-            body.append("<h1>LiftTrax</h1>")
+            StringBuilder liftList = new StringBuilder();
+            liftList.append("<h1>LiftTrax</h1>")
                     .append("<form method='get' action='/'><input type='text' name='q' placeholder='Search lifts' value='")
                     .append(escapeHtml(search))
                     .append("' /><button type='submit'>Search</button></form>")
@@ -70,7 +71,7 @@ public class WebServerCli {
                 if (!search.isEmpty() && !lift.name().toLowerCase(Locale.ROOT).contains(search)) {
                     continue;
                 }
-                body.append("<li><a href='/lift?name=")
+                liftList.append("<li><a href='/lift?name=")
                         .append(urlEncode(lift.name()))
                         .append("'>")
                         .append(escapeHtml(lift.name()))
@@ -81,11 +82,60 @@ public class WebServerCli {
                         .append("</li>");
             }
 
-            body.append("</ul>");
+            liftList.append("</ul>");
+
+            body.append(renderTabbedLayout(liftList.toString()));
             sendHtml(exchange, wrapPage("LiftTrax Lifts", body.toString()));
         } catch (Exception e) {
             sendHtml(exchange, wrapPage("Error", "<h1>Error</h1><pre>" + escapeHtml(e.getMessage()) + "</pre>"));
         }
+    }
+
+    private static String renderTabbedLayout(String executionContent) {
+        return """
+                <div class='tabbed-ui'>
+                  <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
+                    <button class='tab is-active' role='tab' type='button' data-tab='add-execution' aria-selected='true'>Add Execution</button>
+                    <button class='tab' role='tab' type='button' data-tab='executions' aria-selected='false'>Executions</button>
+                    <button class='tab' role='tab' type='button' data-tab='query' aria-selected='false'>Query</button>
+                    <button class='tab' role='tab' type='button' data-tab='last-week' aria-selected='false'>Last Week</button>
+                  </div>
+                  <section class='tab-panel is-active' data-panel='add-execution' role='tabpanel'>
+                    <h2>Add Execution</h2>
+                    <p>This tab is ready for the add execution web workflow.</p>
+                  </section>
+                  <section class='tab-panel' data-panel='executions' role='tabpanel'>
+                    %s
+                  </section>
+                  <section class='tab-panel' data-panel='query' role='tabpanel'>
+                    <h2>Query</h2>
+                    <p>This tab is ready for the query web workflow.</p>
+                  </section>
+                  <section class='tab-panel' data-panel='last-week' role='tabpanel'>
+                    <h2>Last Week</h2>
+                    <p>This tab is ready for the last-week web workflow.</p>
+                  </section>
+                </div>
+                <script>
+                  (function () {
+                    const tabs = document.querySelectorAll('.tab');
+                    const panels = document.querySelectorAll('.tab-panel');
+                    tabs.forEach((tab) => {
+                      tab.addEventListener('click', () => {
+                        const target = tab.dataset.tab;
+                        tabs.forEach((item) => {
+                          const active = item === tab;
+                          item.classList.toggle('is-active', active);
+                          item.setAttribute('aria-selected', active ? 'true' : 'false');
+                        });
+                        panels.forEach((panel) => {
+                          panel.classList.toggle('is-active', panel.dataset.panel === target);
+                        });
+                      });
+                    });
+                  })();
+                </script>
+                """.formatted(executionContent);
     }
 
     private static void handleLift(HttpExchange exchange, SqliteDb db) throws IOException {
@@ -241,6 +291,11 @@ public class WebServerCli {
                     th, td { border: 1px solid #374151; padding: 0.45rem; vertical-align: top; text-align: left; }
                     code { background: #1f2937; padding: 0.15rem 0.35rem; border-radius: 0.25rem; }
                     li { margin-bottom: 0.35rem; }
+                    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+                    .tab { border: 1px solid #374151; background: #111827; color: #d1d5db; padding: 0.45rem 0.8rem; border-radius: 999px; }
+                    .tab.is-active { border-color: #60a5fa; color: #60a5fa; }
+                    .tab-panel { display: none; border: 1px solid #374151; border-radius: 0.6rem; padding: 1rem; background: #0f172a; }
+                    .tab-panel.is-active { display: block; }
                   </style>
                 </head>
                 <body>
