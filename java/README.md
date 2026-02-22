@@ -25,3 +25,20 @@ Generate a wave markdown file:
 gradle run --args='path/to/lifts.db'
 java -cp build/libs/lift_trax-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 wave.md
 ```
+
+
+## Run the network-accessible Web UI
+
+From the `java/` directory:
+
+```bash
+gradle runWeb --args='path/to/lifts.db 8080'
+```
+
+- First arg: SQLite database path (defaults to `lifts.db`).
+- Second arg: port (defaults to `8080`).
+- The server binds to `0.0.0.0`, so it is reachable from other devices on the same network at `http://<your-machine-ip>:8080`.
+
+Routes:
+- `/` list/search lifts
+- `/lift?name=<lift name>` view lift details and execution history

@@ -33,3 +33,10 @@ tasks.register('runUi', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.ui.LiftTraxApp'
 }
+
+tasks.register('runWeb', JavaExec) {
+    group = 'application'
+    description = 'Runs the embedded HTTP server with a browser-based UI.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.lifttrax.cli.WebServerCli'
+}
