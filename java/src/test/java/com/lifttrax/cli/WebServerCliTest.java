@@ -61,4 +61,18 @@ class WebServerCliTest {
         assertEquals("Unknown", formatted);
     }
 
+    @Test
+    void renderTabbedLayoutIncludesExpectedTabs() throws Exception {
+        Method method = WebServerCli.class.getDeclaredMethod("renderTabbedLayout", String.class);
+        method.setAccessible(true);
+
+        String html = (String) method.invoke(null, "<h1>Executions</h1>");
+
+        assertTrue(html.contains("Add Execution"));
+        assertTrue(html.contains("Executions"));
+        assertTrue(html.contains("Query"));
+        assertTrue(html.contains("Last Week"));
+        assertTrue(html.contains("<h1>Executions</h1>"));
+    }
+
 }
