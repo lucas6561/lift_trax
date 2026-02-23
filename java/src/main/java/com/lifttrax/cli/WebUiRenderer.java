@@ -106,18 +106,49 @@ final class WebUiRenderer {
                         .map((option) => option.value)
                         .filter((value) => value);
 
+                      const matchesFilters = (itemName, itemRegion, itemMain, itemMuscles) => {
+                        const matchesName = !searchValue || itemName.includes(searchValue);
+                        const matchesRegion = !regionValue || itemRegion === regionValue;
+                        const matchesMain = !mainValue || itemMain === mainValue;
+                        const matchesMuscle = selectedMuscles.length === 0 || selectedMuscles.some((muscle) => itemMuscles.includes(muscle));
+                        return matchesName && matchesRegion && matchesMain && matchesMuscle;
+                      };
+
                       panel.querySelectorAll('[data-filter-item]').forEach((item) => {
                         const itemName = (item.dataset.name || '').toLowerCase();
                         const itemRegion = item.dataset.region || '';
                         const itemMain = item.dataset.main || '';
                         const itemMuscles = (item.dataset.muscles || '').split(',').filter(Boolean);
-
-                        const matchesName = !searchValue || itemName.includes(searchValue);
-                        const matchesRegion = !regionValue || itemRegion === regionValue;
-                        const matchesMain = !mainValue || itemMain === mainValue;
-                        const matchesMuscle = selectedMuscles.length === 0 || selectedMuscles.some((muscle) => itemMuscles.includes(muscle));
-                        item.classList.toggle('is-hidden', !(matchesName && matchesRegion && matchesMain && matchesMuscle));
+                        item.classList.toggle('is-hidden', !matchesFilters(itemName, itemRegion, itemMain, itemMuscles));
                       });
+
+                      const querySelect = panel.querySelector("select[name='queryLift']");
+                      if (querySelect) {
+                        let hasVisibleSelection = false;
+                        let firstVisibleValue = '';
+                        Array.from(querySelect.options).forEach((option) => {
+                          if (!option.dataset.filterOption) {
+                            return;
+                          }
+                          const optionName = (option.dataset.name || '').toLowerCase();
+                          const optionRegion = option.dataset.region || '';
+                          const optionMain = option.dataset.main || '';
+                          const optionMuscles = (option.dataset.muscles || '').split(',').filter(Boolean);
+                          const visible = matchesFilters(optionName, optionRegion, optionMain, optionMuscles);
+                          option.hidden = !visible;
+                          option.disabled = !visible;
+                          if (visible && !firstVisibleValue) {
+                            firstVisibleValue = option.value;
+                          }
+                          if (visible && option.selected) {
+                            hasVisibleSelection = true;
+                          }
+                        });
+
+                        if (!hasVisibleSelection && firstVisibleValue) {
+                          querySelect.value = firstVisibleValue;
+                        }
+                      }
                     }
 
                     function clearPanelFilters(panel) {
@@ -172,6 +203,14 @@ final class WebUiRenderer {
             boolean selected = lift.name().equals(selectedLift);
             options.append("<option value='")
                     .append(WebHtml.escapeHtml(lift.name()))
+                    .append("' data-filter-option data-name='")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append("' data-region='")
+                    .append(WebHtml.escapeHtml(lift.region().toString()))
+                    .append("' data-main='")
+                    .append(WebHtml.escapeHtml(formatMainType(lift)))
+                    .append("' data-muscles='")
+                    .append(WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(","))))
                     .append("'")
                     .append(selected ? " selected" : "")
                     .append(">")

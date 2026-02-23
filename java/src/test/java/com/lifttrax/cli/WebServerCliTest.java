@@ -68,6 +68,8 @@ class WebServerCliTest {
         assertTrue(html.contains("Last Week"));
         assertTrue(html.contains("data-initial-tab='query'"));
         assertTrue(html.contains("Run Query"));
+        assertTrue(html.contains("data-filter-option"));
+        assertTrue(html.contains("select name='queryLift'"));
         assertTrue(html.contains("query result"));
         assertTrue(html.contains("js-filter-name"));
         assertTrue(html.split("js-filter-name", -1).length - 1 >= 4);
