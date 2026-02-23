@@ -81,9 +81,11 @@ class WebServerCliTest {
         assertTrue(html.contains("Last Week"));
         assertTrue(html.contains("js-filter-name"));
         assertTrue(html.contains("js-filter-muscle"));
+        assertTrue(html.contains("multiple"));
         assertTrue(html.contains("js-clear-filters"));
         assertTrue(html.contains("data-muscles='QUAD,GLUTE'"));
         assertTrue(html.contains("<option value='QUAD'>QUAD</option>"));
+        assertTrue(html.contains("Hold Ctrl/Cmd to select multiple"));
         assertTrue(html.contains("Back Squat"));
     }
 

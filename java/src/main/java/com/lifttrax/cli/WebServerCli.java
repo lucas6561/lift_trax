@@ -133,7 +133,9 @@ public class WebServerCli {
                       const searchValue = nameFilter.value.trim().toLowerCase();
                       const regionValue = regionFilter.value;
                       const mainValue = mainFilter.value;
-                      const muscleValue = muscleFilter.value;
+                      const selectedMuscles = Array.from(muscleFilter.selectedOptions)
+                        .map((option) => option.value)
+                        .filter((value) => value);
 
                       panel.querySelectorAll('[data-filter-item]').forEach((item) => {
                         const itemName = (item.dataset.name || '').toLowerCase();
@@ -144,7 +146,7 @@ public class WebServerCli {
                         const matchesName = !searchValue || itemName.includes(searchValue);
                         const matchesRegion = !regionValue || itemRegion === regionValue;
                         const matchesMain = !mainValue || itemMain === mainValue;
-                        const matchesMuscle = !muscleValue || itemMuscles.includes(muscleValue);
+                        const matchesMuscle = selectedMuscles.length === 0 || selectedMuscles.some((muscle) => itemMuscles.includes(muscle));
                         item.classList.toggle('is-hidden', !(matchesName && matchesRegion && matchesMain && matchesMuscle));
                       });
                     }
@@ -163,7 +165,9 @@ public class WebServerCli {
                       nameFilter.value = '';
                       regionFilter.value = '';
                       mainFilter.value = '';
-                      muscleFilter.value = '';
+                      Array.from(muscleFilter.options).forEach((option) => {
+                        option.selected = false;
+                      });
                       applyPanelFilters(panel);
                     }
                     document.querySelectorAll('.tab-panel').forEach((panel) => {
@@ -228,7 +232,7 @@ public class WebServerCli {
                     .append("</option>");
         }
 
-        StringBuilder muscleOptions = new StringBuilder("<option value=''>All muscles</option>");
+        StringBuilder muscleOptions = new StringBuilder();
         for (String muscle : muscles) {
             muscleOptions.append("<option value='")
                     .append(escapeHtml(muscle))
@@ -242,7 +246,7 @@ public class WebServerCli {
                   <label>Search <input class='js-filter-name' type='search' value='%s' placeholder='lift name'/></label>
                   <label>Region <select class='js-filter-region'>%s</select></label>
                   <label>Main <select class='js-filter-main'>%s</select></label>
-                  <label>Muscle <select class='js-filter-muscle'>%s</select></label>
+                  <label>Muscle <select class='js-filter-muscle' multiple size='4' title='Hold Ctrl/Cmd to select multiple'>%s</select></label>
                   <button type='button' class='js-clear-filters'>Clear Filters</button>
                 </div>
                 """.formatted(escapeHtml(search), regionOptions, mainOptions, muscleOptions);
@@ -440,6 +444,7 @@ public class WebServerCli {
                     .tab-panel.is-active { display: block; }
                     .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; }
                     .tab-filter-bar label { display: flex; align-items: center; gap: 0.4rem; }
+                    .js-filter-muscle { min-width: 9rem; }
                     .is-hidden { display: none; }
                   </style>
                 </head>
