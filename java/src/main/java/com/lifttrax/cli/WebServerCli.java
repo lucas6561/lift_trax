@@ -442,9 +442,10 @@ public class WebServerCli {
                     .tab.is-active { border-color: #60a5fa; color: #60a5fa; }
                     .tab-panel { display: none; border: 1px solid #374151; border-radius: 0.6rem; padding: 1rem; background: #0f172a; }
                     .tab-panel.is-active { display: block; }
-                    .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; }
+                    .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; align-items: flex-start; }
                     .tab-filter-bar label { display: flex; align-items: center; gap: 0.4rem; }
                     .js-filter-muscle { min-width: 9rem; }
+                    .js-clear-filters { align-self: center; flex: 0 0 auto; white-space: nowrap; }
                     .is-hidden { display: none; }
                   </style>
                 </head>
