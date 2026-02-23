@@ -4,6 +4,7 @@ import com.lifttrax.db.SqliteDb;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
+import com.lifttrax.models.Muscle;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -124,31 +125,57 @@ public class WebServerCli {
                       const nameFilter = panel.querySelector('.js-filter-name');
                       const regionFilter = panel.querySelector('.js-filter-region');
                       const mainFilter = panel.querySelector('.js-filter-main');
-                      if (!nameFilter || !regionFilter || !mainFilter) {
+                      const muscleFilter = panel.querySelector('.js-filter-muscle');
+                      if (!nameFilter || !regionFilter || !mainFilter || !muscleFilter) {
                         return;
                       }
 
                       const searchValue = nameFilter.value.trim().toLowerCase();
                       const regionValue = regionFilter.value;
                       const mainValue = mainFilter.value;
+                      const muscleValue = muscleFilter.value;
 
                       panel.querySelectorAll('[data-filter-item]').forEach((item) => {
                         const itemName = (item.dataset.name || '').toLowerCase();
                         const itemRegion = item.dataset.region || '';
                         const itemMain = item.dataset.main || '';
+                        const itemMuscles = (item.dataset.muscles || '').split(',').filter(Boolean);
 
                         const matchesName = !searchValue || itemName.includes(searchValue);
                         const matchesRegion = !regionValue || itemRegion === regionValue;
                         const matchesMain = !mainValue || itemMain === mainValue;
-                        item.classList.toggle('is-hidden', !(matchesName && matchesRegion && matchesMain));
+                        const matchesMuscle = !muscleValue || itemMuscles.includes(muscleValue);
+                        item.classList.toggle('is-hidden', !(matchesName && matchesRegion && matchesMain && matchesMuscle));
                       });
                     }
 
+
+
+                    function clearPanelFilters(panel) {
+                      const nameFilter = panel.querySelector('.js-filter-name');
+                      const regionFilter = panel.querySelector('.js-filter-region');
+                      const mainFilter = panel.querySelector('.js-filter-main');
+                      const muscleFilter = panel.querySelector('.js-filter-muscle');
+                      if (!nameFilter || !regionFilter || !mainFilter || !muscleFilter) {
+                        return;
+                      }
+
+                      nameFilter.value = '';
+                      regionFilter.value = '';
+                      mainFilter.value = '';
+                      muscleFilter.value = '';
+                      applyPanelFilters(panel);
+                    }
                     document.querySelectorAll('.tab-panel').forEach((panel) => {
-                      panel.querySelectorAll('.js-filter-name, .js-filter-region, .js-filter-main').forEach((control) => {
+                      panel.querySelectorAll('.js-filter-name, .js-filter-region, .js-filter-main, .js-filter-muscle').forEach((control) => {
                         control.addEventListener('input', () => applyPanelFilters(panel));
                         control.addEventListener('change', () => applyPanelFilters(panel));
                       });
+                      const clearButton = panel.querySelector('.js-clear-filters');
+                      if (clearButton) {
+                        clearButton.addEventListener('click', () => clearPanelFilters(panel));
+                      }
+
                       applyPanelFilters(panel);
                     });
                   })();
@@ -176,6 +203,12 @@ public class WebServerCli {
                 .distinct()
                 .sorted()
                 .toList();
+        List<String> muscles = lifts.stream()
+                .flatMap(lift -> lift.muscles().stream())
+                .map(Muscle::name)
+                .distinct()
+                .sorted()
+                .toList();
 
         StringBuilder regionOptions = new StringBuilder("<option value=''>All regions</option>");
         for (String region : regions) {
@@ -195,13 +228,24 @@ public class WebServerCli {
                     .append("</option>");
         }
 
+        StringBuilder muscleOptions = new StringBuilder("<option value=''>All muscles</option>");
+        for (String muscle : muscles) {
+            muscleOptions.append("<option value='")
+                    .append(escapeHtml(muscle))
+                    .append("'>")
+                    .append(escapeHtml(muscle))
+                    .append("</option>");
+        }
+
         return """
                 <div class='tab-filter-bar'>
                   <label>Search <input class='js-filter-name' type='search' value='%s' placeholder='lift name'/></label>
                   <label>Region <select class='js-filter-region'>%s</select></label>
                   <label>Main <select class='js-filter-main'>%s</select></label>
+                  <label>Muscle <select class='js-filter-muscle'>%s</select></label>
+                  <button type='button' class='js-clear-filters'>Clear Filters</button>
                 </div>
-                """.formatted(escapeHtml(search), regionOptions, mainOptions);
+                """.formatted(escapeHtml(search), regionOptions, mainOptions, muscleOptions);
     }
 
     private static String renderLiftList(List<Lift> lifts, String search, String label) {
@@ -219,6 +263,8 @@ public class WebServerCli {
                     .append(escapeHtml(lift.region().toString()))
                     .append("' data-main='")
                     .append(escapeHtml(formatMainType(lift)))
+                    .append("' data-muscles='")
+                    .append(escapeHtml(lift.muscles().stream().map(Muscle::name).collect(java.util.stream.Collectors.joining(","))))
                     .append("'><a href='/lift?name=")
                     .append(urlEncode(lift.name()))
                     .append("'>")

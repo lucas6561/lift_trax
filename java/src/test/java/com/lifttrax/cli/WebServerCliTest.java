@@ -5,6 +5,7 @@ import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.models.Muscle;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -69,8 +70,8 @@ class WebServerCliTest {
         method.setAccessible(true);
 
         List<Lift> lifts = List.of(
-                new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), ""),
-                new Lift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "")
+                new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD, Muscle.GLUTE), ""),
+                new Lift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(Muscle.CHEST, Muscle.TRICEP), "")
         );
         String html = (String) method.invoke(null, lifts, "");
 
@@ -79,6 +80,10 @@ class WebServerCliTest {
         assertTrue(html.contains("Query"));
         assertTrue(html.contains("Last Week"));
         assertTrue(html.contains("js-filter-name"));
+        assertTrue(html.contains("js-filter-muscle"));
+        assertTrue(html.contains("js-clear-filters"));
+        assertTrue(html.contains("data-muscles='QUAD,GLUTE'"));
+        assertTrue(html.contains("<option value='QUAD'>QUAD</option>"));
         assertTrue(html.contains("Back Squat"));
     }
 
