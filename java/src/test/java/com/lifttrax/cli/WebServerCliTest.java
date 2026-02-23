@@ -2,6 +2,8 @@ package com.lifttrax.cli;
 
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
+import com.lifttrax.models.LiftRegion;
+import com.lifttrax.models.LiftType;
 import com.lifttrax.models.SetMetric;
 import org.junit.jupiter.api.Test;
 
@@ -63,16 +65,21 @@ class WebServerCliTest {
 
     @Test
     void renderTabbedLayoutIncludesExpectedTabs() throws Exception {
-        Method method = WebServerCli.class.getDeclaredMethod("renderTabbedLayout", String.class);
+        Method method = WebServerCli.class.getDeclaredMethod("renderTabbedLayout", List.class, String.class);
         method.setAccessible(true);
 
-        String html = (String) method.invoke(null, "<h1>Executions</h1>");
+        List<Lift> lifts = List.of(
+                new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), ""),
+                new Lift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "")
+        );
+        String html = (String) method.invoke(null, lifts, "");
 
         assertTrue(html.contains("Add Execution"));
         assertTrue(html.contains("Executions"));
         assertTrue(html.contains("Query"));
         assertTrue(html.contains("Last Week"));
-        assertTrue(html.contains("<h1>Executions</h1>"));
+        assertTrue(html.contains("js-filter-name"));
+        assertTrue(html.contains("Back Squat"));
     }
 
 }

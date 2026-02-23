@@ -60,38 +60,20 @@ public class WebServerCli {
             lifts.sort(Comparator.comparing(Lift::name));
 
             StringBuilder body = new StringBuilder();
-            StringBuilder liftList = new StringBuilder();
-            liftList.append("<h1>LiftTrax</h1>")
-                    .append("<form method='get' action='/'><input type='text' name='q' placeholder='Search lifts' value='")
-                    .append(escapeHtml(search))
-                    .append("' /><button type='submit'>Search</button></form>")
-                    .append("<ul>");
-
-            for (Lift lift : lifts) {
-                if (!search.isEmpty() && !lift.name().toLowerCase(Locale.ROOT).contains(search)) {
-                    continue;
-                }
-                liftList.append("<li><a href='/lift?name=")
-                        .append(urlEncode(lift.name()))
-                        .append("'>")
-                        .append(escapeHtml(lift.name()))
-                        .append("</a> — ")
-                        .append(escapeHtml(lift.region().toString()))
-                        .append(" / ")
-                        .append(escapeHtml(formatMainType(lift)))
-                        .append("</li>");
-            }
-
-            liftList.append("</ul>");
-
-            body.append(renderTabbedLayout(liftList.toString()));
+            body.append(renderTabbedLayout(lifts, search));
             sendHtml(exchange, wrapPage("LiftTrax Lifts", body.toString()));
         } catch (Exception e) {
             sendHtml(exchange, wrapPage("Error", "<h1>Error</h1><pre>" + escapeHtml(e.getMessage()) + "</pre>"));
         }
     }
 
-    private static String renderTabbedLayout(String executionContent) {
+    private static String renderTabbedLayout(List<Lift> lifts, String search) {
+        String filterControls = renderFilterControls(lifts, search);
+        String addExecutionContent = renderLiftList(lifts, search, "Choose a lift to start an execution:");
+        String executionContent = renderLiftList(lifts, search, "Recorded lifts:");
+        String queryContent = renderLiftList(lifts, search, "Filter lifts before running a query:");
+        String lastWeekContent = renderLiftList(lifts, search, "Filter lifts for last-week view:");
+
         return """
                 <div class='tabbed-ui'>
                   <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
@@ -102,18 +84,22 @@ public class WebServerCli {
                   </div>
                   <section class='tab-panel is-active' data-panel='add-execution' role='tabpanel'>
                     <h2>Add Execution</h2>
-                    <p>This tab is ready for the add execution web workflow.</p>
+                    %s
+                    %s
                   </section>
                   <section class='tab-panel' data-panel='executions' role='tabpanel'>
+                    %s
                     %s
                   </section>
                   <section class='tab-panel' data-panel='query' role='tabpanel'>
                     <h2>Query</h2>
-                    <p>This tab is ready for the query web workflow.</p>
+                    %s
+                    %s
                   </section>
                   <section class='tab-panel' data-panel='last-week' role='tabpanel'>
                     <h2>Last Week</h2>
-                    <p>This tab is ready for the last-week web workflow.</p>
+                    %s
+                    %s
                   </section>
                 </div>
                 <script>
@@ -133,9 +119,119 @@ public class WebServerCli {
                         });
                       });
                     });
+
+                    function applyPanelFilters(panel) {
+                      const nameFilter = panel.querySelector('.js-filter-name');
+                      const regionFilter = panel.querySelector('.js-filter-region');
+                      const mainFilter = panel.querySelector('.js-filter-main');
+                      if (!nameFilter || !regionFilter || !mainFilter) {
+                        return;
+                      }
+
+                      const searchValue = nameFilter.value.trim().toLowerCase();
+                      const regionValue = regionFilter.value;
+                      const mainValue = mainFilter.value;
+
+                      panel.querySelectorAll('[data-filter-item]').forEach((item) => {
+                        const itemName = (item.dataset.name || '').toLowerCase();
+                        const itemRegion = item.dataset.region || '';
+                        const itemMain = item.dataset.main || '';
+
+                        const matchesName = !searchValue || itemName.includes(searchValue);
+                        const matchesRegion = !regionValue || itemRegion === regionValue;
+                        const matchesMain = !mainValue || itemMain === mainValue;
+                        item.classList.toggle('is-hidden', !(matchesName && matchesRegion && matchesMain));
+                      });
+                    }
+
+                    document.querySelectorAll('.tab-panel').forEach((panel) => {
+                      panel.querySelectorAll('.js-filter-name, .js-filter-region, .js-filter-main').forEach((control) => {
+                        control.addEventListener('input', () => applyPanelFilters(panel));
+                        control.addEventListener('change', () => applyPanelFilters(panel));
+                      });
+                      applyPanelFilters(panel);
+                    });
                   })();
                 </script>
-                """.formatted(executionContent);
+                """.formatted(
+                filterControls,
+                addExecutionContent,
+                filterControls,
+                executionContent,
+                filterControls,
+                queryContent,
+                filterControls,
+                lastWeekContent
+        );
+    }
+
+    private static String renderFilterControls(List<Lift> lifts, String search) {
+        List<String> regions = lifts.stream()
+                .map(lift -> lift.region().toString())
+                .distinct()
+                .sorted()
+                .toList();
+        List<String> mainTypes = lifts.stream()
+                .map(WebServerCli::formatMainType)
+                .distinct()
+                .sorted()
+                .toList();
+
+        StringBuilder regionOptions = new StringBuilder("<option value=''>All regions</option>");
+        for (String region : regions) {
+            regionOptions.append("<option value='")
+                    .append(escapeHtml(region))
+                    .append("'>")
+                    .append(escapeHtml(region))
+                    .append("</option>");
+        }
+
+        StringBuilder mainOptions = new StringBuilder("<option value=''>All main types</option>");
+        for (String mainType : mainTypes) {
+            mainOptions.append("<option value='")
+                    .append(escapeHtml(mainType))
+                    .append("'>")
+                    .append(escapeHtml(mainType))
+                    .append("</option>");
+        }
+
+        return """
+                <div class='tab-filter-bar'>
+                  <label>Search <input class='js-filter-name' type='search' value='%s' placeholder='lift name'/></label>
+                  <label>Region <select class='js-filter-region'>%s</select></label>
+                  <label>Main <select class='js-filter-main'>%s</select></label>
+                </div>
+                """.formatted(escapeHtml(search), regionOptions, mainOptions);
+    }
+
+    private static String renderLiftList(List<Lift> lifts, String search, String label) {
+        StringBuilder liftList = new StringBuilder();
+        liftList.append("<p>").append(escapeHtml(label)).append("</p>");
+        liftList.append("<ul class='lift-list'>");
+
+        for (Lift lift : lifts) {
+            if (!search.isEmpty() && !lift.name().toLowerCase(Locale.ROOT).contains(search)) {
+                continue;
+            }
+            liftList.append("<li data-filter-item data-name='")
+                    .append(escapeHtml(lift.name()))
+                    .append("' data-region='")
+                    .append(escapeHtml(lift.region().toString()))
+                    .append("' data-main='")
+                    .append(escapeHtml(formatMainType(lift)))
+                    .append("'><a href='/lift?name=")
+                    .append(urlEncode(lift.name()))
+                    .append("'>")
+                    .append(escapeHtml(lift.name()))
+                    .append("</a> — ")
+                    .append(escapeHtml(lift.region().toString()))
+                    .append(" / ")
+                    .append(escapeHtml(formatMainType(lift)))
+                    .append("</li>");
+        }
+
+        liftList.append("</ul>");
+        return liftList.toString();
     }
 
     private static void handleLift(HttpExchange exchange, SqliteDb db) throws IOException {
@@ -296,6 +392,9 @@ public class WebServerCli {
                     .tab.is-active { border-color: #60a5fa; color: #60a5fa; }
                     .tab-panel { display: none; border: 1px solid #374151; border-radius: 0.6rem; padding: 1rem; background: #0f172a; }
                     .tab-panel.is-active { display: block; }
+                    .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; }
+                    .tab-filter-bar label { display: flex; align-items: center; gap: 0.4rem; }
+                    .is-hidden { display: none; }
                   </style>
                 </head>
                 <body>
