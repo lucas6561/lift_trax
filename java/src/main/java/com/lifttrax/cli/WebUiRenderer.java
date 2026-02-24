@@ -127,7 +127,7 @@ final class WebUiRenderer {
                         let hasVisibleSelection = false;
                         let firstVisibleValue = '';
                         Array.from(querySelect.options).forEach((option) => {
-                          if (!option.dataset.filterOption) {
+                          if (!option.hasAttribute('data-filter-option')) {
                             return;
                           }
                           const optionName = (option.dataset.name || '').toLowerCase();
