@@ -25,11 +25,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.SetMetric;
 
 public class WebServerCli {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     public static void main(String[] args) throws Exception {
         String dbPath = args.length > 0 ? args[0] : "lifts.db";
         int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
@@ -107,13 +111,16 @@ public class WebServerCli {
                     .orElse(LocalDate.now());
 
             int setCount = parsePositiveInt(form.getOrDefault("setCount", "1"), "Set count");
-            SetMetric metric = parseMetric(form);
             String weight = form.getOrDefault("weight", "").trim();
             Float rpe = parseOptionalFloat(form.get("rpe"));
 
-            List<ExecutionSet> sets = new ArrayList<>();
-            for (int i = 0; i < setCount; i++) {
-                sets.add(new ExecutionSet(metric, weight, rpe));
+            List<ExecutionSet> sets = parseDetailedSets(form.getOrDefault("detailedSets", "[]"));
+            if (sets.isEmpty()) {
+                SetMetric metric = parseMetric(form);
+                sets = new ArrayList<>();
+                for (int i = 0; i < setCount; i++) {
+                    sets.add(new ExecutionSet(metric, weight, rpe));
+                }
             }
 
             LiftExecution execution = new LiftExecution(
@@ -279,6 +286,30 @@ public class WebServerCli {
             case "distance" -> new SetMetric.DistanceFeet(parsePositiveInt(form.getOrDefault("metricValue", ""), "Feet"));
             default -> new SetMetric.Reps(parsePositiveInt(form.getOrDefault("metricValue", ""), "Reps"));
         };
+    }
+
+    private static List<ExecutionSet> parseDetailedSets(String json) {
+        List<ExecutionSet> result = new ArrayList<>();
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(json);
+            if (root == null || !root.isArray()) {
+                return result;
+            }
+            for (JsonNode node : root) {
+                Map<String, String> fields = new HashMap<>();
+                fields.put("metricType", node.path("metricType").asText("reps"));
+                fields.put("metricValue", node.path("metricValue").asText(""));
+                fields.put("metricLeft", node.path("metricLeft").asText(""));
+                fields.put("metricRight", node.path("metricRight").asText(""));
+                SetMetric metric = parseMetric(fields);
+                String weight = node.path("weight").asText("");
+                Float rpe = parseOptionalFloat(node.path("rpe").asText(""));
+                result.add(new ExecutionSet(metric, weight, rpe));
+            }
+        } catch (Exception ignored) {
+            return List.of();
+        }
+        return result;
     }
 
     private static Map<String, String> parseForm(InputStream body) throws IOException {

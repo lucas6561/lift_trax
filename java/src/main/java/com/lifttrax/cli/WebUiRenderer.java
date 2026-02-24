@@ -217,6 +217,144 @@ final class WebUiRenderer {
                       item.addEventListener('change', syncMetricInputs);
                     });
                     syncMetricInputs();
+
+                    function syncWeightMode() {
+                      const selected = document.querySelector("input[name='weightMode']:checked");
+                      const mode = selected ? selected.value : 'weight';
+                      document.querySelectorAll('.weight-weight, .weight-lr, .weight-bands, .weight-accom, .weight-custom').forEach((group) => {
+                        group.classList.add('is-hidden');
+                      });
+                      const active = document.querySelector(`.weight-${mode}`);
+                      if (active) {
+                        active.classList.remove('is-hidden');
+                      }
+                    }
+
+                    function syncAccomMode() {
+                      const accomMode = document.querySelector("select[name='accomMode']");
+                      if (!accomMode) {
+                        return;
+                      }
+                      const chains = document.querySelector('.accom-chains');
+                      const bands = document.querySelector('.accom-bands');
+                      const useBands = accomMode.value === 'bands';
+                      if (chains) {
+                        chains.classList.toggle('is-hidden', useBands);
+                      }
+                      if (bands) {
+                        bands.classList.toggle('is-hidden', !useBands);
+                      }
+                    }
+
+                    function computeWeight() {
+                      const mode = (document.querySelector("input[name='weightMode']:checked") || {}).value || 'weight';
+                      if (mode === 'none') {
+                        return 'none';
+                      }
+                      if (mode === 'custom') {
+                        return (document.querySelector("input[name='customWeight']") || {}).value || '';
+                      }
+                      if (mode === 'lr') {
+                        const l = (document.querySelector("input[name='weightLeft']") || {}).value || '';
+                        const r = (document.querySelector("input[name='weightRight']") || {}).value || '';
+                        const unit = (document.querySelector("select[name='weightUnitLr']") || {}).value || 'lb';
+                        return `${l}${unit}|${r}${unit}`;
+                      }
+                      if (mode === 'bands') {
+                        return (document.querySelector("input[name='weightBands']") || {}).value || '';
+                      }
+                      if (mode === 'accom') {
+                        const bar = (document.querySelector("input[name='accomBar']") || {}).value || '';
+                        const unit = (document.querySelector("select[name='accomUnit']") || {}).value || 'lb';
+                        const accomMode = (document.querySelector("select[name='accomMode']") || {}).value || 'chains';
+                        if (accomMode === 'bands') {
+                          const bands = (document.querySelector("input[name='accomBands']") || {}).value || '';
+                          return `${bar} ${unit}+${bands}`;
+                        }
+                        const chain = (document.querySelector("input[name='accomChain']") || {}).value || '';
+                        return `${bar} ${unit}+${chain}c`;
+                      }
+                      const value = (document.querySelector("input[name='weightValue']") || {}).value || '';
+                      const unit = (document.querySelector("select[name='weightUnit']") || {}).value || 'lb';
+                      return `${value} ${unit}`.trim();
+                    }
+
+                    const detailedSets = [];
+                    function metricPayload() {
+                      const type = (document.querySelector("input[name='metricType']:checked") || {}).value || 'reps';
+                      const payload = {metricType: type};
+                      if (type === 'reps-lr') {
+                        payload.metricLeft = (document.querySelector("input[name='metricLeft']") || {}).value || '';
+                        payload.metricRight = (document.querySelector("input[name='metricRight']") || {}).value || '';
+                      } else {
+                        payload.metricValue = (document.querySelector("input[name='metricValue']") || {}).value || '';
+                      }
+                      return payload;
+                    }
+
+                    function renderSetList() {
+                      const list = document.querySelector('.js-set-list');
+                      const hidden = document.querySelector('.js-detailed-sets');
+                      if (!list || !hidden) {
+                        return;
+                      }
+                      list.innerHTML = '';
+                      detailedSets.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        li.textContent = `${item.metricType} @ ${item.weight}`;
+                        const remove = document.createElement('button');
+                        remove.type = 'button';
+                        remove.className = 'secondary';
+                        remove.textContent = 'Remove';
+                        remove.addEventListener('click', () => {
+                          detailedSets.splice(index, 1);
+                          renderSetList();
+                        });
+                        li.appendChild(document.createTextNode(' '));
+                        li.appendChild(remove);
+                        list.appendChild(li);
+                      });
+                      hidden.value = JSON.stringify(detailedSets);
+                    }
+
+                    document.querySelectorAll("input[name='weightMode']").forEach((item) => {
+                      item.addEventListener('change', syncWeightMode);
+                    });
+                    const accomModeSelect = document.querySelector("select[name='accomMode']");
+                    if (accomModeSelect) {
+                      accomModeSelect.addEventListener('change', syncAccomMode);
+                    }
+
+                    const addSetBtn = document.querySelector('.js-add-set');
+                    if (addSetBtn) {
+                      addSetBtn.addEventListener('click', () => {
+                        detailedSets.push({
+                          ...metricPayload(),
+                          weight: computeWeight(),
+                          rpe: (document.querySelector("input[name='rpe']") || {}).value || ''
+                        });
+                        renderSetList();
+                      });
+                    }
+                    const clearSetsBtn = document.querySelector('.js-clear-sets');
+                    if (clearSetsBtn) {
+                      clearSetsBtn.addEventListener('click', () => {
+                        detailedSets.splice(0, detailedSets.length);
+                        renderSetList();
+                      });
+                    }
+
+                    const addExecutionForm = document.querySelector("form.add-execution-form");
+                    if (addExecutionForm) {
+                      addExecutionForm.addEventListener('submit', () => {
+                        const hiddenWeight = addExecutionForm.querySelector('.js-weight-hidden');
+                        if (hiddenWeight) {
+                          hiddenWeight.value = computeWeight();
+                        }
+                      });
+                    }
+                    syncWeightMode();
+                    syncAccomMode();
                   })();
                 </script>
                 """.formatted(
@@ -307,8 +445,50 @@ final class WebUiRenderer {
                   <div class='stacked-row'>
                     <button type='submit' formaction='/load-last-execution' formmethod='get' class='secondary'>Load Last</button>
                   </div>
+                  <input type='hidden' name='weight' class='js-weight-hidden' value='%s'/>
+                  <input type='hidden' name='detailedSets' class='js-detailed-sets' value='[]'/>
+                  <fieldset>
+                    <legend>Weight</legend>
+                    <div class='segmented'>
+                      <label><input type='radio' name='weightMode' value='weight' checked/> Weight</label>
+                      <label><input type='radio' name='weightMode' value='lr'/> L/R Weight</label>
+                      <label><input type='radio' name='weightMode' value='bands'/> Bands</label>
+                      <label><input type='radio' name='weightMode' value='accom'/> Accommodating</label>
+                      <label><input type='radio' name='weightMode' value='none'/> None</label>
+                      <label><input type='radio' name='weightMode' value='custom'/> Custom</label>
+                    </div>
+                    <div class='stacked-row weight-weight'>
+                      <label>Weight <input type='number' step='0.5' min='0' name='weightValue' placeholder='225'/></label>
+                      <label>Unit
+                        <select name='weightUnit'><option value='lb'>lb</option><option value='kg'>kg</option></select>
+                      </label>
+                    </div>
+                    <div class='stacked-row weight-lr is-hidden'>
+                      <label>Left <input type='number' step='0.5' min='0' name='weightLeft' placeholder='40'/></label>
+                      <label>Right <input type='number' step='0.5' min='0' name='weightRight' placeholder='40'/></label>
+                      <label>Unit
+                        <select name='weightUnitLr'><option value='lb'>lb</option><option value='kg'>kg</option></select>
+                      </label>
+                    </div>
+                    <div class='stacked-row weight-bands is-hidden'>
+                      <label>Bands <input type='text' name='weightBands' placeholder='RED+BLUE'/></label>
+                    </div>
+                    <div class='stacked-row weight-accom is-hidden'>
+                      <label>Bar <input type='number' step='0.5' min='0' name='accomBar' placeholder='225'/></label>
+                      <label>Unit
+                        <select name='accomUnit'><option value='lb'>lb</option><option value='kg'>kg</option></select>
+                      </label>
+                      <label>Resistance
+                        <select name='accomMode'><option value='chains'>Chains</option><option value='bands'>Bands</option></select>
+                      </label>
+                      <label class='accom-chains'>Chain <input type='number' step='0.5' min='0' name='accomChain' placeholder='40'/></label>
+                      <label class='accom-bands is-hidden'>Bands <input type='text' name='accomBands' placeholder='RED+BLUE'/></label>
+                    </div>
+                    <div class='stacked-row weight-custom is-hidden'>
+                      <label>Custom <input type='text' name='customWeight' value='%s' placeholder='225 lb+40c'/></label>
+                    </div>
+                  </fieldset>
                   <div class='stacked-row'>
-                    <label>Weight <input type='text' name='weight' value='%s' placeholder='225 lb'/></label>
                     <label>Set Count <input type='number' min='1' name='setCount' value='%s'/></label>
                     <label>RPE <input type='number' step='0.1' min='1' max='10' name='rpe' value='%s' placeholder='8.5'/></label>
                   </div>
@@ -325,6 +505,11 @@ final class WebUiRenderer {
                       <label class='metric-lr is-hidden'>Left <input type='number' min='1' name='metricLeft' value='%s'/></label>
                       <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='%s'/></label>
                     </div>
+                    <div class='stacked-row'>
+                      <button type='button' class='secondary js-add-set'>Add Individual Set</button>
+                      <button type='button' class='secondary js-clear-sets'>Clear Individual Sets</button>
+                    </div>
+                    <ul class='set-list js-set-list'></ul>
                   </fieldset>
                   <div class='stacked-row'>
                     <label>Date <input type='date' name='date' value='%s'/></label>
@@ -339,6 +524,7 @@ final class WebUiRenderer {
                 """.formatted(
                 status,
                 options,
+                WebHtml.escapeHtml(prefill.weight()),
                 WebHtml.escapeHtml(prefill.weight()),
                 WebHtml.escapeHtml(prefill.setCount()),
                 WebHtml.escapeHtml(prefill.rpe()),
