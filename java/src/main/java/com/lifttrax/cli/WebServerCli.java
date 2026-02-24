@@ -151,14 +151,17 @@ public class WebServerCli {
                 redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required%20for%20Load%20Last");
                 return;
             }
+            boolean warmup = query.containsKey("warmup");
+            boolean deload = query.containsKey("deload");
 
             List<LiftExecution> executions = db.getExecutions(liftName);
-            if (executions.isEmpty()) {
-                redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("No prior executions for " + liftName) + "&prefillLift=" + WebUiRenderer.urlEncode(liftName));
+            LiftExecution last = selectExecutionForFlags(executions, warmup, deload);
+            if (last == null) {
+                String criteria = "warmup=" + warmup + ", deload=" + deload;
+                redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("No prior executions for " + liftName + " with " + criteria) + "&prefillLift=" + WebUiRenderer.urlEncode(liftName));
                 return;
             }
 
-            LiftExecution last = executions.get(0);
             StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=success&status=Loaded%20last%20execution");
             redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
             redirectUrl.append("&prefillWeight=").append(WebUiRenderer.urlEncode(last.sets().isEmpty() ? "" : safe(last.sets().get(0).weight())));
@@ -258,6 +261,15 @@ public class WebServerCli {
             redirectUrl.append("&prefillMetricType=distance");
             redirectUrl.append("&prefillMetricValue=").append(distanceFeet.feet());
         }
+    }
+
+    static LiftExecution selectExecutionForFlags(List<LiftExecution> executions, boolean warmup, boolean deload) {
+        for (LiftExecution execution : executions) {
+            if (execution.warmup() == warmup && execution.deload() == deload) {
+                return execution;
+            }
+        }
+        return null;
     }
 
     private static int parsePositiveInt(String value, String fieldName) {

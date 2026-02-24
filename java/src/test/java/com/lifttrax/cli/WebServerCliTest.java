@@ -4,11 +4,13 @@ import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
+import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -104,5 +106,20 @@ class WebServerCliTest {
     void renderQueryContentRequiresSelection() {
         String html = WebUiRenderer.renderQueryContent(null, "");
         assertTrue(html.contains("Select a lift"));
+    }
+
+    @Test
+    void selectExecutionForFlagsMatchesWarmupAndDeload() {
+        LiftExecution normal = new LiftExecution(1, LocalDate.parse("2026-01-01"), List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", null)), false, false, "");
+        LiftExecution warmup = new LiftExecution(2, LocalDate.parse("2026-01-02"), List.of(new ExecutionSet(new SetMetric.Reps(3), "185 lb", null)), true, false, "");
+        LiftExecution deload = new LiftExecution(3, LocalDate.parse("2026-01-03"), List.of(new ExecutionSet(new SetMetric.Reps(2), "135 lb", null)), false, true, "");
+        LiftExecution both = new LiftExecution(4, LocalDate.parse("2026-01-04"), List.of(new ExecutionSet(new SetMetric.Reps(2), "95 lb", null)), true, true, "");
+
+        List<LiftExecution> executions = List.of(both, deload, warmup, normal);
+
+        assertEquals(normal, WebServerCli.selectExecutionForFlags(executions, false, false));
+        assertEquals(warmup, WebServerCli.selectExecutionForFlags(executions, true, false));
+        assertEquals(deload, WebServerCli.selectExecutionForFlags(executions, false, true));
+        assertEquals(both, WebServerCli.selectExecutionForFlags(executions, true, true));
     }
 }

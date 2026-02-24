@@ -351,6 +351,23 @@ final class WebUiRenderer {
                         if (hiddenWeight) {
                           hiddenWeight.value = computeWeight();
                         }
+
+                        const submitter = document.activeElement;
+                        const isLoadLast = submitter && submitter.getAttribute('formaction') === '/load-last-execution';
+                        if (isLoadLast) {
+                          const warmup = addExecutionForm.querySelector("input[name='warmup']");
+                          const deload = addExecutionForm.querySelector("input[name='deload']");
+
+                          Array.from(addExecutionForm.querySelectorAll("input[name='warmup'], input[name='deload']"))
+                            .forEach((input) => input.disabled = true);
+
+                          if (warmup && warmup.checked) {
+                            warmup.disabled = false;
+                          }
+                          if (deload && deload.checked) {
+                            deload.disabled = false;
+                          }
+                        }
                       });
                     }
                     syncWeightMode();
