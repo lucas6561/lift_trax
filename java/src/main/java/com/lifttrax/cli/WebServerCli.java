@@ -1,10 +1,8 @@
 package com.lifttrax.cli;
 
 import com.lifttrax.db.SqliteDb;
-import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
-import com.lifttrax.models.Muscle;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -14,7 +12,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -23,8 +20,6 @@ import java.util.Locale;
 import java.util.Map;
 
 public class WebServerCli {
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
-
     public static void main(String[] args) throws Exception {
         String dbPath = args.length > 0 ? args[0] : "lifts.db";
         int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
@@ -56,232 +51,17 @@ public class WebServerCli {
         try {
             Map<String, String> query = parseQuery(exchange.getRequestURI());
             String search = query.getOrDefault("q", "").trim().toLowerCase(Locale.ROOT);
+            String queryLift = query.getOrDefault("queryLift", "").trim();
+            String activeTab = query.getOrDefault("tab", "add-execution").trim();
 
             List<Lift> lifts = new ArrayList<>(db.listLifts());
             lifts.sort(Comparator.comparing(Lift::name));
 
-            StringBuilder body = new StringBuilder();
-            body.append(renderTabbedLayout(lifts, search));
-            sendHtml(exchange, wrapPage("LiftTrax Lifts", body.toString()));
+            String body = WebUiRenderer.renderIndexBody(db, lifts, search, queryLift, activeTab);
+            sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
         } catch (Exception e) {
-            sendHtml(exchange, wrapPage("Error", "<h1>Error</h1><pre>" + escapeHtml(e.getMessage()) + "</pre>"));
+            sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(e.getMessage()) + "</pre>"));
         }
-    }
-
-    private static String renderTabbedLayout(List<Lift> lifts, String search) {
-        String filterControls = renderFilterControls(lifts, search);
-        String addExecutionContent = renderLiftList(lifts, search, "Choose a lift to start an execution:");
-        String executionContent = renderLiftList(lifts, search, "Recorded lifts:");
-        String queryContent = renderLiftList(lifts, search, "Filter lifts before running a query:");
-        String lastWeekContent = renderLiftList(lifts, search, "Filter lifts for last-week view:");
-
-        return """
-                <div class='tabbed-ui'>
-                  <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
-                    <button class='tab is-active' role='tab' type='button' data-tab='add-execution' aria-selected='true'>Add Execution</button>
-                    <button class='tab' role='tab' type='button' data-tab='executions' aria-selected='false'>Executions</button>
-                    <button class='tab' role='tab' type='button' data-tab='query' aria-selected='false'>Query</button>
-                    <button class='tab' role='tab' type='button' data-tab='last-week' aria-selected='false'>Last Week</button>
-                  </div>
-                  <section class='tab-panel is-active' data-panel='add-execution' role='tabpanel'>
-                    <h2>Add Execution</h2>
-                    %s
-                    %s
-                  </section>
-                  <section class='tab-panel' data-panel='executions' role='tabpanel'>
-                    %s
-                    %s
-                  </section>
-                  <section class='tab-panel' data-panel='query' role='tabpanel'>
-                    <h2>Query</h2>
-                    %s
-                    %s
-                  </section>
-                  <section class='tab-panel' data-panel='last-week' role='tabpanel'>
-                    <h2>Last Week</h2>
-                    %s
-                    %s
-                  </section>
-                </div>
-                <script>
-                  (function () {
-                    const tabs = document.querySelectorAll('.tab');
-                    const panels = document.querySelectorAll('.tab-panel');
-                    tabs.forEach((tab) => {
-                      tab.addEventListener('click', () => {
-                        const target = tab.dataset.tab;
-                        tabs.forEach((item) => {
-                          const active = item === tab;
-                          item.classList.toggle('is-active', active);
-                          item.setAttribute('aria-selected', active ? 'true' : 'false');
-                        });
-                        panels.forEach((panel) => {
-                          panel.classList.toggle('is-active', panel.dataset.panel === target);
-                        });
-                      });
-                    });
-
-                    function applyPanelFilters(panel) {
-                      const nameFilter = panel.querySelector('.js-filter-name');
-                      const regionFilter = panel.querySelector('.js-filter-region');
-                      const mainFilter = panel.querySelector('.js-filter-main');
-                      const muscleFilter = panel.querySelector('.js-filter-muscle');
-                      if (!nameFilter || !regionFilter || !mainFilter || !muscleFilter) {
-                        return;
-                      }
-
-                      const searchValue = nameFilter.value.trim().toLowerCase();
-                      const regionValue = regionFilter.value;
-                      const mainValue = mainFilter.value;
-                      const selectedMuscles = Array.from(muscleFilter.selectedOptions)
-                        .map((option) => option.value)
-                        .filter((value) => value);
-
-                      panel.querySelectorAll('[data-filter-item]').forEach((item) => {
-                        const itemName = (item.dataset.name || '').toLowerCase();
-                        const itemRegion = item.dataset.region || '';
-                        const itemMain = item.dataset.main || '';
-                        const itemMuscles = (item.dataset.muscles || '').split(',').filter(Boolean);
-
-                        const matchesName = !searchValue || itemName.includes(searchValue);
-                        const matchesRegion = !regionValue || itemRegion === regionValue;
-                        const matchesMain = !mainValue || itemMain === mainValue;
-                        const matchesMuscle = selectedMuscles.length === 0 || selectedMuscles.some((muscle) => itemMuscles.includes(muscle));
-                        item.classList.toggle('is-hidden', !(matchesName && matchesRegion && matchesMain && matchesMuscle));
-                      });
-                    }
-
-
-
-                    function clearPanelFilters(panel) {
-                      const nameFilter = panel.querySelector('.js-filter-name');
-                      const regionFilter = panel.querySelector('.js-filter-region');
-                      const mainFilter = panel.querySelector('.js-filter-main');
-                      const muscleFilter = panel.querySelector('.js-filter-muscle');
-                      if (!nameFilter || !regionFilter || !mainFilter || !muscleFilter) {
-                        return;
-                      }
-
-                      nameFilter.value = '';
-                      regionFilter.value = '';
-                      mainFilter.value = '';
-                      Array.from(muscleFilter.options).forEach((option) => {
-                        option.selected = false;
-                      });
-                      applyPanelFilters(panel);
-                    }
-                    document.querySelectorAll('.tab-panel').forEach((panel) => {
-                      panel.querySelectorAll('.js-filter-name, .js-filter-region, .js-filter-main, .js-filter-muscle').forEach((control) => {
-                        control.addEventListener('input', () => applyPanelFilters(panel));
-                        control.addEventListener('change', () => applyPanelFilters(panel));
-                      });
-                      const clearButton = panel.querySelector('.js-clear-filters');
-                      if (clearButton) {
-                        clearButton.addEventListener('click', () => clearPanelFilters(panel));
-                      }
-
-                      applyPanelFilters(panel);
-                    });
-                  })();
-                </script>
-                """.formatted(
-                filterControls,
-                addExecutionContent,
-                filterControls,
-                executionContent,
-                filterControls,
-                queryContent,
-                filterControls,
-                lastWeekContent
-        );
-    }
-
-    private static String renderFilterControls(List<Lift> lifts, String search) {
-        List<String> regions = lifts.stream()
-                .map(lift -> lift.region().toString())
-                .distinct()
-                .sorted()
-                .toList();
-        List<String> mainTypes = lifts.stream()
-                .map(WebServerCli::formatMainType)
-                .distinct()
-                .sorted()
-                .toList();
-        List<String> muscles = lifts.stream()
-                .flatMap(lift -> lift.muscles().stream())
-                .map(Muscle::name)
-                .distinct()
-                .sorted()
-                .toList();
-
-        StringBuilder regionOptions = new StringBuilder("<option value=''>All regions</option>");
-        for (String region : regions) {
-            regionOptions.append("<option value='")
-                    .append(escapeHtml(region))
-                    .append("'>")
-                    .append(escapeHtml(region))
-                    .append("</option>");
-        }
-
-        StringBuilder mainOptions = new StringBuilder("<option value=''>All main types</option>");
-        for (String mainType : mainTypes) {
-            mainOptions.append("<option value='")
-                    .append(escapeHtml(mainType))
-                    .append("'>")
-                    .append(escapeHtml(mainType))
-                    .append("</option>");
-        }
-
-        StringBuilder muscleOptions = new StringBuilder();
-        for (String muscle : muscles) {
-            muscleOptions.append("<option value='")
-                    .append(escapeHtml(muscle))
-                    .append("'>")
-                    .append(escapeHtml(muscle))
-                    .append("</option>");
-        }
-
-        return """
-                <div class='tab-filter-bar'>
-                  <label>Search <input class='js-filter-name' type='search' value='%s' placeholder='lift name'/></label>
-                  <label>Region <select class='js-filter-region'>%s</select></label>
-                  <label>Main <select class='js-filter-main'>%s</select></label>
-                  <label>Muscle <select class='js-filter-muscle' multiple size='4' title='Hold Ctrl/Cmd to select multiple'>%s</select></label>
-                  <button type='button' class='js-clear-filters'>Clear Filters</button>
-                </div>
-                """.formatted(escapeHtml(search), regionOptions, mainOptions, muscleOptions);
-    }
-
-    private static String renderLiftList(List<Lift> lifts, String search, String label) {
-        StringBuilder liftList = new StringBuilder();
-        liftList.append("<p>").append(escapeHtml(label)).append("</p>");
-        liftList.append("<ul class='lift-list'>");
-
-        for (Lift lift : lifts) {
-            if (!search.isEmpty() && !lift.name().toLowerCase(Locale.ROOT).contains(search)) {
-                continue;
-            }
-            liftList.append("<li data-filter-item data-name='")
-                    .append(escapeHtml(lift.name()))
-                    .append("' data-region='")
-                    .append(escapeHtml(lift.region().toString()))
-                    .append("' data-main='")
-                    .append(escapeHtml(formatMainType(lift)))
-                    .append("' data-muscles='")
-                    .append(escapeHtml(lift.muscles().stream().map(Muscle::name).collect(java.util.stream.Collectors.joining(","))))
-                    .append("'><a href='/lift?name=")
-                    .append(urlEncode(lift.name()))
-                    .append("'>")
-                    .append(escapeHtml(lift.name()))
-                    .append("</a> — ")
-                    .append(escapeHtml(lift.region().toString()))
-                    .append(" / ")
-                    .append(escapeHtml(formatMainType(lift)))
-                    .append("</li>");
-        }
-
-        liftList.append("</ul>");
-        return liftList.toString();
     }
 
     private static void handleLift(HttpExchange exchange, SqliteDb db) throws IOException {
@@ -293,7 +73,7 @@ public class WebServerCli {
         Map<String, String> query = parseQuery(exchange.getRequestURI());
         String name = query.get("name");
         if (name == null || name.isBlank()) {
-            sendHtml(exchange, wrapPage("Missing lift", "<h1>Missing lift name</h1><p><a href='/'>Back</a></p>"));
+            sendHtml(exchange, WebHtml.wrapPage("Missing lift", "<h1>Missing lift name</h1><p><a href='/'>Back</a></p>"));
             return;
         }
 
@@ -303,11 +83,11 @@ public class WebServerCli {
 
             StringBuilder body = new StringBuilder();
             body.append("<p><a href='/'>← Back to all lifts</a></p>")
-                    .append("<h1>").append(escapeHtml(lift.name())).append("</h1>")
-                    .append("<p><strong>Region:</strong> ").append(escapeHtml(lift.region().toString())).append("</p>")
-                    .append("<p><strong>Main type:</strong> ").append(escapeHtml(formatMainType(lift))).append("</p>")
-                    .append("<p><strong>Muscles:</strong> ").append(escapeHtml(joinList(lift.muscles().stream().map(Object::toString).toList()))).append("</p>")
-                    .append("<p><strong>Notes:</strong> ").append(escapeHtml(lift.notes() == null ? "" : lift.notes())).append("</p>")
+                    .append("<h1>").append(WebHtml.escapeHtml(lift.name())).append("</h1>")
+                    .append("<p><strong>Region:</strong> ").append(WebHtml.escapeHtml(lift.region().toString())).append("</p>")
+                    .append("<p><strong>Main type:</strong> ").append(WebHtml.escapeHtml(WebUiRenderer.formatMainType(lift))).append("</p>")
+                    .append("<p><strong>Muscles:</strong> ").append(WebHtml.escapeHtml(WebUiRenderer.joinList(lift.muscles().stream().map(Object::toString).toList()))).append("</p>")
+                    .append("<p><strong>Notes:</strong> ").append(WebHtml.escapeHtml(lift.notes() == null ? "" : lift.notes())).append("</p>")
                     .append("<h2>Executions</h2>");
 
             if (executions.isEmpty()) {
@@ -316,63 +96,20 @@ public class WebServerCli {
                 body.append("<table><thead><tr><th>Date</th><th>Sets</th><th>Notes</th></tr></thead><tbody>");
                 for (LiftExecution execution : executions) {
                     body.append("<tr><td>")
-                            .append(escapeHtml(DATE_FORMAT.format(execution.date())))
+                            .append(WebHtml.escapeHtml(WebUiRenderer.DATE_FORMAT.format(execution.date())))
                             .append("</td><td>")
-                            .append(escapeHtml(formatSets(execution.sets())))
+                            .append(WebHtml.escapeHtml(WebUiRenderer.formatSets(execution.sets())))
                             .append("</td><td>")
-                            .append(escapeHtml(execution.notes() == null ? "" : execution.notes()))
+                            .append(WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes()))
                             .append("</td></tr>");
                 }
                 body.append("</tbody></table>");
             }
 
-            sendHtml(exchange, wrapPage(lift.name(), body.toString()));
+            sendHtml(exchange, WebHtml.wrapPage(lift.name(), body.toString()));
         } catch (Exception e) {
-            sendHtml(exchange, wrapPage("Error", "<h1>Error loading lift</h1><pre>" + escapeHtml(e.getMessage()) + "</pre><p><a href='/'>Back</a></p>"));
+            sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error loading lift</h1><pre>" + WebHtml.escapeHtml(e.getMessage()) + "</pre><p><a href='/'>Back</a></p>"));
         }
-    }
-
-    private static String formatSets(List<ExecutionSet> sets) {
-        List<String> parts = new ArrayList<>();
-        for (ExecutionSet set : sets) {
-            String item = formatMetric(set.metric()) + " @ " + set.weight();
-            if (set.rpe() != null) {
-                item += " rpe " + String.format(Locale.ROOT, "%.1f", set.rpe());
-            }
-            parts.add(item);
-        }
-        return joinList(parts);
-    }
-
-
-    private static String formatMetric(com.lifttrax.models.SetMetric metric) {
-        if (metric instanceof com.lifttrax.models.SetMetric.Reps reps) {
-            return reps.reps() + " reps";
-        }
-        if (metric instanceof com.lifttrax.models.SetMetric.RepsLr repsLr) {
-            return repsLr.left() + "L/" + repsLr.right() + "R reps";
-        }
-        if (metric instanceof com.lifttrax.models.SetMetric.RepsRange range) {
-            return range.min() + "-" + range.max() + " reps";
-        }
-        if (metric instanceof com.lifttrax.models.SetMetric.TimeSecs timeSecs) {
-            return timeSecs.seconds() + " sec";
-        }
-        if (metric instanceof com.lifttrax.models.SetMetric.DistanceFeet distanceFeet) {
-            return distanceFeet.feet() + " ft";
-        }
-        return "unknown";
-    }
-
-    private static String formatMainType(Lift lift) {
-        if (lift == null || lift.main() == null) {
-            return "Unknown";
-        }
-        return lift.main().toDbValue();
-    }
-
-    private static String joinList(List<String> values) {
-        return String.join(", ", values);
     }
 
     private static Map<String, String> parseQuery(URI uri) {
@@ -392,10 +129,6 @@ public class WebServerCli {
             result.put(key, value);
         }
         return result;
-    }
-
-    private static String urlEncode(String value) {
-        return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private static String urlDecode(String value) {
@@ -418,53 +151,5 @@ public class WebServerCli {
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
         }
-    }
-
-    private static String wrapPage(String title, String body) {
-        return """
-                <!DOCTYPE html>
-                <html lang='en'>
-                <head>
-                  <meta charset='utf-8'/>
-                  <meta name='viewport' content='width=device-width, initial-scale=1'/>
-                  <title>%s</title>
-                  <style>
-                    body { font-family: sans-serif; margin: 2rem auto; max-width: 980px; padding: 0 1rem; background: #111827; color: #f9fafb; }
-                    a { color: #60a5fa; }
-                    input, button { padding: 0.5rem; border-radius: 0.35rem; border: 1px solid #374151; background: #1f2937; color: #f9fafb; }
-                    button { cursor: pointer; }
-                    table { border-collapse: collapse; width: 100%%; margin-top: 1rem; }
-                    th, td { border: 1px solid #374151; padding: 0.45rem; vertical-align: top; text-align: left; }
-                    code { background: #1f2937; padding: 0.15rem 0.35rem; border-radius: 0.25rem; }
-                    li { margin-bottom: 0.35rem; }
-                    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-                    .tab { border: 1px solid #374151; background: #111827; color: #d1d5db; padding: 0.45rem 0.8rem; border-radius: 999px; }
-                    .tab.is-active { border-color: #60a5fa; color: #60a5fa; }
-                    .tab-panel { display: none; border: 1px solid #374151; border-radius: 0.6rem; padding: 1rem; background: #0f172a; }
-                    .tab-panel.is-active { display: block; }
-                    .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; align-items: flex-start; }
-                    .tab-filter-bar label { display: flex; align-items: center; gap: 0.4rem; }
-                    .js-filter-muscle { min-width: 9rem; }
-                    .js-clear-filters { align-self: center; flex: 0 0 auto; white-space: nowrap; }
-                    .is-hidden { display: none; }
-                  </style>
-                </head>
-                <body>
-                %s
-                </body>
-                </html>
-                """.formatted(escapeHtml(title), body);
-    }
-
-    private static String escapeHtml(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
     }
 }
