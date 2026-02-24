@@ -268,14 +268,8 @@ final class WebUiRenderer {
 
         return """
                 %s
-                <div class='stacked-row'>
-                  <form method='get' action='/load-last-execution' class='inline-form'>
-                    <label>Lift
-                      <select name='lift'>%s</select>
-                    </label>
-                    <button type='submit'>Load Last</button>
-                  </form>
-                  <details>
+                <div class='add-actions'>
+                  <details class='new-lift-details'>
                     <summary>New Lift</summary>
                     <form method='post' action='/add-lift' class='new-lift-form'>
                       <label>Name <input type='text' name='name' required/></label>
@@ -311,6 +305,9 @@ final class WebUiRenderer {
                     <select name='lift'>%s</select>
                   </label>
                   <div class='stacked-row'>
+                    <button type='submit' formaction='/load-last-execution' formmethod='get' class='secondary'>Load Last</button>
+                  </div>
+                  <div class='stacked-row'>
                     <label>Weight <input type='text' name='weight' value='%s' placeholder='225 lb'/></label>
                     <label>Set Count <input type='number' min='1' name='setCount' value='%s'/></label>
                     <label>RPE <input type='number' step='0.1' min='1' max='10' name='rpe' value='%s' placeholder='8.5'/></label>
@@ -341,7 +338,6 @@ final class WebUiRenderer {
                 </form>
                 """.formatted(
                 status,
-                options,
                 options,
                 WebHtml.escapeHtml(prefill.weight()),
                 WebHtml.escapeHtml(prefill.setCount()),

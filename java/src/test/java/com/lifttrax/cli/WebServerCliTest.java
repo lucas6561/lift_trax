@@ -93,7 +93,7 @@ class WebServerCliTest {
         assertTrue(html.contains("Save Execution"));
         assertTrue(html.contains("action='/add-execution'"));
         assertTrue(html.contains("Load Last"));
-        assertTrue(html.contains("action='/load-last-execution'"));
+        assertTrue(html.contains("formaction='/load-last-execution'"));
         assertTrue(html.contains("New Lift"));
         assertTrue(html.contains("action='/add-lift'"));
         assertTrue(html.contains("name='metricType'"));
