@@ -60,7 +60,16 @@ class WebServerCliTest {
                 new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD, Muscle.GLUTE), ""),
                 new Lift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(Muscle.CHEST, Muscle.TRICEP), "")
         );
-        String html = WebUiRenderer.renderTabbedLayout(lifts, "", "Back Squat", "query", "<p>query result</p>", "Saved", "success");
+        String html = WebUiRenderer.renderTabbedLayout(
+                lifts,
+                "",
+                "Back Squat",
+                "query",
+                "<p>query result</p>",
+                "Saved",
+                "success",
+                WebUiRenderer.AddExecutionPrefill.empty()
+        );
 
         assertTrue(html.contains("Add Execution"));
         assertTrue(html.contains("Executions"));
@@ -83,6 +92,10 @@ class WebServerCliTest {
         assertTrue(html.contains("Back Squat"));
         assertTrue(html.contains("Save Execution"));
         assertTrue(html.contains("action='/add-execution'"));
+        assertTrue(html.contains("Load Last"));
+        assertTrue(html.contains("action='/load-last-execution'"));
+        assertTrue(html.contains("New Lift"));
+        assertTrue(html.contains("action='/add-lift'"));
         assertTrue(html.contains("name='metricType'"));
         assertTrue(html.contains("status success"));
     }

@@ -3,6 +3,9 @@ package com.lifttrax.cli;
 import com.lifttrax.db.SqliteDb;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
+import com.lifttrax.models.LiftRegion;
+import com.lifttrax.models.LiftType;
+import com.lifttrax.models.Muscle;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.SetMetric;
@@ -42,6 +46,8 @@ public class WebServerCli {
         server.createContext("/", exchange -> handleIndex(exchange, db));
         server.createContext("/lift", exchange -> handleLift(exchange, db));
         server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
+        server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
+        server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
         server.setExecutor(null);
         server.start();
 
@@ -62,6 +68,7 @@ public class WebServerCli {
             String activeTab = query.getOrDefault("tab", "add-execution").trim();
             String statusMessage = query.getOrDefault("status", "").trim();
             String statusType = query.getOrDefault("statusType", "").trim();
+            WebUiRenderer.AddExecutionPrefill prefill = parsePrefill(query);
 
             List<Lift> lifts;
             try {
@@ -73,7 +80,7 @@ public class WebServerCli {
                 statusMessage = "No lifts table found. Initialize or provide a populated database.";
             }
 
-            String body = WebUiRenderer.renderIndexBody(db, lifts, search, queryLift, activeTab, statusMessage, statusType);
+            String body = WebUiRenderer.renderIndexBody(db, lifts, search, queryLift, activeTab, statusMessage, statusType, prefill);
             sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
         } catch (Exception e) {
             sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(e.getMessage()) + "</pre>"));
@@ -118,9 +125,131 @@ public class WebServerCli {
                     form.getOrDefault("notes", "")
             );
             db.addLiftExecution(liftName, execution);
-            redirect(exchange, "/?tab=add-execution&statusType=success&status=Execution%20saved");
+            redirect(exchange, "/?tab=add-execution&statusType=success&status=Execution%20saved&prefillLift=" + WebUiRenderer.urlEncode(liftName));
         } catch (Exception e) {
             redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to save execution: " + e.getMessage()));
+        }
+    }
+
+    private static void handleLoadLastExecution(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        try {
+            Map<String, String> query = parseQuery(exchange.getRequestURI());
+            String liftName = query.getOrDefault("lift", "").trim();
+            if (liftName.isBlank()) {
+                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required%20for%20Load%20Last");
+                return;
+            }
+
+            List<LiftExecution> executions = db.getExecutions(liftName);
+            if (executions.isEmpty()) {
+                redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("No prior executions for " + liftName) + "&prefillLift=" + WebUiRenderer.urlEncode(liftName));
+                return;
+            }
+
+            LiftExecution last = executions.get(0);
+            StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=success&status=Loaded%20last%20execution");
+            redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
+            redirectUrl.append("&prefillWeight=").append(WebUiRenderer.urlEncode(last.sets().isEmpty() ? "" : safe(last.sets().get(0).weight())));
+            redirectUrl.append("&prefillSetCount=").append(last.sets().size());
+            redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(LocalDate.now().toString()));
+            redirectUrl.append("&prefillWarmup=").append(last.warmup());
+            redirectUrl.append("&prefillDeload=").append(last.deload());
+            redirectUrl.append("&prefillNotes=").append(WebUiRenderer.urlEncode(safe(last.notes())));
+            if (!last.sets().isEmpty()) {
+                ExecutionSet first = last.sets().get(0);
+                redirectUrl.append("&prefillRpe=").append(WebUiRenderer.urlEncode(first.rpe() == null ? "" : String.format(Locale.ROOT, "%s", first.rpe())));
+                applyMetricPrefill(redirectUrl, first.metric());
+            }
+
+            redirect(exchange, redirectUrl.toString());
+        } catch (Exception e) {
+            redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to load execution: " + e.getMessage()));
+        }
+    }
+
+    private static void handleAddLift(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        try {
+            Map<String, String> form = parseForm(exchange.getRequestBody());
+            String name = form.getOrDefault("name", "").trim();
+            if (name.isBlank()) {
+                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20name%20is%20required");
+                return;
+            }
+
+            LiftRegion region = LiftRegion.fromString(form.getOrDefault("region", "UPPER"));
+            LiftType main = LiftType.fromDbValue(form.getOrDefault("main", "none"));
+            List<Muscle> muscles = parseMuscles(form.get("muscles"));
+            String notes = form.getOrDefault("notes", "");
+
+            db.addLift(name, region, main, muscles, notes);
+            redirect(exchange, "/?tab=add-execution&statusType=success&status=" + WebUiRenderer.urlEncode("Created lift: " + name) + "&prefillLift=" + WebUiRenderer.urlEncode(name));
+        } catch (Exception e) {
+            redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to create lift: " + e.getMessage()));
+        }
+    }
+
+    private static List<Muscle> parseMuscles(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return List.of(value.split(",")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .map(Muscle::fromString)
+                .collect(Collectors.toList());
+    }
+
+    private static WebUiRenderer.AddExecutionPrefill parsePrefill(Map<String, String> query) {
+        return new WebUiRenderer.AddExecutionPrefill(
+                query.getOrDefault("prefillLift", ""),
+                query.getOrDefault("prefillWeight", ""),
+                query.getOrDefault("prefillSetCount", "1"),
+                query.getOrDefault("prefillRpe", ""),
+                query.getOrDefault("prefillMetricType", "reps"),
+                query.getOrDefault("prefillMetricValue", "5"),
+                query.getOrDefault("prefillMetricLeft", "5"),
+                query.getOrDefault("prefillMetricRight", "5"),
+                query.getOrDefault("prefillDate", ""),
+                Boolean.parseBoolean(query.getOrDefault("prefillWarmup", "false")),
+                Boolean.parseBoolean(query.getOrDefault("prefillDeload", "false")),
+                query.getOrDefault("prefillNotes", "")
+        );
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static void applyMetricPrefill(StringBuilder redirectUrl, SetMetric metric) {
+        if (metric instanceof SetMetric.Reps reps) {
+            redirectUrl.append("&prefillMetricType=reps");
+            redirectUrl.append("&prefillMetricValue=").append(reps.reps());
+            return;
+        }
+        if (metric instanceof SetMetric.RepsLr repsLr) {
+            redirectUrl.append("&prefillMetricType=reps-lr");
+            redirectUrl.append("&prefillMetricLeft=").append(repsLr.left());
+            redirectUrl.append("&prefillMetricRight=").append(repsLr.right());
+            return;
+        }
+        if (metric instanceof SetMetric.TimeSecs timeSecs) {
+            redirectUrl.append("&prefillMetricType=time");
+            redirectUrl.append("&prefillMetricValue=").append(timeSecs.seconds());
+            return;
+        }
+        if (metric instanceof SetMetric.DistanceFeet distanceFeet) {
+            redirectUrl.append("&prefillMetricType=distance");
+            redirectUrl.append("&prefillMetricValue=").append(distanceFeet.feet());
         }
     }
 

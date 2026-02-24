@@ -24,13 +24,32 @@ final class WebUiRenderer {
     private WebUiRenderer() {
     }
 
-    static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab, String statusMessage, String statusType) {
-        return renderTabbedLayout(lifts, search, queryLift, activeTab, renderQueryContent(db, queryLift), statusMessage, statusType);
+    record AddExecutionPrefill(
+            String lift,
+            String weight,
+            String setCount,
+            String rpe,
+            String metricType,
+            String metricValue,
+            String metricLeft,
+            String metricRight,
+            String date,
+            boolean warmup,
+            boolean deload,
+            String notes
+    ) {
+        static AddExecutionPrefill empty() {
+            return new AddExecutionPrefill("", "", "1", "", "reps", "5", "5", "5", "", false, false, "");
+        }
     }
 
-    static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab, String queryContent, String statusMessage, String statusType) {
+    static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab, String statusMessage, String statusType, AddExecutionPrefill prefill) {
+        return renderTabbedLayout(lifts, search, queryLift, activeTab, renderQueryContent(db, queryLift), statusMessage, statusType, prefill);
+    }
+
+    static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab, String queryContent, String statusMessage, String statusType, AddExecutionPrefill prefill) {
         String filterControls = renderFilterControls(lifts, search);
-        String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType);
+        String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType, prefill);
         String executionContent = renderLiftList(lifts, search, "Recorded lifts:");
         String queryControls = renderQueryControls(lifts, queryLift);
         String lastWeekContent = renderLiftList(lifts, search, "Filter lifts for last-week view:");
@@ -122,8 +141,7 @@ final class WebUiRenderer {
                         item.classList.toggle('is-hidden', !matchesFilters(itemName, itemRegion, itemMain, itemMuscles));
                       });
 
-                      const querySelect = panel.querySelector("select[name='queryLift']");
-                      if (querySelect) {
+                      panel.querySelectorAll("select[name='queryLift'], select[name='lift']").forEach((querySelect) => {
                         let hasVisibleSelection = false;
                         let firstVisibleValue = '';
                         Array.from(querySelect.options).forEach((option) => {
@@ -148,7 +166,7 @@ final class WebUiRenderer {
                         if (!hasVisibleSelection && firstVisibleValue) {
                           querySelect.value = firstVisibleValue;
                         }
-                      }
+                      });
                     }
 
                     function clearPanelFilters(panel) {
@@ -215,9 +233,11 @@ final class WebUiRenderer {
         );
     }
 
-    static String renderAddExecutionForm(List<Lift> lifts, String statusMessage, String statusType) {
+    static String renderAddExecutionForm(List<Lift> lifts, String statusMessage, String statusType, AddExecutionPrefill prefillInput) {
+        AddExecutionPrefill prefill = prefillInput == null ? AddExecutionPrefill.empty() : prefillInput;
         StringBuilder options = new StringBuilder("<option value=''>Select a lift</option>");
         for (Lift lift : lifts) {
+            boolean selected = lift.name().equals(prefill.lift());
             options.append("<option value='")
                     .append(WebHtml.escapeHtml(lift.name()))
                     .append("' data-filter-option data-name='")
@@ -228,7 +248,9 @@ final class WebUiRenderer {
                     .append(WebHtml.escapeHtml(formatMainType(lift)))
                     .append("' data-muscles='")
                     .append(WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(","))))
-                    .append("'>")
+                    .append("'")
+                    .append(selected ? " selected" : "")
+                    .append(">")
                     .append(WebHtml.escapeHtml(lift.name()))
                     .append("</option>");
         }
@@ -239,42 +261,103 @@ final class WebUiRenderer {
             status = "<p class='" + cssClass + "'>" + WebHtml.escapeHtml(statusMessage) + "</p>";
         }
 
+        String repsChecked = "reps".equals(prefill.metricType()) ? "checked" : "";
+        String repsLrChecked = "reps-lr".equals(prefill.metricType()) ? "checked" : "";
+        String timeChecked = "time".equals(prefill.metricType()) ? "checked" : "";
+        String distanceChecked = "distance".equals(prefill.metricType()) ? "checked" : "";
+
         return """
                 %s
+                <div class='stacked-row'>
+                  <form method='get' action='/load-last-execution' class='inline-form'>
+                    <label>Lift
+                      <select name='lift'>%s</select>
+                    </label>
+                    <button type='submit'>Load Last</button>
+                  </form>
+                  <details>
+                    <summary>New Lift</summary>
+                    <form method='post' action='/add-lift' class='new-lift-form'>
+                      <label>Name <input type='text' name='name' required/></label>
+                      <label>Region
+                        <select name='region'>
+                          <option value='UPPER'>UPPER</option>
+                          <option value='LOWER'>LOWER</option>
+                        </select>
+                      </label>
+                      <label>Main
+                        <select name='main'>
+                          <option value='ACCESSORY'>ACCESSORY</option>
+                          <option value='BENCH PRESS'>BENCH PRESS</option>
+                          <option value='CONDITIONING'>CONDITIONING</option>
+                          <option value='DEADLIFT'>DEADLIFT</option>
+                          <option value='MOBILITY'>MOBILITY</option>
+                          <option value='OVERHEAD PRESS'>OVERHEAD PRESS</option>
+                          <option value='SQUAT'>SQUAT</option>
+                        </select>
+                      </label>
+                      <label>Muscles
+                        <input type='text' name='muscles' placeholder='QUAD,GLUTE'/>
+                      </label>
+                      <label>Notes
+                        <input type='text' name='notes' placeholder='Optional notes'/>
+                      </label>
+                      <button type='submit'>Create Lift</button>
+                    </form>
+                  </details>
+                </div>
                 <form method='post' action='/add-execution' class='add-execution-form'>
                   <label>Lift
                     <select name='lift'>%s</select>
                   </label>
                   <div class='stacked-row'>
-                    <label>Weight <input type='text' name='weight' placeholder='225 lb'/></label>
-                    <label>Set Count <input type='number' min='1' name='setCount' value='1'/></label>
-                    <label>RPE <input type='number' step='0.1' min='1' max='10' name='rpe' placeholder='8.5'/></label>
+                    <label>Weight <input type='text' name='weight' value='%s' placeholder='225 lb'/></label>
+                    <label>Set Count <input type='number' min='1' name='setCount' value='%s'/></label>
+                    <label>RPE <input type='number' step='0.1' min='1' max='10' name='rpe' value='%s' placeholder='8.5'/></label>
                   </div>
                   <fieldset>
                     <legend>Metric</legend>
                     <div class='segmented'>
-                      <label><input type='radio' name='metricType' value='reps' checked/> Reps</label>
-                      <label><input type='radio' name='metricType' value='reps-lr'/> L/R Reps</label>
-                      <label><input type='radio' name='metricType' value='time'/> Seconds</label>
-                      <label><input type='radio' name='metricType' value='distance'/> Feet</label>
+                      <label><input type='radio' name='metricType' value='reps' %s/> Reps</label>
+                      <label><input type='radio' name='metricType' value='reps-lr' %s/> L/R Reps</label>
+                      <label><input type='radio' name='metricType' value='time' %s/> Seconds</label>
+                      <label><input type='radio' name='metricType' value='distance' %s/> Feet</label>
                     </div>
                     <div class='stacked-row'>
-                      <label class='metric-single'>Value <input type='number' min='1' name='metricValue' value='5'/></label>
-                      <label class='metric-lr is-hidden'>Left <input type='number' min='1' name='metricLeft' value='5'/></label>
-                      <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='5'/></label>
+                      <label class='metric-single'>Value <input type='number' min='1' name='metricValue' value='%s'/></label>
+                      <label class='metric-lr is-hidden'>Left <input type='number' min='1' name='metricLeft' value='%s'/></label>
+                      <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='%s'/></label>
                     </div>
                   </fieldset>
                   <div class='stacked-row'>
-                    <label>Date <input type='date' name='date'/></label>
-                    <label><input type='checkbox' name='warmup'/> Warm-up</label>
-                    <label><input type='checkbox' name='deload'/> Deload</label>
+                    <label>Date <input type='date' name='date' value='%s'/></label>
+                    <label><input type='checkbox' name='warmup' %s/> Warm-up</label>
+                    <label><input type='checkbox' name='deload' %s/> Deload</label>
                   </div>
                   <label>Notes
-                    <input type='text' name='notes' placeholder='Optional notes'/>
+                    <input type='text' name='notes' value='%s' placeholder='Optional notes'/>
                   </label>
                   <button type='submit'>Save Execution</button>
                 </form>
-                """.formatted(status, options);
+                """.formatted(
+                status,
+                options,
+                options,
+                WebHtml.escapeHtml(prefill.weight()),
+                WebHtml.escapeHtml(prefill.setCount()),
+                WebHtml.escapeHtml(prefill.rpe()),
+                repsChecked,
+                repsLrChecked,
+                timeChecked,
+                distanceChecked,
+                WebHtml.escapeHtml(prefill.metricValue()),
+                WebHtml.escapeHtml(prefill.metricLeft()),
+                WebHtml.escapeHtml(prefill.metricRight()),
+                WebHtml.escapeHtml(prefill.date()),
+                prefill.warmup() ? "checked" : "",
+                prefill.deload() ? "checked" : "",
+                WebHtml.escapeHtml(prefill.notes())
+        );
     }
 
     static String renderQueryControls(List<Lift> lifts, String selectedLift) {
