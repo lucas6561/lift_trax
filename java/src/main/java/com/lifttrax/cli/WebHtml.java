@@ -33,6 +33,13 @@ final class WebHtml {
                     .query-form { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
                     .query-form label { display: flex; align-items: center; gap: 0.4rem; }
                     .query-output { background: #020617; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.8rem; white-space: pre-wrap; }
+                    .add-execution-form { display: flex; flex-direction: column; gap: 0.75rem; max-width: 760px; }
+                    .add-execution-form fieldset { border: 1px solid #334155; border-radius: 0.5rem; padding: 0.7rem; }
+                    .segmented { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+                    .stacked-row { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
+                    .status { border-radius: 0.45rem; padding: 0.55rem 0.7rem; font-weight: 600; }
+                    .status.success { border: 1px solid #15803d; color: #86efac; background: #052e16; }
+                    .status.error { border: 1px solid #b91c1c; color: #fca5a5; background: #450a0a; }
                     .is-hidden { display: none; }
                   </style>
                 </head>

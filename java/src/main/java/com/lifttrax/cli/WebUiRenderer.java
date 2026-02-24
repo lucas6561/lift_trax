@@ -24,13 +24,13 @@ final class WebUiRenderer {
     private WebUiRenderer() {
     }
 
-    static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab) {
-        return renderTabbedLayout(lifts, search, queryLift, activeTab, renderQueryContent(db, queryLift));
+    static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab, String statusMessage, String statusType) {
+        return renderTabbedLayout(lifts, search, queryLift, activeTab, renderQueryContent(db, queryLift), statusMessage, statusType);
     }
 
-    static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab, String queryContent) {
+    static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab, String queryContent, String statusMessage, String statusType) {
         String filterControls = renderFilterControls(lifts, search);
-        String addExecutionContent = renderLiftList(lifts, search, "Choose a lift to start an execution:");
+        String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType);
         String executionContent = renderLiftList(lifts, search, "Recorded lifts:");
         String queryControls = renderQueryControls(lifts, queryLift);
         String lastWeekContent = renderLiftList(lifts, search, "Filter lifts for last-week view:");
@@ -181,6 +181,24 @@ final class WebUiRenderer {
 
                       applyPanelFilters(panel);
                     });
+
+                    function syncMetricInputs() {
+                      const metricType = document.querySelector("input[name='metricType']:checked");
+                      const single = document.querySelector('.metric-single');
+                      const lr = document.querySelectorAll('.metric-lr');
+                      if (!metricType || !single || lr.length === 0) {
+                        return;
+                      }
+
+                      const isLr = metricType.value === 'reps-lr';
+                      single.classList.toggle('is-hidden', isLr);
+                      lr.forEach((item) => item.classList.toggle('is-hidden', !isLr));
+                    }
+
+                    document.querySelectorAll("input[name='metricType']").forEach((item) => {
+                      item.addEventListener('change', syncMetricInputs);
+                    });
+                    syncMetricInputs();
                   })();
                 </script>
                 """.formatted(
@@ -195,6 +213,68 @@ final class WebUiRenderer {
                 filterControls,
                 lastWeekContent
         );
+    }
+
+    static String renderAddExecutionForm(List<Lift> lifts, String statusMessage, String statusType) {
+        StringBuilder options = new StringBuilder("<option value=''>Select a lift</option>");
+        for (Lift lift : lifts) {
+            options.append("<option value='")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append("' data-filter-option data-name='")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append("' data-region='")
+                    .append(WebHtml.escapeHtml(lift.region().toString()))
+                    .append("' data-main='")
+                    .append(WebHtml.escapeHtml(formatMainType(lift)))
+                    .append("' data-muscles='")
+                    .append(WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(","))))
+                    .append("'>")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append("</option>");
+        }
+
+        String status = "";
+        if (statusMessage != null && !statusMessage.isBlank()) {
+            String cssClass = "error".equalsIgnoreCase(statusType) ? "status error" : "status success";
+            status = "<p class='" + cssClass + "'>" + WebHtml.escapeHtml(statusMessage) + "</p>";
+        }
+
+        return """
+                %s
+                <form method='post' action='/add-execution' class='add-execution-form'>
+                  <label>Lift
+                    <select name='lift'>%s</select>
+                  </label>
+                  <div class='stacked-row'>
+                    <label>Weight <input type='text' name='weight' placeholder='225 lb'/></label>
+                    <label>Set Count <input type='number' min='1' name='setCount' value='1'/></label>
+                    <label>RPE <input type='number' step='0.1' min='1' max='10' name='rpe' placeholder='8.5'/></label>
+                  </div>
+                  <fieldset>
+                    <legend>Metric</legend>
+                    <div class='segmented'>
+                      <label><input type='radio' name='metricType' value='reps' checked/> Reps</label>
+                      <label><input type='radio' name='metricType' value='reps-lr'/> L/R Reps</label>
+                      <label><input type='radio' name='metricType' value='time'/> Seconds</label>
+                      <label><input type='radio' name='metricType' value='distance'/> Feet</label>
+                    </div>
+                    <div class='stacked-row'>
+                      <label class='metric-single'>Value <input type='number' min='1' name='metricValue' value='5'/></label>
+                      <label class='metric-lr is-hidden'>Left <input type='number' min='1' name='metricLeft' value='5'/></label>
+                      <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='5'/></label>
+                    </div>
+                  </fieldset>
+                  <div class='stacked-row'>
+                    <label>Date <input type='date' name='date'/></label>
+                    <label><input type='checkbox' name='warmup'/> Warm-up</label>
+                    <label><input type='checkbox' name='deload'/> Deload</label>
+                  </div>
+                  <label>Notes
+                    <input type='text' name='notes' placeholder='Optional notes'/>
+                  </label>
+                  <button type='submit'>Save Execution</button>
+                </form>
+                """.formatted(status, options);
     }
 
     static String renderQueryControls(List<Lift> lifts, String selectedLift) {

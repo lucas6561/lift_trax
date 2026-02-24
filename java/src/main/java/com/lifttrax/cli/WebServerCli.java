@@ -8,16 +8,22 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+
+import com.lifttrax.models.ExecutionSet;
+import com.lifttrax.models.SetMetric;
 
 public class WebServerCli {
     public static void main(String[] args) throws Exception {
@@ -35,6 +41,7 @@ public class WebServerCli {
         HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
         server.createContext("/", exchange -> handleIndex(exchange, db));
         server.createContext("/lift", exchange -> handleLift(exchange, db));
+        server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
         server.setExecutor(null);
         server.start();
 
@@ -53,15 +60,101 @@ public class WebServerCli {
             String search = query.getOrDefault("q", "").trim().toLowerCase(Locale.ROOT);
             String queryLift = query.getOrDefault("queryLift", "").trim();
             String activeTab = query.getOrDefault("tab", "add-execution").trim();
+            String statusMessage = query.getOrDefault("status", "").trim();
+            String statusType = query.getOrDefault("statusType", "").trim();
 
-            List<Lift> lifts = new ArrayList<>(db.listLifts());
-            lifts.sort(Comparator.comparing(Lift::name));
+            List<Lift> lifts;
+            try {
+                lifts = new ArrayList<>(db.listLifts());
+                lifts.sort(Comparator.comparing(Lift::name));
+            } catch (Exception listError) {
+                lifts = List.of();
+                statusType = "error";
+                statusMessage = "No lifts table found. Initialize or provide a populated database.";
+            }
 
-            String body = WebUiRenderer.renderIndexBody(db, lifts, search, queryLift, activeTab);
+            String body = WebUiRenderer.renderIndexBody(db, lifts, search, queryLift, activeTab, statusMessage, statusType);
             sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
         } catch (Exception e) {
             sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(e.getMessage()) + "</pre>"));
         }
+    }
+
+    private static void handleAddExecution(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        try {
+            Map<String, String> form = parseForm(exchange.getRequestBody());
+            String liftName = form.getOrDefault("lift", "").trim();
+            if (liftName.isBlank()) {
+                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required");
+                return;
+            }
+
+            LocalDate date = Optional.ofNullable(form.get("date"))
+                    .filter(value -> !value.isBlank())
+                    .map(LocalDate::parse)
+                    .orElse(LocalDate.now());
+
+            int setCount = parsePositiveInt(form.getOrDefault("setCount", "1"), "Set count");
+            SetMetric metric = parseMetric(form);
+            String weight = form.getOrDefault("weight", "").trim();
+            Float rpe = parseOptionalFloat(form.get("rpe"));
+
+            List<ExecutionSet> sets = new ArrayList<>();
+            for (int i = 0; i < setCount; i++) {
+                sets.add(new ExecutionSet(metric, weight, rpe));
+            }
+
+            LiftExecution execution = new LiftExecution(
+                    null,
+                    date,
+                    sets,
+                    form.containsKey("warmup"),
+                    form.containsKey("deload"),
+                    form.getOrDefault("notes", "")
+            );
+            db.addLiftExecution(liftName, execution);
+            redirect(exchange, "/?tab=add-execution&statusType=success&status=Execution%20saved");
+        } catch (Exception e) {
+            redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to save execution: " + e.getMessage()));
+        }
+    }
+
+    private static int parsePositiveInt(String value, String fieldName) {
+        int parsed = Integer.parseInt(value.trim());
+        if (parsed <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be greater than 0");
+        }
+        return parsed;
+    }
+
+    private static Float parseOptionalFloat(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return Float.parseFloat(value.trim());
+    }
+
+    private static SetMetric parseMetric(Map<String, String> form) {
+        String metricType = form.getOrDefault("metricType", "reps").trim();
+        return switch (metricType) {
+            case "reps-lr" -> new SetMetric.RepsLr(
+                    parsePositiveInt(form.getOrDefault("metricLeft", ""), "Left reps"),
+                    parsePositiveInt(form.getOrDefault("metricRight", ""), "Right reps")
+            );
+            case "time" -> new SetMetric.TimeSecs(parsePositiveInt(form.getOrDefault("metricValue", ""), "Seconds"));
+            case "distance" -> new SetMetric.DistanceFeet(parsePositiveInt(form.getOrDefault("metricValue", ""), "Feet"));
+            default -> new SetMetric.Reps(parsePositiveInt(form.getOrDefault("metricValue", ""), "Reps"));
+        };
+    }
+
+    private static Map<String, String> parseForm(InputStream body) throws IOException {
+        String form = new String(body.readAllBytes(), StandardCharsets.UTF_8);
+        return parseQuery(URI.create("/?" + form));
     }
 
     private static void handleLift(HttpExchange exchange, SqliteDb db) throws IOException {
@@ -142,6 +235,12 @@ public class WebServerCli {
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
         }
+    }
+
+    private static void redirect(HttpExchange exchange, String location) throws IOException {
+        exchange.getResponseHeaders().add("Location", location);
+        exchange.sendResponseHeaders(303, -1);
+        exchange.close();
     }
 
     private static void sendText(HttpExchange exchange, int status, String text) throws IOException {
