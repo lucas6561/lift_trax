@@ -111,6 +111,38 @@ class WebServerCliTest {
     }
 
     @Test
+    void addExecutionPrefillUsesSimpleWeightModeForPlainWeight() {
+        List<Lift> lifts = List.of(
+                new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "")
+        );
+        WebUiRenderer.AddExecutionPrefill prefill = new WebUiRenderer.AddExecutionPrefill(
+                "Back Squat", "185 lb", "1", "", "reps", "5", "5", "5", "", false, false, ""
+        );
+
+        String html = WebUiRenderer.renderAddExecutionForm(lifts, "", "", prefill);
+
+        assertTrue(html.contains("name='weightMode' value='weight' checked"));
+        assertTrue(html.contains("name='weightMode' value='custom'"));
+        assertTrue(html.contains("name='weightValue' value='185'"));
+        assertTrue(html.contains("<option value='lb' selected>lb</option>"));
+    }
+
+    @Test
+    void addExecutionPrefillUsesCustomModeForComplexWeight() {
+        List<Lift> lifts = List.of(
+                new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "")
+        );
+        WebUiRenderer.AddExecutionPrefill prefill = new WebUiRenderer.AddExecutionPrefill(
+                "Back Squat", "185 lb+40c", "1", "", "reps", "5", "5", "5", "", false, false, ""
+        );
+
+        String html = WebUiRenderer.renderAddExecutionForm(lifts, "", "", prefill);
+
+        assertTrue(html.contains("name='weightMode' value='custom' checked"));
+        assertTrue(html.contains("name='customWeight' value='185 lb+40c'"));
+    }
+
+    @Test
     void selectExecutionForFlagsMatchesWarmupAndDeload() {
         LiftExecution normal = new LiftExecution(1, LocalDate.parse("2026-01-01"), List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", null)), false, false, "");
         LiftExecution warmup = new LiftExecution(2, LocalDate.parse("2026-01-02"), List.of(new ExecutionSet(new SetMetric.Reps(3), "185 lb", null)), true, false, "");

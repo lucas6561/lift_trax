@@ -16,10 +16,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 final class WebUiRenderer {
     static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final Pattern SIMPLE_WEIGHT_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(lb|kg)\\s*$", Pattern.CASE_INSENSITIVE);
 
     private WebUiRenderer() {
     }
@@ -439,12 +442,20 @@ final class WebUiRenderer {
             status = "<p class='" + cssClass + "'>" + WebHtml.escapeHtml(statusMessage) + "</p>";
         }
 
+        String weightText = prefill.weight() == null ? "" : prefill.weight().trim();
+        Matcher simpleWeightMatcher = SIMPLE_WEIGHT_PATTERN.matcher(weightText);
+        boolean isSimpleWeight = simpleWeightMatcher.matches();
+        String weightValuePrefill = isSimpleWeight ? simpleWeightMatcher.group(1) : "";
+        String weightUnitPrefill = isSimpleWeight ? simpleWeightMatcher.group(2).toLowerCase(Locale.ROOT) : "lb";
+
         String repsChecked = "reps".equals(prefill.metricType()) ? "checked" : "";
         String repsLrChecked = "reps-lr".equals(prefill.metricType()) ? "checked" : "";
         String timeChecked = "time".equals(prefill.metricType()) ? "checked" : "";
         String distanceChecked = "distance".equals(prefill.metricType()) ? "checked" : "";
-        String customWeightChecked = (prefill.weight() != null && !prefill.weight().isBlank()) ? "checked" : "";
+        String customWeightChecked = (!weightText.isBlank() && !isSimpleWeight) ? "checked" : "";
         String standardWeightChecked = customWeightChecked.isBlank() ? "checked" : "";
+        String weightUnitLbSelected = "lb".equals(weightUnitPrefill) ? " selected" : "";
+        String weightUnitKgSelected = "kg".equals(weightUnitPrefill) ? " selected" : "";
 
         return """
                 %s
@@ -500,9 +511,9 @@ final class WebUiRenderer {
                       <label><input type='radio' name='weightMode' value='custom' %s/> Custom</label>
                     </div>
                     <div class='stacked-row weight-weight'>
-                      <label>Weight <input type='number' step='0.5' min='0' name='weightValue' placeholder='225'/></label>
+                      <label>Weight <input type='number' step='0.5' min='0' name='weightValue' value='%s' placeholder='225'/></label>
                       <label>Unit
-                        <select name='weightUnit'><option value='lb'>lb</option><option value='kg'>kg</option></select>
+                        <select name='weightUnit'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
                       </label>
                     </div>
                     <div class='stacked-row weight-lr is-hidden'>
@@ -570,6 +581,9 @@ final class WebUiRenderer {
                 WebHtml.escapeHtml(prefill.weight()),
                 standardWeightChecked,
                 customWeightChecked,
+                WebHtml.escapeHtml(weightValuePrefill),
+                weightUnitLbSelected,
+                weightUnitKgSelected,
                 WebHtml.escapeHtml(prefill.weight()),
                 WebHtml.escapeHtml(prefill.setCount()),
                 WebHtml.escapeHtml(prefill.rpe()),
