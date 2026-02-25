@@ -68,13 +68,19 @@ class WebServerCliTest {
                 "Back Squat",
                 "query",
                 "<p>query result</p>",
+                "<p>last week result</p>",
+                "<p>wave result</p>",
                 "Saved",
                 "success",
-                WebUiRenderer.AddExecutionPrefill.empty()
+                WebUiRenderer.AddExecutionPrefill.empty(),
+                LocalDate.parse("2026-01-01"),
+                LocalDate.parse("2026-01-07"),
+                6
         );
 
         assertTrue(html.contains("Add Execution"));
         assertTrue(html.contains("Executions"));
+        assertTrue(html.contains("Workout Waves"));
         assertTrue(html.contains("Query"));
         assertTrue(html.contains("Last Week"));
         assertTrue(html.contains("data-initial-tab='query'"));
@@ -88,6 +94,14 @@ class WebServerCliTest {
         assertTrue(html.contains("js-filter-muscle"));
         assertTrue(html.contains("multiple"));
         assertTrue(html.contains("js-clear-filters"));
+        assertTrue(html.contains("name='waveWeeks'"));
+        assertTrue(html.contains("Generate Wave"));
+        assertTrue(html.contains("name='lastWeekStart' value='2026-01-01'"));
+        assertTrue(html.contains("name='lastWeekEnd' value='2026-01-07'"));
+        assertTrue(html.contains("← Previous Week"));
+        assertTrue(html.contains("Current Week"));
+        assertTrue(html.contains("last week result"));
+        assertTrue(html.contains("wave result"));
         assertTrue(html.contains("data-muscles='QUAD,GLUTE'"));
         assertTrue(html.contains("<option value='QUAD'>QUAD</option>"));
         assertTrue(html.contains("Hold Ctrl/Cmd to select multiple"));

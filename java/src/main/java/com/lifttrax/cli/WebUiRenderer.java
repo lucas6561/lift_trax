@@ -7,6 +7,8 @@ import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.workout.ConjugateWorkoutBuilder;
+import com.lifttrax.workout.WaveMarkdownWriter;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -149,21 +151,30 @@ final class WebUiRenderer {
         return html.toString();
     }
 
-    static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab, String statusMessage, String statusType, AddExecutionPrefill prefill) {
-        return renderTabbedLayout(lifts, search, queryLift, activeTab, renderQueryContent(db, queryLift), statusMessage, statusType, prefill);
+    static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab,
+                                  String statusMessage, String statusType, AddExecutionPrefill prefill,
+                                  LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks) {
+        String queryContent = renderQueryContent(db, queryLift);
+        String lastWeekContent = renderLastWeekContent(db, lifts, lastWeekStart, lastWeekEnd);
+        String waveContent = renderWaveContent(db, waveWeeks);
+        return renderTabbedLayout(lifts, search, queryLift, activeTab, queryContent, lastWeekContent, waveContent,
+                statusMessage, statusType, prefill, lastWeekStart, lastWeekEnd, waveWeeks);
     }
 
-    static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab, String queryContent, String statusMessage, String statusType, AddExecutionPrefill prefill) {
+    static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab,
+                                     String queryContent, String lastWeekContent, String waveContent,
+                                     String statusMessage, String statusType, AddExecutionPrefill prefill,
+                                     LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks) {
         String filterControls = renderFilterControls(lifts, search);
         String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType, prefill);
         String executionContent = renderLiftList(lifts, search, "Recorded lifts:");
         String queryControls = renderQueryControls(lifts, queryLift);
-        String lastWeekContent = renderLiftList(lifts, search, "Filter lifts for last-week view:");
 
         return """
                 <div class='tabbed-ui' data-initial-tab='%s'>
                   <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
                     <button class='tab is-active' role='tab' type='button' data-tab='add-execution' aria-selected='true'>Add Execution</button>
+                    <button class='tab' role='tab' type='button' data-tab='waves' aria-selected='false'>Workout Waves</button>
                     <button class='tab' role='tab' type='button' data-tab='executions' aria-selected='false'>Executions</button>
                     <button class='tab' role='tab' type='button' data-tab='query' aria-selected='false'>Query</button>
                     <button class='tab' role='tab' type='button' data-tab='last-week' aria-selected='false'>Last Week</button>
@@ -177,6 +188,15 @@ final class WebUiRenderer {
                     %s
                     %s
                   </section>
+                  <section class='tab-panel' data-panel='waves' role='tabpanel'>
+                    <h2>Workout Waves</h2>
+                    <form method='get' action='/' class='query-form'>
+                      <input type='hidden' name='tab' value='waves'/>
+                      <label>Weeks <input type='number' name='waveWeeks' min='1' max='24' value='%s'/></label>
+                      <button type='submit'>Generate Wave</button>
+                    </form>
+                    %s
+                  </section>
                   <section class='tab-panel' data-panel='query' role='tabpanel'>
                     <h2>Query</h2>
                     %s
@@ -185,6 +205,16 @@ final class WebUiRenderer {
                   </section>
                   <section class='tab-panel' data-panel='last-week' role='tabpanel'>
                     <h2>Last Week</h2>
+                    <form method='get' action='/' class='query-form'>
+                      <input type='hidden' name='tab' value='last-week'/>
+                      <label>Start <input type='date' name='lastWeekStart' value='%s'/></label>
+                      <label>End <input type='date' name='lastWeekEnd' value='%s'/></label>
+                      <button type='submit'>Apply</button>
+                      <button type='submit' name='lastWeekNav' value='prev'>← Previous Week</button>
+                      <button type='submit' name='lastWeekNav' value='next'>Next Week →</button>
+                      <button type='submit' name='lastWeekNav' value='current'>Current Week</button>
+                      <button type='submit' name='lastWeekNav' value='last'>Last Week</button>
+                    </form>
                     %s
                     %s
                   </section>
@@ -510,12 +540,71 @@ final class WebUiRenderer {
                 addExecutionContent,
                 filterControls,
                 executionContent,
+                String.valueOf(Math.max(1, waveWeeks)),
+                waveContent,
                 filterControls,
                 queryControls,
                 queryContent,
+                WebHtml.escapeHtml(lastWeekStart.toString()),
+                WebHtml.escapeHtml(lastWeekEnd.toString()),
                 filterControls,
                 lastWeekContent
         );
+    }
+
+    static String renderWaveContent(SqliteDb db, int weeks) {
+        int normalizedWeeks = Math.max(1, weeks);
+        try {
+            ConjugateWorkoutBuilder builder = new ConjugateWorkoutBuilder();
+            List<String> markdown = WaveMarkdownWriter.createMarkdown(builder.getWave(normalizedWeeks, db), db);
+            return "<pre class='query-output'>" + WebHtml.escapeHtml(String.join("\n", markdown)) + "</pre>";
+        } catch (Exception e) {
+            return "<p class='status error'>Failed to generate wave: " + WebHtml.escapeHtml(e.getMessage()) + "</p>";
+        }
+    }
+
+    static String renderLastWeekContent(SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate end) {
+        LocalDate normalizedStart = start.isAfter(end) ? end : start;
+        LocalDate normalizedEnd = end.isBefore(start) ? start : end;
+        StringBuilder html = new StringBuilder();
+        html.append("<p>Showing ")
+                .append(WebHtml.escapeHtml(normalizedStart.toString()))
+                .append(" through ")
+                .append(WebHtml.escapeHtml(normalizedEnd.toString()))
+                .append("</p>");
+
+        List<String> rows = new ArrayList<>();
+        for (Lift lift : lifts) {
+            try {
+                for (LiftExecution execution : db.getExecutions(lift.name())) {
+                    if (execution.date().isBefore(normalizedStart) || execution.date().isAfter(normalizedEnd)) {
+                        continue;
+                    }
+                    rows.add("<tr data-filter-item data-name='" + WebHtml.escapeHtml(lift.name())
+                            + "' data-region='" + WebHtml.escapeHtml(lift.region().toString())
+                            + "' data-main='" + WebHtml.escapeHtml(formatMainType(lift))
+                            + "' data-muscles='" + WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(",")))
+                            + "'><td>" + WebHtml.escapeHtml(execution.date().toString())
+                            + "</td><td>" + WebHtml.escapeHtml(lift.name())
+                            + "</td><td>" + WebHtml.escapeHtml(formatSets(execution.sets()))
+                            + "</td><td>" + WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes())
+                            + "</td></tr>");
+                }
+            } catch (Exception e) {
+                return "<p class='status error'>Failed to load last-week view: " + WebHtml.escapeHtml(e.getMessage()) + "</p>";
+            }
+        }
+
+        if (rows.isEmpty()) {
+            html.append("<p>no executions in this range</p>");
+            return html.toString();
+        }
+
+        rows.sort(Comparator.naturalOrder());
+        html.append("<table><thead><tr><th>Date</th><th>Lift</th><th>Sets</th><th>Notes</th></tr></thead><tbody>")
+                .append(String.join("", rows))
+                .append("</tbody></table>");
+        return html.toString();
     }
 
     static String renderAddExecutionForm(List<Lift> lifts, String statusMessage, String statusType, AddExecutionPrefill prefillInput) {
