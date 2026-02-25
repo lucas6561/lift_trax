@@ -99,6 +99,8 @@ class WebServerCliTest {
         assertTrue(html.contains("New Lift"));
         assertTrue(html.contains("action='/add-lift'"));
         assertTrue(html.contains("name='metricType'"));
+        assertTrue(html.contains("name='setCopies'"));
+        assertTrue(html.contains("metricLabel(item)"));
         assertTrue(html.contains("status success"));
     }
 

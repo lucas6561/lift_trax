@@ -276,10 +276,27 @@ final class WebUiRenderer {
                       }
                       const value = (document.querySelector("input[name='weightValue']") || {}).value || '';
                       const unit = (document.querySelector("select[name='weightUnit']") || {}).value || 'lb';
-                      return `${value} ${unit}`.trim();
+                      const computed = `${value} ${unit}`.trim();
+                      if (!computed || computed === 'lb' || computed === 'kg') {
+                        return (document.querySelector("input[name='customWeight']") || {}).value || '';
+                      }
+                      return computed;
                     }
 
                     const detailedSets = [];
+                    function metricLabel(item) {
+                      if (item.metricType === 'reps-lr') {
+                        return `${item.metricLeft || '?'}L/${item.metricRight || '?'}R reps`;
+                      }
+                      if (item.metricType === 'time') {
+                        return `${item.metricValue || '?'} sec`;
+                      }
+                      if (item.metricType === 'distance') {
+                        return `${item.metricValue || '?'} ft`;
+                      }
+                      return `${item.metricValue || '?'} reps`;
+                    }
+
                     function metricPayload() {
                       const type = (document.querySelector("input[name='metricType']:checked") || {}).value || 'reps';
                       const payload = {metricType: type};
@@ -301,7 +318,8 @@ final class WebUiRenderer {
                       list.innerHTML = '';
                       detailedSets.forEach((item, index) => {
                         const li = document.createElement('li');
-                        li.textContent = `${item.metricType} @ ${item.weight}`;
+                        const rpeText = item.rpe ? `, rpe ${item.rpe}` : '';
+                        li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}`;
                         const remove = document.createElement('button');
                         remove.type = 'button';
                         remove.className = 'secondary';
@@ -328,11 +346,16 @@ final class WebUiRenderer {
                     const addSetBtn = document.querySelector('.js-add-set');
                     if (addSetBtn) {
                       addSetBtn.addEventListener('click', () => {
-                        detailedSets.push({
+                        const setCopiesInput = document.querySelector("input[name='setCopies']");
+                        const copies = Math.max(1, parseInt((setCopiesInput && setCopiesInput.value) || '1', 10) || 1);
+                        const payload = {
                           ...metricPayload(),
                           weight: computeWeight(),
                           rpe: (document.querySelector("input[name='rpe']") || {}).value || ''
-                        });
+                        };
+                        for (let i = 0; i < copies; i++) {
+                          detailedSets.push({...payload});
+                        }
                         renderSetList();
                       });
                     }
@@ -420,6 +443,8 @@ final class WebUiRenderer {
         String repsLrChecked = "reps-lr".equals(prefill.metricType()) ? "checked" : "";
         String timeChecked = "time".equals(prefill.metricType()) ? "checked" : "";
         String distanceChecked = "distance".equals(prefill.metricType()) ? "checked" : "";
+        String customWeightChecked = (prefill.weight() != null && !prefill.weight().isBlank()) ? "checked" : "";
+        String standardWeightChecked = customWeightChecked.isBlank() ? "checked" : "";
 
         return """
                 %s
@@ -467,12 +492,12 @@ final class WebUiRenderer {
                   <fieldset>
                     <legend>Weight</legend>
                     <div class='segmented'>
-                      <label><input type='radio' name='weightMode' value='weight' checked/> Weight</label>
+                      <label><input type='radio' name='weightMode' value='weight' %s/> Weight</label>
                       <label><input type='radio' name='weightMode' value='lr'/> L/R Weight</label>
                       <label><input type='radio' name='weightMode' value='bands'/> Bands</label>
                       <label><input type='radio' name='weightMode' value='accom'/> Accommodating</label>
                       <label><input type='radio' name='weightMode' value='none'/> None</label>
-                      <label><input type='radio' name='weightMode' value='custom'/> Custom</label>
+                      <label><input type='radio' name='weightMode' value='custom' %s/> Custom</label>
                     </div>
                     <div class='stacked-row weight-weight'>
                       <label>Weight <input type='number' step='0.5' min='0' name='weightValue' placeholder='225'/></label>
@@ -523,6 +548,7 @@ final class WebUiRenderer {
                       <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='%s'/></label>
                     </div>
                     <div class='stacked-row'>
+                      <label>Copies <input type='number' min='1' name='setCopies' value='1'/></label>
                       <button type='button' class='secondary js-add-set'>Add Individual Set</button>
                       <button type='button' class='secondary js-clear-sets'>Clear Individual Sets</button>
                     </div>
@@ -542,6 +568,8 @@ final class WebUiRenderer {
                 status,
                 options,
                 WebHtml.escapeHtml(prefill.weight()),
+                standardWeightChecked,
+                customWeightChecked,
                 WebHtml.escapeHtml(prefill.weight()),
                 WebHtml.escapeHtml(prefill.setCount()),
                 WebHtml.escapeHtml(prefill.rpe()),
