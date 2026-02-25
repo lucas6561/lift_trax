@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -23,6 +24,10 @@ import java.util.stream.Collectors;
 final class WebUiRenderer {
     static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final Pattern SIMPLE_WEIGHT_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(lb|kg)\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern LR_WEIGHT_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*(lb|kg))?\\s*\\|\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*(lb|kg))?\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACCOM_CHAIN_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?(?:\\s*(?:lb|kg))?)\\s*\\+\\s*([0-9]+(?:\\.[0-9]+)?)c\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACCOM_BANDS_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?(?:\\s*(?:lb|kg))?)\\s*\\+\\s*([a-z+]+)\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final List<String> BAND_COLORS = List.of("orange", "red", "blue", "green", "black", "purple");
 
     private WebUiRenderer() {
     }
@@ -44,6 +49,104 @@ final class WebUiRenderer {
         static AddExecutionPrefill empty() {
             return new AddExecutionPrefill("", "", "1", "", "reps", "5", "5", "5", "", false, false, "");
         }
+    }
+
+    private record WeightPrefill(
+            String mode,
+            String weightValue,
+            String weightUnit,
+            String leftValue,
+            String rightValue,
+            String lrUnit,
+            List<String> bands,
+            String accomBar,
+            String accomUnit,
+            String accomMode,
+            String accomChain,
+            List<String> accomBands,
+            String customWeight
+    ) {
+        static WeightPrefill from(String weight) {
+            String text = weight == null ? "" : weight.trim();
+            if (text.isBlank() || "none".equalsIgnoreCase(text)) {
+                return new WeightPrefill("none", "", "lb", "", "", "lb", List.of(), "", "lb", "chains", "", List.of(), "");
+            }
+
+            Matcher simple = SIMPLE_WEIGHT_PATTERN.matcher(text);
+            if (simple.matches()) {
+                return new WeightPrefill("weight", simple.group(1), simple.group(2).toLowerCase(Locale.ROOT), "", "", "lb", List.of(), "", "lb", "chains", "", List.of(), text);
+            }
+
+            Matcher lr = LR_WEIGHT_PATTERN.matcher(text);
+            if (lr.matches()) {
+                String unit = lr.group(2) != null ? lr.group(2) : lr.group(4);
+                String normalizedUnit = unit == null ? "lb" : unit.toLowerCase(Locale.ROOT);
+                return new WeightPrefill("lr", "", "lb", lr.group(1), lr.group(3), normalizedUnit, List.of(), "", "lb", "chains", "", List.of(), text);
+            }
+
+            Matcher accomChains = ACCOM_CHAIN_PATTERN.matcher(text);
+            if (accomChains.matches()) {
+                ParsedNumeric bar = parseNumericWithUnit(accomChains.group(1));
+                return new WeightPrefill("accom", "", "lb", "", "", "lb", List.of(), bar.value(), bar.unit(), "chains", accomChains.group(2), List.of(), text);
+            }
+
+            Matcher accomBands = ACCOM_BANDS_PATTERN.matcher(text);
+            if (accomBands.matches()) {
+                ParsedNumeric bar = parseNumericWithUnit(accomBands.group(1));
+                List<String> bands = parseBandList(accomBands.group(2));
+                if (!bands.isEmpty()) {
+                    return new WeightPrefill("accom", "", "lb", "", "", "lb", List.of(), bar.value(), bar.unit(), "bands", "", bands, text);
+                }
+            }
+
+            List<String> bands = parseBandList(text);
+            if (!bands.isEmpty()) {
+                return new WeightPrefill("bands", "", "lb", "", "", "lb", bands, "", "lb", "chains", "", List.of(), text);
+            }
+
+            return new WeightPrefill("custom", "", "lb", "", "", "lb", List.of(), "", "lb", "chains", "", List.of(), text);
+        }
+    }
+
+    private record ParsedNumeric(String value, String unit) {
+    }
+
+    private static ParsedNumeric parseNumericWithUnit(String text) {
+        Matcher simple = SIMPLE_WEIGHT_PATTERN.matcher(text == null ? "" : text.trim());
+        if (simple.matches()) {
+            return new ParsedNumeric(simple.group(1), simple.group(2).toLowerCase(Locale.ROOT));
+        }
+        String trimmed = text == null ? "" : text.trim();
+        return new ParsedNumeric(trimmed, "lb");
+    }
+
+    private static List<String> parseBandList(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        List<String> parsed = Arrays.stream(text.toLowerCase(Locale.ROOT).split("\\+"))
+                .map(String::trim)
+                .filter(BAND_COLORS::contains)
+                .toList();
+        return parsed.size() == Arrays.stream(text.split("\\+")).map(String::trim).filter(s -> !s.isBlank()).count()
+                ? parsed
+                : List.of();
+    }
+
+    private static String renderBandChecks(String name, List<String> selected) {
+        StringBuilder html = new StringBuilder();
+        for (String color : BAND_COLORS) {
+            html.append("<label><input type='checkbox' name='")
+                    .append(name)
+                    .append("' value='")
+                    .append(WebHtml.escapeHtml(color))
+                    .append("'")
+                    .append(selected.contains(color) ? " checked" : "")
+                    .append("/> ")
+                    .append(WebHtml.escapeHtml(color))
+                    .append("</label>");
+        }
+        return html.toString();
     }
 
     static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab, String statusMessage, String statusType, AddExecutionPrefill prefill) {
@@ -250,6 +353,7 @@ final class WebUiRenderer {
                     }
 
                     function computeWeight() {
+                      const selectedBandValues = (name) => Array.from(document.querySelectorAll(`input[name='${name}']:checked`)).map((item) => item.value);
                       const mode = (document.querySelector("input[name='weightMode']:checked") || {}).value || 'weight';
                       if (mode === 'none') {
                         return 'none';
@@ -264,14 +368,14 @@ final class WebUiRenderer {
                         return `${l}${unit}|${r}${unit}`;
                       }
                       if (mode === 'bands') {
-                        return (document.querySelector("input[name='weightBands']") || {}).value || '';
+                        return selectedBandValues('weightBandColors').join('+');
                       }
                       if (mode === 'accom') {
                         const bar = (document.querySelector("input[name='accomBar']") || {}).value || '';
                         const unit = (document.querySelector("select[name='accomUnit']") || {}).value || 'lb';
                         const accomMode = (document.querySelector("select[name='accomMode']") || {}).value || 'chains';
                         if (accomMode === 'bands') {
-                          const bands = (document.querySelector("input[name='accomBands']") || {}).value || '';
+                          const bands = selectedBandValues('accomBandColors').join('+');
                           return `${bar} ${unit}+${bands}`;
                         }
                         const chain = (document.querySelector("input[name='accomChain']") || {}).value || '';
@@ -442,20 +546,28 @@ final class WebUiRenderer {
             status = "<p class='" + cssClass + "'>" + WebHtml.escapeHtml(statusMessage) + "</p>";
         }
 
-        String weightText = prefill.weight() == null ? "" : prefill.weight().trim();
-        Matcher simpleWeightMatcher = SIMPLE_WEIGHT_PATTERN.matcher(weightText);
-        boolean isSimpleWeight = simpleWeightMatcher.matches();
-        String weightValuePrefill = isSimpleWeight ? simpleWeightMatcher.group(1) : "";
-        String weightUnitPrefill = isSimpleWeight ? simpleWeightMatcher.group(2).toLowerCase(Locale.ROOT) : "lb";
+        WeightPrefill weightPrefill = WeightPrefill.from(prefill.weight());
 
         String repsChecked = "reps".equals(prefill.metricType()) ? "checked" : "";
         String repsLrChecked = "reps-lr".equals(prefill.metricType()) ? "checked" : "";
         String timeChecked = "time".equals(prefill.metricType()) ? "checked" : "";
         String distanceChecked = "distance".equals(prefill.metricType()) ? "checked" : "";
-        String customWeightChecked = (!weightText.isBlank() && !isSimpleWeight) ? "checked" : "";
-        String standardWeightChecked = customWeightChecked.isBlank() ? "checked" : "";
-        String weightUnitLbSelected = "lb".equals(weightUnitPrefill) ? " selected" : "";
-        String weightUnitKgSelected = "kg".equals(weightUnitPrefill) ? " selected" : "";
+        String standardWeightChecked = "weight".equals(weightPrefill.mode()) ? "checked" : "";
+        String lrWeightChecked = "lr".equals(weightPrefill.mode()) ? "checked" : "";
+        String bandsWeightChecked = "bands".equals(weightPrefill.mode()) ? "checked" : "";
+        String accomWeightChecked = "accom".equals(weightPrefill.mode()) ? "checked" : "";
+        String noneWeightChecked = "none".equals(weightPrefill.mode()) ? "checked" : "";
+        String customWeightChecked = "custom".equals(weightPrefill.mode()) ? "checked" : "";
+        String weightUnitLbSelected = "lb".equals(weightPrefill.weightUnit()) ? " selected" : "";
+        String weightUnitKgSelected = "kg".equals(weightPrefill.weightUnit()) ? " selected" : "";
+        String weightUnitLrLbSelected = "lb".equals(weightPrefill.lrUnit()) ? " selected" : "";
+        String weightUnitLrKgSelected = "kg".equals(weightPrefill.lrUnit()) ? " selected" : "";
+        String accomUnitLbSelected = "lb".equals(weightPrefill.accomUnit()) ? " selected" : "";
+        String accomUnitKgSelected = "kg".equals(weightPrefill.accomUnit()) ? " selected" : "";
+        String accomChainsSelected = "chains".equals(weightPrefill.accomMode()) ? " selected" : "";
+        String accomBandsSelected = "bands".equals(weightPrefill.accomMode()) ? " selected" : "";
+        String bandChecks = renderBandChecks("weightBandColors", weightPrefill.bands());
+        String accomBandChecks = renderBandChecks("accomBandColors", weightPrefill.accomBands());
 
         return """
                 %s
@@ -504,10 +616,10 @@ final class WebUiRenderer {
                     <legend>Weight</legend>
                     <div class='segmented'>
                       <label><input type='radio' name='weightMode' value='weight' %s/> Weight</label>
-                      <label><input type='radio' name='weightMode' value='lr'/> L/R Weight</label>
-                      <label><input type='radio' name='weightMode' value='bands'/> Bands</label>
-                      <label><input type='radio' name='weightMode' value='accom'/> Accommodating</label>
-                      <label><input type='radio' name='weightMode' value='none'/> None</label>
+                      <label><input type='radio' name='weightMode' value='lr' %s/> L/R Weight</label>
+                      <label><input type='radio' name='weightMode' value='bands' %s/> Bands</label>
+                      <label><input type='radio' name='weightMode' value='accom' %s/> Accommodating</label>
+                      <label><input type='radio' name='weightMode' value='none' %s/> None</label>
                       <label><input type='radio' name='weightMode' value='custom' %s/> Custom</label>
                     </div>
                     <div class='stacked-row weight-weight'>
@@ -517,25 +629,29 @@ final class WebUiRenderer {
                       </label>
                     </div>
                     <div class='stacked-row weight-lr is-hidden'>
-                      <label>Left <input type='number' step='0.5' min='0' name='weightLeft' placeholder='40'/></label>
-                      <label>Right <input type='number' step='0.5' min='0' name='weightRight' placeholder='40'/></label>
+                      <label>Left <input type='number' step='0.5' min='0' name='weightLeft' value='%s' placeholder='40'/></label>
+                      <label>Right <input type='number' step='0.5' min='0' name='weightRight' value='%s' placeholder='40'/></label>
                       <label>Unit
-                        <select name='weightUnitLr'><option value='lb'>lb</option><option value='kg'>kg</option></select>
+                        <select name='weightUnitLr'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
                       </label>
                     </div>
                     <div class='stacked-row weight-bands is-hidden'>
-                      <label>Bands <input type='text' name='weightBands' placeholder='RED+BLUE'/></label>
+                      <label>Bands</label>
+                      <div class='segmented'>%s</div>
                     </div>
                     <div class='stacked-row weight-accom is-hidden'>
-                      <label>Bar <input type='number' step='0.5' min='0' name='accomBar' placeholder='225'/></label>
+                      <label>Bar <input type='number' step='0.5' min='0' name='accomBar' value='%s' placeholder='225'/></label>
                       <label>Unit
-                        <select name='accomUnit'><option value='lb'>lb</option><option value='kg'>kg</option></select>
+                        <select name='accomUnit'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
                       </label>
                       <label>Resistance
-                        <select name='accomMode'><option value='chains'>Chains</option><option value='bands'>Bands</option></select>
+                        <select name='accomMode'><option value='chains'%s>Chains</option><option value='bands'%s>Bands</option></select>
                       </label>
-                      <label class='accom-chains'>Chain <input type='number' step='0.5' min='0' name='accomChain' placeholder='40'/></label>
-                      <label class='accom-bands is-hidden'>Bands <input type='text' name='accomBands' placeholder='RED+BLUE'/></label>
+                      <label class='accom-chains'>Chain <input type='number' step='0.5' min='0' name='accomChain' value='%s' placeholder='40'/></label>
+                      <div class='accom-bands is-hidden'>
+                        <label>Bands</label>
+                        <div class='segmented'>%s</div>
+                      </div>
                     </div>
                     <div class='stacked-row weight-custom is-hidden'>
                       <label>Custom <input type='text' name='customWeight' value='%s' placeholder='225 lb+40c'/></label>
@@ -580,11 +696,27 @@ final class WebUiRenderer {
                 options,
                 WebHtml.escapeHtml(prefill.weight()),
                 standardWeightChecked,
+                lrWeightChecked,
+                bandsWeightChecked,
+                accomWeightChecked,
+                noneWeightChecked,
                 customWeightChecked,
-                WebHtml.escapeHtml(weightValuePrefill),
+                WebHtml.escapeHtml(weightPrefill.weightValue()),
                 weightUnitLbSelected,
                 weightUnitKgSelected,
-                WebHtml.escapeHtml(prefill.weight()),
+                WebHtml.escapeHtml(weightPrefill.leftValue()),
+                WebHtml.escapeHtml(weightPrefill.rightValue()),
+                weightUnitLrLbSelected,
+                weightUnitLrKgSelected,
+                bandChecks,
+                WebHtml.escapeHtml(weightPrefill.accomBar()),
+                accomUnitLbSelected,
+                accomUnitKgSelected,
+                accomChainsSelected,
+                accomBandsSelected,
+                WebHtml.escapeHtml(weightPrefill.accomChain()),
+                accomBandChecks,
+                WebHtml.escapeHtml(weightPrefill.customWeight()),
                 WebHtml.escapeHtml(prefill.setCount()),
                 WebHtml.escapeHtml(prefill.rpe()),
                 repsChecked,

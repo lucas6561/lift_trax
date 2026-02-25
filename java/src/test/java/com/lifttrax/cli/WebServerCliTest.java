@@ -128,18 +128,51 @@ class WebServerCliTest {
     }
 
     @Test
-    void addExecutionPrefillUsesCustomModeForComplexWeight() {
+    void addExecutionPrefillUsesCustomModeForUnparsedWeight() {
         List<Lift> lifts = List.of(
                 new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "")
         );
         WebUiRenderer.AddExecutionPrefill prefill = new WebUiRenderer.AddExecutionPrefill(
-                "Back Squat", "185 lb+40c", "1", "", "reps", "5", "5", "5", "", false, false, ""
+                "Back Squat", "weird weight text", "1", "", "reps", "5", "5", "5", "", false, false, ""
         );
 
         String html = WebUiRenderer.renderAddExecutionForm(lifts, "", "", prefill);
 
         assertTrue(html.contains("name='weightMode' value='custom' checked"));
-        assertTrue(html.contains("name='customWeight' value='185 lb+40c'"));
+        assertTrue(html.contains("name='customWeight' value='weird weight text'"));
+    }
+
+    @Test
+    void addExecutionPrefillParsesBandAndAccomWeights() {
+        List<Lift> lifts = List.of(
+                new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "")
+        );
+
+        WebUiRenderer.AddExecutionPrefill bandsPrefill = new WebUiRenderer.AddExecutionPrefill(
+                "Back Squat", "red+blue", "1", "", "reps", "5", "5", "5", "", false, false, ""
+        );
+        String bandsHtml = WebUiRenderer.renderAddExecutionForm(lifts, "", "", bandsPrefill);
+        assertTrue(bandsHtml.contains("name='weightMode' value='bands' checked"));
+        assertTrue(bandsHtml.contains("name='weightBandColors' value='red' checked"));
+        assertTrue(bandsHtml.contains("name='weightBandColors' value='blue' checked"));
+
+        WebUiRenderer.AddExecutionPrefill accomChainsPrefill = new WebUiRenderer.AddExecutionPrefill(
+                "Back Squat", "225 lb+40c", "1", "", "reps", "5", "5", "5", "", false, false, ""
+        );
+        String accomChainsHtml = WebUiRenderer.renderAddExecutionForm(lifts, "", "", accomChainsPrefill);
+        assertTrue(accomChainsHtml.contains("name='weightMode' value='accom' checked"));
+        assertTrue(accomChainsHtml.contains("name='accomBar' value='225'"));
+        assertTrue(accomChainsHtml.contains("name='accomChain' value='40'"));
+        assertTrue(accomChainsHtml.contains("<option value='chains' selected>Chains</option>"));
+
+        WebUiRenderer.AddExecutionPrefill accomBandsPrefill = new WebUiRenderer.AddExecutionPrefill(
+                "Back Squat", "225 lb+red+blue", "1", "", "reps", "5", "5", "5", "", false, false, ""
+        );
+        String accomBandsHtml = WebUiRenderer.renderAddExecutionForm(lifts, "", "", accomBandsPrefill);
+        assertTrue(accomBandsHtml.contains("name='weightMode' value='accom' checked"));
+        assertTrue(accomBandsHtml.contains("<option value='bands' selected>Bands</option>"));
+        assertTrue(accomBandsHtml.contains("name='accomBandColors' value='red' checked"));
+        assertTrue(accomBandsHtml.contains("name='accomBandColors' value='blue' checked"));
     }
 
     @Test
