@@ -72,6 +72,33 @@ public class WebServerCli {
             String activeTab = query.getOrDefault("tab", "add-execution").trim();
             String statusMessage = query.getOrDefault("status", "").trim();
             String statusType = query.getOrDefault("statusType", "").trim();
+            int waveWeeks = parseBoundedInt(query.get("waveWeeks"), 7, 1, 24);
+            LocalDate today = LocalDate.now();
+            LocalDate lastWeekStart = parseDateOrDefault(query.get("lastWeekStart"), today.minusDays(6));
+            LocalDate lastWeekEnd = parseDateOrDefault(query.get("lastWeekEnd"), today);
+            String lastWeekNav = query.getOrDefault("lastWeekNav", "").trim();
+            if (!lastWeekNav.isBlank()) {
+                switch (lastWeekNav) {
+                    case "prev" -> {
+                        lastWeekStart = lastWeekStart.minusDays(7);
+                        lastWeekEnd = lastWeekEnd.minusDays(7);
+                    }
+                    case "next" -> {
+                        lastWeekStart = lastWeekStart.plusDays(7);
+                        lastWeekEnd = lastWeekEnd.plusDays(7);
+                    }
+                    case "current" -> {
+                        lastWeekStart = today.minusDays(6);
+                        lastWeekEnd = today;
+                    }
+                    case "last" -> {
+                        lastWeekEnd = today.minusDays(7);
+                        lastWeekStart = lastWeekEnd.minusDays(6);
+                    }
+                    default -> {
+                    }
+                }
+            }
             WebUiRenderer.AddExecutionPrefill prefill = parsePrefill(query);
 
             List<Lift> lifts;
@@ -84,7 +111,19 @@ public class WebServerCli {
                 statusMessage = "No lifts table found. Initialize or provide a populated database.";
             }
 
-            String body = WebUiRenderer.renderIndexBody(db, lifts, search, queryLift, activeTab, statusMessage, statusType, prefill);
+            String body = WebUiRenderer.renderIndexBody(
+                    db,
+                    lifts,
+                    search,
+                    queryLift,
+                    activeTab,
+                    statusMessage,
+                    statusType,
+                    prefill,
+                    lastWeekStart,
+                    lastWeekEnd,
+                    waveWeeks
+            );
             sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
         } catch (Exception e) {
             sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(e.getMessage()) + "</pre>"));
@@ -285,6 +324,29 @@ public class WebServerCli {
             return null;
         }
         return Float.parseFloat(value.trim());
+    }
+
+    private static int parseBoundedInt(String value, int fallback, int min, int max) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return Math.max(min, Math.min(max, parsed));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private static LocalDate parseDateOrDefault(String value, LocalDate fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private static SetMetric parseMetric(Map<String, String> form) {
