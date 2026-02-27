@@ -7,8 +7,6 @@ import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
-import com.lifttrax.workout.ConjugateWorkoutBuilder;
-import com.lifttrax.workout.WaveMarkdownWriter;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -156,7 +154,7 @@ final class WebUiRenderer {
                                   LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks) {
         String queryContent = renderQueryContent(db, queryLift);
         String lastWeekContent = renderLastWeekContent(db, lifts, lastWeekStart, lastWeekEnd);
-        String waveContent = renderWaveContent(db, waveWeeks);
+        String waveContent = renderWaveContent(waveWeeks);
         return renderTabbedLayout(lifts, search, queryLift, activeTab, queryContent, lastWeekContent, waveContent,
                 statusMessage, statusType, prefill, lastWeekStart, lastWeekEnd, waveWeeks);
     }
@@ -552,15 +550,13 @@ final class WebUiRenderer {
         );
     }
 
-    static String renderWaveContent(SqliteDb db, int weeks) {
+    static String renderWaveContent(int weeks) {
         int normalizedWeeks = Math.max(1, weeks);
-        try {
-            ConjugateWorkoutBuilder builder = new ConjugateWorkoutBuilder();
-            List<String> markdown = WaveMarkdownWriter.createMarkdown(builder.getWave(normalizedWeeks, db), db);
-            return "<pre class='query-output'>" + WebHtml.escapeHtml(String.join("\n", markdown)) + "</pre>";
-        } catch (Exception e) {
-            return "<p class='status error'>Failed to generate wave: " + WebHtml.escapeHtml(e.getMessage()) + "</p>";
-        }
+        return """
+                <p>Wave generation UI preview only.</p>
+                <p>Configured weeks: <strong>%s</strong></p>
+                <p class='query-output'>Wave generation is not wired yet. This tab is currently layout-only.</p>
+                """.formatted(normalizedWeeks);
     }
 
     static String renderLastWeekContent(SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate end) {
