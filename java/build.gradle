@@ -1,9 +1,16 @@
 plugins {
     id 'application'
+    id 'jacoco'
 }
 
 group = 'com.lifttrax'
 version = '0.1.0'
+
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 
 repositories {
     mavenCentral()
@@ -21,6 +28,51 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
     systemProperty 'java.awt.headless', 'true'
+    finalizedBy tasks.named('jacocoTestReport')
+
+    jacoco {
+        excludes = ['java.*', 'javax.*', 'jdk.*', 'sun.*']
+    }
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+def coverageIncludes = [
+    'com/lifttrax/workout/RandomStack.class',
+    'com/lifttrax/ui/ExecutionFormatter.class'
+]
+
+def coverageClassDirs = sourceSets.main.output.asFileTree.matching {
+    include coverageIncludes
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+    classDirectories.setFrom(coverageClassDirs)
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn tasks.named('test')
+    classDirectories.setFrom(coverageClassDirs)
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('jacocoTestCoverageVerification')
 }
 
 application {
