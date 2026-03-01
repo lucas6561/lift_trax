@@ -5,13 +5,13 @@ import com.lifttrax.models.Lift;
 import java.util.ArrayList;
 import java.util.List;
 
-record MaxEffortPlan(
+public record MaxEffortPlan(
         List<Lift> lower,
         List<Lift> upper,
         List<DeloadLowerLifts> lowerDeload,
         List<DeloadUpperLifts> upperDeload
 ) {
-    static MaxEffortPlan fromDefaults(List<Lift> defaultLower, List<Lift> defaultUpper) {
+    public static MaxEffortPlan fromDefaults(List<Lift> defaultLower, List<Lift> defaultUpper) {
         return new MaxEffortPlan(
                 defaultLower,
                 defaultUpper,
@@ -20,7 +20,7 @@ record MaxEffortPlan(
         );
     }
 
-    static List<DeloadLowerLifts> deriveLowerDeloadFromPlan(List<Lift> plan) {
+    public static List<DeloadLowerLifts> deriveLowerDeloadFromPlan(List<Lift> plan) {
         if (plan.size() < 7) {
             return List.of();
         }
@@ -39,7 +39,7 @@ record MaxEffortPlan(
         return deload;
     }
 
-    static List<DeloadUpperLifts> deriveUpperDeloadFromPlan(List<Lift> plan) {
+    public static List<DeloadUpperLifts> deriveUpperDeloadFromPlan(List<Lift> plan) {
         if (plan.size() < 7) {
             return List.of();
         }
@@ -58,6 +58,6 @@ record MaxEffortPlan(
         return deload;
     }
 
-    record DeloadLowerLifts(Lift squat, Lift deadlift) {}
-    record DeloadUpperLifts(Lift bench, Lift overhead) {}
+    public record DeloadLowerLifts(Lift squat, Lift deadlift) {}
+    public record DeloadUpperLifts(Lift bench, Lift overhead) {}
 }

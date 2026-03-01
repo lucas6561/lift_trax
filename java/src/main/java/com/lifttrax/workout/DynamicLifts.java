@@ -15,6 +15,10 @@ public record DynamicLifts(
         DynamicLift overhead
 ) {
     public static DynamicLifts fromDatabase(Database db) throws Exception {
+        return fromDatabase(db, true);
+    }
+
+    public static DynamicLifts fromDatabase(Database db, boolean allowInteractiveSelection) throws Exception {
         Random random = new Random();
         AccommodatingResistance[] arOpts = {AccommodatingResistance.CHAINS, AccommodatingResistance.BANDS};
 
@@ -34,7 +38,8 @@ public record DynamicLifts(
                 deadliftOptions,
                 benchOptions,
                 overheadOptions,
-                defaults
+                defaults,
+                allowInteractiveSelection
         );
 
         return new DynamicLifts(

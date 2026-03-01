@@ -4,9 +4,16 @@ import com.lifttrax.db.SqliteDb;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
+import com.lifttrax.models.LiftType;
 import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.workout.ConjugateWorkoutBuilder;
+import com.lifttrax.workout.MaxEffortLiftPools;
+import com.lifttrax.workout.MaxEffortPlan;
+import com.lifttrax.workout.WebConfiguredDynamicLiftSource;
+import com.lifttrax.workout.WebConfiguredMaxEffortPlanSource;
+import com.lifttrax.workout.WaveMarkdownWriter;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -151,11 +158,14 @@ final class WebUiRenderer {
 
     static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab,
                                   String statusMessage, String statusType, AddExecutionPrefill prefill,
-                                  LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks) {
+                                  LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks,
+                                  Map<String, String> waveInput) {
         String executionContent = renderExecutionList(db, lifts, search, "Recorded lifts:");
         String queryContent = renderQueryContent(db, queryLift);
         String lastWeekContent = renderLastWeekContent(db, lifts, lastWeekStart, lastWeekEnd);
-        String waveContent = renderWaveContent(waveWeeks);
+        String waveContent = "waves".equals(activeTab)
+                ? renderWaveContent(db, waveWeeks, waveInput)
+                : "<p>Open the Workout Waves tab and click Generate Wave.</p>";
         return renderTabbedLayout(lifts, search, queryLift, activeTab, executionContent, queryContent, lastWeekContent, waveContent,
                 statusMessage, statusType, prefill, lastWeekStart, lastWeekEnd, waveWeeks);
     }
@@ -188,11 +198,6 @@ final class WebUiRenderer {
                   </section>
                   <section class='tab-panel' data-panel='waves' role='tabpanel'>
                     <h2>Workout Waves</h2>
-                    <form method='get' action='/' class='query-form'>
-                      <input type='hidden' name='tab' value='waves'/>
-                      <label>Weeks <input type='number' name='waveWeeks' min='1' max='24' value='%s'/></label>
-                      <button type='submit'>Generate Wave</button>
-                    </form>
                     %s
                   </section>
                   <section class='tab-panel' data-panel='query' role='tabpanel'>
@@ -765,7 +770,6 @@ final class WebUiRenderer {
                 addExecutionContent,
                 filterControls,
                 executionContent,
-                String.valueOf(Math.max(1, waveWeeks)),
                 waveContent,
                 filterControls,
                 queryControls,
@@ -777,13 +781,153 @@ final class WebUiRenderer {
         );
     }
 
-    static String renderWaveContent(int weeks) {
+    static String renderWaveContent(SqliteDb db, int weeks, Map<String, String> waveInput) {
         int normalizedWeeks = Math.max(1, weeks);
-        return """
-                <p>Wave generation UI preview only.</p>
-                <p>Configured weeks: <strong>%s</strong></p>
-                <p class='query-output'>Wave generation is not wired yet. This tab is currently layout-only.</p>
-                """.formatted(normalizedWeeks);
+        String planner = renderWavePlannerForm(db, normalizedWeeks, waveInput);
+        boolean shouldGenerate = "true".equalsIgnoreCase(waveInput.getOrDefault("waveGenerate", ""));
+        try {
+            if (!shouldGenerate) {
+                return planner + "<p>Review movements, then click Generate Wave.</p>";
+            }
+
+            ConjugateWorkoutBuilder builder = new ConjugateWorkoutBuilder(
+                    new WebConfiguredMaxEffortPlanSource(normalizedWeeks, waveInput),
+                    new WebConfiguredDynamicLiftSource(waveInput)
+            );
+            var wave = builder.getWave(normalizedWeeks, db);
+            List<String> markdown = WaveMarkdownWriter.createMarkdown(wave, db);
+            return planner + """
+                    <p>Configured weeks: <strong>%s</strong></p>
+                    <pre class='query-output'>%s</pre>
+                    """.formatted(normalizedWeeks, WebHtml.escapeHtml(String.join("\n", markdown)));
+        } catch (Exception e) {
+            return planner + """
+                    <p>Configured weeks: <strong>%s</strong></p>
+                    <p class='status error'>Failed to generate wave: %s</p>
+                    """.formatted(normalizedWeeks, WebHtml.escapeHtml(e.getMessage()));
+        }
+    }
+
+    private static String renderWavePlannerForm(SqliteDb db, int weeks, Map<String, String> values) {
+        try {
+            List<Lift> squats = db.liftsByType(LiftType.SQUAT);
+            List<Lift> deadlifts = db.liftsByType(LiftType.DEADLIFT);
+            List<Lift> benches = db.liftsByType(LiftType.BENCH_PRESS);
+            List<Lift> overheads = db.liftsByType(LiftType.OVERHEAD_PRESS);
+            MaxEffortLiftPools pools = new MaxEffortLiftPools(weeks, db);
+            List<Lift> lowerDefaults = pools.lowerWeeks();
+            List<Lift> upperDefaults = pools.upperWeeks();
+            List<MaxEffortPlan.DeloadLowerLifts> lowerDeloadDefaults = MaxEffortPlan.deriveLowerDeloadFromPlan(lowerDefaults);
+            List<MaxEffortPlan.DeloadUpperLifts> upperDeloadDefaults = MaxEffortPlan.deriveUpperDeloadFromPlan(upperDefaults);
+
+            StringBuilder html = new StringBuilder();
+            html.append("<form method='get' action='/' class='query-form' style='display:block;'>");
+            html.append("<input type='hidden' name='tab' value='waves'/>");
+            html.append("<input type='hidden' name='waveGenerate' value='true'/>");
+            html.append("<label>Weeks <input type='number' name='waveWeeks' min='1' max='24' value='")
+                    .append(weeks)
+                    .append("'/></label>");
+            html.append("<h3>Max Effort Rotation</h3>");
+
+            for (int i = 0; i < weeks; i++) {
+                int week = i + 1;
+                if (week % 7 == 0) {
+                    continue;
+                }
+                List<Lift> lowerOpts = (i % 2 == 0) ? squats : deadlifts;
+                List<Lift> upperOpts = (i % 2 == 0) ? benches : overheads;
+                String lowerKey = "meLowerWeek" + week;
+                String upperKey = "meUpperWeek" + week;
+                String lowerCurrent = values.getOrDefault(lowerKey, lowerDefaults.get(i).name());
+                String upperCurrent = values.getOrDefault(upperKey, upperDefaults.get(i).name());
+                html.append("<div class='stacked-row'>");
+                html.append("<label>Week ").append(week).append(" Lower <select name='").append(lowerKey).append("'>")
+                        .append(renderLiftOptions(lowerOpts, lowerCurrent)).append("</select></label>");
+                html.append("<label>Week ").append(week).append(" Upper <select name='").append(upperKey).append("'>")
+                        .append(renderLiftOptions(upperOpts, upperCurrent)).append("</select></label>");
+                html.append("</div>");
+            }
+
+            if (!lowerDeloadDefaults.isEmpty() || !upperDeloadDefaults.isEmpty()) {
+                html.append("<h3>Deload Weeks</h3>");
+            }
+            for (int i = 0; i < lowerDeloadDefaults.size(); i++) {
+                int n = i + 1;
+                int week = n * 7;
+                MaxEffortPlan.DeloadLowerLifts def = lowerDeloadDefaults.get(i);
+                String squatKey = "meLowerDeload" + n + "Squat";
+                String deadliftKey = "meLowerDeload" + n + "Deadlift";
+                html.append("<div class='stacked-row'>");
+                html.append("<label>Week ").append(week).append(" Lower Squat <select name='").append(squatKey).append("'>")
+                        .append(renderLiftOptions(squats, values.getOrDefault(squatKey, def.squat().name()))).append("</select></label>");
+                html.append("<label>Week ").append(week).append(" Lower Deadlift <select name='").append(deadliftKey).append("'>")
+                        .append(renderLiftOptions(deadlifts, values.getOrDefault(deadliftKey, def.deadlift().name()))).append("</select></label>");
+                html.append("</div>");
+            }
+            for (int i = 0; i < upperDeloadDefaults.size(); i++) {
+                int n = i + 1;
+                int week = n * 7;
+                MaxEffortPlan.DeloadUpperLifts def = upperDeloadDefaults.get(i);
+                String benchKey = "meUpperDeload" + n + "Bench";
+                String overheadKey = "meUpperDeload" + n + "Overhead";
+                html.append("<div class='stacked-row'>");
+                html.append("<label>Week ").append(week).append(" Upper Bench <select name='").append(benchKey).append("'>")
+                        .append(renderLiftOptions(benches, values.getOrDefault(benchKey, def.bench().name()))).append("</select></label>");
+                html.append("<label>Week ").append(week).append(" Upper Overhead <select name='").append(overheadKey).append("'>")
+                        .append(renderLiftOptions(overheads, values.getOrDefault(overheadKey, def.overhead().name()))).append("</select></label>");
+                html.append("</div>");
+            }
+
+            html.append("<h3>Dynamic Effort Lifts</h3>");
+            html.append("<div class='stacked-row'>")
+                    .append("<label>Squat <select name='deSquat'>").append(renderLiftOptions(squats, values.get("deSquat"))).append("</select></label>")
+                    .append("<label>Deadlift <select name='deDeadlift'>").append(renderLiftOptions(deadlifts, values.get("deDeadlift"))).append("</select></label>")
+                    .append("<label>Bench <select name='deBench'>").append(renderLiftOptions(benches, values.get("deBench"))).append("</select></label>")
+                    .append("<label>Overhead <select name='deOverhead'>").append(renderLiftOptions(overheads, values.get("deOverhead"))).append("</select></label>")
+                    .append("</div>");
+            html.append("<div class='stacked-row'>")
+                    .append("<label>Squat AR ").append(renderArSelect("deSquatAr", values.get("deSquatAr"))).append("</label>")
+                    .append("<label>Deadlift AR ").append(renderArSelect("deDeadliftAr", values.get("deDeadliftAr"))).append("</label>")
+                    .append("<label>Bench AR ").append(renderArSelect("deBenchAr", values.get("deBenchAr"))).append("</label>")
+                    .append("<label>Overhead AR ").append(renderArSelect("deOverheadAr", values.get("deOverheadAr"))).append("</label>")
+                    .append("</div>");
+
+            html.append("<div class='stacked-row'><button type='submit'>Generate Wave</button></div>");
+            html.append("</form>");
+            return html.toString();
+        } catch (Exception e) {
+            return "<p class='status error'>Failed to load wave planner: " + WebHtml.escapeHtml(e.getMessage()) + "</p>";
+        }
+    }
+
+    private static String renderLiftOptions(List<Lift> options, String selectedName) {
+        StringBuilder html = new StringBuilder();
+        for (Lift lift : options) {
+            boolean selected = selectedName != null && selectedName.equals(lift.name());
+            html.append("<option value='").append(WebHtml.escapeHtml(lift.name())).append("'")
+                    .append(selected ? " selected" : "")
+                    .append(">")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append("</option>");
+        }
+        if (html.length() == 0 && selectedName != null && !selectedName.isBlank()) {
+            html.append("<option value='").append(WebHtml.escapeHtml(selectedName)).append("' selected>")
+                    .append(WebHtml.escapeHtml(selectedName))
+                    .append("</option>");
+        }
+        return html.toString();
+    }
+
+    private static String renderArSelect(String name, String selected) {
+        String current = selected == null || selected.isBlank() ? "STRAIGHT" : selected.toUpperCase(Locale.ROOT);
+        StringBuilder html = new StringBuilder("<select name='" + WebHtml.escapeHtml(name) + "'>");
+        for (String value : List.of("STRAIGHT", "CHAINS", "BANDS")) {
+            html.append("<option value='").append(value).append("'")
+                    .append(value.equals(current) ? " selected" : "")
+                    .append(">").append(value).append("</option>");
+        }
+        html.append("</select>");
+        return html.toString();
     }
 
     static String renderLastWeekContent(SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate end) {

@@ -15,6 +15,22 @@ import java.util.Map;
 import java.util.Random;
 
 public class ConjugateWorkoutBuilder implements WorkoutBuilder {
+    private final MaxEffortPlanSource maxEffortPlanSource;
+    private final DynamicLiftSource dynamicLiftSource;
+
+    public ConjugateWorkoutBuilder() {
+        this(new SwingMaxEffortPlanSource(), new SwingDynamicLiftSource());
+    }
+
+    public ConjugateWorkoutBuilder(MaxEffortPlanSource maxEffortPlanSource) {
+        this(maxEffortPlanSource, new DefaultDynamicLiftSource());
+    }
+
+    public ConjugateWorkoutBuilder(MaxEffortPlanSource maxEffortPlanSource, DynamicLiftSource dynamicLiftSource) {
+        this.maxEffortPlanSource = maxEffortPlanSource;
+        this.dynamicLiftSource = dynamicLiftSource;
+    }
+
     private static WorkoutLift maxEffortSingle(Lift lift) {
         return new WorkoutLift("Max Effort Single", new WorkoutLiftKind.SingleKind(
                 new SingleLift(lift, new SetMetric.Reps(1), null, null, null, false)
@@ -200,16 +216,9 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     @Override
     public List<Map<DayOfWeek, Workout>> getWave(int numWeeks, Database db) throws Exception {
         MaxEffortLiftPools pools = new MaxEffortLiftPools(numWeeks, db);
-        MaxEffortPlan maxEffortPlan = MaxEffortEditor.editPlan(
-                db.liftsByType(LiftType.SQUAT),
-                db.liftsByType(LiftType.DEADLIFT),
-                db.liftsByType(LiftType.BENCH_PRESS),
-                db.liftsByType(LiftType.OVERHEAD_PRESS),
-                pools.lowerWeeks(),
-                pools.upperWeeks()
-        );
+        MaxEffortPlan maxEffortPlan = maxEffortPlanSource.selectPlan(db, pools);
 
-        DynamicLifts dynamicLifts = DynamicLifts.fromDatabase(db);
+        DynamicLifts dynamicLifts = dynamicLiftSource.select(db);
 
         List<Lift> lowerCondLifts = db.liftsByRegionAndType(LiftRegion.LOWER, LiftType.CONDITIONING);
         List<Lift> upperCondLifts = db.liftsByRegionAndType(LiftRegion.UPPER, LiftType.CONDITIONING);

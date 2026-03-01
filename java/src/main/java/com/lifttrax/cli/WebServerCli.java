@@ -125,7 +125,8 @@ public class WebServerCli {
                     prefill,
                     lastWeekStart,
                     lastWeekEnd,
-                    waveWeeks
+                    waveWeeks,
+                    query
             );
             sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
         } catch (Throwable e) {

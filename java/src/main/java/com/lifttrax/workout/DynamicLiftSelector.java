@@ -18,9 +18,10 @@ final class DynamicLiftSelector {
             List<Lift> deadliftOptions,
             List<Lift> benchOptions,
             List<Lift> overheadOptions,
-            DynamicLiftChoices defaults
+            DynamicLiftChoices defaults,
+            boolean allowInteractiveSelection
     ) {
-        if (GraphicsEnvironment.isHeadless() || System.getenv("LIFT_TRAX_HEADLESS") != null) {
+        if (!allowInteractiveSelection || GraphicsEnvironment.isHeadless() || System.getenv("LIFT_TRAX_HEADLESS") != null) {
             return defaults;
         }
 
