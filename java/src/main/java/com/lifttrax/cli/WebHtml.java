@@ -43,6 +43,9 @@ final class WebHtml {
                     .new-lift-details { width: min(820px, 100%%); }
                     .new-lift-details > summary { cursor: pointer; color: #93c5fd; margin-bottom: 0.5rem; }
                     .new-lift-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; padding: 0.7rem; border: 1px solid #334155; border-radius: 0.7rem; background: rgba(9,16,32,0.5); }
+                    .execution-lift-group { margin-bottom: 0.5rem; border: 1px solid #334155; border-radius: 0.6rem; padding: 0.2rem 0.5rem; background: rgba(9,16,32,0.35); }
+                    .execution-lift-toggle { cursor: pointer; display: block; width: 100%%; padding: 0.35rem 0.2rem; user-select: none; }
+                    .execution-lift-toggle::-webkit-details-marker { margin-right: 0.35rem; }
                     .status { border-radius: 0.45rem; padding: 0.55rem 0.7rem; font-weight: 600; }
                     .status.success { border: 1px solid #15803d; color: #86efac; background: #052e16; }
                     .status.error { border: 1px solid #b91c1c; color: #fca5a5; background: #450a0a; }

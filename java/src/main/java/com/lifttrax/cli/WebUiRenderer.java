@@ -152,20 +152,20 @@ final class WebUiRenderer {
     static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab,
                                   String statusMessage, String statusType, AddExecutionPrefill prefill,
                                   LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks) {
+        String executionContent = renderExecutionList(db, lifts, search, "Recorded lifts:");
         String queryContent = renderQueryContent(db, queryLift);
         String lastWeekContent = renderLastWeekContent(db, lifts, lastWeekStart, lastWeekEnd);
         String waveContent = renderWaveContent(waveWeeks);
-        return renderTabbedLayout(lifts, search, queryLift, activeTab, queryContent, lastWeekContent, waveContent,
+        return renderTabbedLayout(lifts, search, queryLift, activeTab, executionContent, queryContent, lastWeekContent, waveContent,
                 statusMessage, statusType, prefill, lastWeekStart, lastWeekEnd, waveWeeks);
     }
 
     static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab,
-                                     String queryContent, String lastWeekContent, String waveContent,
+                                     String executionContent, String queryContent, String lastWeekContent, String waveContent,
                                      String statusMessage, String statusType, AddExecutionPrefill prefill,
                                      LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks) {
         String filterControls = renderFilterControls(lifts, search);
         String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType, prefill);
-        String executionContent = renderLiftList(lifts, search, "Recorded lifts:");
         String queryControls = renderQueryControls(lifts, queryLift);
 
         return """
@@ -528,6 +528,233 @@ final class WebUiRenderer {
                         }
                       });
                     }
+
+                    function setExecutionEditing(item, editing) {
+                      const view = item.querySelector('.js-exec-view');
+                      const form = item.querySelector('.js-exec-form');
+                      if (!view || !form) {
+                        return;
+                      }
+
+                      view.style.display = editing ? 'none' : 'flex';
+                      form.style.display = editing ? 'flex' : 'none';
+                      form.querySelectorAll('input, select, textarea, button').forEach((control) => {
+                        control.disabled = !editing;
+                      });
+                    }
+
+                    function toggleSetMetricRow(row) {
+                      const metric = row.querySelector('.js-set-metric');
+                      const value = row.querySelector('.js-set-value');
+                      const left = row.querySelector('.js-set-left');
+                      const right = row.querySelector('.js-set-right');
+                      if (!metric || !value || !left || !right) {
+                        return;
+                      }
+                      const isLr = metric.value === 'reps-lr';
+                      value.style.display = isLr ? 'none' : 'inline-block';
+                      left.style.display = isLr ? 'inline-block' : 'none';
+                      right.style.display = isLr ? 'inline-block' : 'none';
+                    }
+
+                    function renderSetRows(form, sets) {
+                      const container = form.querySelector('.js-edit-sets');
+                      if (!container) {
+                        return;
+                      }
+                      container.innerHTML = '';
+                      sets.forEach((set) => {
+                        const row = document.createElement('div');
+                        row.className = 'js-set-row';
+                        row.style.display = 'flex';
+                        row.style.alignItems = 'center';
+                        row.style.gap = '8px';
+                        row.style.flexWrap = 'nowrap';
+                        row.style.overflowX = 'auto';
+                        row.innerHTML = `
+                          <select class='js-set-metric'>
+                            <option value='reps'>reps</option>
+                            <option value='reps-lr'>reps-lr</option>
+                            <option value='time'>time</option>
+                            <option value='distance'>distance</option>
+                          </select>
+                          <input type='number' class='js-set-value' placeholder='value' style='width:90px;' />
+                          <input type='number' class='js-set-left' placeholder='left' style='width:80px;' />
+                          <input type='number' class='js-set-right' placeholder='right' style='width:80px;' />
+                          <input type='text' class='js-set-weight' placeholder='weight' style='width:130px;' />
+                          <input type='number' step='0.1' class='js-set-rpe' placeholder='rpe' style='width:80px;' />
+                          <a href='#' class='js-remove-set'>Remove</a>
+                        `;
+                        const metric = row.querySelector('.js-set-metric');
+                        const value = row.querySelector('.js-set-value');
+                        const left = row.querySelector('.js-set-left');
+                        const right = row.querySelector('.js-set-right');
+                        const weight = row.querySelector('.js-set-weight');
+                        const rpe = row.querySelector('.js-set-rpe');
+                        metric.value = set.metricType || 'reps';
+                        value.value = set.metricValue || '';
+                        left.value = set.metricLeft || '';
+                        right.value = set.metricRight || '';
+                        weight.value = set.weight || '';
+                        rpe.value = set.rpe || '';
+                        toggleSetMetricRow(row);
+                        container.appendChild(row);
+                      });
+                    }
+
+                    function collectSetRows(form) {
+                      const rows = Array.from(form.querySelectorAll('.js-set-row'));
+                      return rows.map((row) => {
+                        const metricType = (row.querySelector('.js-set-metric') || {}).value || 'reps';
+                        const metricValue = (row.querySelector('.js-set-value') || {}).value || '';
+                        const metricLeft = (row.querySelector('.js-set-left') || {}).value || '';
+                        const metricRight = (row.querySelector('.js-set-right') || {}).value || '';
+                        const weight = (row.querySelector('.js-set-weight') || {}).value || '';
+                        const rpe = (row.querySelector('.js-set-rpe') || {}).value || '';
+                        return { metricType, metricValue, metricLeft, metricRight, weight, rpe };
+                      });
+                    }
+
+                    function bindExecutionForm(form) {
+                      let initialSets = [];
+                      try {
+                        initialSets = JSON.parse(form.dataset.initialSets || '[]');
+                      } catch (error) {
+                        initialSets = [];
+                      }
+                      renderSetRows(form, initialSets);
+                      form.querySelectorAll('.js-set-row').forEach((row) => toggleSetMetricRow(row));
+
+                      form.addEventListener('change', (event) => {
+                        const row = event.target.closest('.js-set-row');
+                        if (!row) {
+                          return;
+                        }
+                        if (event.target.classList.contains('js-set-metric')) {
+                          toggleSetMetricRow(row);
+                        }
+                      });
+
+                      form.addEventListener('click', (event) => {
+                        const add = event.target.closest('.js-add-set');
+                        if (add) {
+                          event.preventDefault();
+                          const current = collectSetRows(form);
+                          current.push({ metricType: 'reps', metricValue: '5', metricLeft: '', metricRight: '', weight: '', rpe: '' });
+                          renderSetRows(form, current);
+                          return;
+                        }
+                        const remove = event.target.closest('.js-remove-set');
+                        if (remove) {
+                          event.preventDefault();
+                          const row = remove.closest('.js-set-row');
+                          if (row) {
+                            row.remove();
+                          }
+                        }
+                      });
+
+                      form.addEventListener('submit', (event) => {
+                        const hidden = form.querySelector('.js-detailed-sets');
+                        if (!hidden) {
+                          return;
+                        }
+                        const sets = collectSetRows(form);
+                        if (sets.length === 0) {
+                          event.preventDefault();
+                          window.alert('At least one set is required.');
+                          return;
+                        }
+                        hidden.value = JSON.stringify(sets);
+                      });
+                    }
+
+                    function bindExecutionActions(scope) {
+                      scope.querySelectorAll('.js-exec-form').forEach((form) => bindExecutionForm(form));
+
+                      scope.querySelectorAll('.js-exec-edit').forEach((button) => {
+                      button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const item = button.closest('.execution-item');
+                        if (!item) {
+                          return;
+                        }
+                        setExecutionEditing(item, true);
+                      });
+                    });
+
+                      scope.querySelectorAll('.js-exec-cancel').forEach((button) => {
+                      button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const item = button.closest('.execution-item');
+                        if (!item) {
+                          return;
+                        }
+                        const form = item.querySelector('.js-exec-form');
+                        if (form) {
+                          let initialSets = [];
+                          try {
+                            initialSets = JSON.parse(form.dataset.initialSets || '[]');
+                          } catch (error) {
+                            initialSets = [];
+                          }
+                          renderSetRows(form, initialSets);
+                          form.reset();
+                        }
+                        setExecutionEditing(item, false);
+                      });
+                    });
+
+                      scope.querySelectorAll('.js-exec-delete').forEach((link) => {
+                      link.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const item = link.closest('.execution-item');
+                        if (!item) {
+                          return;
+                        }
+                        const form = item.querySelector('.js-exec-delete-form');
+                        if (!form) {
+                          return;
+                        }
+                        if (window.confirm('Delete this execution?')) {
+                          form.submit();
+                        }
+                      });
+                    });
+                    }
+
+                    document.querySelectorAll('.execution-item').forEach((item) => {
+                      setExecutionEditing(item, false);
+                    });
+
+                    document.querySelectorAll('.execution-lift-group').forEach((group) => {
+                      group.addEventListener('toggle', async () => {
+                        if (!group.open) {
+                          return;
+                        }
+                        const body = group.querySelector('.js-exec-body');
+                        if (!body || body.dataset.loaded === 'true') {
+                          return;
+                        }
+                        const lift = body.dataset.lift || '';
+                        if (!lift) {
+                          body.innerHTML = "<div class='status error'>Missing lift name</div>";
+                          return;
+                        }
+                        body.innerHTML = "<p>Loading...</p>";
+                        try {
+                          const response = await fetch('/executions-fragment?lift=' + encodeURIComponent(lift));
+                          const html = await response.text();
+                          body.innerHTML = html;
+                          body.dataset.loaded = 'true';
+                          bindExecutionActions(body);
+                          body.querySelectorAll('.execution-item').forEach((item) => setExecutionEditing(item, false));
+                        } catch (error) {
+                          body.innerHTML = "<div class='status error'>Failed to load executions.</div>";
+                        }
+                      });
+                    });
+
                     syncWeightMode();
                     syncAccomMode();
                   })();
@@ -985,6 +1212,181 @@ final class WebUiRenderer {
 
         liftList.append("</ul>");
         return liftList.toString();
+    }
+
+    static String renderExecutionList(SqliteDb db, List<Lift> lifts, String search, String label) {
+        StringBuilder html = new StringBuilder();
+        html.append("<p>").append(WebHtml.escapeHtml(label)).append("</p>");
+
+        boolean hasLift = false;
+        for (Lift lift : lifts) {
+            if (!search.isEmpty() && !lift.name().toLowerCase(Locale.ROOT).contains(search)) {
+                continue;
+            }
+            hasLift = true;
+            html.append("<details class='execution-lift-group' data-filter-item data-name='")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append("' data-region='")
+                    .append(WebHtml.escapeHtml(lift.region().toString()))
+                    .append("' data-main='")
+                    .append(WebHtml.escapeHtml(formatMainType(lift)))
+                    .append("' data-muscles='")
+                    .append(WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(","))))
+                    .append("'>");
+            html.append("<summary class='execution-lift-toggle'>")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append(" - ")
+                    .append(WebHtml.escapeHtml(lift.region().toString()))
+                    .append(" / ")
+                    .append(WebHtml.escapeHtml(formatMainType(lift)))
+                    .append("</summary>");
+            html.append("<div class='js-exec-body' data-lift='")
+                    .append(WebHtml.escapeHtml(lift.name()))
+                    .append("' data-loaded='false'><p>Expand to load executions...</p></div>");
+
+            html.append("</details>");
+        }
+
+        if (!hasLift) {
+            html.append("<p>No lifts found for current filters.</p>");
+        }
+        return html.toString();
+    }
+
+    static String renderExecutionRows(SqliteDb db, String liftName) {
+        try {
+            List<LiftExecution> executions = db.getExecutions(liftName);
+            if (executions.isEmpty()) {
+                return "<p>No executions recorded.</p>";
+            }
+
+            StringBuilder html = new StringBuilder("<ul class='execution-list'>");
+            for (LiftExecution execution : executions) {
+                html.append("<li class='execution-item' style='margin:6px 0;'>");
+                html.append("<div class='js-exec-view' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;'>");
+                html.append("<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>")
+                        .append(WebHtml.escapeHtml(formatExecution(execution)))
+                        .append("</span>");
+                if (execution.id() == null) {
+                    html.append("<span class='status error'>Execution ID missing; cannot edit or delete.</span>");
+                } else {
+                    html.append("<a href='#' class='js-exec-edit'>Edit</a>");
+                    html.append("<a href='#' class='danger js-exec-delete'>Delete</a>");
+                    html.append("<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>")
+                            .append("<input type='hidden' name='executionId' value='").append(execution.id()).append("'/>")
+                            .append("</form>");
+                }
+                html.append("</div>");
+                if (execution.id() != null) {
+                    String initialSetsJson = setsToEditJson(execution.sets());
+                    html.append("<form method='post' action='/update-execution' class='query-form execution-edit-form js-exec-form' data-initial-sets='")
+                            .append(WebHtml.escapeHtml(initialSetsJson))
+                            .append("' style='display:none;flex-direction:column;align-items:flex-start;gap:8px;'>")
+                            .append("<input type='hidden' name='lift' value='").append(WebHtml.escapeHtml(liftName)).append("'/>")
+                            .append("<input type='hidden' name='executionId' value='").append(execution.id()).append("'/>")
+                            .append("<div style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>")
+                            .append("<label>Date <input type='date' name='date' disabled value='").append(WebHtml.escapeHtml(DATE_FORMAT.format(execution.date()))).append("'/></label>")
+                            .append("<label>Notes <input type='text' name='notes' style='min-width:220px;' disabled value='").append(WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes())).append("'/></label>")
+                            .append("<label><input type='checkbox' name='warmup' disabled").append(execution.warmup() ? " checked" : "").append("/> Warm-up</label>")
+                            .append("<label><input type='checkbox' name='deload' disabled").append(execution.deload() ? " checked" : "").append("/> Deload</label>")
+                            .append("</div>")
+                            .append("<div class='js-edit-sets' style='display:flex;flex-direction:column;gap:6px;width:100%;'>")
+                            .append(renderSetEditorRows(execution.sets()))
+                            .append("</div>")
+                            .append("<a href='#' class='js-add-set'>Add Set</a>")
+                            .append("<input type='hidden' name='detailedSets' class='js-detailed-sets' disabled value=''/>")
+                            .append("<button type='submit'>Save</button>")
+                            .append("<a href='#' class='js-exec-cancel'>Cancel</a>")
+                            .append("</form>");
+                }
+                html.append("</li>");
+            }
+            html.append("</ul>");
+            return html.toString();
+        } catch (Exception e) {
+            return "<div class='status error'>" + WebHtml.escapeHtml("Failed to load executions: " + e.getMessage()) + "</div>";
+        }
+    }
+
+    private static String renderSetEditorRows(List<ExecutionSet> sets) {
+        StringBuilder html = new StringBuilder();
+        for (ExecutionSet set : sets) {
+            String metricType = "reps";
+            String metricValue = "";
+            String metricLeft = "";
+            String metricRight = "";
+            if (set.metric() instanceof SetMetric.Reps reps) {
+                metricType = "reps";
+                metricValue = String.valueOf(reps.reps());
+            } else if (set.metric() instanceof SetMetric.RepsLr repsLr) {
+                metricType = "reps-lr";
+                metricLeft = String.valueOf(repsLr.left());
+                metricRight = String.valueOf(repsLr.right());
+            } else if (set.metric() instanceof SetMetric.TimeSecs timeSecs) {
+                metricType = "time";
+                metricValue = String.valueOf(timeSecs.seconds());
+            } else if (set.metric() instanceof SetMetric.DistanceFeet distanceFeet) {
+                metricType = "distance";
+                metricValue = String.valueOf(distanceFeet.feet());
+            }
+
+            html.append("<div class='js-set-row' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>")
+                    .append("<select class='js-set-metric' disabled>")
+                    .append("<option value='reps'").append("reps".equals(metricType) ? " selected" : "").append(">reps</option>")
+                    .append("<option value='reps-lr'").append("reps-lr".equals(metricType) ? " selected" : "").append(">reps-lr</option>")
+                    .append("<option value='time'").append("time".equals(metricType) ? " selected" : "").append(">time</option>")
+                    .append("<option value='distance'").append("distance".equals(metricType) ? " selected" : "").append(">distance</option>")
+                    .append("</select>")
+                    .append("<input type='number' class='js-set-value' disabled placeholder='value' style='width:90px;' value='").append(WebHtml.escapeHtml(metricValue)).append("'/>")
+                    .append("<input type='number' class='js-set-left' disabled placeholder='left' style='width:80px;' value='").append(WebHtml.escapeHtml(metricLeft)).append("'/>")
+                    .append("<input type='number' class='js-set-right' disabled placeholder='right' style='width:80px;' value='").append(WebHtml.escapeHtml(metricRight)).append("'/>")
+                    .append("<input type='text' class='js-set-weight' disabled placeholder='weight' style='width:130px;' value='").append(WebHtml.escapeHtml(set.weight() == null ? "" : set.weight())).append("'/>")
+                    .append("<input type='number' step='0.1' class='js-set-rpe' disabled placeholder='rpe' style='width:80px;' value='").append(WebHtml.escapeHtml(set.rpe() == null ? "" : String.format(Locale.ROOT, "%s", set.rpe()))).append("'/>")
+                    .append("<a href='#' class='js-remove-set'>Remove</a>")
+                    .append("</div>");
+        }
+        return html.toString();
+    }
+
+    private static String setsToEditJson(List<ExecutionSet> sets) {
+        List<String> items = new ArrayList<>();
+        for (ExecutionSet set : sets) {
+            String metricType = "reps";
+            String metricValue = "";
+            String metricLeft = "";
+            String metricRight = "";
+            if (set.metric() instanceof SetMetric.Reps reps) {
+                metricType = "reps";
+                metricValue = String.valueOf(reps.reps());
+            } else if (set.metric() instanceof SetMetric.RepsLr repsLr) {
+                metricType = "reps-lr";
+                metricLeft = String.valueOf(repsLr.left());
+                metricRight = String.valueOf(repsLr.right());
+            } else if (set.metric() instanceof SetMetric.TimeSecs timeSecs) {
+                metricType = "time";
+                metricValue = String.valueOf(timeSecs.seconds());
+            } else if (set.metric() instanceof SetMetric.DistanceFeet distanceFeet) {
+                metricType = "distance";
+                metricValue = String.valueOf(distanceFeet.feet());
+            }
+
+            String item = "{\"metricType\":\"" + jsonEscape(metricType) + "\","
+                    + "\"metricValue\":\"" + jsonEscape(metricValue) + "\","
+                    + "\"metricLeft\":\"" + jsonEscape(metricLeft) + "\","
+                    + "\"metricRight\":\"" + jsonEscape(metricRight) + "\","
+                    + "\"weight\":\"" + jsonEscape(set.weight() == null ? "" : set.weight()) + "\","
+                    + "\"rpe\":\"" + jsonEscape(set.rpe() == null ? "" : String.format(Locale.ROOT, "%s", set.rpe())) + "\"}";
+            items.add(item);
+        }
+        return "[" + String.join(",", items) + "]";
+    }
+
+    private static String jsonEscape(String value) {
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n");
     }
 
     static String formatExecution(LiftExecution execution) {

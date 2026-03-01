@@ -67,6 +67,7 @@ class WebServerCliTest {
                 "",
                 "Back Squat",
                 "query",
+                "<p>execution result</p>",
                 "<p>query result</p>",
                 "<p>last week result</p>",
                 "<p>wave result</p>",
@@ -112,6 +113,7 @@ class WebServerCliTest {
         assertTrue(html.contains("formaction='/load-last-execution'"));
         assertTrue(html.contains("New Lift"));
         assertTrue(html.contains("action='/add-lift'"));
+        assertTrue(html.contains("execution result"));
         assertTrue(html.contains("name='metricType'"));
         assertTrue(html.contains("name='setCopies'"));
         assertTrue(html.contains("metricLabel(item)"));
@@ -202,5 +204,17 @@ class WebServerCliTest {
         assertEquals(warmup, WebServerCli.selectExecutionForFlags(executions, true, false));
         assertEquals(deload, WebServerCli.selectExecutionForFlags(executions, false, true));
         assertEquals(both, WebServerCli.selectExecutionForFlags(executions, true, true));
+    }
+
+    @Test
+    void findExecutionByIdReturnsMatch() {
+        LiftExecution first = new LiftExecution(10, LocalDate.parse("2026-01-01"), List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", null)), false, false, "");
+        LiftExecution second = new LiftExecution(11, LocalDate.parse("2026-01-02"), List.of(new ExecutionSet(new SetMetric.Reps(3), "185 lb", null)), false, false, "");
+
+        LiftExecution found = WebServerCli.findExecutionById(List.of(first, second), 11);
+        LiftExecution missing = WebServerCli.findExecutionById(List.of(first, second), 99);
+
+        assertEquals(second, found);
+        assertTrue(missing == null);
     }
 }

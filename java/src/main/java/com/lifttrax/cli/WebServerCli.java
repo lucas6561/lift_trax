@@ -50,6 +50,9 @@ public class WebServerCli {
         server.createContext("/", exchange -> handleIndex(exchange, db));
         server.createContext("/lift", exchange -> handleLift(exchange, db));
         server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
+        server.createContext("/update-execution", exchange -> handleUpdateExecution(exchange, db));
+        server.createContext("/delete-execution", exchange -> handleDeleteExecution(exchange, db));
+        server.createContext("/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
         server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
         server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
         server.setExecutor(null);
@@ -125,8 +128,9 @@ public class WebServerCli {
                     waveWeeks
             );
             sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
-        } catch (Exception e) {
-            sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(e.getMessage()) + "</pre>"));
+        } catch (Throwable e) {
+            String message = e.getMessage() == null ? e.getClass().getName() : e.getClass().getName() + ": " + e.getMessage();
+            sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(message) + "</pre>"));
         }
     }
 
@@ -221,6 +225,94 @@ public class WebServerCli {
         }
     }
 
+    private static void handleExecutionsFragment(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        try {
+            Map<String, String> query = parseQuery(exchange.getRequestURI());
+            String liftName = query.getOrDefault("lift", "").trim();
+            if (liftName.isBlank()) {
+                sendText(exchange, 400, "Missing lift");
+                return;
+            }
+            String body = WebUiRenderer.renderExecutionRows(db, liftName);
+            sendHtml(exchange, body);
+        } catch (Throwable e) {
+            String message = e.getMessage() == null ? e.getClass().getName() : e.getClass().getName() + ": " + e.getMessage();
+            sendHtml(exchange, "<div class='status error'>" + WebHtml.escapeHtml(message) + "</div>");
+        }
+    }
+
+    private static void handleUpdateExecution(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        try {
+            Map<String, String> form = parseForm(exchange.getRequestBody());
+            String liftName = form.getOrDefault("lift", "").trim();
+            int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
+            if (liftName.isBlank()) {
+                redirect(exchange, "/?tab=executions&statusType=error&status=Lift%20is%20required");
+                return;
+            }
+
+            LiftExecution existing = findExecutionById(db.getExecutions(liftName), executionId);
+            if (existing == null) {
+                redirect(exchange, "/?tab=executions&statusType=error&status=" + WebUiRenderer.urlEncode("Execution not found for " + liftName));
+                return;
+            }
+
+            LocalDate date = Optional.ofNullable(form.get("date"))
+                    .filter(value -> !value.isBlank())
+                    .map(LocalDate::parse)
+                    .orElse(existing.date());
+            String notes = form.getOrDefault("notes", "");
+            String detailedSetsJson = form.getOrDefault("detailedSets", "").trim();
+            List<ExecutionSet> sets = existing.sets();
+            if (!detailedSetsJson.isBlank()) {
+                List<ExecutionSet> parsed = parseDetailedSets(detailedSetsJson);
+                if (parsed.isEmpty()) {
+                    throw new IllegalArgumentException("Detailed sets must be valid JSON and contain at least one set");
+                }
+                sets = parsed;
+            }
+
+            LiftExecution updated = new LiftExecution(
+                    existing.id(),
+                    date,
+                    sets,
+                    form.containsKey("warmup"),
+                    form.containsKey("deload"),
+                    notes
+            );
+            db.updateLiftExecution(executionId, updated);
+            redirect(exchange, "/?tab=executions&statusType=success&status=" + WebUiRenderer.urlEncode("Execution updated"));
+        } catch (Exception e) {
+            redirect(exchange, "/?tab=executions&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to update execution: " + e.getMessage()));
+        }
+    }
+
+    private static void handleDeleteExecution(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        try {
+            Map<String, String> form = parseForm(exchange.getRequestBody());
+            int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
+            db.deleteLiftExecution(executionId);
+            redirect(exchange, "/?tab=executions&statusType=success&status=" + WebUiRenderer.urlEncode("Execution deleted"));
+        } catch (Exception e) {
+            redirect(exchange, "/?tab=executions&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage()));
+        }
+    }
+
     private static void handleAddLift(HttpExchange exchange, SqliteDb db) throws IOException {
         if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             sendText(exchange, 405, "Method Not Allowed");
@@ -305,6 +397,15 @@ public class WebServerCli {
     static LiftExecution selectExecutionForFlags(List<LiftExecution> executions, boolean warmup, boolean deload) {
         for (LiftExecution execution : executions) {
             if (execution.warmup() == warmup && execution.deload() == deload) {
+                return execution;
+            }
+        }
+        return null;
+    }
+
+    static LiftExecution findExecutionById(List<LiftExecution> executions, int executionId) {
+        for (LiftExecution execution : executions) {
+            if (execution.id() != null && execution.id() == executionId) {
                 return execution;
             }
         }
