@@ -750,11 +750,6 @@ final class WebUiRenderer {
             List<Lift> deadlifts = db.liftsByType(LiftType.DEADLIFT);
             List<Lift> benches = db.liftsByType(LiftType.BENCH_PRESS);
             List<Lift> overheads = db.liftsByType(LiftType.OVERHEAD_PRESS);
-            MaxEffortLiftPools pools = new MaxEffortLiftPools(weeks, db);
-            List<Lift> lowerDefaults = pools.lowerWeeks();
-            List<Lift> upperDefaults = pools.upperWeeks();
-            List<MaxEffortPlan.DeloadLowerLifts> lowerDeloadDefaults = MaxEffortPlan.deriveLowerDeloadFromPlan(lowerDefaults);
-            List<MaxEffortPlan.DeloadUpperLifts> upperDeloadDefaults = MaxEffortPlan.deriveUpperDeloadFromPlan(upperDefaults);
 
             StringBuilder html = new StringBuilder();
             html.append("<form method='get' action='/' class='query-form' style='display:block;'>");
@@ -778,6 +773,12 @@ final class WebUiRenderer {
                 html.append("</form>");
                 return html.toString();
             }
+
+            MaxEffortLiftPools pools = new MaxEffortLiftPools(weeks, db);
+            List<Lift> lowerDefaults = pools.lowerWeeks();
+            List<Lift> upperDefaults = pools.upperWeeks();
+            List<MaxEffortPlan.DeloadLowerLifts> lowerDeloadDefaults = MaxEffortPlan.deriveLowerDeloadFromPlan(lowerDefaults);
+            List<MaxEffortPlan.DeloadUpperLifts> upperDeloadDefaults = MaxEffortPlan.deriveUpperDeloadFromPlan(upperDefaults);
 
             html.append("<h3>Max Effort Rotation</h3>");
 
