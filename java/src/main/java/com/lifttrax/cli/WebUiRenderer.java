@@ -9,6 +9,8 @@ import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.ConjugateWorkoutBuilder;
+import com.lifttrax.workout.HypertrophyWorkoutBuilder;
+import com.lifttrax.workout.WorkoutBuilder;
 import com.lifttrax.workout.MaxEffortLiftPools;
 import com.lifttrax.workout.MaxEffortPlan;
 import com.lifttrax.workout.WebConfiguredDynamicLiftSource;
@@ -720,10 +722,14 @@ final class WebUiRenderer {
                 return planner + "<p>Review movements, then click Generate Wave.</p>";
             }
 
-            ConjugateWorkoutBuilder builder = new ConjugateWorkoutBuilder(
-                    new WebConfiguredMaxEffortPlanSource(normalizedWeeks, waveInput),
-                    new WebConfiguredDynamicLiftSource(waveInput)
-            );
+            String waveType = waveInput.getOrDefault("waveType", "conjugate").trim().toLowerCase(Locale.ROOT);
+            WorkoutBuilder builder = switch (waveType) {
+                case "hypertrophy" -> new HypertrophyWorkoutBuilder();
+                default -> new ConjugateWorkoutBuilder(
+                        new WebConfiguredMaxEffortPlanSource(normalizedWeeks, waveInput),
+                        new WebConfiguredDynamicLiftSource(waveInput)
+                );
+            };
             var wave = builder.getWave(normalizedWeeks, db);
             List<String> markdown = WaveMarkdownWriter.createMarkdown(wave, db);
             return planner + """
@@ -754,9 +760,25 @@ final class WebUiRenderer {
             html.append("<form method='get' action='/' class='query-form' style='display:block;'>");
             html.append("<input type='hidden' name='tab' value='waves'/>");
             html.append("<input type='hidden' name='waveGenerate' value='true'/>");
+            String waveType = values.getOrDefault("waveType", "conjugate").trim().toLowerCase(Locale.ROOT);
             html.append("<label>Weeks <input type='number' name='waveWeeks' min='1' max='24' value='")
                     .append(weeks)
                     .append("'/></label>");
+            html.append("<label>Wave Type <select name='waveType'>")
+                    .append("<option value='conjugate'")
+                    .append("conjugate".equals(waveType) ? " selected" : "")
+                    .append(">Conjugate</option>")
+                    .append("<option value='hypertrophy'")
+                    .append("hypertrophy".equals(waveType) ? " selected" : "")
+                    .append(">Hypertrophy</option>")
+                    .append("</select></label>");
+
+            if (!"conjugate".equals(waveType)) {
+                html.append("<div class='stacked-row'><button type='submit'>Generate Wave</button></div>");
+                html.append("</form>");
+                return html.toString();
+            }
+
             html.append("<h3>Max Effort Rotation</h3>");
 
             for (int i = 0; i < weeks; i++) {
