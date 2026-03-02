@@ -32,6 +32,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+/**
+ * Core SqliteDb component used by LiftTrax.
+ */
+
 public class SqliteDb implements Database, AutoCloseable {
     public static final int MAX_BACKUPS = 5;
 

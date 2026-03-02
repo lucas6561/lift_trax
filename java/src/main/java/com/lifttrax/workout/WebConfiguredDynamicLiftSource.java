@@ -7,6 +7,10 @@ import com.lifttrax.models.LiftType;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Core WebConfiguredDynamicLiftSource component used by LiftTrax.
+ */
+
 public class WebConfiguredDynamicLiftSource implements DynamicLiftSource {
     private final Map<String, String> values;
 

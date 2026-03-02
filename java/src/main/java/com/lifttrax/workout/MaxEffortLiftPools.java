@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Core MaxEffortLiftPools component used by LiftTrax.
+ */
+
 public class MaxEffortLiftPools {
     private final List<Lift> lowerWeeks;
     private final List<Lift> upperWeeks;

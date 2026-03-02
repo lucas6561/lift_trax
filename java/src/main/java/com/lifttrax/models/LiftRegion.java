@@ -1,5 +1,9 @@
 package com.lifttrax.models;
 
+/**
+ * List of allowed LiftRegion values used throughout LiftTrax.
+ */
+
 public enum LiftRegion {
     UPPER,
     LOWER;

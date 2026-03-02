@@ -9,6 +9,10 @@ import com.lifttrax.models.Muscle;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Core WarmupStacks component used by LiftTrax.
+ */
+
 public class WarmupStacks {
     private final RandomStack<Lift> core;
     private final RandomStack<Lift> lowerMobility;

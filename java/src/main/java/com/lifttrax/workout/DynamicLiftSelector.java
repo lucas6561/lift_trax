@@ -10,6 +10,10 @@ import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
 import java.util.List;
 
+/**
+ * Core DynamicLiftSelector component used by LiftTrax.
+ */
+
 final class DynamicLiftSelector {
     private DynamicLiftSelector() {}
 

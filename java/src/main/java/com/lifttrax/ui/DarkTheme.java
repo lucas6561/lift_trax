@@ -7,6 +7,10 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Insets;
 
+/**
+ * Core DarkTheme component used by LiftTrax.
+ */
+
 final class DarkTheme {
     private DarkTheme() {
     }

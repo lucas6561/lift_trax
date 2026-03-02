@@ -25,6 +25,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Core LastWeekTabPanel component used by LiftTrax.
+ */
+
 final class LastWeekTabPanel extends JPanel {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("EEE MMM d");
 

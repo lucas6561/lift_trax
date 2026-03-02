@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Core WebConfiguredMaxEffortPlanSource component used by LiftTrax.
+ */
+
 public class WebConfiguredMaxEffortPlanSource implements MaxEffortPlanSource {
     private final int weeks;
     private final Map<String, String> values;

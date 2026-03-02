@@ -3,6 +3,10 @@ package com.lifttrax.workout;
 import com.lifttrax.db.Database;
 import com.lifttrax.models.LiftType;
 
+/**
+ * Core SwingMaxEffortPlanSource component used by LiftTrax.
+ */
+
 public class SwingMaxEffortPlanSource implements MaxEffortPlanSource {
     @Override
     public MaxEffortPlan selectPlan(Database db, MaxEffortLiftPools pools) throws Exception {

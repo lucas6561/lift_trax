@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+/**
+ * Core ConjugateWorkoutBuilder component used by LiftTrax.
+ */
+
 public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     private final MaxEffortPlanSource maxEffortPlanSource;
     private final DynamicLiftSource dynamicLiftSource;

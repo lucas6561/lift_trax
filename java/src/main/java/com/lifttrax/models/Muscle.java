@@ -1,5 +1,9 @@
 package com.lifttrax.models;
 
+/**
+ * List of allowed Muscle values used throughout LiftTrax.
+ */
+
 public enum Muscle {
     BICEP,
     TRICEP,

@@ -5,6 +5,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Core RandomStack component used by LiftTrax.
+ */
+
 public class RandomStack<T> {
     private final List<T> items;
     private final List<Integer> order = new ArrayList<>();

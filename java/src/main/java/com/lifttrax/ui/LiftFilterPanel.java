@@ -27,6 +27,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Core LiftFilterPanel component used by LiftTrax.
+ */
+
 final class LiftFilterPanel extends JPanel {
     private final JTextField nameFilter;
     private final JComboBox<FilterOption<LiftRegion>> regionFilter;

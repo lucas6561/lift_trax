@@ -9,6 +9,10 @@ import com.lifttrax.models.SetMetric;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Core DumpDatabaseCli component used by LiftTrax.
+ */
+
 public class DumpDatabaseCli {
     public static void main(String[] args) throws Exception {
         String dbPath = args.length > 0 ? args[0] : "lifts.db";

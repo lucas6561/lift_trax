@@ -1,5 +1,9 @@
 package com.lifttrax.models;
 
+/**
+ * List of allowed LiftType values used throughout LiftTrax.
+ */
+
 public enum LiftType {
     BENCH_PRESS,
     OVERHEAD_PRESS,

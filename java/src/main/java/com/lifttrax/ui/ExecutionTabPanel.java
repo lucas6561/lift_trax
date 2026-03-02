@@ -21,6 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Core ExecutionTabPanel component used by LiftTrax.
+ */
+
 final class ExecutionTabPanel extends JPanel {
     private final Database database;
     private final LiftFilterPanel filterPanel;

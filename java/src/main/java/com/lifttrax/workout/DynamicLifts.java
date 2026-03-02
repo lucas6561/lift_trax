@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Simple data holder for DynamicLifts values used by LiftTrax.
+ */
+
 public record DynamicLifts(
         DynamicLift squat,
         DynamicLift deadlift,

@@ -7,6 +7,10 @@ import com.lifttrax.workout.WaveMarkdownWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * Core WaveCli component used by LiftTrax.
+ */
+
 public final class WaveCli {
     private WaveCli() {}
 

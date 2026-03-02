@@ -31,6 +31,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.SetMetric;
 
+/**
+ * Core WebServerCli component used by LiftTrax.
+ */
+
 public class WebServerCli {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
