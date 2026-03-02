@@ -5,6 +5,10 @@ import com.lifttrax.models.Lift;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Simple data holder for MaxEffortPlan values used by LiftTrax.
+ */
+
 public record MaxEffortPlan(
         List<Lift> lower,
         List<Lift> upper,

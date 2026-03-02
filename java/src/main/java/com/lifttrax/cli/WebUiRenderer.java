@@ -19,26 +19,28 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Builds HTML for the lightweight LiftTrax web interface.
+ * <p>
+ * Think of this class as a "template printer": it receives data from the database
+ * and turns it into plain HTML strings that the browser can display.
+ */
 final class WebUiRenderer {
     static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final Pattern SIMPLE_WEIGHT_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(lb|kg)\\s*$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern LR_WEIGHT_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*(lb|kg))?\\s*\\|\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*(lb|kg))?\\s*$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ACCOM_CHAIN_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?(?:\\s*(?:lb|kg))?)\\s*\\+\\s*([0-9]+(?:\\.[0-9]+)?)c\\s*$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ACCOM_BANDS_PATTERN = Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?(?:\\s*(?:lb|kg))?)\\s*\\+\\s*([a-z+]+)\\s*$", Pattern.CASE_INSENSITIVE);
-    private static final List<String> BAND_COLORS = List.of("orange", "red", "blue", "green", "black", "purple");
 
     private WebUiRenderer() {
     }
 
+    /**
+     * Stores previous form values so we can re-fill the Add Execution form after a submit.
+     * This helps users fix mistakes without retyping everything.
+     */
     record AddExecutionPrefill(
             String lift,
             String weight,
@@ -58,91 +60,12 @@ final class WebUiRenderer {
         }
     }
 
-    private record WeightPrefill(
-            String mode,
-            String weightValue,
-            String weightUnit,
-            String leftValue,
-            String rightValue,
-            String lrUnit,
-            List<String> bands,
-            String accomBar,
-            String accomUnit,
-            String accomMode,
-            String accomChain,
-            List<String> accomBands,
-            String customWeight
-    ) {
-        static WeightPrefill from(String weight) {
-            String text = weight == null ? "" : weight.trim();
-            if (text.isBlank() || "none".equalsIgnoreCase(text)) {
-                return new WeightPrefill("none", "", "lb", "", "", "lb", List.of(), "", "lb", "chains", "", List.of(), "");
-            }
-
-            Matcher simple = SIMPLE_WEIGHT_PATTERN.matcher(text);
-            if (simple.matches()) {
-                return new WeightPrefill("weight", simple.group(1), simple.group(2).toLowerCase(Locale.ROOT), "", "", "lb", List.of(), "", "lb", "chains", "", List.of(), text);
-            }
-
-            Matcher lr = LR_WEIGHT_PATTERN.matcher(text);
-            if (lr.matches()) {
-                String unit = lr.group(2) != null ? lr.group(2) : lr.group(4);
-                String normalizedUnit = unit == null ? "lb" : unit.toLowerCase(Locale.ROOT);
-                return new WeightPrefill("lr", "", "lb", lr.group(1), lr.group(3), normalizedUnit, List.of(), "", "lb", "chains", "", List.of(), text);
-            }
-
-            Matcher accomChains = ACCOM_CHAIN_PATTERN.matcher(text);
-            if (accomChains.matches()) {
-                ParsedNumeric bar = parseNumericWithUnit(accomChains.group(1));
-                return new WeightPrefill("accom", "", "lb", "", "", "lb", List.of(), bar.value(), bar.unit(), "chains", accomChains.group(2), List.of(), text);
-            }
-
-            Matcher accomBands = ACCOM_BANDS_PATTERN.matcher(text);
-            if (accomBands.matches()) {
-                ParsedNumeric bar = parseNumericWithUnit(accomBands.group(1));
-                List<String> bands = parseBandList(accomBands.group(2));
-                if (!bands.isEmpty()) {
-                    return new WeightPrefill("accom", "", "lb", "", "", "lb", List.of(), bar.value(), bar.unit(), "bands", "", bands, text);
-                }
-            }
-
-            List<String> bands = parseBandList(text);
-            if (!bands.isEmpty()) {
-                return new WeightPrefill("bands", "", "lb", "", "", "lb", bands, "", "lb", "chains", "", List.of(), text);
-            }
-
-            return new WeightPrefill("custom", "", "lb", "", "", "lb", List.of(), "", "lb", "chains", "", List.of(), text);
-        }
-    }
-
-    private record ParsedNumeric(String value, String unit) {
-    }
-
-    private static ParsedNumeric parseNumericWithUnit(String text) {
-        Matcher simple = SIMPLE_WEIGHT_PATTERN.matcher(text == null ? "" : text.trim());
-        if (simple.matches()) {
-            return new ParsedNumeric(simple.group(1), simple.group(2).toLowerCase(Locale.ROOT));
-        }
-        String trimmed = text == null ? "" : text.trim();
-        return new ParsedNumeric(trimmed, "lb");
-    }
-
-    private static List<String> parseBandList(String text) {
-        if (text == null || text.isBlank()) {
-            return List.of();
-        }
-        List<String> parsed = Arrays.stream(text.toLowerCase(Locale.ROOT).split("\\+"))
-                .map(String::trim)
-                .filter(BAND_COLORS::contains)
-                .toList();
-        return parsed.size() == Arrays.stream(text.split("\\+")).map(String::trim).filter(s -> !s.isBlank()).count()
-                ? parsed
-                : List.of();
-    }
-
+    /**
+     * Renders checkbox inputs for supported band colors.
+     */
     private static String renderBandChecks(String name, List<String> selected) {
         StringBuilder html = new StringBuilder();
-        for (String color : BAND_COLORS) {
+        for (String color : WeightInputParser.BAND_COLORS) {
             html.append("<label><input type='checkbox' name='")
                     .append(name)
                     .append("' value='")
@@ -156,6 +79,9 @@ final class WebUiRenderer {
         return html.toString();
     }
 
+    /**
+     * Produces the full page body by composing each tab's content section.
+     */
     static String renderIndexBody(SqliteDb db, List<Lift> lifts, String search, String queryLift, String activeTab,
                                   String statusMessage, String statusType, AddExecutionPrefill prefill,
                                   LocalDate lastWeekStart, LocalDate lastWeekEnd, int waveWeeks,
@@ -170,6 +96,10 @@ final class WebUiRenderer {
                 statusMessage, statusType, prefill, lastWeekStart, lastWeekEnd, waveWeeks);
     }
 
+    /**
+     * Wraps all major UI panels into one tabbed layout.
+     * The small JavaScript block here only handles tab switching and client-side filtering.
+     */
     static String renderTabbedLayout(List<Lift> lifts, String search, String queryLift, String activeTab,
                                      String executionContent, String queryContent, String lastWeekContent, String waveContent,
                                      String statusMessage, String statusType, AddExecutionPrefill prefill,
@@ -974,6 +904,10 @@ final class WebUiRenderer {
         return html.toString();
     }
 
+    /**
+     * Builds the Add Execution form, including weight mode controls and metric controls.
+     * Uses {@link WeightInputParser} so rendering code does not need to parse raw weight text.
+     */
     static String renderAddExecutionForm(List<Lift> lifts, String statusMessage, String statusType, AddExecutionPrefill prefillInput) {
         AddExecutionPrefill prefill = prefillInput == null ? AddExecutionPrefill.empty() : prefillInput;
         StringBuilder options = new StringBuilder("<option value=''>Select a lift</option>");
@@ -1002,7 +936,7 @@ final class WebUiRenderer {
             status = "<p class='" + cssClass + "'>" + WebHtml.escapeHtml(statusMessage) + "</p>";
         }
 
-        WeightPrefill weightPrefill = WeightPrefill.from(prefill.weight());
+        WeightInputParser.WeightPrefill weightPrefill = WeightInputParser.parseWeightPrefill(prefill.weight());
 
         String repsChecked = "reps".equals(prefill.metricType()) ? "checked" : "";
         String repsLrChecked = "reps-lr".equals(prefill.metricType()) ? "checked" : "";

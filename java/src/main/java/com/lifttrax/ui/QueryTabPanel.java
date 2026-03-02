@@ -20,6 +20,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Core QueryTabPanel component used by LiftTrax.
+ */
+
 final class QueryTabPanel extends JPanel {
     private final Database database;
     private final LiftFilterPanel filterPanel;

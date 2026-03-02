@@ -70,7 +70,7 @@ class WebServerCliTest {
                 "<p>execution result</p>",
                 "<p>query result</p>",
                 "<p>last week result</p>",
-                "<p>wave result</p>",
+                "<form><input name='waveWeeks'/><button>Generate Wave</button></form><p>wave result</p>",
                 "Saved",
                 "success",
                 WebUiRenderer.AddExecutionPrefill.empty(),

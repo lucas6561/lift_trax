@@ -9,6 +9,10 @@ import com.lifttrax.models.Muscle;
 
 import java.util.List;
 
+/**
+ * Contract for Database behavior used by other LiftTrax components.
+ */
+
 public interface Database {
     void addLift(String name, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) throws Exception;
 

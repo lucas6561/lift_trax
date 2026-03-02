@@ -8,6 +8,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+/**
+ * Core ExecutionFormatter component used by LiftTrax.
+ */
+
 final class ExecutionFormatter {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 

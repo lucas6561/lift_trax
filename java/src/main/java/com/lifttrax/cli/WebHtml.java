@@ -1,5 +1,9 @@
 package com.lifttrax.cli;
 
+/**
+ * Core WebHtml component used by LiftTrax.
+ */
+
 final class WebHtml {
     private WebHtml() {
     }

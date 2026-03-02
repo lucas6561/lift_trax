@@ -9,6 +9,10 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Core AccessoryStacks component used by LiftTrax.
+ */
+
 public class AccessoryStacks {
     private final Map<Muscle, RandomStack<Lift>> stacks = new EnumMap<>(Muscle.class);
     private RandomStack<Lift> forearms;

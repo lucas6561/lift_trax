@@ -36,6 +36,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Core AddExecutionTabPanel component used by LiftTrax.
+ */
+
 final class AddExecutionTabPanel extends JPanel {
     private final Database database;
     private final LiftFilterPanel filterPanel;

@@ -12,6 +12,10 @@ import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Core MaxEffortEditor component used by LiftTrax.
+ */
+
 final class MaxEffortEditor {
     private MaxEffortEditor() {}
 

@@ -12,6 +12,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Core WaveMarkdownWriter component used by LiftTrax.
+ */
+
 public final class WaveMarkdownWriter {
     private WaveMarkdownWriter() {}
 

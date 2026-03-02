@@ -7,6 +7,10 @@ import javax.swing.JFrame;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 
+/**
+ * Core LiftTraxApp component used by LiftTrax.
+ */
+
 public class LiftTraxApp {
     public static void main(String[] args) {
         String dbPath = args.length > 0 ? args[0] : "lifts.db";
