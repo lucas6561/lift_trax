@@ -1,6 +1,6 @@
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType, Muscle};
-use crate::random_stack::RandomStack;
+use crate::random_stack::{RandomMode, RandomStack};
 
 use super::{CircuitLift, SingleLift, WorkoutLift, WorkoutLiftKind};
 
@@ -14,6 +14,10 @@ pub struct WarmupStacks {
 
 impl WarmupStacks {
     pub fn new(db: &dyn Database) -> DbResult<Self> {
+        Self::with_mode(db, RandomMode::Random)
+    }
+
+    pub fn with_mode(db: &dyn Database, mode: RandomMode) -> DbResult<Self> {
         let mut lower_accessories =
             db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Accessory)?;
         lower_accessories.retain(|l| {
@@ -32,19 +36,23 @@ impl WarmupStacks {
             return Err("not enough accessory lifts available".into());
         }
 
-        let core = RandomStack::new(db.get_accessories_by_muscle(Muscle::Core)?);
+        let core = RandomStack::with_mode(db.get_accessories_by_muscle(Muscle::Core)?, mode);
         if core.is_empty() {
             return Err("not enough core lifts available".into());
         }
 
-        let lower_mobility =
-            RandomStack::new(db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Mobility)?);
+        let lower_mobility = RandomStack::with_mode(
+            db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Mobility)?,
+            mode,
+        );
         if lower_mobility.is_empty() {
             return Err("not enough mobility lifts available".into());
         }
 
-        let upper_mobility =
-            RandomStack::new(db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Mobility)?);
+        let upper_mobility = RandomStack::with_mode(
+            db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Mobility)?,
+            mode,
+        );
         if upper_mobility.is_empty() {
             return Err("not enough mobility lifts available".into());
         }
@@ -53,8 +61,8 @@ impl WarmupStacks {
             core,
             lower_mobility,
             upper_mobility,
-            lower_accessories: RandomStack::new(lower_accessories),
-            upper_accessories: RandomStack::new(upper_accessories),
+            lower_accessories: RandomStack::with_mode(lower_accessories, mode),
+            upper_accessories: RandomStack::with_mode(upper_accessories, mode),
         })
     }
 

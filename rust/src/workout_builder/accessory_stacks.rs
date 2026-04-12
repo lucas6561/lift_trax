@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, Muscle, SetMetric};
-use crate::random_stack::RandomStack;
+use crate::random_stack::{RandomMode, RandomStack};
 
 use super::SingleLift;
 
@@ -13,6 +13,10 @@ pub struct AccessoryStacks {
 
 impl AccessoryStacks {
     pub fn new(db: &dyn Database) -> DbResult<Self> {
+        Self::with_mode(db, RandomMode::Random)
+    }
+
+    pub fn with_mode(db: &dyn Database, mode: RandomMode) -> DbResult<Self> {
         let required = [
             Muscle::Hamstring,
             Muscle::Quad,
@@ -33,7 +37,7 @@ impl AccessoryStacks {
             if lifts.is_empty() {
                 return Err(format!("not enough accessory lifts available for {}", muscle).into());
             }
-            stacks.insert(muscle, RandomStack::new(lifts));
+            stacks.insert(muscle, RandomStack::with_mode(lifts, mode));
         }
 
         let forearms = {
@@ -41,7 +45,7 @@ impl AccessoryStacks {
             if lifts.is_empty() {
                 None
             } else {
-                Some(RandomStack::new(lifts))
+                Some(RandomStack::with_mode(lifts, mode))
             }
         };
 

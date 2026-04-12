@@ -18,6 +18,10 @@ public class AccessoryStacks {
     private RandomStack<Lift> forearms;
 
     public AccessoryStacks(Database db) throws Exception {
+        this(db, RandomSupport.DEFAULT);
+    }
+
+    public AccessoryStacks(Database db, RandomSupport.Randomizer randomizer) throws Exception {
         Muscle[] required = {
                 Muscle.HAMSTRING, Muscle.QUAD, Muscle.CALF, Muscle.LAT, Muscle.TRICEP,
                 Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP,
@@ -29,12 +33,12 @@ public class AccessoryStacks {
             if (lifts.isEmpty()) {
                 throw new IllegalArgumentException("not enough accessory lifts available for " + muscle);
             }
-            stacks.put(muscle, new RandomStack<>(lifts));
+            stacks.put(muscle, new RandomStack<>(lifts, randomizer));
         }
 
         List<Lift> forearmLifts = db.getAccessoriesByMuscle(Muscle.FOREARM);
         if (!forearmLifts.isEmpty()) {
-            forearms = new RandomStack<>(forearmLifts);
+            forearms = new RandomStack<>(forearmLifts, randomizer);
         }
     }
 
