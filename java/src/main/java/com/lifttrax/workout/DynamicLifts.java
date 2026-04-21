@@ -19,10 +19,14 @@ public record DynamicLifts(
         DynamicLift overhead
 ) {
     public static DynamicLifts fromDatabase(Database db) throws Exception {
-        return fromDatabase(db, true);
+        return fromDatabase(db, true, RandomSupport.DEFAULT);
     }
 
     public static DynamicLifts fromDatabase(Database db, boolean allowInteractiveSelection) throws Exception {
+        return fromDatabase(db, allowInteractiveSelection, RandomSupport.DEFAULT);
+    }
+
+    static DynamicLifts fromDatabase(Database db, boolean allowInteractiveSelection, RandomSupport.Randomizer randomizer) throws Exception {
         Random random = new Random();
         AccommodatingResistance[] arOpts = {AccommodatingResistance.CHAINS, AccommodatingResistance.BANDS};
 
@@ -47,10 +51,10 @@ public record DynamicLifts(
         );
 
         return new DynamicLifts(
-                new DynamicLift(chosen.squat(), arOpts[random.nextInt(arOpts.length)]),
-                new DynamicLift(chosen.deadlift(), arOpts[random.nextInt(arOpts.length)]),
-                new DynamicLift(chosen.bench(), arOpts[random.nextInt(arOpts.length)]),
-                new DynamicLift(chosen.overhead(), arOpts[random.nextInt(arOpts.length)])
+                new DynamicLift(chosen.squat(), arOpts[randomizer.nextInt(random, arOpts.length)]),
+                new DynamicLift(chosen.deadlift(), arOpts[randomizer.nextInt(random, arOpts.length)]),
+                new DynamicLift(chosen.bench(), arOpts[randomizer.nextInt(random, arOpts.length)]),
+                new DynamicLift(chosen.overhead(), arOpts[randomizer.nextInt(random, arOpts.length)])
         );
     }
 

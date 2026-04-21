@@ -2,6 +2,7 @@ use rand::{seq::SliceRandom, thread_rng};
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftType};
+use crate::random_stack::RandomMode;
 
 use super::{
     AccommodatingResistance,
@@ -22,6 +23,10 @@ pub struct DynamicLifts {
 
 impl DynamicLifts {
     pub fn new(db: &dyn Database) -> DbResult<Self> {
+        Self::with_mode(db, RandomMode::Random)
+    }
+
+    pub fn with_mode(db: &dyn Database, mode: RandomMode) -> DbResult<Self> {
         let mut rng = thread_rng();
         let ar_opts = [
             AccommodatingResistance::Chains,
@@ -60,7 +65,13 @@ impl DynamicLifts {
             default_choices.clone(),
         )?;
 
-        let mut pick_ar = || ar_opts.choose(&mut rng).unwrap().clone();
+        let mut pick_ar = || {
+            if mode == RandomMode::Deterministic {
+                ar_opts[0].clone()
+            } else {
+                ar_opts.choose(&mut rng).unwrap().clone()
+            }
+        };
 
         Ok(Self {
             squat: DynamicLift {

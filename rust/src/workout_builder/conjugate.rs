@@ -12,7 +12,7 @@ use rand::{seq::SliceRandom, thread_rng};
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftRegion, LiftType, Muscle, SetMetric};
-use crate::random_stack::RandomStack;
+use crate::random_stack::{RandomMode, RandomStack};
 
 use super::accessory_stacks::AccessoryStacks;
 use super::dynamic_lifts::{DynamicLift, DynamicLifts};
@@ -343,6 +343,7 @@ impl ConjugateWorkoutBuilder {
         conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
+        mode: RandomMode,
     ) -> DbResult<Workout> {
         let upper = upper_plan[week_number].clone();
         let mut lifts = vec![warmups.warmup(LiftRegion::UPPER)?];
@@ -367,7 +368,11 @@ impl ConjugateWorkoutBuilder {
                 Muscle::FrontDelt,
                 Muscle::Trap,
             ];
-            let third = *upper_opts.choose(&mut thread_rng()).unwrap();
+            let third = if mode == RandomMode::Deterministic {
+                upper_opts[0]
+            } else {
+                *upper_opts.choose(&mut thread_rng()).unwrap()
+            };
             lifts.push(Self::accessory_circuit(
                 accessories,
                 Muscle::Lat,
@@ -517,6 +522,7 @@ impl ConjugateWorkoutBuilder {
         upper_conditioning: &mut RandomStack<Lift>,
         warmups: &mut WarmupStacks,
         accessories: &mut AccessoryStacks,
+        mode: RandomMode,
     ) -> DbResult<WorkoutWeek> {
         let mut week = WorkoutWeek::new();
 
@@ -541,6 +547,7 @@ impl ConjugateWorkoutBuilder {
                 upper_conditioning,
                 warmups,
                 accessories,
+                mode,
             )?,
         );
 
@@ -568,6 +575,54 @@ impl ConjugateWorkoutBuilder {
 
         Ok(week)
     }
+
+    pub fn get_wave_with_mode(
+        &self,
+        num_weeks: usize,
+        db: &dyn Database,
+        mode: RandomMode,
+    ) -> DbResult<Vec<WorkoutWeek>> {
+        let me_pools = MaxEffortLiftPools::with_mode(num_weeks, db, mode)?;
+        let (default_lower, default_upper) = me_pools.schedule();
+        let squat_options = db.lifts_by_type(LiftType::Squat)?;
+        let deadlift_options = db.lifts_by_type(LiftType::Deadlift)?;
+        let bench_options = db.lifts_by_type(LiftType::BenchPress)?;
+        let ohp_options = db.lifts_by_type(LiftType::OverheadPress)?;
+        let max_effort_plan = max_effort_editor::edit_max_effort_plan(
+            squat_options,
+            deadlift_options,
+            bench_options,
+            ohp_options,
+            default_lower,
+            default_upper,
+        )?;
+        let dynamic = DynamicLifts::with_mode(db, mode)?;
+        let lower_cond_lifts =
+            db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Conditioning)?;
+        let upper_cond_lifts =
+            db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Conditioning)?;
+        if lower_cond_lifts.is_empty() || upper_cond_lifts.is_empty() {
+            return Err("not enough conditioning lifts available".into());
+        }
+        let mut lower_conditioning = RandomStack::with_mode(lower_cond_lifts, mode);
+        let mut upper_conditioning = RandomStack::with_mode(upper_cond_lifts, mode);
+        let mut warmups = WarmupStacks::with_mode(db, mode)?;
+        let mut accessories = AccessoryStacks::with_mode(db, mode)?;
+        let mut weeks = Vec::with_capacity(num_weeks);
+        for week_number in 0..num_weeks {
+            weeks.push(Self::build_week(
+                week_number,
+                &max_effort_plan,
+                &dynamic,
+                &mut lower_conditioning,
+                &mut upper_conditioning,
+                &mut warmups,
+                &mut accessories,
+                mode,
+            )?);
+        }
+        Ok(weeks)
+    }
 }
 
 impl WorkoutBuilder for ConjugateWorkoutBuilder {
@@ -588,44 +643,6 @@ impl WorkoutBuilder for ConjugateWorkoutBuilder {
     /// - `num_weeks`: Number of weeks to include in the generated wave.
     /// - `db`: Database reference used to fetch all required training data.
     fn get_wave(&self, num_weeks: usize, db: &dyn Database) -> DbResult<Vec<WorkoutWeek>> {
-        let me_pools = MaxEffortLiftPools::new(num_weeks, db)?;
-        let (default_lower, default_upper) = me_pools.schedule();
-        let squat_options = db.lifts_by_type(LiftType::Squat)?;
-        let deadlift_options = db.lifts_by_type(LiftType::Deadlift)?;
-        let bench_options = db.lifts_by_type(LiftType::BenchPress)?;
-        let ohp_options = db.lifts_by_type(LiftType::OverheadPress)?;
-        let max_effort_plan = max_effort_editor::edit_max_effort_plan(
-            squat_options,
-            deadlift_options,
-            bench_options,
-            ohp_options,
-            default_lower,
-            default_upper,
-        )?;
-        let dynamic = DynamicLifts::new(db)?;
-        let lower_cond_lifts =
-            db.lifts_by_region_and_type(LiftRegion::LOWER, LiftType::Conditioning)?;
-        let upper_cond_lifts =
-            db.lifts_by_region_and_type(LiftRegion::UPPER, LiftType::Conditioning)?;
-        if lower_cond_lifts.is_empty() || upper_cond_lifts.is_empty() {
-            return Err("not enough conditioning lifts available".into());
-        }
-        let mut lower_conditioning = RandomStack::new(lower_cond_lifts);
-        let mut upper_conditioning = RandomStack::new(upper_cond_lifts);
-        let mut warmups = WarmupStacks::new(db)?;
-        let mut accessories = AccessoryStacks::new(db)?;
-        let mut weeks = Vec::with_capacity(num_weeks);
-        for week_number in 0..num_weeks {
-            weeks.push(Self::build_week(
-                week_number,
-                &max_effort_plan,
-                &dynamic,
-                &mut lower_conditioning,
-                &mut upper_conditioning,
-                &mut warmups,
-                &mut accessories,
-            )?);
-        }
-        Ok(weeks)
+        self.get_wave_with_mode(num_weeks, db, RandomMode::Random)
     }
 }

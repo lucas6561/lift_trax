@@ -114,6 +114,30 @@ class RandomStackTest {
         assertTrue(distinct > 1, "Expected at least two different shuffle orders");
     }
 
+    @Test
+    void deterministicRandomizerReturnsStableOrderAcrossStacks() {
+        List<Integer> items = List.of(1, 2, 3, 4);
+        RandomStack<Integer> a = new RandomStack<>(items, RandomSupport.DETERMINISTIC);
+        RandomStack<Integer> b = new RandomStack<>(items, RandomSupport.DETERMINISTIC);
+
+        List<Integer> seqA = new ArrayList<>();
+        List<Integer> seqB = new ArrayList<>();
+        for (int i = 0; i < items.size() * 2; i++) {
+            seqA.add(a.pop());
+            seqB.add(b.pop());
+        }
+
+        assertEquals(seqA, seqB);
+        assertEquals(List.of(4, 3, 2, 1, 4, 3, 2, 1), seqA);
+    }
+
+    @Test
+    void deterministicRandomizerNextIntAlwaysChoosesFirstIndex() {
+        Random rng = new Random(123);
+        assertEquals(0, RandomSupport.DETERMINISTIC.nextInt(rng, 5));
+        assertEquals(0, RandomSupport.DETERMINISTIC.nextInt(rng, 1));
+    }
+
     private static void invokeReshuffle(RandomStack<?> stack) throws Exception {
         Method reshuffle = RandomStack.class.getDeclaredMethod("reshuffle");
         reshuffle.setAccessible(true);

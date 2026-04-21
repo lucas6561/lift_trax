@@ -13,10 +13,16 @@ public class RandomStack<T> {
     private final List<T> items;
     private final List<Integer> order = new ArrayList<>();
     private final Random random = new Random();
+    private final RandomSupport.Randomizer randomizer;
     private Integer lastIndex;
 
     public RandomStack(List<T> items) {
+        this(items, RandomSupport.DEFAULT);
+    }
+
+    public RandomStack(List<T> items, RandomSupport.Randomizer randomizer) {
         this.items = List.copyOf(items);
+        this.randomizer = randomizer;
         reshuffle();
     }
 
@@ -41,7 +47,7 @@ public class RandomStack<T> {
         for (int i = 0; i < items.size(); i++) {
             order.add(i);
         }
-        Collections.shuffle(order, random);
+        randomizer.shuffle(order, random);
 
         if (lastIndex != null && order.size() > 1) {
             int lastPos = order.size() - 1;

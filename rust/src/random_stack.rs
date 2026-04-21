@@ -1,6 +1,12 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RandomMode {
+    Random,
+    Deterministic,
+}
+
 /// A stack-like collection that yields items in a random order without
 /// immediate repeats.
 ///
@@ -14,15 +20,21 @@ pub struct RandomStack<T> {
     items: Vec<T>,
     order: Vec<usize>,
     last_index: Option<usize>,
+    mode: RandomMode,
 }
 
 impl<T: Clone> RandomStack<T> {
     /// Creates a new `RandomStack` from the provided items.
     pub fn new(items: Vec<T>) -> Self {
+        Self::with_mode(items, RandomMode::Random)
+    }
+
+    pub fn with_mode(items: Vec<T>, mode: RandomMode) -> Self {
         let mut stack = Self {
             items,
             order: Vec::new(),
             last_index: None,
+            mode,
         };
         stack.reshuffle();
         stack
@@ -33,7 +45,7 @@ impl<T: Clone> RandomStack<T> {
     where
         I: IntoIterator<Item = T>,
     {
-        Self::new(iter.into_iter().collect())
+        Self::with_mode(iter.into_iter().collect(), RandomMode::Random)
     }
 
     /// Returns `true` if the stack was initialized with no items.
@@ -67,9 +79,11 @@ impl<T: Clone> RandomStack<T> {
             return;
         }
 
-        let mut rng = thread_rng();
         self.order = (0..self.items.len()).collect();
-        self.order.shuffle(&mut rng);
+        if self.mode == RandomMode::Random {
+            let mut rng = thread_rng();
+            self.order.shuffle(&mut rng);
+        }
 
         if let Some(last) = self.last_index {
             let len = self.order.len();
