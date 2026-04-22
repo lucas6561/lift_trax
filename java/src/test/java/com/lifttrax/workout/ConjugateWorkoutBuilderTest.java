@@ -74,6 +74,22 @@ class ConjugateWorkoutBuilderTest {
                 }));
     }
 
+
+    @Test
+    void hypertrophyBuilderBuildsWaveWithHypertrophySections() throws Exception {
+        FakeDb db = FakeDb.withSeedData();
+        var week = new HypertrophyWorkoutBuilder().getWave(1, db).get(0);
+
+        Workout monday = week.get(DayOfWeek.MONDAY);
+        assertNotNull(monday);
+        assertTrue(monday.lifts().stream().anyMatch(l -> l.name().equals("Primary Hypertrophy")));
+        assertTrue(monday.lifts().stream().anyMatch(l -> l.name().equals("Secondary Hypertrophy")));
+
+        Workout tuesday = week.get(DayOfWeek.TUESDAY);
+        assertNotNull(tuesday);
+        assertTrue(tuesday.lifts().stream().anyMatch(l -> l.name().equals("Accessory")));
+    }
+
     @Test
     void markdownWriterIncludesRichFormattingAndHistory() throws Exception {
         FakeDb db = FakeDb.withSeedData();
