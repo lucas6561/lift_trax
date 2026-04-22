@@ -3,6 +3,14 @@ use crate::models::{LiftExecution, SetMetric};
 use crate::weight::Weight;
 use crate::workout_builder;
 
+fn format_rpe(rpe: f32) -> String {
+    if rpe.fract() == 0.0 {
+        format!("{rpe:.1}")
+    } else {
+        format!("{rpe}")
+    }
+}
+
 fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
     let mut parts = vec![format!("**{}**", s.lift.name)];
     if let Some(metric) = &s.metric {
@@ -19,7 +27,7 @@ fn single_desc(s: &workout_builder::SingleLift, count: usize) -> String {
         parts.push(format!("@ {}%", percent));
     }
     if let Some(rpe) = s.rpe {
-        parts.push(format!("RPE {}", rpe));
+        parts.push(format!("RPE {}", format_rpe(rpe)));
     }
     if let Some(ar) = &s.accommodating_resistance {
         use workout_builder::AccommodatingResistance::*;
@@ -49,7 +57,10 @@ fn format_exec(exec: &LiftExecution) -> String {
         };
     }
     let first = &exec.sets[0];
-    let rpe = first.rpe.map(|r| format!(" RPE {}", r)).unwrap_or_default();
+    let rpe = first
+        .rpe
+        .map(|r| format!(" RPE {}", format_rpe(r)))
+        .unwrap_or_default();
     let metric_str = first.metric.to_string();
     let weight_str = match &first.weight {
         Weight::None => String::from(""),

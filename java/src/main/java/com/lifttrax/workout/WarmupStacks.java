@@ -21,6 +21,10 @@ public class WarmupStacks {
     private final RandomStack<Lift> upperAccessories;
 
     public WarmupStacks(Database db) throws Exception {
+        this(db, RandomSupport.DEFAULT);
+    }
+
+    public WarmupStacks(Database db, RandomSupport.Randomizer randomizer) throws Exception {
         List<Lift> lowerAccessoryLifts = new ArrayList<>(db.liftsByRegionAndType(LiftRegion.LOWER, LiftType.ACCESSORY));
         lowerAccessoryLifts.removeIf(l -> l.muscles().contains(Muscle.FOREARM) || l.muscles().contains(Muscle.CORE));
         if (lowerAccessoryLifts.size() < 2) {
@@ -33,23 +37,23 @@ public class WarmupStacks {
             throw new IllegalArgumentException("not enough accessory lifts available");
         }
 
-        core = new RandomStack<>(db.getAccessoriesByMuscle(Muscle.CORE));
+        core = new RandomStack<>(db.getAccessoriesByMuscle(Muscle.CORE), randomizer);
         if (core.isEmpty()) {
             throw new IllegalArgumentException("not enough core lifts available");
         }
 
-        lowerMobility = new RandomStack<>(db.liftsByRegionAndType(LiftRegion.LOWER, LiftType.MOBILITY));
+        lowerMobility = new RandomStack<>(db.liftsByRegionAndType(LiftRegion.LOWER, LiftType.MOBILITY), randomizer);
         if (lowerMobility.isEmpty()) {
             throw new IllegalArgumentException("not enough mobility lifts available");
         }
 
-        upperMobility = new RandomStack<>(db.liftsByRegionAndType(LiftRegion.UPPER, LiftType.MOBILITY));
+        upperMobility = new RandomStack<>(db.liftsByRegionAndType(LiftRegion.UPPER, LiftType.MOBILITY), randomizer);
         if (upperMobility.isEmpty()) {
             throw new IllegalArgumentException("not enough mobility lifts available");
         }
 
-        lowerAccessories = new RandomStack<>(lowerAccessoryLifts);
-        upperAccessories = new RandomStack<>(upperAccessoryLifts);
+        lowerAccessories = new RandomStack<>(lowerAccessoryLifts, randomizer);
+        upperAccessories = new RandomStack<>(upperAccessoryLifts, randomizer);
     }
 
     public WorkoutLift warmup(LiftRegion region) {

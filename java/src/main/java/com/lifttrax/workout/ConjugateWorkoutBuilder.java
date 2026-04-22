@@ -21,18 +21,24 @@ import java.util.Random;
 public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     private final MaxEffortPlanSource maxEffortPlanSource;
     private final DynamicLiftSource dynamicLiftSource;
+    private final RandomSupport.Randomizer randomizer;
 
     public ConjugateWorkoutBuilder() {
-        this(new SwingMaxEffortPlanSource(), new SwingDynamicLiftSource());
+        this(new SwingMaxEffortPlanSource(), new SwingDynamicLiftSource(), RandomSupport.DEFAULT);
     }
 
     public ConjugateWorkoutBuilder(MaxEffortPlanSource maxEffortPlanSource) {
-        this(maxEffortPlanSource, new DefaultDynamicLiftSource());
+        this(maxEffortPlanSource, new DefaultDynamicLiftSource(), RandomSupport.DEFAULT);
     }
 
     public ConjugateWorkoutBuilder(MaxEffortPlanSource maxEffortPlanSource, DynamicLiftSource dynamicLiftSource) {
+        this(maxEffortPlanSource, dynamicLiftSource, RandomSupport.DEFAULT);
+    }
+
+    ConjugateWorkoutBuilder(MaxEffortPlanSource maxEffortPlanSource, DynamicLiftSource dynamicLiftSource, RandomSupport.Randomizer randomizer) {
         this.maxEffortPlanSource = maxEffortPlanSource;
         this.dynamicLiftSource = dynamicLiftSource;
+        this.randomizer = randomizer;
     }
 
     private static WorkoutLift maxEffortSingle(Lift lift) {
@@ -116,7 +122,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
         return new Workout(lifts);
     }
 
-    private static Workout buildUpperMaxDay(
+    private Workout buildUpperMaxDay(
             int weekNumber,
             List<Lift> upperPlan,
             List<MaxEffortPlan.DeloadUpperLifts> upperDeload,
@@ -145,7 +151,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             lifts.addAll(repeatedSingles("Supplemental Sets", next, 3, new SetMetric.Reps(5), 80, null, false, null));
 
             Muscle[] upperOpts = {Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP};
-            Muscle third = upperOpts[new Random().nextInt(upperOpts.length)];
+            Muscle third = upperOpts[randomizer.nextInt(new Random(), upperOpts.length)];
             lifts.add(accessoryCircuit(accessories, Muscle.LAT, Muscle.TRICEP, third));
             lifts.add(conditioning(conditioning, "Conditioning", 600, false));
             SingleLift forearm = accessories.forearm();
@@ -219,7 +225,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
 
     @Override
     public List<Map<DayOfWeek, Workout>> getWave(int numWeeks, Database db) throws Exception {
-        MaxEffortLiftPools pools = new MaxEffortLiftPools(numWeeks, db);
+        MaxEffortLiftPools pools = new MaxEffortLiftPools(numWeeks, db, randomizer);
         MaxEffortPlan maxEffortPlan = maxEffortPlanSource.selectPlan(db, pools);
 
         DynamicLifts dynamicLifts = dynamicLiftSource.select(db);
@@ -230,10 +236,10 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             throw new IllegalArgumentException("not enough conditioning lifts available");
         }
 
-        RandomStack<Lift> lowerConditioning = new RandomStack<>(lowerCondLifts);
-        RandomStack<Lift> upperConditioning = new RandomStack<>(upperCondLifts);
-        WarmupStacks warmups = new WarmupStacks(db);
-        AccessoryStacks accessories = new AccessoryStacks(db);
+        RandomStack<Lift> lowerConditioning = new RandomStack<>(lowerCondLifts, randomizer);
+        RandomStack<Lift> upperConditioning = new RandomStack<>(upperCondLifts, randomizer);
+        WarmupStacks warmups = new WarmupStacks(db, randomizer);
+        AccessoryStacks accessories = new AccessoryStacks(db, randomizer);
 
         List<Map<DayOfWeek, Workout>> weeks = new ArrayList<>();
         for (int week = 0; week < numWeeks; week++) {

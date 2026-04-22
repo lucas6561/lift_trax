@@ -2,6 +2,7 @@ use rand::{seq::SliceRandom, thread_rng};
 
 use crate::database::{Database, DbResult};
 use crate::models::{Lift, LiftType};
+use crate::random_stack::RandomMode;
 
 pub struct MaxEffortLiftPools {
     lower_weeks: Vec<Lift>,
@@ -10,6 +11,10 @@ pub struct MaxEffortLiftPools {
 
 impl MaxEffortLiftPools {
     pub fn new(num_weeks: usize, db: &dyn Database) -> DbResult<Self> {
+        Self::with_mode(num_weeks, db, RandomMode::Random)
+    }
+
+    pub fn with_mode(num_weeks: usize, db: &dyn Database, mode: RandomMode) -> DbResult<Self> {
         let mut squats = db.lifts_by_type(LiftType::Squat)?;
         let mut deadlifts = db.lifts_by_type(LiftType::Deadlift)?;
         let mut benches = db.lifts_by_type(LiftType::BenchPress)?;
@@ -33,11 +38,13 @@ impl MaxEffortLiftPools {
             return Err("not enough overhead press lifts available".into());
         }
 
-        let mut rng = thread_rng();
-        squats.shuffle(&mut rng);
-        deadlifts.shuffle(&mut rng);
-        benches.shuffle(&mut rng);
-        overheads.shuffle(&mut rng);
+        if mode == RandomMode::Random {
+            let mut rng = thread_rng();
+            squats.shuffle(&mut rng);
+            deadlifts.shuffle(&mut rng);
+            benches.shuffle(&mut rng);
+            overheads.shuffle(&mut rng);
+        }
 
         let mut lower_weeks = Vec::with_capacity(num_weeks);
         let mut upper_weeks = Vec::with_capacity(num_weeks);

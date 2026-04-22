@@ -11,6 +11,8 @@ import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -102,6 +104,19 @@ class ConjugateWorkoutBuilderTest {
         assertTrue(markdown.stream().anyMatch(line -> line.contains("- Last:")));
     }
 
+    @Test
+    void conjugateWaveMarkdownMatchesParityFixture() throws Exception {
+        FakeDb db = FakeDb.withParitySeedData();
+        var wave = new ConjugateWorkoutBuilder(
+                new SwingMaxEffortPlanSource(),
+                new SwingDynamicLiftSource(),
+                RandomSupport.DETERMINISTIC
+        ).getWave(1, db);
+        String markdown = String.join("\n", WaveMarkdownWriter.createMarkdown(wave, db));
+        String expected = Files.readString(Path.of("..", "testdata", "conjugate_wave_parity.md"));
+        assertEquals(expected.trim(), markdown.trim());
+    }
+
     static class FakeDb implements Database {
         private final List<Lift> lifts = new ArrayList<>();
         private final Map<String, List<LiftExecution>> executions = new HashMap<>();
@@ -145,6 +160,27 @@ class ConjugateWorkoutBuilderTest {
             db.exec("Back Squat", new LiftExecution(1, LocalDate.now().minusDays(1), List.of(new ExecutionSet(new SetMetric.Reps(1), "345 lb", 9f)), false, false, ""));
             db.exec("Back Squat", new LiftExecution(2, LocalDate.now().minusDays(2), List.of(new ExecutionSet(new SetMetric.Reps(5), "245 lb", null)), false, false, ""));
             db.exec("Leg Swings", new LiftExecution(3, LocalDate.now().minusDays(1), List.of(new ExecutionSet(new SetMetric.Reps(3), "none", null)), true, false, ""));
+            return db;
+        }
+
+        static FakeDb withParitySeedData() {
+            FakeDb db = new FakeDb();
+
+            db.add("Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of());
+            db.add("Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of());
+            db.add("Conventional Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of());
+            db.add("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+            db.add("Overhead Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of());
+            db.add("Sled Push", LiftRegion.LOWER, LiftType.CONDITIONING, List.of());
+            db.add("Battle Rope", LiftRegion.UPPER, LiftType.CONDITIONING, List.of());
+            db.add("Hip Airplane", LiftRegion.LOWER, LiftType.MOBILITY, List.of());
+            db.add("Shoulder CARs", LiftRegion.UPPER, LiftType.MOBILITY, List.of());
+            db.add("Hamstring Curl", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.HAMSTRING));
+            db.add("Leg Extension", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.QUAD, Muscle.CALF));
+            db.add("Plank", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.CORE));
+            db.add("Delt Giant Set", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP));
+            db.add("Upper Compound Accessory", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.LAT, Muscle.TRICEP, Muscle.BICEP));
+
             return db;
         }
 
