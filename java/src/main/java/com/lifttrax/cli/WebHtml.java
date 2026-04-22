@@ -20,30 +20,35 @@ final class WebHtml {
                   <style>
                     :root {
                       --pico-font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                      --pico-font-size: 92%%;
+                      --pico-line-height: 1.35;
+                      --pico-form-element-spacing-vertical: 0.4rem;
+                      --pico-form-element-spacing-horizontal: 0.55rem;
+                      --pico-spacing: 0.85rem;
                     }
                     body {
                       background: radial-gradient(circle at top, #0b1736, #0a1022 45%%, #070d1a);
                       min-height: 100vh;
                     }
                     main.container {
-                      max-width: 1080px;
-                      padding-top: 1.2rem;
-                      padding-bottom: 1.8rem;
+                      max-width: 1020px;
+                      padding-top: 0.75rem;
+                      padding-bottom: 1.1rem;
                     }
                     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-                    .tab { border: 1px solid var(--pico-muted-border-color); background: var(--pico-card-sectioning-background-color); color: var(--pico-color); padding: 0.45rem 0.8rem; border-radius: 999px; }
+                    .tab { border: 1px solid var(--pico-muted-border-color); background: var(--pico-card-sectioning-background-color); color: var(--pico-color); padding: 0.32rem 0.65rem; border-radius: 999px; font-size: 0.9rem; }
                     .tab.is-active { border-color: var(--pico-primary-border); color: var(--pico-primary-inverse); background: var(--pico-primary); }
-                    .tab-panel { display: none; border: 1px solid var(--pico-muted-border-color); border-radius: 0.9rem; padding: 1.1rem; background: rgba(12, 22, 41, 0.82); backdrop-filter: blur(4px); }
+                    .tab-panel { display: none; border: 1px solid var(--pico-muted-border-color); border-radius: 0.85rem; padding: 0.85rem; background: rgba(12, 22, 41, 0.82); backdrop-filter: blur(4px); }
                     .tab-panel.is-active { display: block; }
                     .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; align-items: flex-start; }
                     .tab-filter-bar label { display: flex; align-items: center; gap: 0.4rem; }
                     .js-filter-muscle { min-width: 9rem; }
                     .js-clear-filters { align-self: center; flex: 0 0 auto; white-space: nowrap; }
-                    .query-form { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+                    .query-form { display: flex; gap: 0.55rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
                     .query-form label { display: flex; align-items: center; gap: 0.4rem; }
                     .query-output { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.8rem; white-space: pre-wrap; }
-                    .add-execution-form { display: flex; flex-direction: column; gap: 0.9rem; max-width: 820px; border: 1px solid var(--pico-muted-border-color); border-radius: 0.85rem; padding: 0.95rem; }
-                    .add-execution-form fieldset { border: 1px solid var(--pico-muted-border-color); border-radius: 0.7rem; padding: 0.7rem; }
+                    .add-execution-form { display: flex; flex-direction: column; gap: 0.7rem; max-width: 820px; border: 1px solid var(--pico-muted-border-color); border-radius: 0.8rem; padding: 0.75rem; }
+                    .add-execution-form fieldset { border: 1px solid var(--pico-muted-border-color); border-radius: 0.65rem; padding: 0.55rem; }
                     .segmented { display: flex; flex-wrap: wrap; gap: 0.6rem; }
                     .stacked-row { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
                     .add-actions { display: flex; justify-content: flex-end; margin-bottom: 0.7rem; }
