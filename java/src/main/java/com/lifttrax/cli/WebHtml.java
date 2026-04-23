@@ -20,45 +20,54 @@ final class WebHtml {
                   <style>
                     :root {
                       --pico-font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                      --pico-font-size: 92%%;
-                      --pico-line-height: 1.35;
-                      --pico-form-element-spacing-vertical: 0.4rem;
-                      --pico-form-element-spacing-horizontal: 0.55rem;
-                      --pico-spacing: 0.85rem;
+                      --pico-font-size: 84%%;
+                      --pico-line-height: 1.25;
+                      --pico-form-element-spacing-vertical: 0.28rem;
+                      --pico-form-element-spacing-horizontal: 0.45rem;
+                      --pico-spacing: 0.65rem;
                     }
                     body {
                       background: radial-gradient(circle at top, #0b1736, #0a1022 45%%, #070d1a);
                       min-height: 100vh;
                     }
                     main.container {
-                      max-width: 1020px;
-                      padding-top: 0.75rem;
-                      padding-bottom: 1.1rem;
+                      max-width: 1080px;
+                      padding-top: 0.5rem;
+                      padding-bottom: 0.7rem;
                     }
-                    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-                    .tab { border: 1px solid var(--pico-muted-border-color); background: var(--pico-card-sectioning-background-color); color: var(--pico-color); padding: 0.32rem 0.65rem; border-radius: 999px; font-size: 0.9rem; }
+                    h1, h2, h3 {
+                      margin-top: 0.2rem;
+                      margin-bottom: 0.45rem;
+                      line-height: 1.15;
+                    }
+                    h2 { font-size: 1.35rem; }
+                    p, li { margin-bottom: 0.3rem; }
+                    label { margin-bottom: 0.2rem; }
+                    input, select, textarea, button { margin-bottom: 0.3rem; }
+                    .tabs { display: flex; gap: 0.35rem; margin-bottom: 0.55rem; flex-wrap: wrap; }
+                    .tab { border: 1px solid var(--pico-muted-border-color); background: var(--pico-card-sectioning-background-color); color: var(--pico-color); padding: 0.24rem 0.52rem; border-radius: 999px; font-size: 0.8rem; }
                     .tab.is-active { border-color: var(--pico-primary-border); color: var(--pico-primary-inverse); background: var(--pico-primary); }
-                    .tab-panel { display: none; border: 1px solid var(--pico-muted-border-color); border-radius: 0.85rem; padding: 0.85rem; background: rgba(12, 22, 41, 0.82); backdrop-filter: blur(4px); }
+                    .tab-panel { display: none; border: 1px solid var(--pico-muted-border-color); border-radius: 0.7rem; padding: 0.62rem; background: rgba(12, 22, 41, 0.82); backdrop-filter: blur(4px); }
                     .tab-panel.is-active { display: block; }
-                    .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; align-items: flex-start; }
+                    .tab-filter-bar { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0.55rem; align-items: flex-start; }
                     .tab-filter-bar label { display: flex; align-items: center; gap: 0.4rem; }
-                    .js-filter-muscle { min-width: 9rem; }
+                    .js-filter-muscle { min-width: 7rem; }
                     .js-clear-filters { align-self: center; flex: 0 0 auto; white-space: nowrap; }
-                    .query-form { display: flex; gap: 0.55rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
+                    .query-form { display: flex; gap: 0.42rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.45rem; }
                     .query-form label { display: flex; align-items: center; gap: 0.4rem; }
-                    .query-output { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.8rem; white-space: pre-wrap; }
-                    .add-execution-form { display: flex; flex-direction: column; gap: 0.7rem; max-width: 820px; border: 1px solid var(--pico-muted-border-color); border-radius: 0.8rem; padding: 0.75rem; }
-                    .add-execution-form fieldset { border: 1px solid var(--pico-muted-border-color); border-radius: 0.65rem; padding: 0.55rem; }
-                    .segmented { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-                    .stacked-row { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
-                    .add-actions { display: flex; justify-content: flex-end; margin-bottom: 0.7rem; }
+                    .query-output { border: 1px solid var(--pico-muted-border-color); border-radius: 0.45rem; padding: 0.55rem; white-space: pre-wrap; }
+                    .add-execution-form { display: flex; flex-direction: column; gap: 0.48rem; max-width: 900px; border: 1px solid var(--pico-muted-border-color); border-radius: 0.65rem; padding: 0.58rem; }
+                    .add-execution-form fieldset { border: 1px solid var(--pico-muted-border-color); border-radius: 0.55rem; padding: 0.4rem; margin-bottom: 0.2rem; }
+                    .segmented { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+                    .stacked-row { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+                    .add-actions { display: flex; justify-content: flex-end; margin-bottom: 0.35rem; }
                     .new-lift-details { width: min(820px, 100%%); }
                     .new-lift-details > summary { cursor: pointer; color: var(--pico-primary); margin-bottom: 0.5rem; }
-                    .new-lift-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; padding: 0.7rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.7rem; }
-                    .execution-lift-group { margin-bottom: 0.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.6rem; padding: 0.2rem 0.5rem; }
-                    .execution-lift-toggle { cursor: pointer; display: block; width: 100%%; padding: 0.35rem 0.2rem; user-select: none; }
+                    .new-lift-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.45rem; padding: 0.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.7rem; }
+                    .execution-lift-group { margin-bottom: 0.3rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.14rem 0.4rem; }
+                    .execution-lift-toggle { cursor: pointer; display: block; width: 100%%; padding: 0.22rem 0.16rem; user-select: none; }
                     .execution-lift-toggle::-webkit-details-marker { margin-right: 0.35rem; }
-                    .status { border-radius: 0.45rem; padding: 0.55rem 0.7rem; font-weight: 600; }
+                    .status { border-radius: 0.4rem; padding: 0.35rem 0.5rem; font-weight: 600; margin-bottom: 0.4rem; }
                     .status.success { border: 1px solid #15803d; color: #86efac; background: #052e16; }
                     .status.error { border: 1px solid #b91c1c; color: #fca5a5; background: #450a0a; }
                     .is-hidden { display: none; }
