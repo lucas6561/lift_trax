@@ -131,6 +131,7 @@ impl GuiApp {
                         ui.label("Notes:");
                         ui.text_edit_singleline(&mut self.edit_lift_notes);
                     });
+                    ui.checkbox(&mut self.edit_lift_enabled, "Enabled for wave generation");
                     ui.horizontal(|ui| {
                         if ui.button("Save").clicked() {
                             self.save_lift_edit(i);
@@ -140,6 +141,7 @@ impl GuiApp {
                             self.edit_lift_muscles.clear();
                             self.edit_muscle_select = None;
                             self.edit_lift_notes.clear();
+                            self.edit_lift_enabled = true;
                         }
                     });
                 } else {
@@ -162,6 +164,7 @@ impl GuiApp {
                             self.edit_lift_muscles = muscles.clone();
                             self.edit_muscle_select = None;
                             self.edit_lift_notes = self.lifts[i].notes.clone();
+                            self.edit_lift_enabled = self.lifts[i].enabled;
                         }
                         if ui.button("Delete Lift").clicked() {
                             self.lift_to_delete = Some(i);
@@ -169,6 +172,9 @@ impl GuiApp {
                     });
                     if !self.lifts[i].notes.is_empty() {
                         ui.label(format!("Notes: {}", self.lifts[i].notes));
+                    }
+                    if !self.lifts[i].enabled {
+                        ui.label("Status: Disabled for wave generation");
                     }
                 }
                 let mut has_visible_exec = false;
@@ -639,11 +645,14 @@ impl GuiApp {
             &self.edit_lift_notes,
         ) {
             self.error = Some(e.to_string());
+        } else if let Err(e) = self.db.set_lift_enabled(name, self.edit_lift_enabled) {
+            self.error = Some(e.to_string());
         } else {
             self.editing_lift = None;
             self.edit_lift_muscles.clear();
             self.edit_muscle_select = None;
             self.edit_lift_notes.clear();
+            self.edit_lift_enabled = true;
             self.error = None;
             self.needs_lift_refresh = true;
         }

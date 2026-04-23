@@ -19,6 +19,7 @@ impl TestDb {
             main: Some(lift_type),
             muscles: Vec::new(),
             notes: String::new(),
+            enabled: true,
         };
         Self {
             squats: vec![
@@ -70,6 +71,10 @@ impl Database for TestDb {
     }
 
     fn delete_lift(&self, _name: &str) -> DbResult<()> {
+        unimplemented!()
+    }
+
+    fn set_lift_enabled(&self, _name: &str, _enabled: bool) -> DbResult<()> {
         unimplemented!()
     }
 

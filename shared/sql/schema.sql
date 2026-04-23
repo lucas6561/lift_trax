@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS lifts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    region TEXT NOT NULL,
+    main_lift TEXT,
+    muscles TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS lift_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lift_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    sets TEXT NOT NULL,
+    warmup INTEGER NOT NULL DEFAULT 0,
+    deload INTEGER NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(lift_id) REFERENCES lifts(id)
+);

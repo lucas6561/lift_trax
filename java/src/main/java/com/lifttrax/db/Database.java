@@ -22,6 +22,10 @@ public interface Database {
 
     void deleteLift(String name) throws Exception;
 
+    void setLiftEnabled(String name, boolean enabled) throws Exception;
+
+    boolean isLiftEnabled(String name) throws Exception;
+
     List<LiftExecution> getExecutions(String liftName) throws Exception;
 
     void updateLiftExecution(int execId, LiftExecution execution) throws Exception;

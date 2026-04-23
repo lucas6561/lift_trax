@@ -45,6 +45,9 @@ public class SqliteDb implements Database, AutoCloseable {
     public SqliteDb(String dbPath) throws Exception {
         createBackupIfExists(dbPath);
         this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        ensureBaseSchema();
+        ensureLiftEnabledColumn();
+        ensureUserVersion();
     }
 
     @Override
@@ -112,6 +115,59 @@ public class SqliteDb implements Database, AutoCloseable {
                 muscleList,
                 rs.getString("notes")
         );
+    }
+
+    private void ensureLiftEnabledColumn() throws Exception {
+        if (!tableExists("lifts")) {
+            return;
+        }
+        boolean hasEnabled = false;
+        try (PreparedStatement statement = connection.prepareStatement("PRAGMA table_info(lifts)");
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                if ("enabled".equalsIgnoreCase(rs.getString("name"))) {
+                    hasEnabled = true;
+                    break;
+                }
+            }
+        }
+        if (!hasEnabled) {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "ALTER TABLE lifts ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")) {
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    private void ensureBaseSchema() throws Exception {
+        String schemaSql = SqlSchemaVersion.schemaSql();
+        try (var statement = connection.createStatement()) {
+            statement.execute(schemaSql);
+        }
+    }
+
+    private boolean tableExists(String tableName) throws Exception {
+        String sql = "SELECT name FROM sqlite_master WHERE type='table' AND name = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, tableName);
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private void ensureUserVersion() throws Exception {
+        int expected = SqlSchemaVersion.current();
+        int current;
+        try (PreparedStatement statement = connection.prepareStatement("PRAGMA user_version");
+             ResultSet rs = statement.executeQuery()) {
+            current = rs.next() ? rs.getInt(1) : 0;
+        }
+        if (current != expected) {
+            try (PreparedStatement statement = connection.prepareStatement("PRAGMA user_version = " + expected)) {
+                statement.execute();
+            }
+        }
     }
 
     private List<Muscle> parseMuscles(String muscles) {
@@ -417,6 +473,30 @@ public class SqliteDb implements Database, AutoCloseable {
     }
 
     @Override
+    public void setLiftEnabled(String name, boolean enabled) throws Exception {
+        String sql = "UPDATE lifts SET enabled = ? WHERE name = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, enabled ? 1 : 0);
+            statement.setString(2, name);
+            statement.executeUpdate();
+        }
+    }
+
+    @Override
+    public boolean isLiftEnabled(String name) throws Exception {
+        String sql = "SELECT enabled FROM lifts WHERE name = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, name);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next()) {
+                    throw new IllegalArgumentException("Lift not found: " + name);
+                }
+                return rs.getInt("enabled") != 0;
+            }
+        }
+    }
+
+    @Override
     public void updateLiftExecution(int execId, LiftExecution execution) throws Exception {
         String setsJson = objectMapper.writeValueAsString(execution.sets());
         String sql = "UPDATE lift_records SET date = ?, sets = ?, warmup = ?, deload = ?, notes = ? WHERE id = ?";
@@ -452,7 +532,7 @@ public class SqliteDb implements Database, AutoCloseable {
 
     @Override
     public List<Lift> liftsByType(LiftType liftType) throws Exception {
-        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? ORDER BY name";
+        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? AND enabled = 1 ORDER BY name";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, liftType.toDbValue());
             try (ResultSet rs = statement.executeQuery()) {
@@ -467,7 +547,7 @@ public class SqliteDb implements Database, AutoCloseable {
 
     @Override
     public List<Lift> getAccessoriesByMuscle(Muscle muscle) throws Exception {
-        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? AND muscles LIKE ? ORDER BY name";
+        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? AND enabled = 1 AND muscles LIKE ? ORDER BY name";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, LiftType.ACCESSORY.toDbValue());
             statement.setString(2, "%" + muscle.name() + "%");
@@ -486,7 +566,7 @@ public class SqliteDb implements Database, AutoCloseable {
 
     @Override
     public List<Lift> liftsByRegionAndType(LiftRegion region, LiftType liftType) throws Exception {
-        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE region = ? AND main_lift = ? ORDER BY name";
+        String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE region = ? AND main_lift = ? AND enabled = 1 ORDER BY name";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, region.name());
             statement.setString(2, liftType.toDbValue());

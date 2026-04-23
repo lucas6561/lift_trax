@@ -16,6 +16,14 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    main {
+        resources {
+            srcDir '../shared'
+        }
+    }
+}
+
 dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'

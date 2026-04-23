@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 use crate::weight::Weight;
 use crate::{
@@ -15,8 +16,16 @@ use crate::{
     },
 };
 
-/// Current database schema version.
-const DB_VERSION: i32 = 9;
+/// Current database schema version sourced from the shared cross-language file.
+fn db_version() -> i32 {
+    static VERSION: OnceLock<i32> = OnceLock::new();
+    *VERSION.get_or_init(|| {
+        include_str!("../../shared/sql/schema_version.txt")
+            .trim()
+            .parse::<i32>()
+            .expect("shared/sql/schema_version.txt must contain a valid integer")
+    })
+}
 
 /// Maximum number of timestamped backups to retain.
 pub const MAX_BACKUPS: usize = 5;
@@ -114,6 +123,7 @@ impl SqliteDb {
         let main = main_str.and_then(|m| LiftType::from_str(&m).ok());
         let muscles_str: String = row.get(4)?;
         let notes: String = row.get(5)?;
+        let enabled: i32 = row.get(6)?;
         Ok((
             id,
             Lift {
@@ -122,6 +132,7 @@ impl SqliteDb {
                 main,
                 muscles: Self::parse_muscles(muscles_str),
                 notes,
+                enabled: enabled != 0,
             },
         ))
     }
@@ -243,6 +254,9 @@ fn detect_version(conn: &Connection) -> DbResult<i32> {
             }
         }
     }
+    if has_column(conn, "lifts", "enabled")? {
+        v = 10;
+    }
     Ok(v)
 }
 
@@ -251,48 +265,25 @@ fn init_db(conn: &Connection) -> DbResult<()> {
     let detected_version = detect_version(conn)?;
     if detected_version == 0 {
         // Fresh database with no tables yet.
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS lifts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                region TEXT NOT NULL,
-                main_lift TEXT,
-                muscles TEXT NOT NULL,
-                notes TEXT NOT NULL DEFAULT ''
-            )",
-            [],
-        )?;
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS lift_records (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        lift_id INTEGER NOT NULL,
-                        date TEXT NOT NULL,
-                        sets TEXT NOT NULL,
-                        warmup INTEGER NOT NULL DEFAULT 0,
-                        deload INTEGER NOT NULL DEFAULT 0,
-                        notes TEXT NOT NULL DEFAULT '',
-                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
-                    )",
-            [],
-        )?;
-        conn.pragma_update(None, "user_version", &DB_VERSION)?;
-    } else if detected_version < DB_VERSION {
+        conn.execute_batch(include_str!("../../shared/sql/schema.sql"))?;
+        conn.pragma_update(None, "user_version", &db_version())?;
+    } else if detected_version < db_version() {
         // Upgrade legacy schemas stepwise.
         run_migrations(conn, detected_version)?;
     } else {
         // Schema matches the latest version but user_version might be incorrect.
         let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if user_version != DB_VERSION {
-            conn.pragma_update(None, "user_version", &DB_VERSION)?;
+        if user_version != db_version() {
+            conn.pragma_update(None, "user_version", &db_version())?;
         }
     }
     Ok(())
 }
 
-/// Apply migrations from a previous schema version to [`DB_VERSION`].
+/// Apply migrations from a previous schema version to the current version.
 fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
     // Apply migrations sequentially so that every intermediate version is handled.
-    while from_version < DB_VERSION {
+    while from_version < db_version() {
         match from_version {
             1 => {
                 // Version 1 stored weight as a numeric column and lacked lift metadata.
@@ -392,11 +383,18 @@ fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
                     [],
                 )?;
             }
+            9 => {
+                // Allow lifts to be excluded from wave generation.
+                conn.execute(
+                    "ALTER TABLE lifts ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1",
+                    [],
+                )?;
+            }
             _ => {}
         }
         from_version += 1;
     }
-    conn.pragma_update(None, "user_version", &DB_VERSION)?;
+    conn.pragma_update(None, "user_version", &db_version())?;
     Ok(())
 }
 
@@ -494,6 +492,14 @@ impl Database for SqliteDb {
         Ok(())
     }
 
+    fn set_lift_enabled(&self, name: &str, enabled: bool) -> DbResult<()> {
+        self.conn.execute(
+            "UPDATE lifts SET enabled = ?1 WHERE name = ?2",
+            params![if enabled { 1 } else { 0 }, name],
+        )?;
+        Ok(())
+    }
+
     fn update_lift_execution(&self, exec_id: i32, execution: &LiftExecution) -> DbResult<()> {
         let sets_json = serde_json::to_string(&execution.sets)?;
         self.conn.execute(
@@ -529,7 +535,7 @@ impl Database for SqliteDb {
 
     fn get_lift(&self, name: &str) -> DbResult<Lift> {
         let lifts =  self.load_lifts(
-                "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE name = ?1 ORDER BY name",
+                "SELECT id, name, region, main_lift, muscles, notes, enabled FROM lifts WHERE name = ?1 ORDER BY name",
                 [name]
             )?;
         match lifts.len() {
@@ -540,21 +546,21 @@ impl Database for SqliteDb {
     }
     fn list_lifts(&self) -> DbResult<Vec<Lift>> {
         self.load_lifts(
-            "SELECT id, name, region, main_lift, muscles, notes FROM lifts ORDER BY name",
+            "SELECT id, name, region, main_lift, muscles, notes, enabled FROM lifts ORDER BY name",
             [],
         )
     }
 
     fn lifts_by_type(&self, lift_type: LiftType) -> DbResult<Vec<Lift>> {
         self.load_lifts(
-            "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ?1 ORDER BY name",
+            "SELECT id, name, region, main_lift, muscles, notes, enabled FROM lifts WHERE main_lift = ?1 AND enabled = 1 ORDER BY name",
             params![lift_type.to_string()],
         )
     }
 
     fn get_accessories_by_muscle(&self, muscle: Muscle) -> DbResult<Vec<Lift>> {
         self.load_lifts(
-            "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ?1 AND (',' || muscles || ',') LIKE ?2 ORDER BY name",
+            "SELECT id, name, region, main_lift, muscles, notes, enabled FROM lifts WHERE main_lift = ?1 AND enabled = 1 AND (',' || muscles || ',') LIKE ?2 ORDER BY name",
             params![LiftType::Accessory.to_string(), format!("%,{},%", muscle.to_string())],
         )
     }
@@ -565,7 +571,7 @@ impl Database for SqliteDb {
         lift_type: LiftType,
     ) -> DbResult<Vec<Lift>> {
         self.load_lifts(
-            "SELECT id, name, region, main_lift, muscles, notes FROM lifts WHERE region = ?1 AND main_lift = ?2 ORDER BY name",
+            "SELECT id, name, region, main_lift, muscles, notes, enabled FROM lifts WHERE region = ?1 AND main_lift = ?2 AND enabled = 1 ORDER BY name",
             params![region.to_string(), lift_type.to_string()],
         )
     }

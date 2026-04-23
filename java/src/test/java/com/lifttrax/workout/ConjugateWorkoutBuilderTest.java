@@ -216,6 +216,8 @@ class ConjugateWorkoutBuilderTest {
         @Override public void addLiftExecution(String name, LiftExecution execution) {}
         @Override public void updateLift(String currentName, String newName, LiftRegion region, LiftType main, List<Muscle> muscles, String notes) {}
         @Override public void deleteLift(String name) {}
+        @Override public void setLiftEnabled(String name, boolean enabled) {}
+        @Override public boolean isLiftEnabled(String name) { return true; }
         @Override public List<LiftExecution> getExecutions(String liftName) { return executions.getOrDefault(liftName, List.of()); }
         @Override public void updateLiftExecution(int execId, LiftExecution execution) {}
         @Override public void deleteLiftExecution(int execId) {}

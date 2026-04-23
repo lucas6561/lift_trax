@@ -37,6 +37,7 @@ impl TestDb {
                     main: Some(LiftType::Accessory),
                     muscles: vec![muscle],
                     notes: String::new(),
+                    enabled: true,
                 }],
             );
         }
@@ -73,6 +74,10 @@ impl Database for TestDb {
     }
 
     fn delete_lift(&self, _name: &str) -> DbResult<()> {
+        unimplemented!()
+    }
+
+    fn set_lift_enabled(&self, _name: &str, _enabled: bool) -> DbResult<()> {
         unimplemented!()
     }
 
