@@ -40,8 +40,24 @@ jacoco {
 }
 
 def coverageIncludes = [
+    // Workout planning classes with stable tests
+    'com/lifttrax/workout/ConjugateWorkoutBuilder.class',
+    'com/lifttrax/workout/HypertrophyWorkoutBuilder.class',
+    'com/lifttrax/workout/WaveMarkdownWriter.class',
+    'com/lifttrax/workout/AccessoryStacks.class',
+    'com/lifttrax/workout/WarmupStacks.class',
+    'com/lifttrax/workout/DynamicLifts.class',
+    'com/lifttrax/workout/MaxEffortLiftPools.class',
     'com/lifttrax/workout/RandomStack.class',
-    'com/lifttrax/ui/ExecutionFormatter.class'
+    'com/lifttrax/workout/RandomSupport.class',
+    'com/lifttrax/workout/SwingDynamicLiftSource.class',
+    'com/lifttrax/workout/SwingMaxEffortPlanSource.class',
+    // Execution formatting used by Swing + web UIs
+    'com/lifttrax/ui/ExecutionFormatter.class',
+    // Web weight parsing and HTML safety helpers
+    'com/lifttrax/cli/WeightInputParser.class',
+    'com/lifttrax/cli/WeightInputParser$*.class',
+    'com/lifttrax/cli/WebHtml.class'
 ]
 
 def coverageClassDirs = sourceSets.main.output.asFileTree.matching {

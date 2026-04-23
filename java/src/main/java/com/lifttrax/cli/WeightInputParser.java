@@ -9,9 +9,8 @@ import java.util.regex.Pattern;
 /**
  * Converts weight text entered by a user into structured values for the HTML form.
  * <p>
- * This class is intentionally small and focused so that it has one clear job:
- * understand weight formats such as {@code 225 lb}, {@code 45|45 lb},
- * {@code red+blue}, or {@code 225 lb+40c}.
+ * This class intentionally keeps parsing logic centralized so UI code can reuse
+ * one interpretation path for all supported weight formats.
  */
 final class WeightInputParser {
     static final List<String> BAND_COLORS = List.of("orange", "red", "blue", "green", "black", "purple");
@@ -42,54 +41,118 @@ final class WeightInputParser {
 
     /**
      * Parses free-form weight text into a structured object used by the Add Execution form.
-     * We test format families from most-specific to most-general, then fall back to custom text.
+     * Parsing is ordered from most-specific formats to most-general fallback.
      */
     static WeightPrefill parseWeightPrefill(String rawWeightText) {
-        String text = rawWeightText == null ? "" : rawWeightText.trim();
-        if (text.isBlank() || "none".equalsIgnoreCase(text)) {
+        String text = normalizeInput(rawWeightText);
+        if (isNoneInput(text)) {
             return WeightPrefill.none();
         }
 
-        Matcher simpleWeight = SIMPLE_WEIGHT_PATTERN.matcher(text);
-        if (simpleWeight.matches()) {
-            return WeightPrefill.standardWeight(simpleWeight.group(1), normalizeUnit(simpleWeight.group(2)), text);
+        WeightPrefill parsed = parseSimpleWeight(text);
+        if (parsed != null) {
+            return parsed;
         }
 
-        Matcher leftRightWeight = LEFT_RIGHT_WEIGHT_PATTERN.matcher(text);
-        if (leftRightWeight.matches()) {
-            String unit = leftRightWeight.group(2) != null ? leftRightWeight.group(2) : leftRightWeight.group(4);
-            return WeightPrefill.leftRightWeight(leftRightWeight.group(1), leftRightWeight.group(3), normalizeUnit(unit), text);
+        parsed = parseLeftRightWeight(text);
+        if (parsed != null) {
+            return parsed;
         }
 
-        Matcher accommodatingChains = ACCOMMODATING_CHAIN_PATTERN.matcher(text);
-        if (accommodatingChains.matches()) {
-            ParsedNumeric barWeight = parseNumericWithUnit(accommodatingChains.group(1));
-            return WeightPrefill.accommodatingWithChains(barWeight.value(), barWeight.unit(), accommodatingChains.group(2), text);
+        parsed = parseAccommodatingChains(text);
+        if (parsed != null) {
+            return parsed;
         }
 
-        Matcher accommodatingBands = ACCOMMODATING_BAND_PATTERN.matcher(text);
-        if (accommodatingBands.matches()) {
-            ParsedNumeric barWeight = parseNumericWithUnit(accommodatingBands.group(1));
-            List<String> bandColors = parseBandList(accommodatingBands.group(2));
-            if (!bandColors.isEmpty()) {
-                return WeightPrefill.accommodatingWithBands(barWeight.value(), barWeight.unit(), bandColors, text);
-            }
+        parsed = parseAccommodatingBands(text);
+        if (parsed != null) {
+            return parsed;
         }
 
-        List<String> straightBandColors = parseBandList(text);
-        if (!straightBandColors.isEmpty()) {
-            return WeightPrefill.bandsOnly(straightBandColors, text);
+        parsed = parseBandsOnly(text);
+        if (parsed != null) {
+            return parsed;
         }
 
         return WeightPrefill.custom(text);
     }
 
+    private static String normalizeInput(String rawWeightText) {
+        return rawWeightText == null ? "" : rawWeightText.trim();
+    }
+
+    private static boolean isNoneInput(String text) {
+        return text.isBlank() || "none".equalsIgnoreCase(text);
+    }
+
+    private static WeightPrefill parseSimpleWeight(String text) {
+        Matcher simpleWeight = SIMPLE_WEIGHT_PATTERN.matcher(text);
+        if (!simpleWeight.matches()) {
+            return null;
+        }
+
+        return WeightPrefill.standardWeight(simpleWeight.group(1), normalizeUnit(simpleWeight.group(2)), text);
+    }
+
+    private static WeightPrefill parseLeftRightWeight(String text) {
+        Matcher leftRightWeight = LEFT_RIGHT_WEIGHT_PATTERN.matcher(text);
+        if (!leftRightWeight.matches()) {
+            return null;
+        }
+
+        String unit = leftRightWeight.group(2) != null ? leftRightWeight.group(2) : leftRightWeight.group(4);
+        return WeightPrefill.leftRightWeight(
+                leftRightWeight.group(1),
+                leftRightWeight.group(3),
+                normalizeUnit(unit),
+                text
+        );
+    }
+
+    private static WeightPrefill parseAccommodatingChains(String text) {
+        Matcher accommodatingChains = ACCOMMODATING_CHAIN_PATTERN.matcher(text);
+        if (!accommodatingChains.matches()) {
+            return null;
+        }
+
+        ParsedNumeric barWeight = parseNumericWithUnit(accommodatingChains.group(1));
+        return WeightPrefill.accommodatingWithChains(
+                barWeight.value(),
+                barWeight.unit(),
+                accommodatingChains.group(2),
+                text
+        );
+    }
+
+    private static WeightPrefill parseAccommodatingBands(String text) {
+        Matcher accommodatingBands = ACCOMMODATING_BAND_PATTERN.matcher(text);
+        if (!accommodatingBands.matches()) {
+            return null;
+        }
+
+        ParsedNumeric barWeight = parseNumericWithUnit(accommodatingBands.group(1));
+        List<String> bandColors = parseBandList(accommodatingBands.group(2));
+        if (bandColors.isEmpty()) {
+            return null;
+        }
+
+        return WeightPrefill.accommodatingWithBands(barWeight.value(), barWeight.unit(), bandColors, text);
+    }
+
+    private static WeightPrefill parseBandsOnly(String text) {
+        List<String> straightBandColors = parseBandList(text);
+        if (straightBandColors.isEmpty()) {
+            return null;
+        }
+        return WeightPrefill.bandsOnly(straightBandColors, text);
+    }
+
     private static ParsedNumeric parseNumericWithUnit(String text) {
-        Matcher simple = SIMPLE_WEIGHT_PATTERN.matcher(text == null ? "" : text.trim());
+        Matcher simple = SIMPLE_WEIGHT_PATTERN.matcher(normalizeInput(text));
         if (simple.matches()) {
             return new ParsedNumeric(simple.group(1), normalizeUnit(simple.group(2)));
         }
-        return new ParsedNumeric(text == null ? "" : text.trim(), "lb");
+        return new ParsedNumeric(normalizeInput(text), "lb");
     }
 
     private static String normalizeUnit(String unit) {

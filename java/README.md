@@ -81,3 +81,21 @@ To help new developers, each main Java package now includes a `package-info.java
 - `com.lifttrax.workout`: workout planning and wave logic.
 
 Tip: in most IDEs, opening a package and viewing its documentation shows the `package-info.java` description first.
+
+
+## Test + coverage workflow
+
+From `java/`, run:
+
+```bash
+./gradlew test jacocoTestReport jacocoTestCoverageVerification
+```
+
+Coverage is enforced at **80% instruction coverage** for the currently maintained Java core slice:
+
+- selected `com.lifttrax.workout` planner classes (see `build.gradle` `coverageIncludes`)
+- `com.lifttrax.ui.ExecutionFormatter`
+- `com.lifttrax.cli.WeightInputParser`
+- `com.lifttrax.cli.WebHtml`
+
+This keeps the threshold focused on behavior-heavy code while the remaining Java port surfaces continue to evolve.
