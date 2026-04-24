@@ -205,6 +205,16 @@ public class WebServerCli {
                 redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required%20for%20Load%20Last");
                 return;
             }
+            LocalDate selectedDate = Optional.ofNullable(query.get("date"))
+                    .filter(value -> !value.isBlank())
+                    .map(value -> {
+                        try {
+                            return LocalDate.parse(value);
+                        } catch (Exception ignored) {
+                            return LocalDate.now();
+                        }
+                    })
+                    .orElse(LocalDate.now());
             boolean warmup = query.containsKey("warmup");
             boolean deload = query.containsKey("deload");
 
@@ -220,7 +230,7 @@ public class WebServerCli {
             redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
             redirectUrl.append("&prefillWeight=").append(WebUiRenderer.urlEncode(last.sets().isEmpty() ? "" : safe(last.sets().get(0).weight())));
             redirectUrl.append("&prefillSetCount=").append(last.sets().size());
-            redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(LocalDate.now().toString()));
+            redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(selectedDate.toString()));
             redirectUrl.append("&prefillWarmup=").append(last.warmup());
             redirectUrl.append("&prefillDeload=").append(last.deload());
             redirectUrl.append("&prefillNotes=").append(WebUiRenderer.urlEncode(safe(last.notes())));
