@@ -901,15 +901,10 @@ final class WebUiRenderer {
                     if (execution.date().isBefore(normalizedStart) || execution.date().isAfter(normalizedEnd)) {
                         continue;
                     }
-                    rows.add("<tr data-filter-item data-name='" + WebHtml.escapeHtml(lift.name())
-                            + "' data-region='" + WebHtml.escapeHtml(lift.region().toString())
-                            + "' data-main='" + WebHtml.escapeHtml(formatMainType(lift))
-                            + "' data-muscles='" + WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(",")))
-                            + "'><td>" + WebHtml.escapeHtml(execution.date().toString())
-                            + "</td><td>" + WebHtml.escapeHtml(lift.name())
-                            + "</td><td>" + WebHtml.escapeHtml(formatSets(execution.sets()))
-                            + "</td><td>" + WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes())
-                            + "</td></tr>");
+                    if (execution.id() == null) {
+                        continue;
+                    }
+                    rows.add(renderLastWeekExecutionItem(lift, execution, normalizedStart, normalizedEnd));
                 }
             } catch (Exception e) {
                 return "<p class='status error'>Failed to load last-week view: " + WebHtml.escapeHtml(e.getMessage()) + "</p>";
@@ -921,11 +916,58 @@ final class WebUiRenderer {
             return html.toString();
         }
 
-        rows.sort(Comparator.naturalOrder());
-        html.append("<table><thead><tr><th>Date</th><th>Lift</th><th>Sets</th><th>Notes</th></tr></thead><tbody>")
+        rows.sort(Comparator.reverseOrder());
+        html.append("<ul class='execution-list'>")
                 .append(String.join("", rows))
-                .append("</tbody></table>");
+                .append("</ul>");
         return html.toString();
+    }
+
+    private static String renderLastWeekExecutionItem(Lift lift, LiftExecution execution, LocalDate rangeStart, LocalDate rangeEnd) {
+        String notes = execution.notes() == null ? "" : execution.notes();
+        String initialSetsJson = setsToEditJson(execution.sets());
+        return "<li class='execution-item' style='margin:6px 0;' data-filter-item data-name='" + WebHtml.escapeHtml(lift.name())
+                + "' data-region='" + WebHtml.escapeHtml(lift.region().toString())
+                + "' data-main='" + WebHtml.escapeHtml(formatMainType(lift))
+                + "' data-muscles='" + WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(",")))
+                + "'>"
+                + "<div class='js-exec-view' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;'>"
+                + "<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>"
+                + WebHtml.escapeHtml(execution.date().toString() + " — " + lift.name() + " — " + formatSets(execution.sets())
+                + (notes.isBlank() ? "" : " — " + notes))
+                + "</span>"
+                + "<a href='#' class='js-exec-edit'>Edit</a>"
+                + "<a href='#' class='danger js-exec-delete'>Delete</a>"
+                + "<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>"
+                + "<input type='hidden' name='executionId' value='" + execution.id() + "'/>"
+                + "<input type='hidden' name='tab' value='last-week'/>"
+                + "<input type='hidden' name='lastWeekStart' value='" + WebHtml.escapeHtml(rangeStart.toString()) + "'/>"
+                + "<input type='hidden' name='lastWeekEnd' value='" + WebHtml.escapeHtml(rangeEnd.toString()) + "'/>"
+                + "</form>"
+                + "</div>"
+                + "<form method='post' action='/update-execution' class='query-form execution-edit-form js-exec-form' data-initial-sets='"
+                + WebHtml.escapeHtml(initialSetsJson)
+                + "' style='display:none;flex-direction:column;align-items:flex-start;gap:8px;'>"
+                + "<input type='hidden' name='lift' value='" + WebHtml.escapeHtml(lift.name()) + "'/>"
+                + "<input type='hidden' name='executionId' value='" + execution.id() + "'/>"
+                + "<input type='hidden' name='tab' value='last-week'/>"
+                + "<input type='hidden' name='lastWeekStart' value='" + WebHtml.escapeHtml(rangeStart.toString()) + "'/>"
+                + "<input type='hidden' name='lastWeekEnd' value='" + WebHtml.escapeHtml(rangeEnd.toString()) + "'/>"
+                + "<div style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>"
+                + "<label>Date <input type='date' name='date' disabled value='" + WebHtml.escapeHtml(DATE_FORMAT.format(execution.date())) + "'/></label>"
+                + "<label>Notes <input type='text' name='notes' style='min-width:220px;' disabled value='" + WebHtml.escapeHtml(notes) + "'/></label>"
+                + "<label><input type='checkbox' name='warmup' disabled" + (execution.warmup() ? " checked" : "") + "/> Warm-up</label>"
+                + "<label><input type='checkbox' name='deload' disabled" + (execution.deload() ? " checked" : "") + "/> Deload</label>"
+                + "</div>"
+                + "<div class='js-edit-sets' style='display:flex;flex-direction:column;gap:6px;width:100%;'>"
+                + renderSetEditorRows(execution.sets())
+                + "</div>"
+                + "<a href='#' class='js-add-set'>Add Set</a>"
+                + "<input type='hidden' name='detailedSets' class='js-detailed-sets' disabled value=''/>"
+                + "<button type='submit'>Save</button>"
+                + "<a href='#' class='js-exec-cancel'>Cancel</a>"
+                + "</form>"
+                + "</li>";
     }
 
     /**

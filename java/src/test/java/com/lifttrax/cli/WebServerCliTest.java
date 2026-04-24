@@ -133,6 +133,63 @@ class WebServerCliTest {
     }
 
     @Test
+    void renderLastWeekContentIncludesEditControls() throws Exception {
+        Path dbPath = Files.createTempFile("lifttrax-last-week-edit", ".db");
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath)) {
+            conn.createStatement().execute("""
+                    CREATE TABLE IF NOT EXISTS lifts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        region TEXT NOT NULL,
+                        main_lift TEXT,
+                        muscles TEXT NOT NULL,
+                        notes TEXT NOT NULL DEFAULT ''
+                    )
+                    """);
+            conn.createStatement().execute("""
+                    CREATE TABLE IF NOT EXISTS lift_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lift_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        sets TEXT NOT NULL,
+                        warmup INTEGER NOT NULL DEFAULT 0,
+                        deload INTEGER NOT NULL DEFAULT 0,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                    )
+                    """);
+        }
+
+        try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+            db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "");
+            db.addLiftExecution(
+                    "Back Squat",
+                    new LiftExecution(
+                            null,
+                            LocalDate.parse("2026-01-05"),
+                            List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", 8.5f)),
+                            false,
+                            false,
+                            "Felt good"
+                    )
+            );
+
+            String html = WebUiRenderer.renderLastWeekContent(
+                    db,
+                    db.listLifts(),
+                    LocalDate.parse("2026-01-01"),
+                    LocalDate.parse("2026-01-07")
+            );
+
+            assertTrue(html.contains("js-exec-edit"));
+            assertTrue(html.contains("js-exec-delete"));
+            assertTrue(html.contains("name='tab' value='last-week'"));
+            assertTrue(html.contains("name='lastWeekStart' value='2026-01-01'"));
+            assertTrue(html.contains("name='lastWeekEnd' value='2026-01-07'"));
+        }
+    }
+
+    @Test
     void addExecutionPrefillUsesSimpleWeightModeForPlainWeight() {
         List<Lift> lifts = List.of(
                 new Lift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "")
