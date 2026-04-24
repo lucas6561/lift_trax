@@ -56,6 +56,15 @@ class WebServerCliTest {
     }
 
     @Test
+    void formatSetsOmitsAtNoneWeight() {
+        String formatted = WebUiRenderer.formatSets(List.of(
+                new ExecutionSet(new SetMetric.Reps(10), "none", null)
+        ));
+
+        assertEquals("10 reps", formatted);
+    }
+
+    @Test
     void formatMainTypeHandlesNullMain() {
         Lift lift = new Lift("Mystery Lift", null, null, List.of(), "");
         String formatted = WebUiRenderer.formatMainType(lift);
@@ -123,6 +132,7 @@ class WebServerCliTest {
         assertTrue(html.contains("name='metricType'"));
         assertTrue(html.contains("name='setCopies'"));
         assertTrue(html.contains("metricLabel(item)"));
+        assertTrue(html.contains("bindExecutionActions(document);"));
         assertTrue(html.contains("status success"));
     }
 

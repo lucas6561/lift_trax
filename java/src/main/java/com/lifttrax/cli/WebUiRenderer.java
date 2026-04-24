@@ -658,6 +658,8 @@ final class WebUiRenderer {
                     });
                     }
 
+                    bindExecutionActions(document);
+
                     document.querySelectorAll('.execution-item').forEach((item) => {
                       setExecutionEditing(item, false);
                     });
@@ -1559,7 +1561,11 @@ final class WebUiRenderer {
     static String formatSets(List<ExecutionSet> sets) {
         List<String> parts = new ArrayList<>();
         for (ExecutionSet set : sets) {
-            String item = formatMetric(set.metric()) + " @ " + set.weight();
+            String weight = set.weight();
+            boolean hasWeight = weight != null
+                    && !weight.isBlank()
+                    && !"none".equalsIgnoreCase(weight.trim());
+            String item = formatMetric(set.metric()) + (hasWeight ? " @ " + weight : "");
             if (set.rpe() != null) {
                 item += " rpe " + String.format(Locale.ROOT, "%.1f", set.rpe());
             }
