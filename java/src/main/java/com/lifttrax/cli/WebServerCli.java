@@ -181,7 +181,12 @@ public class WebServerCli {
                     form.getOrDefault("notes", "")
             );
             db.addLiftExecution(liftName, execution);
-            redirect(exchange, "/?tab=add-execution&statusType=success&status=Execution%20saved&prefillLift=" + WebUiRenderer.urlEncode(liftName));
+            StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=success&status=Execution%20saved");
+            redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
+            redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(date.toString()));
+            redirectUrl.append("&prefillWarmup=").append(form.containsKey("warmup"));
+            redirectUrl.append("&prefillDeload=").append(form.containsKey("deload"));
+            redirect(exchange, redirectUrl.toString());
         } catch (Exception e) {
             redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to save execution: " + e.getMessage()));
         }
