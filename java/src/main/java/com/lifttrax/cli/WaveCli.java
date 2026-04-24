@@ -15,7 +15,7 @@ public final class WaveCli {
     private WaveCli() {}
 
     public static void main(String[] args) throws Exception {
-        String dbPath = args.length > 0 ? args[0] : "lifts.db";
+        String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
         int weeks = args.length > 1 ? Integer.parseInt(args[1]) : 7;
         String output = args.length > 2 ? args[2] : "wave.md";
 

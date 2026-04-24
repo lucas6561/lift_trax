@@ -16,7 +16,7 @@ From the `java/` directory:
 gradle run --args='path/to/lifts.db'
 ```
 
-If no argument is provided, it defaults to `lifts.db` in the current directory.
+If no argument is provided, it defaults to the repository-root `lifts.db` (it auto-detects the repo root by looking for `shared/sql/schema.sql`).
 
 
 Generate a wave markdown file:
@@ -35,7 +35,7 @@ From the `java/` directory:
 gradle runWeb --args='path/to/lifts.db 8080'
 ```
 
-- First arg: SQLite database path (defaults to `lifts.db`).
+- First arg: SQLite database path (defaults to repository-root `lifts.db`).
 - Second arg: port (defaults to `8080`).
 - The server binds to `0.0.0.0`, so it is reachable from other devices on the same network at `http://<your-machine-ip>:8080`.
 

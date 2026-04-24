@@ -39,7 +39,7 @@ public class WebServerCli {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public static void main(String[] args) throws Exception {
-        String dbPath = args.length > 0 ? args[0] : "lifts.db";
+        String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
         int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
 
         SqliteDb db = new SqliteDb(dbPath);
