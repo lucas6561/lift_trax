@@ -263,18 +263,20 @@ public class WebServerCli {
             return;
         }
 
+        String redirectBase = "/?tab=executions";
         try {
             Map<String, String> form = parseForm(exchange.getRequestBody());
+            redirectBase = buildExecutionRedirectBase(form);
             String liftName = form.getOrDefault("lift", "").trim();
             int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
             if (liftName.isBlank()) {
-                redirect(exchange, "/?tab=executions&statusType=error&status=Lift%20is%20required");
+                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
                 return;
             }
 
             LiftExecution existing = findExecutionById(db.getExecutions(liftName), executionId);
             if (existing == null) {
-                redirect(exchange, "/?tab=executions&statusType=error&status=" + WebUiRenderer.urlEncode("Execution not found for " + liftName));
+                redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Execution not found for " + liftName));
                 return;
             }
 
@@ -302,9 +304,9 @@ public class WebServerCli {
                     notes
             );
             db.updateLiftExecution(executionId, updated);
-            redirect(exchange, "/?tab=executions&statusType=success&status=" + WebUiRenderer.urlEncode("Execution updated"));
+            redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Execution updated"));
         } catch (Exception e) {
-            redirect(exchange, "/?tab=executions&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to update execution: " + e.getMessage()));
+            redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to update execution: " + e.getMessage()));
         }
     }
 
@@ -314,14 +316,31 @@ public class WebServerCli {
             return;
         }
 
+        String redirectBase = "/?tab=executions";
         try {
             Map<String, String> form = parseForm(exchange.getRequestBody());
+            redirectBase = buildExecutionRedirectBase(form);
             int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
             db.deleteLiftExecution(executionId);
-            redirect(exchange, "/?tab=executions&statusType=success&status=" + WebUiRenderer.urlEncode("Execution deleted"));
+            redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Execution deleted"));
         } catch (Exception e) {
-            redirect(exchange, "/?tab=executions&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage()));
+            redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage()));
         }
+    }
+
+    private static String buildExecutionRedirectBase(Map<String, String> form) {
+        String tab = form.getOrDefault("tab", "executions").trim();
+        StringBuilder redirectBase = new StringBuilder("/?tab=");
+        redirectBase.append(WebUiRenderer.urlEncode(tab.isBlank() ? "executions" : tab));
+        String lastWeekStart = form.getOrDefault("lastWeekStart", "").trim();
+        String lastWeekEnd = form.getOrDefault("lastWeekEnd", "").trim();
+        if (!lastWeekStart.isBlank()) {
+            redirectBase.append("&lastWeekStart=").append(WebUiRenderer.urlEncode(lastWeekStart));
+        }
+        if (!lastWeekEnd.isBlank()) {
+            redirectBase.append("&lastWeekEnd=").append(WebUiRenderer.urlEncode(lastWeekEnd));
+        }
+        return redirectBase.toString();
     }
 
     private static void handleAddLift(HttpExchange exchange, SqliteDb db) throws IOException {
