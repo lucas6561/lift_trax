@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 public class DumpDatabaseCli {
     public static void main(String[] args) throws Exception {
-        String dbPath = args.length > 0 ? args[0] : "lifts.db";
+        String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
 
         try (SqliteDb db = new SqliteDb(dbPath)) {
             List<Lift> lifts = db.listLifts();

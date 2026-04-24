@@ -3,6 +3,7 @@
 use chrono::{NaiveDate, Utc, Weekday};
 use clap::{Parser, Subcommand};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use lift_trax_cli::database::Database;
 use lift_trax_cli::gui;
@@ -149,9 +150,23 @@ fn day_name(day: Weekday) -> &'static str {
     }
 }
 
+fn default_db_path() -> PathBuf {
+    let mut dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    loop {
+        if dir.join("shared/sql/schema.sql").exists() {
+            return dir.join("lifts.db");
+        }
+        if !dir.pop() {
+            break;
+        }
+    }
+    Path::new("lifts.db").to_path_buf()
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    let db: Box<dyn Database> = Box::new(SqliteDb::new("lifts.db")?);
+    let db_path = default_db_path();
+    let db: Box<dyn Database> = Box::new(SqliteDb::new(&db_path.to_string_lossy())?);
     match cli.command {
         Commands::Add {
             exercise,
