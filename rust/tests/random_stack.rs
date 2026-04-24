@@ -1,8 +1,8 @@
 #[path = "../src/random_stack.rs"]
 mod random_stack;
 
-use random_stack::RandomStack;
 use random_stack::RandomMode;
+use random_stack::RandomStack;
 
 #[test]
 fn cycles_without_repeating_immediately() {

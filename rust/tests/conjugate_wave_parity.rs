@@ -2,23 +2,23 @@
 mod database;
 #[path = "../src/models/mod.rs"]
 mod models;
+#[path = "../src/random_stack.rs"]
+mod random_stack;
 #[path = "../src/sqlite_db.rs"]
 mod sqlite_db;
 #[path = "../src/wave_view.rs"]
 mod wave_view;
 #[path = "../src/weight.rs"]
 mod weight;
-#[path = "../src/random_stack.rs"]
-mod random_stack;
 #[path = "../src/workout_builder/mod.rs"]
 mod workout_builder;
 
 use chrono::Weekday;
 use database::Database;
 use models::{LiftRegion, LiftType, Muscle};
+use random_stack::RandomMode;
 use sqlite_db::SqliteDb;
 use std::fs;
-use random_stack::RandomMode;
 use workout_builder::{ConjugateWorkoutBuilder, WorkoutWeek};
 
 fn create_markdown(wave: &[WorkoutWeek], db: &dyn Database) -> Vec<String> {
@@ -154,7 +154,12 @@ fn conjugate_wave_markdown_matches_parity_fixture() {
         "Delt Giant Set",
         LiftRegion::UPPER,
         LiftType::Accessory,
-        &[Muscle::RearDelt, Muscle::Shoulder, Muscle::FrontDelt, Muscle::Trap],
+        &[
+            Muscle::RearDelt,
+            Muscle::Shoulder,
+            Muscle::FrontDelt,
+            Muscle::Trap,
+        ],
         "",
     )
     .unwrap();

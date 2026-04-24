@@ -36,6 +36,9 @@ pub trait Database {
     /// Delete an existing lift and all of its executions.
     fn delete_lift(&self, name: &str) -> DbResult<()>;
 
+    /// Enable or disable a lift for wave generation.
+    fn set_lift_enabled(&self, name: &str, enabled: bool) -> DbResult<()>;
+
     fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution>;
 
     /// Update a recorded execution by id.

@@ -40,6 +40,7 @@ fn create_lift_with_execution() {
         main: Some(LiftType::Squat),
         muscles: vec![Muscle::Quad, Muscle::Glute],
         notes: String::new(),
+        enabled: true,
     };
     assert_eq!(lift.name, "Squat");
     match exec.sets[0].metric {

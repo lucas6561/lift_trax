@@ -15,6 +15,13 @@ use serde::Serialize;
 use sqlite_db::{MAX_BACKUPS, SqliteDb};
 use weight::Weight;
 
+fn expected_schema_version() -> i32 {
+    include_str!("../../shared/sql/schema_version.txt")
+        .trim()
+        .parse::<i32>()
+        .expect("shared schema version should be a valid integer")
+}
+
 #[test]
 fn add_and_list_lift_with_execution() {
     let db = SqliteDb::new(":memory:").expect("db open");
@@ -355,7 +362,7 @@ fn upgrades_legacy_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 9);
+    assert_eq!(user_version, expected_schema_version());
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -434,7 +441,7 @@ fn upgrades_unversioned_database() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 9);
+    assert_eq!(user_version, expected_schema_version());
 
     let lift_cols: Vec<String> = conn
         .prepare("PRAGMA table_info(lifts)")
@@ -524,7 +531,7 @@ fn repairs_misreported_version() {
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(user_version, 9);
+    assert_eq!(user_version, expected_schema_version());
 
     // close connection before removing file
     drop(conn);
@@ -616,4 +623,43 @@ fn limits_number_of_backups() {
     for name in backups {
         let _ = std::fs::remove_file(name);
     }
+}
+
+#[test]
+fn disabled_lifts_are_excluded_from_wave_queries() {
+    let db = SqliteDb::new(":memory:").expect("db open");
+    db.add_lift(
+        "Enabled Bench",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.add_lift(
+        "Disabled Bench",
+        LiftRegion::UPPER,
+        LiftType::BenchPress,
+        &[],
+        "",
+    )
+    .unwrap();
+    db.set_lift_enabled("Disabled Bench", false).unwrap();
+
+    let all_names = db
+        .list_lifts()
+        .unwrap()
+        .into_iter()
+        .map(|lift| lift.name)
+        .collect::<Vec<_>>();
+    assert!(all_names.contains(&"Enabled Bench".to_string()));
+    assert!(all_names.contains(&"Disabled Bench".to_string()));
+
+    let wave_names = db
+        .lifts_by_type(LiftType::BenchPress)
+        .unwrap()
+        .into_iter()
+        .map(|lift| lift.name)
+        .collect::<Vec<_>>();
+    assert_eq!(wave_names, vec!["Enabled Bench".to_string()]);
 }

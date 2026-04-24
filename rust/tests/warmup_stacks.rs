@@ -82,6 +82,7 @@ fn lift(name: &str, region: LiftRegion, main: LiftType, muscles: Vec<Muscle>) ->
         main: Some(main),
         muscles,
         notes: String::new(),
+        enabled: true,
     }
 }
 
@@ -114,6 +115,10 @@ impl Database for TestDb {
     }
 
     fn delete_lift(&self, _name: &str) -> DbResult<()> {
+        unimplemented!()
+    }
+
+    fn set_lift_enabled(&self, _name: &str, _enabled: bool) -> DbResult<()> {
         unimplemented!()
     }
 

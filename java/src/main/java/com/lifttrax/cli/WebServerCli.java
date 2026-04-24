@@ -59,6 +59,7 @@ public class WebServerCli {
         server.createContext("/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
         server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
         server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
+        server.createContext("/set-lift-enabled", exchange -> handleSetLiftEnabled(exchange, db));
         server.setExecutor(null);
         server.start();
 
@@ -341,6 +342,29 @@ public class WebServerCli {
             redirect(exchange, "/?tab=add-execution&statusType=success&status=" + WebUiRenderer.urlEncode("Created lift: " + name) + "&prefillLift=" + WebUiRenderer.urlEncode(name));
         } catch (Exception e) {
             redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to create lift: " + e.getMessage()));
+        }
+    }
+
+    private static void handleSetLiftEnabled(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+        try {
+            Map<String, String> form = parseForm(exchange.getRequestBody());
+            String lift = form.getOrDefault("lift", "").trim();
+            if (lift.isBlank()) {
+                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required");
+                return;
+            }
+            boolean enabled = "1".equals(form.getOrDefault("enabled", "1"));
+            db.setLiftEnabled(lift, enabled);
+            String status = enabled ? "Enabled" : "Disabled";
+            redirect(exchange, "/?tab=add-execution&statusType=success&status="
+                    + WebUiRenderer.urlEncode(status + " lift: " + lift));
+        } catch (Exception e) {
+            redirect(exchange, "/?tab=add-execution&statusType=error&status="
+                    + WebUiRenderer.urlEncode("Failed to update lift status: " + e.getMessage()));
         }
     }
 

@@ -1325,6 +1325,11 @@ final class WebUiRenderer {
             if (!search.isEmpty() && !lift.name().toLowerCase(Locale.ROOT).contains(search)) {
                 continue;
             }
+            boolean enabled = true;
+            try {
+                enabled = db.isLiftEnabled(lift.name());
+            } catch (Exception ignored) {
+            }
             hasLift = true;
             html.append("<details class='execution-lift-group' data-filter-item data-name='")
                     .append(WebHtml.escapeHtml(lift.name()))
@@ -1340,8 +1345,16 @@ final class WebUiRenderer {
                     .append(" - ")
                     .append(WebHtml.escapeHtml(lift.region().toString()))
                     .append(" / ")
-                    .append(WebHtml.escapeHtml(formatMainType(lift)))
-                    .append("</summary>");
+                    .append(WebHtml.escapeHtml(formatMainType(lift)));
+            if (!enabled) {
+                html.append(" <span class='status error' style='margin-left:8px;'>Disabled</span>");
+            }
+            html.append("</summary>");
+            html.append("<form method='post' action='/set-lift-enabled' class='query-form' style='margin:8px 0;'>")
+                    .append("<input type='hidden' name='lift' value='").append(WebHtml.escapeHtml(lift.name())).append("'/>")
+                    .append("<input type='hidden' name='enabled' value='").append(enabled ? "0" : "1").append("'/>")
+                    .append("<button type='submit'>").append(enabled ? "Disable for wave" : "Enable for wave").append("</button>")
+                    .append("</form>");
             html.append("<div class='js-exec-body' data-lift='")
                     .append(WebHtml.escapeHtml(lift.name()))
                     .append("' data-loaded='false'><p>Expand to load executions...</p></div>");

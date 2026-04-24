@@ -36,6 +36,10 @@ impl Database for TestDb {
         unimplemented!()
     }
 
+    fn set_lift_enabled(&self, _name: &str, _enabled: bool) -> DbResult<()> {
+        unimplemented!()
+    }
+
     fn get_executions(&self, _lift_name: &str) -> Vec<LiftExecution> {
         unimplemented!()
     }
@@ -73,6 +77,7 @@ impl Database for TestDb {
             }),
             muscles: Vec::new(),
             notes: String::new(),
+            enabled: true,
         })
     }
 

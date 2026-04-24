@@ -17,6 +17,7 @@ fn filter_lifts_by_muscle() {
             main: Some(LiftType::BenchPress),
             muscles: vec![Muscle::Chest, Muscle::Tricep],
             notes: String::new(),
+            enabled: true,
         },
         Lift {
             name: "Squat".into(),
@@ -24,6 +25,7 @@ fn filter_lifts_by_muscle() {
             main: Some(LiftType::Squat),
             muscles: vec![Muscle::Quad],
             notes: String::new(),
+            enabled: true,
         },
     ];
 

@@ -16,4 +16,6 @@ pub struct Lift {
     pub muscles: Vec<Muscle>,
     /// Free-form notes about this lift.
     pub notes: String,
+    /// Whether this lift is eligible for workout wave generation.
+    pub enabled: bool,
 }
