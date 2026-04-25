@@ -3,6 +3,7 @@ package com.lifttrax.ui;
 import com.lifttrax.db.Database;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
+import com.lifttrax.models.LiftType;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -123,7 +124,7 @@ final class LastWeekTabPanel extends JPanel {
         }
 
         List<Lift> filteredLifts = filterPanel.apply(allLifts);
-        Map<LocalDate, List<String>> byDate = new LinkedHashMap<>();
+        Map<LocalDate, List<ExecutionLine>> byDate = new LinkedHashMap<>();
 
         for (Lift lift : filteredLifts) {
             try {
@@ -132,7 +133,10 @@ final class LastWeekTabPanel extends JPanel {
                         continue;
                     }
                     byDate.computeIfAbsent(execution.date(), ignored -> new ArrayList<>())
-                            .add(lift.name() + ": " + ExecutionFormatter.formatExecutionSummary(execution));
+                            .add(new ExecutionLine(
+                                    lift.name() + ": " + ExecutionFormatter.formatExecutionSummary(execution),
+                                    executionSortOrder(lift, execution)
+                            ));
                 }
             } catch (Exception e) {
                 content.add(new JLabel("Failed to load executions for " + lift.name() + ": " + e.getMessage()));
@@ -154,7 +158,10 @@ final class LastWeekTabPanel extends JPanel {
                                 BorderFactory.createEmptyBorder(6, 6, 6, 6)
                         ));
                         dayPanel.add(new JLabel(entry.getKey().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))));
-                        entry.getValue().forEach(line -> dayPanel.add(new JLabel(line)));
+                        entry.getValue().stream()
+                                .sorted(Comparator.comparingInt(ExecutionLine::sortOrder)
+                                        .thenComparing(ExecutionLine::text))
+                                .forEach(line -> dayPanel.add(new JLabel(line.text())));
                         content.add(dayPanel);
                     });
         }
@@ -190,4 +197,25 @@ final class LastWeekTabPanel extends JPanel {
     private static Date toDate(LocalDate date) {
         return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
+
+    private int executionSortOrder(Lift lift, LiftExecution execution) {
+        if (execution.warmup()) {
+            return 0;
+        }
+        LiftType liftType = lift.main();
+        if (liftType == null) {
+            return 50;
+        }
+        return switch (liftType) {
+            case SQUAT -> 10;
+            case DEADLIFT -> 20;
+            case BENCH_PRESS -> 30;
+            case OVERHEAD_PRESS -> 40;
+            case ACCESSORY -> 50;
+            case CONDITIONING -> 60;
+            case MOBILITY -> 70;
+        };
+    }
+
+    private record ExecutionLine(String text, int sortOrder) {}
 }

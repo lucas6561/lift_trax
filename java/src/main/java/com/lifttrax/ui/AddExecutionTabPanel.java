@@ -396,38 +396,59 @@ final class AddExecutionTabPanel extends JPanel {
                 return;
             }
             LiftExecution last = executions.get(0);
-            dateField.setText(LocalDate.now().toString());
-            warmupCheck.setSelected(last.warmup());
-            deloadCheck.setSelected(last.deload());
-            notesField.setText(last.notes() == null ? "" : last.notes());
-
-            detailedSets.clear();
-            detailedSetsModel.clear();
-            detailedSets.addAll(last.sets());
-            for (ExecutionSet set : last.sets()) {
-                detailedSetsModel.addElement(formatSet(set));
+            LocalDate newDate = LocalDate.now();
+            boolean newWarmup = last.warmup();
+            boolean newDeload = last.deload();
+            String newNotes = last.notes() == null ? "" : last.notes();
+            List<ExecutionSet> newDetailedSets = new ArrayList<>(last.sets());
+            List<String> newDetailedSetLabels = new ArrayList<>();
+            for (ExecutionSet set : newDetailedSets) {
+                newDetailedSetLabels.add(formatSet(set));
             }
-            setModeCombo.setSelectedItem(SetInputMode.DETAILED);
 
+            String newWeight = "";
+            String newRpe = "";
+            MetricInputMode newMetricMode = (MetricInputMode) metricModeCombo.getSelectedItem();
+            String newValue = "";
+            String newLeft = "";
+            String newRight = "";
             if (!last.sets().isEmpty()) {
                 ExecutionSet first = last.sets().get(0);
-                weightField.setText(first.weight());
-                rpeField.setText(first.rpe() == null ? "" : String.format(Locale.ROOT, "%s", first.rpe()));
+                newWeight = first.weight();
+                newRpe = first.rpe() == null ? "" : String.format(Locale.ROOT, "%s", first.rpe());
                 if (first.metric() instanceof SetMetric.Reps reps) {
-                    metricModeCombo.setSelectedItem(MetricInputMode.REPS);
-                    valueField.setText(String.valueOf(reps.reps()));
+                    newMetricMode = MetricInputMode.REPS;
+                    newValue = String.valueOf(reps.reps());
                 } else if (first.metric() instanceof SetMetric.RepsLr repsLr) {
-                    metricModeCombo.setSelectedItem(MetricInputMode.REPS_LR);
-                    leftValueField.setText(String.valueOf(repsLr.left()));
-                    rightValueField.setText(String.valueOf(repsLr.right()));
+                    newMetricMode = MetricInputMode.REPS_LR;
+                    newLeft = String.valueOf(repsLr.left());
+                    newRight = String.valueOf(repsLr.right());
                 } else if (first.metric() instanceof SetMetric.TimeSecs timeSecs) {
-                    metricModeCombo.setSelectedItem(MetricInputMode.TIME_SECS);
-                    valueField.setText(String.valueOf(timeSecs.seconds()));
+                    newMetricMode = MetricInputMode.TIME_SECS;
+                    newValue = String.valueOf(timeSecs.seconds());
                 } else if (first.metric() instanceof SetMetric.DistanceFeet distanceFeet) {
-                    metricModeCombo.setSelectedItem(MetricInputMode.DISTANCE_FEET);
-                    valueField.setText(String.valueOf(distanceFeet.feet()));
+                    newMetricMode = MetricInputMode.DISTANCE_FEET;
+                    newValue = String.valueOf(distanceFeet.feet());
                 }
             }
+
+            dateField.setText(newDate.toString());
+            warmupCheck.setSelected(newWarmup);
+            deloadCheck.setSelected(newDeload);
+            notesField.setText(newNotes);
+            detailedSets.clear();
+            detailedSets.addAll(newDetailedSets);
+            detailedSetsModel.clear();
+            for (String label : newDetailedSetLabels) {
+                detailedSetsModel.addElement(label);
+            }
+            setModeCombo.setSelectedItem(SetInputMode.DETAILED);
+            metricModeCombo.setSelectedItem(newMetricMode);
+            weightField.setText(newWeight);
+            rpeField.setText(newRpe);
+            valueField.setText(newValue);
+            leftValueField.setText(newLeft);
+            rightValueField.setText(newRight);
             setStatus("Loaded last execution", false);
         } catch (Exception e) {
             setStatus("Failed to load execution: " + e.getMessage(), true);
