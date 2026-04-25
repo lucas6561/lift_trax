@@ -892,9 +892,9 @@ final class WebUiRenderer {
         LocalDate normalizedEnd = end.isBefore(start) ? start : end;
         StringBuilder html = new StringBuilder();
         html.append("<p>Showing ")
-                .append(WebHtml.escapeHtml(normalizedStart.toString()))
+                .append(WebHtml.escapeHtml(DATE_FORMAT.format(normalizedStart)))
                 .append(" through ")
-                .append(WebHtml.escapeHtml(normalizedEnd.toString()))
+                .append(WebHtml.escapeHtml(DATE_FORMAT.format(normalizedEnd)))
                 .append("</p>");
 
         List<String> rows = new ArrayList<>();
@@ -936,16 +936,15 @@ final class WebUiRenderer {
                 + "'>"
                 + "<div class='js-exec-view' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;'>"
                 + "<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>"
-                + WebHtml.escapeHtml(execution.date().toString() + " — " + lift.name() + " — " + formatSets(execution.sets())
-                + (notes.isBlank() ? "" : " — " + notes))
+                + WebHtml.escapeHtml(lift.name() + " — " + formatExecution(execution))
                 + "</span>"
                 + "<a href='#' class='js-exec-edit'>Edit</a>"
                 + "<a href='#' class='danger js-exec-delete'>Delete</a>"
                 + "<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>"
                 + "<input type='hidden' name='executionId' value='" + execution.id() + "'/>"
                 + "<input type='hidden' name='tab' value='last-week'/>"
-                + "<input type='hidden' name='lastWeekStart' value='" + WebHtml.escapeHtml(rangeStart.toString()) + "'/>"
-                + "<input type='hidden' name='lastWeekEnd' value='" + WebHtml.escapeHtml(rangeEnd.toString()) + "'/>"
+                + "<input type='hidden' name='lastWeekStart' value='" + WebHtml.escapeHtml(DATE_FORMAT.format(rangeStart)) + "'/>"
+                + "<input type='hidden' name='lastWeekEnd' value='" + WebHtml.escapeHtml(DATE_FORMAT.format(rangeEnd)) + "'/>"
                 + "</form>"
                 + "</div>"
                 + "<form method='post' action='/update-execution' class='query-form execution-edit-form js-exec-form' data-initial-sets='"
@@ -954,8 +953,8 @@ final class WebUiRenderer {
                 + "<input type='hidden' name='lift' value='" + WebHtml.escapeHtml(lift.name()) + "'/>"
                 + "<input type='hidden' name='executionId' value='" + execution.id() + "'/>"
                 + "<input type='hidden' name='tab' value='last-week'/>"
-                + "<input type='hidden' name='lastWeekStart' value='" + WebHtml.escapeHtml(rangeStart.toString()) + "'/>"
-                + "<input type='hidden' name='lastWeekEnd' value='" + WebHtml.escapeHtml(rangeEnd.toString()) + "'/>"
+                + "<input type='hidden' name='lastWeekStart' value='" + WebHtml.escapeHtml(DATE_FORMAT.format(rangeStart)) + "'/>"
+                + "<input type='hidden' name='lastWeekEnd' value='" + WebHtml.escapeHtml(DATE_FORMAT.format(rangeEnd)) + "'/>"
                 + "<div style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>"
                 + "<label>Date <input type='date' name='date' disabled value='" + WebHtml.escapeHtml(DATE_FORMAT.format(execution.date())) + "'/></label>"
                 + "<label>Notes <input type='text' name='notes' style='min-width:220px;' disabled value='" + WebHtml.escapeHtml(notes) + "'/></label>"
