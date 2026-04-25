@@ -5,8 +5,9 @@ import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
 /**
  * Core ExecutionFormatter component used by LiftTrax.
@@ -19,9 +20,11 @@ final class ExecutionFormatter {
     }
 
     static String formatExecution(LiftExecution execution) {
-        String sets = execution.sets().stream()
-                .map(ExecutionFormatter::formatSet)
-                .collect(Collectors.joining(" | "));
+        return execution.date().format(DATE_FORMAT) + ": " + formatExecutionSummary(execution);
+    }
+
+    static String formatExecutionSummary(LiftExecution execution) {
+        String sets = formatSets(execution.sets());
 
         String tags = "";
         if (execution.warmup()) {
@@ -32,12 +35,31 @@ final class ExecutionFormatter {
         }
 
         String notes = (execution.notes() == null || execution.notes().isBlank()) ? "" : " — " + execution.notes();
-        return execution.date().format(DATE_FORMAT) + ": " + sets + tags + notes;
+        return sets + tags + notes;
+    }
+
+    static String formatSets(List<ExecutionSet> sets) {
+        List<String> parts = new ArrayList<>();
+        int index = 0;
+        while (index < sets.size()) {
+            ExecutionSet set = sets.get(index);
+            int count = 1;
+            while (index + count < sets.size() && set.equals(sets.get(index + count))) {
+                count++;
+            }
+
+            String part = formatSet(set);
+            parts.add(count > 1 ? count + "x " + part : part);
+            index += count;
+        }
+        return String.join(", ", parts);
     }
 
     private static String formatSet(ExecutionSet set) {
         String rpe = set.rpe() == null ? "" : " RPE " + trimTrailingZero(set.rpe());
-        return formatMetric(set.metric()) + " @ " + set.weight() + rpe;
+        String weight = set.weight() == null ? "" : set.weight().trim();
+        String weightText = weight.isBlank() || weight.equalsIgnoreCase("none") ? "" : " @ " + weight;
+        return formatMetric(set.metric()) + weightText + rpe;
     }
 
     private static String formatMetric(SetMetric metric) {

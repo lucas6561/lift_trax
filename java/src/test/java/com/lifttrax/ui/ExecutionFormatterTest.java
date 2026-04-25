@@ -32,7 +32,7 @@ class ExecutionFormatterTest {
         String formatted = ExecutionFormatter.formatExecution(execution);
 
         assertEquals(
-                "2025-01-15: 5 reps @ 225 lb RPE 8 | 8L/7R reps @ 50 lb | 10-12 reps @ bodyweight RPE 7.5 | 45 sec @ none | 100 ft @ sled RPE 9 [warmup] [deload] — Moved quickly",
+                "2025-01-15: 5 reps @ 225 lb RPE 8, 8L/7R reps @ 50 lb, 10-12 reps @ bodyweight RPE 7.5, 45 sec, 100 ft @ sled RPE 9 [warmup] [deload] — Moved quickly",
                 formatted
         );
     }
@@ -51,5 +51,27 @@ class ExecutionFormatterTest {
         String formatted = ExecutionFormatter.formatExecution(execution);
 
         assertEquals("2025-02-01: 3 reps @ 275 lb", formatted);
+    }
+
+    @Test
+    void groupsIdenticalSequentialSetsWithMultiplierPrefix() {
+        LiftExecution execution = new LiftExecution(
+                3,
+                LocalDate.of(2025, 3, 1),
+                List.of(
+                        new ExecutionSet(new SetMetric.Reps(15), "95 lb", null),
+                        new ExecutionSet(new SetMetric.Reps(15), "95 lb", null),
+                        new ExecutionSet(new SetMetric.Reps(12), "95 lb", null),
+                        new ExecutionSet(new SetMetric.Reps(12), "95 lb", null),
+                        new ExecutionSet(new SetMetric.Reps(12), "95 lb", null)
+                ),
+                false,
+                false,
+                ""
+        );
+
+        String formatted = ExecutionFormatter.formatExecution(execution);
+
+        assertEquals("2025-03-01: 2x 15 reps @ 95 lb, 3x 12 reps @ 95 lb", formatted);
     }
 }
