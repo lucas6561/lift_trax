@@ -936,8 +936,7 @@ final class WebUiRenderer {
                 + "'>"
                 + "<div class='js-exec-view' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;'>"
                 + "<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>"
-                + WebHtml.escapeHtml(DATE_FORMAT.format(execution.date()) + " — " + lift.name() + " — " + formatSets(execution.sets())
-                + (notes.isBlank() ? "" : " — " + notes))
+                + WebHtml.escapeHtml(lift.name() + " — " + formatExecution(execution))
                 + "</span>"
                 + "<a href='#' class='js-exec-edit'>Edit</a>"
                 + "<a href='#' class='danger js-exec-delete'>Delete</a>"
