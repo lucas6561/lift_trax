@@ -157,6 +157,10 @@ class WebServerCliTest {
         assertTrue(html.contains("formaction='/load-last-execution'"));
         assertTrue(html.contains("New Lift"));
         assertTrue(html.contains("action='/add-lift'"));
+        assertTrue(html.contains("class='js-new-lift-muscles'"));
+        assertTrue(html.contains("name='muscles' class='js-new-lift-muscles-hidden'"));
+        assertTrue(html.contains("<option value='QUAD'>QUAD</option>"));
+        assertTrue(html.contains("syncNewLiftMuscles"));
         assertTrue(html.contains("execution result"));
         assertTrue(html.contains("name='metricType'"));
         assertTrue(html.contains("name='setCopies'"));
