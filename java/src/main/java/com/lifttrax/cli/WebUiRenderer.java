@@ -986,6 +986,8 @@ final class WebUiRenderer {
         LocalDate historyMin = null;
         LocalDate historyMax = null;
         int historyCount = 0;
+        LocalDate nearestBefore = null;
+        LocalDate nearestAfter = null;
         StringBuilder html = new StringBuilder();
         html.append("<p>Showing ")
                 .append(WebHtml.escapeHtml(DATE_FORMAT.format(normalizedStart)))
@@ -1004,7 +1006,16 @@ final class WebUiRenderer {
                     if (historyMax == null || execution.date().isAfter(historyMax)) {
                         historyMax = execution.date();
                     }
-                    if (execution.date().isBefore(normalizedStart) || execution.date().isAfter(normalizedEnd)) {
+                    if (execution.date().isBefore(normalizedStart)) {
+                        if (nearestBefore == null || execution.date().isAfter(nearestBefore)) {
+                            nearestBefore = execution.date();
+                        }
+                        continue;
+                    }
+                    if (execution.date().isAfter(normalizedEnd)) {
+                        if (nearestAfter == null || execution.date().isBefore(nearestAfter)) {
+                            nearestAfter = execution.date();
+                        }
                         continue;
                     }
                     if (execution.id() == null) {
@@ -1035,6 +1046,16 @@ final class WebUiRenderer {
 
         if (rowsByDate.isEmpty()) {
             html.append("<p>no executions in this range (check the date range and filters)</p>");
+            if (nearestBefore != null) {
+                html.append("<p class='muted'>Closest earlier record in current filters: ")
+                        .append(WebHtml.escapeHtml(DATE_FORMAT.format(nearestBefore)))
+                        .append("</p>");
+            }
+            if (nearestAfter != null) {
+                html.append("<p class='muted'>Closest later record in current filters: ")
+                        .append(WebHtml.escapeHtml(DATE_FORMAT.format(nearestAfter)))
+                        .append("</p>");
+            }
             return html.toString();
         }
 

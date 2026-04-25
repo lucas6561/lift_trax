@@ -469,6 +469,8 @@ impl GuiApp {
         let mut history_min: Option<NaiveDate> = None;
         let mut history_max: Option<NaiveDate> = None;
         let mut history_count: usize = 0;
+        let mut nearest_before: Option<NaiveDate> = None;
+        let mut nearest_after: Option<NaiveDate> = None;
         for (lift_idx, lift) in self.lifts.iter().enumerate() {
             for (exec_idx, exec) in self.db.get_executions(&lift.name).iter().enumerate() {
                 history_count += 1;
@@ -480,7 +482,18 @@ impl GuiApp {
                     Some(max) => max.max(exec.date),
                     None => exec.date,
                 });
-                if exec.date < self.last_week_start || exec.date > self.last_week_end {
+                if exec.date < self.last_week_start {
+                    nearest_before = Some(match nearest_before {
+                        Some(date) => date.max(exec.date),
+                        None => exec.date,
+                    });
+                    continue;
+                }
+                if exec.date > self.last_week_end {
+                    nearest_after = Some(match nearest_after {
+                        Some(date) => date.min(exec.date),
+                        None => exec.date,
+                    });
                     continue;
                 }
                 days.entry(exec.date)
@@ -507,6 +520,18 @@ impl GuiApp {
         if days.is_empty() {
             ui.add_space(8.0);
             ui.label("no executions in this 7-day range (check the range and filters)");
+            if let Some(date) = nearest_before {
+                ui.label(format!(
+                    "Closest earlier record in current filters: {}",
+                    date.format("%Y-%m-%d")
+                ));
+            }
+            if let Some(date) = nearest_after {
+                ui.label(format!(
+                    "Closest later record in current filters: {}",
+                    date.format("%Y-%m-%d")
+                ));
+            }
         } else {
             let mut day_entries: Vec<_> = days.into_iter().collect();
             day_entries.sort_by(|a, b| a.0.cmp(&b.0));
