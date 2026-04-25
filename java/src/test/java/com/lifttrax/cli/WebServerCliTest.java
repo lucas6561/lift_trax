@@ -65,6 +65,24 @@ class WebServerCliTest {
     }
 
     @Test
+    void formatExecutionIncludesWarmupAndDeloadFlags() {
+        LiftExecution execution = new LiftExecution(
+                42,
+                LocalDate.of(2026, 2, 10),
+                List.of(new ExecutionSet(new SetMetric.Reps(3), "315 lb", null)),
+                true,
+                true,
+                "fast"
+        );
+
+        String formatted = WebUiRenderer.formatExecution(execution);
+
+        assertTrue(formatted.contains("[warmup]"));
+        assertTrue(formatted.contains("[deload]"));
+        assertTrue(formatted.contains("(fast)"));
+    }
+
+    @Test
     void formatMainTypeHandlesNullMain() {
         Lift lift = new Lift("Mystery Lift", null, null, List.of(), "");
         String formatted = WebUiRenderer.formatMainType(lift);
@@ -302,6 +320,55 @@ class WebServerCliTest {
             assertTrue(html.contains("action='/set-lift-enabled'"));
             assertTrue(html.contains("Enable for wave"));
             assertTrue(html.contains("Disabled"));
+        }
+    }
+
+    @Test
+    void executionRowsShowWaveDisabledStatus() throws Exception {
+        Path dbPath = Files.createTempFile("lifttrax-enabled-rows", ".db");
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath)) {
+            conn.createStatement().execute("""
+                    CREATE TABLE IF NOT EXISTS lifts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        region TEXT NOT NULL,
+                        main_lift TEXT,
+                        muscles TEXT NOT NULL,
+                        notes TEXT NOT NULL DEFAULT ''
+                    )
+                    """);
+            conn.createStatement().execute("""
+                    CREATE TABLE IF NOT EXISTS lift_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lift_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        sets TEXT NOT NULL,
+                        warmup INTEGER NOT NULL DEFAULT 0,
+                        deload INTEGER NOT NULL DEFAULT 0,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                    )
+                    """);
+        }
+        try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+            db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+            db.addLiftExecution(
+                    "Back Squat",
+                    new LiftExecution(
+                            null,
+                            LocalDate.parse("2026-03-10"),
+                            List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", null)),
+                            true,
+                            false,
+                            ""
+                    )
+            );
+            db.setLiftEnabled("Back Squat", false);
+
+            String html = WebUiRenderer.renderExecutionRows(db, "Back Squat");
+
+            assertTrue(html.contains("Wave status: Disabled for wave"));
+            assertTrue(html.contains("[warmup]"));
         }
     }
 

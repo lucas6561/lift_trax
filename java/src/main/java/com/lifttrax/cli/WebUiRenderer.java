@@ -1415,11 +1415,22 @@ final class WebUiRenderer {
     static String renderExecutionRows(SqliteDb db, String liftName) {
         try {
             List<LiftExecution> executions = db.getExecutions(liftName);
+            boolean liftEnabled = true;
+            try {
+                liftEnabled = db.isLiftEnabled(liftName);
+            } catch (Exception ignored) {
+            }
             if (executions.isEmpty()) {
                 return "<p>No executions recorded.</p>";
             }
 
-            StringBuilder html = new StringBuilder("<ul class='execution-list'>");
+            StringBuilder html = new StringBuilder();
+            html.append("<p class='status ")
+                    .append(liftEnabled ? "success" : "error")
+                    .append("'>Wave status: ")
+                    .append(liftEnabled ? "Enabled" : "Disabled for wave")
+                    .append("</p>");
+            html.append("<ul class='execution-list'>");
             for (LiftExecution execution : executions) {
                 html.append("<li class='execution-item' style='margin:6px 0;'>");
                 html.append("<div class='js-exec-view' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;'>");
@@ -1550,10 +1561,19 @@ final class WebUiRenderer {
 
     static String formatExecution(LiftExecution execution) {
         String notes = execution.notes() == null ? "" : execution.notes();
-        return "%s — %s%s"
+        List<String> tags = new ArrayList<>();
+        if (execution.warmup()) {
+            tags.add("[warmup]");
+        }
+        if (execution.deload()) {
+            tags.add("[deload]");
+        }
+        String tagText = tags.isEmpty() ? "" : " " + joinList(tags);
+        return "%s — %s%s%s"
                 .formatted(
                         DATE_FORMAT.format(execution.date()),
                         formatSets(execution.sets()),
+                        tagText,
                         notes.isBlank() ? "" : " (" + notes + ")"
                 );
     }
