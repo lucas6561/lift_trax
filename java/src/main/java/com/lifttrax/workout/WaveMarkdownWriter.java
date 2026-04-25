@@ -2,6 +2,7 @@ package com.lifttrax.workout;
 
 import com.lifttrax.db.Database;
 import com.lifttrax.models.ExecutionSet;
+import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 
@@ -231,29 +232,7 @@ public final class WaveMarkdownWriter {
     }
 
     private static String formatExec(LiftExecution exec) {
-        if (exec.sets().isEmpty()) {
-            return exec.notes().isEmpty() ? "no sets recorded" : "no sets recorded - " + exec.notes();
-        }
-        ExecutionSet first = exec.sets().get(0);
-        String rpe = first.rpe() == null ? "" : " RPE " + first.rpe();
-        String weight = first.weight() == null || first.weight().equalsIgnoreCase("none") ? "" : "@ " + first.weight();
-        String notes = exec.notes().isEmpty() ? "" : " - " + exec.notes();
-        String tags = tagSuffix(exec);
-        return exec.sets().size() + " sets x " + formatMetric(first.metric()) + " " + weight + rpe + tags + notes;
-    }
-
-    private static String tagSuffix(LiftExecution exec) {
-        List<String> tags = new ArrayList<>();
-        if (exec.warmup()) {
-            tags.add("warm-up");
-        }
-        if (exec.deload()) {
-            tags.add("deload");
-        }
-        if (tags.isEmpty()) {
-            return "";
-        }
-        return " (" + String.join(", ", tags) + ")";
+        return ExecutionSummaryFormatter.formatCompactSummary(exec);
     }
 
     private static String lastOneRepMax(Database db, String liftName) throws Exception {
