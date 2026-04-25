@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -962,7 +963,7 @@ final class WebUiRenderer {
                 .append(WebHtml.escapeHtml(DATE_FORMAT.format(normalizedEnd)))
                 .append("</p>");
 
-        List<String> rows = new ArrayList<>();
+        Map<LocalDate, List<LastWeekExecutionRow>> rowsByDate = new LinkedHashMap<>();
         for (Lift lift : lifts) {
             try {
                 for (LiftExecution execution : db.getExecutions(lift.name())) {
@@ -972,22 +973,38 @@ final class WebUiRenderer {
                     if (execution.id() == null) {
                         continue;
                     }
-                    rows.add(renderLastWeekExecutionItem(lift, execution, normalizedStart, normalizedEnd));
+                    rowsByDate.computeIfAbsent(execution.date(), ignored -> new ArrayList<>())
+                            .add(new LastWeekExecutionRow(
+                                    lift.name(),
+                                    executionSortOrder(lift, execution),
+                                    renderLastWeekExecutionItem(lift, execution, normalizedStart, normalizedEnd)
+                            ));
                 }
             } catch (Exception e) {
                 return "<p class='status error'>Failed to load last-week view: " + WebHtml.escapeHtml(e.getMessage()) + "</p>";
             }
         }
 
-        if (rows.isEmpty()) {
+        if (rowsByDate.isEmpty()) {
             html.append("<p>no executions in this range</p>");
             return html.toString();
         }
 
-        rows.sort(Comparator.reverseOrder());
-        html.append("<ul class='execution-list'>")
-                .append(String.join("", rows))
-                .append("</ul>");
+        rowsByDate.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    html.append("<section class='last-week-day'>")
+                            .append("<h4>")
+                            .append(WebHtml.escapeHtml(DATE_FORMAT.format(entry.getKey())))
+                            .append("</h4>")
+                            .append("<ul class='execution-list'>");
+                    entry.getValue().stream()
+                            .sorted(Comparator.comparingInt(LastWeekExecutionRow::sortOrder)
+                                    .thenComparing(LastWeekExecutionRow::liftName)
+                                    .thenComparing(LastWeekExecutionRow::html))
+                            .forEach(row -> html.append(row.html()));
+                    html.append("</ul></section>");
+                });
         return html.toString();
     }
 
@@ -1001,7 +1018,7 @@ final class WebUiRenderer {
                 + "'>"
                 + "<div class='js-exec-view' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;'>"
                 + "<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>"
-                + WebHtml.escapeHtml(lift.name() + " — " + formatExecution(execution))
+                + WebHtml.escapeHtml(lift.name() + " — " + formatExecutionSummary(execution))
                 + "</span>"
                 + "<a href='#' class='js-exec-edit'>Edit</a>"
                 + "<a href='#' class='danger js-exec-delete'>Delete</a>"
@@ -1035,6 +1052,32 @@ final class WebUiRenderer {
                 + "<a href='#' class='js-exec-cancel'>Cancel</a>"
                 + "</form>"
                 + "</li>";
+    }
+
+    private static int executionSortOrder(Lift lift, LiftExecution execution) {
+        if (execution.warmup()) {
+            return 0;
+        }
+        LiftType mainType = lift.main();
+        if (mainType == null) {
+            return 50;
+        }
+        return switch (mainType) {
+            case SQUAT -> 10;
+            case DEADLIFT -> 20;
+            case BENCH_PRESS -> 30;
+            case OVERHEAD_PRESS -> 40;
+            case ACCESSORY -> 50;
+            case CONDITIONING -> 60;
+            case MOBILITY -> 70;
+        };
+    }
+
+    private static String formatExecutionSummary(LiftExecution execution) {
+        return ExecutionSummaryFormatter.formatCompactSummary(execution);
+    }
+
+    private record LastWeekExecutionRow(String liftName, int sortOrder, String html) {
     }
 
     /**

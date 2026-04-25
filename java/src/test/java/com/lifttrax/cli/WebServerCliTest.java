@@ -225,7 +225,8 @@ class WebServerCliTest {
             assertTrue(html.contains("name='tab' value='last-week'"));
             assertTrue(html.contains("name='lastWeekStart' value='2026-01-01'"));
             assertTrue(html.contains("name='lastWeekEnd' value='2026-01-07'"));
-            assertTrue(html.contains("Back Squat — 2026-01-05 — 1 sets x 5 reps @ 225 lb RPE 8.5 - Felt good"));
+            assertTrue(html.contains("<h4>2026-01-05</h4>"));
+            assertTrue(html.contains("Back Squat — 1 sets x 5 reps @ 225 lb RPE 8.5 - Felt good"));
         }
     }
 
