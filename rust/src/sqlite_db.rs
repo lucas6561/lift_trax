@@ -36,6 +36,89 @@ pub struct SqliteDb {
 }
 
 impl SqliteDb {
+    fn metric_to_db(metric: &SetMetric) -> (&'static str, i32, Option<i32>) {
+        match metric {
+            SetMetric::Reps(reps) => ("reps", *reps, None),
+            SetMetric::RepsLr { left, right } => ("reps_lr", *left, Some(*right)),
+            SetMetric::RepsRange { min, max } => ("reps_range", *min, Some(*max)),
+            SetMetric::TimeSecs(seconds) => ("time_secs", *seconds, None),
+            SetMetric::DistanceFeet(feet) => ("distance_feet", *feet, None),
+        }
+    }
+
+    fn metric_from_db(kind: &str, a: i32, b: Option<i32>) -> SetMetric {
+        match kind {
+            "reps" => SetMetric::Reps(a),
+            "reps_lr" => SetMetric::RepsLr {
+                left: a,
+                right: b.unwrap_or(0),
+            },
+            "reps_range" => SetMetric::RepsRange {
+                min: a,
+                max: b.unwrap_or(0),
+            },
+            "time_secs" => SetMetric::TimeSecs(a),
+            "distance_feet" => SetMetric::DistanceFeet(a),
+            _ => SetMetric::Reps(a),
+        }
+    }
+
+    fn save_execution_sets(&self, record_id: i32, sets: &[ExecutionSet]) -> DbResult<()> {
+        self.conn.execute(
+            "DELETE FROM execution_sets WHERE record_id = ?1",
+            params![record_id],
+        )?;
+        for (idx, set) in sets.iter().enumerate() {
+            let (metric_kind, metric_a, metric_b) = Self::metric_to_db(&set.metric);
+            self.conn.execute(
+                "INSERT INTO execution_sets (record_id, set_index, metric_kind, metric_a, metric_b, weight, rpe) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    record_id,
+                    idx as i32,
+                    metric_kind,
+                    metric_a,
+                    metric_b,
+                    set.weight.to_string(),
+                    set.rpe
+                ],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn load_execution_sets(
+        &self,
+        record_id: i32,
+        fallback_sets_json: Option<&str>,
+    ) -> DbResult<Vec<ExecutionSet>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT metric_kind, metric_a, metric_b, weight, rpe FROM execution_sets WHERE record_id = ?1 ORDER BY set_index ASC",
+        )?;
+        let iter = stmt.query_map(params![record_id], |row| {
+            let kind: String = row.get(0)?;
+            let a: i32 = row.get(1)?;
+            let b: Option<i32> = row.get(2)?;
+            let weight_raw: String = row.get(3)?;
+            let weight = Weight::from_str(&weight_raw).unwrap_or(Weight::None);
+            Ok(ExecutionSet {
+                metric: Self::metric_from_db(&kind, a, b),
+                weight,
+                rpe: row.get(4)?,
+            })
+        })?;
+        let mut sets = Vec::new();
+        for set in iter {
+            sets.push(set?);
+        }
+        if !sets.is_empty() {
+            return Ok(sets);
+        }
+        if let Some(sets_json) = fallback_sets_json {
+            return Ok(serde_json::from_str(sets_json).unwrap_or_default());
+        }
+        Ok(Vec::new())
+    }
+
     /// Open (or create) a SQLite database at `path`.
     pub fn new(path: &str) -> DbResult<Self> {
         if Path::new(path).exists() {
@@ -80,18 +163,18 @@ impl SqliteDb {
             "SELECT id, date, sets, warmup, deload, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC",
         )?;
         let iter = stmt.query_map(params![lift_id], |row| {
+            let record_id: i32 = row.get(0)?;
             let date_str: String = row.get(1)?;
             let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
                 rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
             })?;
             let sets_json: String = row.get(2)?;
-            let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
             let warm: i32 = row.get(3)?;
             let deload: i32 = row.get(4)?;
             Ok(LiftExecution {
-                id: Some(row.get(0)?),
+                id: Some(record_id),
                 date,
-                sets,
+                sets: serde_json::from_str(&sets_json).unwrap_or_default(),
                 warmup: warm != 0,
                 deload: deload != 0,
                 notes: row.get(5)?,
@@ -100,6 +183,14 @@ impl SqliteDb {
         let mut executions = Vec::new();
         for exec in iter {
             executions.push(exec?);
+        }
+        for exec in executions.iter_mut() {
+            if let Some(record_id) = exec.id {
+                let normalized = self.load_execution_sets(record_id, None)?;
+                if !normalized.is_empty() {
+                    exec.sets = normalized;
+                }
+            }
         }
         Ok(executions)
     }
@@ -145,57 +236,67 @@ impl SqliteDb {
         let iter = stmt.query_map(params, Self::row_to_lift)?;
         let mut lifts = Vec::new();
         for row in iter {
-            let (id, mut lift) = row?;
+            let (_, lift) = row?;
             lifts.push(lift);
         }
         Ok(lifts)
     }
 
     fn get_last_execution(&self, lift_id: i32) -> DbResult<Option<LiftExecution>> {
-        Ok(
-            self.conn
-                .query_row(
-                    "SELECT id, date, sets, warmup, deload, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
-                    params![lift_id],
-                    |row| {
-                        let date_str: String = row.get(1)?;
-                        let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
-                            rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
-                        })?;
-                        let sets_json: String = row.get(2)?;
-                        let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
-                        let warm: i32 = row.get(3)?;
-                        let deload: i32 = row.get(4)?;
-                        Ok(LiftExecution {
-                            id: Some(row.get(0)?),
-                            date,
-                            sets,
-                            warmup: warm != 0,
-                            deload: deload != 0,
-                            notes: row.get(5)?,
-                        })
-                    },
-                )
-                .optional()?,
-        )
+        let mut last = self
+            .conn
+            .query_row(
+                "SELECT id, date, sets, warmup, deload, notes FROM lift_records WHERE lift_id = ?1 ORDER BY date DESC LIMIT 1",
+                params![lift_id],
+                |row| {
+                    let date_str: String = row.get(1)?;
+                    let date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(1, Type::Text, Box::new(e))
+                    })?;
+                    let record_id: i32 = row.get(0)?;
+                    let sets_json: String = row.get(2)?;
+                    let warm: i32 = row.get(3)?;
+                    let deload: i32 = row.get(4)?;
+                    Ok(LiftExecution {
+                        id: Some(record_id),
+                        date,
+                        sets: serde_json::from_str(&sets_json).unwrap_or_default(),
+                        warmup: warm != 0,
+                        deload: deload != 0,
+                        notes: row.get(5)?,
+                    })
+                },
+            )
+            .optional()?;
+        if let Some(exec) = last.as_mut() {
+            if let Some(record_id) = exec.id {
+                let normalized = self.load_execution_sets(record_id, None)?;
+                if !normalized.is_empty() {
+                    exec.sets = normalized;
+                }
+            }
+        }
+        Ok(last)
     }
 
     fn collect_best_by_reps(&self, lift_id: i32) -> DbResult<BTreeMap<i32, Weight>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT sets FROM lift_records WHERE lift_id = ?1")?;
-        let iter = stmt.query_map(params![lift_id], |row| row.get::<_, String>(0))?;
         let mut best = BTreeMap::new();
+        let mut stmt = self.conn.prepare(
+            "SELECT es.metric_a, es.weight
+             FROM execution_sets es
+             JOIN lift_records lr ON lr.id = es.record_id
+             WHERE lr.lift_id = ?1 AND es.metric_kind = 'reps'",
+        )?;
+        let iter = stmt.query_map(params![lift_id], |row| {
+            let reps: i32 = row.get(0)?;
+            let weight_raw: String = row.get(1)?;
+            Ok((reps, Weight::from_str(&weight_raw).unwrap_or(Weight::None)))
+        })?;
         for row in iter {
-            let sets_json = row?;
-            let sets: Vec<ExecutionSet> = serde_json::from_str(&sets_json).unwrap_or_default();
-            for set in sets {
-                if let SetMetric::Reps(r) = set.metric {
-                    let entry = best.entry(r).or_insert(set.weight.clone());
-                    if set.weight.to_lbs() > entry.to_lbs() {
-                        *entry = set.weight;
-                    }
-                }
+            let (reps, weight) = row?;
+            let entry = best.entry(reps).or_insert(weight.clone());
+            if weight.to_lbs() > entry.to_lbs() {
+                *entry = weight;
             }
         }
         Ok(best)
@@ -256,6 +357,9 @@ fn detect_version(conn: &Connection) -> DbResult<i32> {
     }
     if has_column(conn, "lifts", "enabled")? {
         v = 10;
+    }
+    if table_exists(conn, "execution_sets")? {
+        v = 11;
     }
     Ok(v)
 }
@@ -390,6 +494,49 @@ fn run_migrations(conn: &Connection, mut from_version: i32) -> DbResult<()> {
                     [],
                 )?;
             }
+            10 => {
+                conn.execute(
+                    "CREATE TABLE execution_sets (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        record_id INTEGER NOT NULL,
+                        set_index INTEGER NOT NULL,
+                        metric_kind TEXT NOT NULL,
+                        metric_a INTEGER NOT NULL DEFAULT 0,
+                        metric_b INTEGER,
+                        weight TEXT NOT NULL DEFAULT 'none',
+                        rpe REAL,
+                        FOREIGN KEY(record_id) REFERENCES lift_records(id) ON DELETE CASCADE
+                    )",
+                    [],
+                )?;
+                conn.execute(
+                    "CREATE UNIQUE INDEX idx_execution_sets_record_index ON execution_sets(record_id, set_index)",
+                    [],
+                )?;
+                let mut stmt = conn.prepare("SELECT id, sets FROM lift_records ORDER BY id ASC")?;
+                let mut rows = stmt.query([])?;
+                while let Some(row) = rows.next()? {
+                    let record_id: i32 = row.get(0)?;
+                    let sets_json: String = row.get(1)?;
+                    let sets: Vec<ExecutionSet> =
+                        serde_json::from_str(&sets_json).unwrap_or_default();
+                    for (idx, set) in sets.iter().enumerate() {
+                        let (kind, metric_a, metric_b) = SqliteDb::metric_to_db(&set.metric);
+                        conn.execute(
+                            "INSERT INTO execution_sets (record_id, set_index, metric_kind, metric_a, metric_b, weight, rpe) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                            params![
+                                record_id,
+                                idx as i32,
+                                kind,
+                                metric_a,
+                                metric_b,
+                                set.weight.to_string(),
+                                set.rpe
+                            ],
+                        )?;
+                    }
+                }
+            }
             _ => {}
         }
         from_version += 1;
@@ -446,6 +593,8 @@ impl Database for SqliteDb {
                 execution.notes
             ],
         )?;
+        let record_id = self.conn.last_insert_rowid() as i32;
+        self.save_execution_sets(record_id, &execution.sets)?;
         Ok(())
     }
 
@@ -513,10 +662,15 @@ impl Database for SqliteDb {
                 exec_id
             ],
         )?;
+        self.save_execution_sets(exec_id, &execution.sets)?;
         Ok(())
     }
 
     fn delete_lift_execution(&self, exec_id: i32) -> DbResult<()> {
+        self.conn.execute(
+            "DELETE FROM execution_sets WHERE record_id = ?1",
+            params![exec_id],
+        )?;
         self.conn
             .execute("DELETE FROM lift_records WHERE id = ?1", params![exec_id])?;
         Ok(())
@@ -577,8 +731,6 @@ impl Database for SqliteDb {
     }
 
     fn get_executions(&self, lift_name: &str) -> Vec<LiftExecution> {
-        let lift = self.get_lift(lift_name).unwrap();
-
         let lift_id: i32 = self
             .conn
             .query_row(

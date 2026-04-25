@@ -4,6 +4,7 @@ mod lift_execution;
 use crate::weight::Weight;
 use chrono::NaiveDate;
 use lift_execution::{ExecutionSet, LiftExecution, SetMetric};
+use serde_json::json;
 
 #[test]
 fn format_execution_sets_groups_identical_consecutive_sets() {
@@ -106,4 +107,18 @@ fn format_execution_sets_omits_none_weight() {
     }];
     let formatted = lift_execution::format_execution_sets(&sets);
     assert_eq!(formatted, "5 reps");
+}
+
+#[test]
+fn execution_set_deserializes_java_style_metric_payload() {
+    let parsed: ExecutionSet = serde_json::from_value(json!({
+        "metric": { "reps": 6 },
+        "weight": "185",
+        "rpe": 8.5
+    }))
+    .expect("java-style set json should parse");
+
+    assert_eq!(parsed.metric, SetMetric::Reps(6));
+    assert_eq!(parsed.weight, Weight::Raw(185.0));
+    assert_eq!(parsed.rpe, Some(8.5));
 }

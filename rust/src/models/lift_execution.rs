@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 
 /// Metric tracked for a particular set.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum SetMetric {
     /// Number of repetitions performed.
     Reps(i32),
@@ -16,6 +16,79 @@ pub enum SetMetric {
     TimeSecs(i32),
     /// Distance covered in feet.
     DistanceFeet(i32),
+}
+
+impl<'de> Deserialize<'de> for SetMetric {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        enum Tagged {
+            Reps(i32),
+            RepsLr { left: i32, right: i32 },
+            RepsRange { min: i32, max: i32 },
+            TimeSecs(i32),
+            DistanceFeet(i32),
+        }
+
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            Tagged(Tagged),
+            Flat {
+                reps: Option<i32>,
+                left: Option<i32>,
+                right: Option<i32>,
+                min: Option<i32>,
+                max: Option<i32>,
+                seconds: Option<i32>,
+                feet: Option<i32>,
+            },
+        }
+
+        match Repr::deserialize(deserializer)? {
+            Repr::Tagged(tagged) => Ok(match tagged {
+                Tagged::Reps(reps) => SetMetric::Reps(reps),
+                Tagged::RepsLr { left, right } => SetMetric::RepsLr { left, right },
+                Tagged::RepsRange { min, max } => SetMetric::RepsRange { min, max },
+                Tagged::TimeSecs(seconds) => SetMetric::TimeSecs(seconds),
+                Tagged::DistanceFeet(feet) => SetMetric::DistanceFeet(feet),
+            }),
+            Repr::Flat {
+                reps,
+                left,
+                right,
+                min,
+                max,
+                seconds,
+                feet,
+            } => {
+                if let Some(reps) = reps {
+                    return Ok(SetMetric::Reps(reps));
+                }
+                if left.is_some() || right.is_some() {
+                    return Ok(SetMetric::RepsLr {
+                        left: left.unwrap_or(0),
+                        right: right.unwrap_or(0),
+                    });
+                }
+                if min.is_some() || max.is_some() {
+                    return Ok(SetMetric::RepsRange {
+                        min: min.unwrap_or(0),
+                        max: max.unwrap_or(0),
+                    });
+                }
+                if let Some(seconds) = seconds {
+                    return Ok(SetMetric::TimeSecs(seconds));
+                }
+                if let Some(feet) = feet {
+                    return Ok(SetMetric::DistanceFeet(feet));
+                }
+                Err(serde::de::Error::custom("unsupported metric shape"))
+            }
+        }
+    }
 }
 
 impl fmt::Display for SetMetric {
