@@ -179,6 +179,62 @@ final class WebUiRenderer {
                       });
                     });
 
+                    const FILTER_STORAGE_PREFIX = 'lifttrax.filters.';
+
+                    function savePanelFilters(panel) {
+                      const nameFilter = panel.querySelector('.js-filter-name');
+                      const regionFilter = panel.querySelector('.js-filter-region');
+                      const mainFilter = panel.querySelector('.js-filter-main');
+                      const muscleFilter = panel.querySelector('.js-filter-muscle');
+                      if (!nameFilter || !regionFilter || !mainFilter || !muscleFilter || !panel.dataset.panel) {
+                        return;
+                      }
+
+                      const state = {
+                        name: nameFilter.value || '',
+                        region: regionFilter.value || '',
+                        main: mainFilter.value || '',
+                        muscles: Array.from(muscleFilter.selectedOptions).map((option) => option.value).filter((value) => value)
+                      };
+
+                      try {
+                        localStorage.setItem(FILTER_STORAGE_PREFIX + panel.dataset.panel, JSON.stringify(state));
+                      } catch (error) {
+                        // Ignore storage issues and continue with in-memory filters.
+                      }
+                    }
+
+                    function restorePanelFilters(panel) {
+                      if (!panel.dataset.panel) {
+                        return;
+                      }
+                      try {
+                        const raw = localStorage.getItem(FILTER_STORAGE_PREFIX + panel.dataset.panel);
+                        if (!raw) {
+                          return;
+                        }
+                        const state = JSON.parse(raw);
+                        const nameFilter = panel.querySelector('.js-filter-name');
+                        const regionFilter = panel.querySelector('.js-filter-region');
+                        const mainFilter = panel.querySelector('.js-filter-main');
+                        const muscleFilter = panel.querySelector('.js-filter-muscle');
+                        if (!nameFilter || !regionFilter || !mainFilter || !muscleFilter) {
+                          return;
+                        }
+
+                        nameFilter.value = typeof state.name === 'string' ? state.name : '';
+                        regionFilter.value = typeof state.region === 'string' ? state.region : '';
+                        mainFilter.value = typeof state.main === 'string' ? state.main : '';
+
+                        const selectedMuscles = Array.isArray(state.muscles) ? new Set(state.muscles) : new Set();
+                        Array.from(muscleFilter.options).forEach((option) => {
+                          option.selected = selectedMuscles.has(option.value);
+                        });
+                      } catch (error) {
+                        // Ignore malformed storage content.
+                      }
+                    }
+
                     function applyPanelFilters(panel) {
                       const nameFilter = panel.querySelector('.js-filter-name');
                       const regionFilter = panel.querySelector('.js-filter-region');
@@ -255,12 +311,20 @@ final class WebUiRenderer {
                         option.selected = false;
                       });
                       applyPanelFilters(panel);
+                      savePanelFilters(panel);
                     }
 
                     document.querySelectorAll('.tab-panel').forEach((panel) => {
+                      restorePanelFilters(panel);
                       panel.querySelectorAll('.js-filter-name, .js-filter-region, .js-filter-main, .js-filter-muscle').forEach((control) => {
-                        control.addEventListener('input', () => applyPanelFilters(panel));
-                        control.addEventListener('change', () => applyPanelFilters(panel));
+                        control.addEventListener('input', () => {
+                          applyPanelFilters(panel);
+                          savePanelFilters(panel);
+                        });
+                        control.addEventListener('change', () => {
+                          applyPanelFilters(panel);
+                          savePanelFilters(panel);
+                        });
                       });
                       const clearButton = panel.querySelector('.js-clear-filters');
                       if (clearButton) {
@@ -268,6 +332,7 @@ final class WebUiRenderer {
                       }
 
                       applyPanelFilters(panel);
+                      savePanelFilters(panel);
                     });
 
                     function syncMetricInputs() {
