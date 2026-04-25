@@ -2,6 +2,7 @@ package com.lifttrax.cli;
 
 import com.lifttrax.db.SqliteDb;
 import com.lifttrax.models.ExecutionSet;
+import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftType;
@@ -1560,22 +1561,7 @@ final class WebUiRenderer {
     }
 
     static String formatExecution(LiftExecution execution) {
-        String notes = execution.notes() == null ? "" : execution.notes();
-        List<String> tags = new ArrayList<>();
-        if (execution.warmup()) {
-            tags.add("[warmup]");
-        }
-        if (execution.deload()) {
-            tags.add("[deload]");
-        }
-        String tagText = tags.isEmpty() ? "" : " " + joinList(tags);
-        return "%s — %s%s%s"
-                .formatted(
-                        DATE_FORMAT.format(execution.date()),
-                        formatSets(execution.sets()),
-                        tagText,
-                        notes.isBlank() ? "" : " (" + notes + ")"
-                );
+        return DATE_FORMAT.format(execution.date()) + " — " + ExecutionSummaryFormatter.formatCompactSummary(execution);
     }
 
     static String formatSets(List<ExecutionSet> sets) {

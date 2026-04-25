@@ -88,9 +88,9 @@ class WebServerCliTest {
 
         String formatted = WebUiRenderer.formatExecution(execution);
 
-        assertTrue(formatted.contains("[warmup]"));
-        assertTrue(formatted.contains("[deload]"));
-        assertTrue(formatted.contains("(fast)"));
+        assertTrue(formatted.contains("1 sets x 3 reps @ 315 lb"));
+        assertTrue(formatted.contains("(warm-up, deload)"));
+        assertTrue(formatted.contains(" - fast"));
     }
 
     @Test
@@ -379,7 +379,7 @@ class WebServerCliTest {
             String html = WebUiRenderer.renderExecutionRows(db, "Back Squat");
 
             assertTrue(html.contains("Wave status: Disabled for wave"));
-            assertTrue(html.contains("[warmup]"));
+            assertTrue(html.contains("(warm-up)"));
         }
     }
 
