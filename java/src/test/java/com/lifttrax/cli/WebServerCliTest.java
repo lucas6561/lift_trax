@@ -65,6 +65,17 @@ class WebServerCliTest {
     }
 
     @Test
+    void formatSetsGroupsIdenticalSequentialSets() {
+        String formatted = WebUiRenderer.formatSets(List.of(
+                new ExecutionSet(new SetMetric.Reps(15), "65 lb", null),
+                new ExecutionSet(new SetMetric.Reps(15), "65 lb", null),
+                new ExecutionSet(new SetMetric.Reps(15), "65 lb", null)
+        ));
+
+        assertEquals("3x15 reps @ 65 lb", formatted);
+    }
+
+    @Test
     void formatExecutionIncludesWarmupAndDeloadFlags() {
         LiftExecution execution = new LiftExecution(
                 42,

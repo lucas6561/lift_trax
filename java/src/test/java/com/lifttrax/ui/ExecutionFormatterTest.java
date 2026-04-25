@@ -72,6 +72,6 @@ class ExecutionFormatterTest {
 
         String formatted = ExecutionFormatter.formatExecution(execution);
 
-        assertEquals("2025-03-01: 2x 15 reps @ 95 lb, 3x 12 reps @ 95 lb", formatted);
+        assertEquals("2025-03-01: 2x15 reps @ 95 lb, 3x12 reps @ 95 lb", formatted);
     }
 }

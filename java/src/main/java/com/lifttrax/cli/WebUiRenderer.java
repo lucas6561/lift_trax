@@ -1580,7 +1580,13 @@ final class WebUiRenderer {
 
     static String formatSets(List<ExecutionSet> sets) {
         List<String> parts = new ArrayList<>();
-        for (ExecutionSet set : sets) {
+        int index = 0;
+        while (index < sets.size()) {
+            ExecutionSet set = sets.get(index);
+            int count = 1;
+            while (index + count < sets.size() && set.equals(sets.get(index + count))) {
+                count++;
+            }
             String weight = set.weight();
             boolean hasWeight = weight != null
                     && !weight.isBlank()
@@ -1589,7 +1595,8 @@ final class WebUiRenderer {
             if (set.rpe() != null) {
                 item += " rpe " + String.format(Locale.ROOT, "%.1f", set.rpe());
             }
-            parts.add(item);
+            parts.add(count > 1 ? count + "x" + item : item);
+            index += count;
         }
         return joinList(parts);
     }
