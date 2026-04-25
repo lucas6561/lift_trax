@@ -530,6 +530,32 @@ final class WebUiRenderer {
                       });
                     }
 
+                    function syncNewLiftMuscles() {
+                      const form = document.querySelector("form.new-lift-form");
+                      if (!form) {
+                        return;
+                      }
+                      const select = form.querySelector('.js-new-lift-muscles');
+                      const hidden = form.querySelector('.js-new-lift-muscles-hidden');
+                      if (!select || !hidden) {
+                        return;
+                      }
+                      hidden.value = Array.from(select.selectedOptions)
+                        .map((option) => option.value)
+                        .filter((value) => value)
+                        .join(',');
+                    }
+
+                    const newLiftForm = document.querySelector("form.new-lift-form");
+                    if (newLiftForm) {
+                      const newLiftMusclesSelect = newLiftForm.querySelector('.js-new-lift-muscles');
+                      if (newLiftMusclesSelect) {
+                        newLiftMusclesSelect.addEventListener('change', syncNewLiftMuscles);
+                      }
+                      newLiftForm.addEventListener('submit', syncNewLiftMuscles);
+                      syncNewLiftMuscles();
+                    }
+
                     function setExecutionEditing(item, editing) {
                       const view = item.querySelector('.js-exec-view');
                       const form = item.querySelector('.js-exec-form');
@@ -1044,6 +1070,14 @@ final class WebUiRenderer {
     static String renderAddExecutionForm(List<Lift> lifts, String statusMessage, String statusType, AddExecutionPrefill prefillInput) {
         AddExecutionPrefill prefill = prefillInput == null ? AddExecutionPrefill.empty() : prefillInput;
         StringBuilder options = new StringBuilder("<option value=''>Select a lift</option>");
+        StringBuilder muscleOptions = new StringBuilder();
+        for (Muscle muscle : Muscle.values()) {
+            muscleOptions.append("<option value='")
+                    .append(WebHtml.escapeHtml(muscle.name()))
+                    .append("'>")
+                    .append(WebHtml.escapeHtml(muscle.name()))
+                    .append("</option>");
+        }
         for (Lift lift : lifts) {
             boolean selected = lift.name().equals(prefill.lift());
             options.append("<option value='")
@@ -1117,7 +1151,8 @@ final class WebUiRenderer {
                         </select>
                       </label>
                       <label>Muscles
-                        <input type='text' name='muscles' placeholder='QUAD,GLUTE'/>
+                        <select class='js-new-lift-muscles' multiple size='6' title='Hold Ctrl/Cmd to select multiple'>%s</select>
+                        <input type='hidden' name='muscles' class='js-new-lift-muscles-hidden' value=''/>
                       </label>
                       <label>Notes
                         <input type='text' name='notes' placeholder='Optional notes'/>
@@ -1216,6 +1251,7 @@ final class WebUiRenderer {
                 </form>
                 """.formatted(
                 status,
+                muscleOptions,
                 options,
                 WebHtml.escapeHtml(prefill.weight()),
                 standardWeightChecked,
