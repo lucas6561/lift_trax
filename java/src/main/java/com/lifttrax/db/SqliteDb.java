@@ -15,6 +15,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -47,6 +48,8 @@ public class SqliteDb implements Database, AutoCloseable {
         this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         ensureBaseSchema();
         ensureLiftEnabledColumn();
+        ensureExecutionSetsTable();
+        backfillExecutionSetsFromLegacyJson();
         ensureUserVersion();
     }
 
@@ -91,10 +94,11 @@ public class SqliteDb implements Database, AutoCloseable {
             try (ResultSet rs = statement.executeQuery()) {
                 List<LiftExecution> executions = new ArrayList<>();
                 while (rs.next()) {
+                    int recordId = rs.getInt("id");
                     executions.add(new LiftExecution(
-                            rs.getInt("id"),
+                            recordId,
                             LocalDate.parse(rs.getString("date")),
-                            parseSets(rs.getString("sets")),
+                            loadExecutionSets(recordId, rs.getString("sets")),
                             rs.getInt("warmup") != 0,
                             rs.getInt("deload") != 0,
                             rs.getString("notes")
@@ -139,10 +143,54 @@ public class SqliteDb implements Database, AutoCloseable {
         }
     }
 
+    private void ensureExecutionSetsTable() throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                CREATE TABLE IF NOT EXISTS execution_sets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    record_id INTEGER NOT NULL,
+                    set_index INTEGER NOT NULL,
+                    metric_kind TEXT NOT NULL,
+                    metric_a INTEGER NOT NULL DEFAULT 0,
+                    metric_b INTEGER,
+                    weight TEXT NOT NULL DEFAULT 'none',
+                    rpe REAL,
+                    FOREIGN KEY(record_id) REFERENCES lift_records(id) ON DELETE CASCADE
+                )
+                """)) {
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_sets_record_index
+                ON execution_sets(record_id, set_index)
+                """)) {
+            statement.executeUpdate();
+        }
+    }
+
+    private void backfillExecutionSetsFromLegacyJson() throws Exception {
+        String findSql = """
+                SELECT lr.id, lr.sets
+                FROM lift_records lr
+                LEFT JOIN execution_sets es ON es.record_id = lr.id
+                WHERE es.id IS NULL
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(findSql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                saveExecutionSets(rs.getInt("id"), parseSets(rs.getString("sets")));
+            }
+        }
+    }
+
     private void ensureBaseSchema() throws Exception {
         String schemaSql = SqlSchemaVersion.schemaSql();
         try (var statement = connection.createStatement()) {
-            statement.execute(schemaSql);
+            for (String chunk : schemaSql.split(";")) {
+                String sql = chunk.trim();
+                if (!sql.isEmpty()) {
+                    statement.execute(sql);
+                }
+            }
         }
     }
 
@@ -198,6 +246,127 @@ public class SqliteDb implements Database, AutoCloseable {
             sets.add(new ExecutionSet(metric, weight, rpe));
         }
         return sets;
+    }
+
+    private SetMetric metricFromRow(String kind, int a, Integer b) {
+        return switch (kind) {
+            case "reps" -> new SetMetric.Reps(a);
+            case "reps_lr" -> new SetMetric.RepsLr(a, b == null ? 0 : b);
+            case "reps_range" -> new SetMetric.RepsRange(a, b == null ? 0 : b);
+            case "time_secs" -> new SetMetric.TimeSecs(a);
+            case "distance_feet" -> new SetMetric.DistanceFeet(a);
+            default -> new SetMetric.Reps(a);
+        };
+    }
+
+    private String metricKind(SetMetric metric) {
+        if (metric instanceof SetMetric.Reps) {
+            return "reps";
+        }
+        if (metric instanceof SetMetric.RepsLr) {
+            return "reps_lr";
+        }
+        if (metric instanceof SetMetric.RepsRange) {
+            return "reps_range";
+        }
+        if (metric instanceof SetMetric.TimeSecs) {
+            return "time_secs";
+        }
+        if (metric instanceof SetMetric.DistanceFeet) {
+            return "distance_feet";
+        }
+        return "reps";
+    }
+
+    private int metricA(SetMetric metric) {
+        if (metric instanceof SetMetric.Reps reps) {
+            return reps.reps();
+        }
+        if (metric instanceof SetMetric.RepsLr repsLr) {
+            return repsLr.left();
+        }
+        if (metric instanceof SetMetric.RepsRange repsRange) {
+            return repsRange.min();
+        }
+        if (metric instanceof SetMetric.TimeSecs secs) {
+            return secs.seconds();
+        }
+        if (metric instanceof SetMetric.DistanceFeet feet) {
+            return feet.feet();
+        }
+        return 0;
+    }
+
+    private Integer metricB(SetMetric metric) {
+        if (metric instanceof SetMetric.RepsLr repsLr) {
+            return repsLr.right();
+        }
+        if (metric instanceof SetMetric.RepsRange repsRange) {
+            return repsRange.max();
+        }
+        return null;
+    }
+
+    private List<ExecutionSet> loadExecutionSets(int recordId, String fallbackSetsJson) throws Exception {
+        String sql = """
+                SELECT metric_kind, metric_a, metric_b, weight, rpe
+                FROM execution_sets
+                WHERE record_id = ?
+                ORDER BY set_index
+                """;
+        List<ExecutionSet> sets = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, recordId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    String metricKind = rs.getString("metric_kind");
+                    int metricA = rs.getInt("metric_a");
+                    Integer metricB = rs.getObject("metric_b") == null ? null : rs.getInt("metric_b");
+                    String weight = rs.getString("weight");
+                    Float rpe = rs.getObject("rpe") == null ? null : rs.getFloat("rpe");
+                    sets.add(new ExecutionSet(metricFromRow(metricKind, metricA, metricB), weight, rpe));
+                }
+            }
+        }
+        if (!sets.isEmpty()) {
+            return sets;
+        }
+        return parseSets(fallbackSetsJson);
+    }
+
+    private void saveExecutionSets(int recordId, List<ExecutionSet> sets) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM execution_sets WHERE record_id = ?")) {
+            statement.setInt(1, recordId);
+            statement.executeUpdate();
+        }
+        String insert = """
+                INSERT INTO execution_sets (record_id, set_index, metric_kind, metric_a, metric_b, weight, rpe)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(insert)) {
+            for (int i = 0; i < sets.size(); i++) {
+                ExecutionSet set = sets.get(i);
+                statement.setInt(1, recordId);
+                statement.setInt(2, i);
+                statement.setString(3, metricKind(set.metric()));
+                statement.setInt(4, metricA(set.metric()));
+                Integer metricB = metricB(set.metric());
+                if (metricB == null) {
+                    statement.setNull(5, java.sql.Types.INTEGER);
+                } else {
+                    statement.setInt(5, metricB);
+                }
+                String weight = set.weight() == null || set.weight().isBlank() ? "none" : set.weight();
+                statement.setString(6, weight);
+                if (set.rpe() == null) {
+                    statement.setNull(7, java.sql.Types.REAL);
+                } else {
+                    statement.setFloat(7, set.rpe());
+                }
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
     }
 
     private SetMetric parseMetric(JsonNode metric) {
@@ -281,10 +450,11 @@ public class SqliteDb implements Database, AutoCloseable {
                 if (!rs.next()) {
                     return null;
                 }
+                int recordId = rs.getInt("id");
                 return new LiftExecution(
-                        rs.getInt("id"),
+                        recordId,
                         LocalDate.parse(rs.getString("date")),
-                        parseSets(rs.getString("sets")),
+                        loadExecutionSets(recordId, rs.getString("sets")),
                         rs.getInt("warmup") != 0,
                         rs.getInt("deload") != 0,
                         rs.getString("notes")
@@ -343,27 +513,28 @@ public class SqliteDb implements Database, AutoCloseable {
     }
 
     private Map<Integer, String> collectBestByReps(int liftId) throws Exception {
-        String sql = "SELECT sets FROM lift_records WHERE lift_id = ?";
+        String sql = """
+                SELECT es.metric_a AS reps, es.weight
+                FROM execution_sets es
+                JOIN lift_records lr ON lr.id = es.record_id
+                WHERE lr.lift_id = ? AND es.metric_kind = 'reps'
+                """;
         Map<Integer, String> bestByReps = new TreeMap<>();
         Map<Integer, Double> bestByRepsWeight = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, liftId);
             try (ResultSet rs = statement.executeQuery()) {
                 while (rs.next()) {
-                    List<ExecutionSet> sets = parseSets(rs.getString("sets"));
-                    for (ExecutionSet set : sets) {
-                        if (set.metric() instanceof SetMetric.Reps reps) {
-                            int repCount = reps.reps();
-                            String weight = set.weight() == null || set.weight().isBlank()
-                                    ? "none"
-                                    : set.weight();
-                            double lbs = weightToLbs(weight);
-                            Double currentBest = bestByRepsWeight.get(repCount);
-                            if (currentBest == null || lbs > currentBest) {
-                                bestByRepsWeight.put(repCount, lbs);
-                                bestByReps.put(repCount, weight);
-                            }
-                        }
+                    int repCount = rs.getInt("reps");
+                    String weight = rs.getString("weight");
+                    if (weight == null || weight.isBlank()) {
+                        weight = "none";
+                    }
+                    double lbs = weightToLbs(weight);
+                    Double currentBest = bestByRepsWeight.get(repCount);
+                    if (currentBest == null || lbs > currentBest) {
+                        bestByRepsWeight.put(repCount, lbs);
+                        bestByReps.put(repCount, weight);
                     }
                 }
             }
@@ -428,7 +599,7 @@ public class SqliteDb implements Database, AutoCloseable {
         }
         String setsJson = objectMapper.writeValueAsString(execution.sets());
         String sql = "INSERT INTO lift_records (lift_id, date, sets, warmup, deload, notes) VALUES (?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setInt(1, liftId);
             statement.setString(2, execution.date().toString());
             statement.setString(3, setsJson);
@@ -436,6 +607,11 @@ public class SqliteDb implements Database, AutoCloseable {
             statement.setInt(5, execution.deload() ? 1 : 0);
             statement.setString(6, execution.notes() == null ? "" : execution.notes());
             statement.executeUpdate();
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                if (keys.next()) {
+                    saveExecutionSets(keys.getInt(1), execution.sets());
+                }
+            }
         }
     }
 
@@ -509,10 +685,15 @@ public class SqliteDb implements Database, AutoCloseable {
             statement.setInt(6, execId);
             statement.executeUpdate();
         }
+        saveExecutionSets(execId, execution.sets());
     }
 
     @Override
     public void deleteLiftExecution(int execId) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM execution_sets WHERE record_id = ?")) {
+            statement.setInt(1, execId);
+            statement.executeUpdate();
+        }
         try (PreparedStatement statement = connection.prepareStatement("DELETE FROM lift_records WHERE id = ?")) {
             statement.setInt(1, execId);
             statement.executeUpdate();
