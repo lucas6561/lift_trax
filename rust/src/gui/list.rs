@@ -1,4 +1,4 @@
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use clap::ValueEnum;
 use eframe::egui;
 use egui_extras::DatePickerButton;
@@ -432,6 +432,9 @@ impl GuiApp {
         let today = Utc::now().date_naive();
 
         ui.heading("Last Week Report");
+        ui.label(
+            "This tab shows only a 7-day date window. Use Previous Week or the date pickers to browse older history.",
+        );
         self.lift_filter_ui(ui);
         ui.horizontal(|ui| {
             if ui.button("← Previous Week").clicked() {
@@ -463,8 +466,20 @@ impl GuiApp {
         self.normalize_last_week_range();
 
         let mut days: BTreeMap<_, Vec<(usize, usize)>> = BTreeMap::new();
+        let mut history_min: Option<NaiveDate> = None;
+        let mut history_max: Option<NaiveDate> = None;
+        let mut history_count: usize = 0;
         for (lift_idx, lift) in self.lifts.iter().enumerate() {
             for (exec_idx, exec) in self.db.get_executions(&lift.name).iter().enumerate() {
+                history_count += 1;
+                history_min = Some(match history_min {
+                    Some(min) => min.min(exec.date),
+                    None => exec.date,
+                });
+                history_max = Some(match history_max {
+                    Some(max) => max.max(exec.date),
+                    None => exec.date,
+                });
                 if exec.date < self.last_week_start || exec.date > self.last_week_end {
                     continue;
                 }
@@ -478,10 +493,20 @@ impl GuiApp {
             self.last_week_start.format("%a %b %-d"),
             self.last_week_end.format("%a %b %-d")
         ));
+        if let (Some(min_date), Some(max_date)) = (history_min, history_max) {
+            ui.label(format!(
+                "History available: {} total records from {} through {}",
+                history_count,
+                min_date.format("%Y-%m-%d"),
+                max_date.format("%Y-%m-%d")
+            ));
+        } else {
+            ui.label("History available: no execution records found");
+        }
 
         if days.is_empty() {
             ui.add_space(8.0);
-            ui.label("no executions in this 7-day range");
+            ui.label("no executions in this 7-day range (check the range and filters)");
         } else {
             let mut day_entries: Vec<_> = days.into_iter().collect();
             day_entries.sort_by(|a, b| a.0.cmp(&b.0));
