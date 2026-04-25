@@ -49,7 +49,7 @@ final class ExecutionFormatter {
             }
 
             String part = formatSet(set);
-            parts.add(count > 1 ? count + "x " + part : part);
+            parts.add(count > 1 ? count + "x" + part : part);
             index += count;
         }
         return String.join(", ", parts);
