@@ -44,6 +44,11 @@ public class SqliteDb implements Database, AutoCloseable {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SqliteDb(String dbPath) throws Exception {
+        Path dbFile = Paths.get(dbPath);
+        Path parent = dbFile.getParent();
+        if (parent != null && !parent.toString().isBlank()) {
+            Files.createDirectories(parent);
+        }
         createBackupIfExists(dbPath);
         this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         ensureBaseSchema();

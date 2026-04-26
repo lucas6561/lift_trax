@@ -15,7 +15,7 @@ use lift_trax_cli::sqlite_db::SqliteDb;
 )]
 struct Cli {
     /// Path to the SQLite database file
-    #[arg(long, default_value = "lifts.db")]
+    #[arg(long, default_value = "data/lifts.db")]
     db: String,
 
     /// Destination file that will receive the lift summary

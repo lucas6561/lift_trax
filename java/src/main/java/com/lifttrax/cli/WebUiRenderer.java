@@ -140,6 +140,7 @@ final class WebUiRenderer {
                   </section>
                   <section class='tab-panel' data-panel='last-week' role='tabpanel'>
                     <h2>Last Week</h2>
+                    <p class='muted'>This tab shows a 7-day window. Use Previous Week or adjust the dates to view older history.</p>
                     <form method='get' action='/' class='query-form'>
                       <input type='hidden' name='tab' value='last-week'/>
                       <label>Start <input type='date' name='lastWeekStart' value='%s'/></label>
@@ -982,6 +983,11 @@ final class WebUiRenderer {
     static String renderLastWeekContent(SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate end) {
         LocalDate normalizedStart = start.isAfter(end) ? end : start;
         LocalDate normalizedEnd = end.isBefore(start) ? start : end;
+        LocalDate historyMin = null;
+        LocalDate historyMax = null;
+        int historyCount = 0;
+        LocalDate nearestBefore = null;
+        LocalDate nearestAfter = null;
         StringBuilder html = new StringBuilder();
         html.append("<p>Showing ")
                 .append(WebHtml.escapeHtml(DATE_FORMAT.format(normalizedStart)))
@@ -993,7 +999,23 @@ final class WebUiRenderer {
         for (Lift lift : lifts) {
             try {
                 for (LiftExecution execution : db.getExecutions(lift.name())) {
-                    if (execution.date().isBefore(normalizedStart) || execution.date().isAfter(normalizedEnd)) {
+                    historyCount++;
+                    if (historyMin == null || execution.date().isBefore(historyMin)) {
+                        historyMin = execution.date();
+                    }
+                    if (historyMax == null || execution.date().isAfter(historyMax)) {
+                        historyMax = execution.date();
+                    }
+                    if (execution.date().isBefore(normalizedStart)) {
+                        if (nearestBefore == null || execution.date().isAfter(nearestBefore)) {
+                            nearestBefore = execution.date();
+                        }
+                        continue;
+                    }
+                    if (execution.date().isAfter(normalizedEnd)) {
+                        if (nearestAfter == null || execution.date().isBefore(nearestAfter)) {
+                            nearestAfter = execution.date();
+                        }
                         continue;
                     }
                     if (execution.id() == null) {
@@ -1010,9 +1032,30 @@ final class WebUiRenderer {
                 return "<p class='status error'>Failed to load last-week view: " + WebHtml.escapeHtml(e.getMessage()) + "</p>";
             }
         }
+        if (historyMin != null && historyMax != null) {
+            html.append("<p class='muted'>History available: ")
+                    .append(historyCount)
+                    .append(" total records from ")
+                    .append(WebHtml.escapeHtml(DATE_FORMAT.format(historyMin)))
+                    .append(" through ")
+                    .append(WebHtml.escapeHtml(DATE_FORMAT.format(historyMax)))
+                    .append("</p>");
+        } else {
+            html.append("<p class='muted'>History available: no execution records found</p>");
+        }
 
         if (rowsByDate.isEmpty()) {
-            html.append("<p>no executions in this range</p>");
+            html.append("<p>no executions in this range (check the date range and filters)</p>");
+            if (nearestBefore != null) {
+                html.append("<p class='muted'>Closest earlier record in current filters: ")
+                        .append(WebHtml.escapeHtml(DATE_FORMAT.format(nearestBefore)))
+                        .append("</p>");
+            }
+            if (nearestAfter != null) {
+                html.append("<p class='muted'>Closest later record in current filters: ")
+                        .append(WebHtml.escapeHtml(DATE_FORMAT.format(nearestAfter)))
+                        .append("</p>");
+            }
             return html.toString();
         }
 

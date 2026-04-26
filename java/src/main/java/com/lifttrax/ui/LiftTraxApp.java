@@ -1,5 +1,6 @@
 package com.lifttrax.ui;
 
+import com.lifttrax.cli.DbPathResolver;
 import com.lifttrax.db.Database;
 import com.lifttrax.db.SqliteDb;
 
@@ -13,7 +14,7 @@ import javax.swing.SwingUtilities;
 
 public class LiftTraxApp {
     public static void main(String[] args) {
-        String dbPath = args.length > 0 ? args[0] : "lifts.db";
+        String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
         SwingUtilities.invokeLater(() -> {
             DarkTheme.apply();
 

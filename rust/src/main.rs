@@ -154,13 +154,13 @@ fn default_db_path() -> PathBuf {
     let mut dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     loop {
         if dir.join("shared/sql/schema.sql").exists() {
-            return dir.join("lifts.db");
+            return dir.join("data").join("lifts.db");
         }
         if !dir.pop() {
             break;
         }
     }
-    Path::new("lifts.db").to_path_buf()
+    Path::new("data/lifts.db").to_path_buf()
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -245,7 +245,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let builder = ConjugateWorkoutBuilder;
             let wave = builder.get_wave(weeks, db.as_ref())?;
             let out_lines = create_markdown(&wave, db.as_ref());
-            fs::write("wave.md", out_lines.join("\n"))?;
+            let wave_filename = format!("wave-{}.md", Utc::now().format("%Y%m%d-%H%M%S"));
+            fs::write(&wave_filename, out_lines.join("\n"))?;
+            println!("Wrote wave markdown to {wave_filename}");
         }
         Commands::Gui => {
             gui::run_gui(db)?;
