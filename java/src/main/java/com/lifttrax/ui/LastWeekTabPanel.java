@@ -15,6 +15,7 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerDateModel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Insets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -52,6 +53,10 @@ final class LastWeekTabPanel extends JPanel {
         JButton nextWeek = new JButton("Next Week →");
         JButton currentWeek = new JButton("Current Week");
         JButton lastWeek = new JButton("Last Week");
+        applyCompactButtonStyle(prevWeek);
+        applyCompactButtonStyle(nextWeek);
+        applyCompactButtonStyle(currentWeek);
+        applyCompactButtonStyle(lastWeek);
 
         startSpinner = new JSpinner(new SpinnerDateModel());
         startSpinner.setEditor(new JSpinner.DateEditor(startSpinner, "yyyy-MM-dd"));
@@ -218,4 +223,8 @@ final class LastWeekTabPanel extends JPanel {
     }
 
     private record ExecutionLine(String text, int sortOrder) {}
+
+    private static void applyCompactButtonStyle(JButton button) {
+        button.setMargin(new Insets(2, 8, 2, 8));
+    }
 }

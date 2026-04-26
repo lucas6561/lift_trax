@@ -16,6 +16,7 @@ import javax.swing.JScrollPane;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -132,6 +133,8 @@ final class ExecutionTabPanel extends JPanel {
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         JButton editButton = new JButton("Edit");
         JButton deleteButton = new JButton("Delete");
+        applyCompactButtonStyle(editButton);
+        applyCompactButtonStyle(deleteButton);
         actions.add(editButton);
         actions.add(deleteButton);
         row.add(actions, BorderLayout.EAST);
@@ -216,5 +219,9 @@ final class ExecutionTabPanel extends JPanel {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Failed to delete execution: " + ex.getMessage(), "Delete Execution", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private static void applyCompactButtonStyle(JButton button) {
+        button.setMargin(new Insets(1, 6, 1, 6));
     }
 }
