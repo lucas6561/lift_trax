@@ -69,6 +69,9 @@ class WebUiRendererTest {
             String html = WebUiRenderer.renderExecutionList(db, lifts, "", "all lifts");
 
             assertTrue(html.contains("action='/delete-lift'"));
+            assertTrue(html.contains("action='/update-lift'"));
+            assertTrue(html.contains("name='currentName' value='Back Squat'"));
+            assertTrue(html.contains("Save lift"));
             assertTrue(html.contains("name='tab' value='executions'"));
             assertTrue(html.contains("name='lift' value='Back Squat'"));
             assertTrue(html.contains("Delete lift"));
