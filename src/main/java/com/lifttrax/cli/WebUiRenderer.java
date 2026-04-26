@@ -1676,6 +1676,8 @@ final class WebUiRenderer {
                     html.append("<a href='#' class='danger js-exec-delete'>Delete</a>");
                     html.append("<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>")
                             .append("<input type='hidden' name='executionId' value='").append(execution.id()).append("'/>")
+                            .append("<input type='hidden' name='tab' value='executions'/>")
+                            .append("<input type='hidden' name='liftQuery' value='").append(WebHtml.escapeHtml(liftName)).append("'/>")
                             .append("</form>");
                 }
                 html.append("</div>");
@@ -1686,6 +1688,8 @@ final class WebUiRenderer {
                             .append("' style='display:none;flex-direction:column;align-items:flex-start;gap:8px;'>")
                             .append("<input type='hidden' name='lift' value='").append(WebHtml.escapeHtml(liftName)).append("'/>")
                             .append("<input type='hidden' name='executionId' value='").append(execution.id()).append("'/>")
+                            .append("<input type='hidden' name='tab' value='executions'/>")
+                            .append("<input type='hidden' name='liftQuery' value='").append(WebHtml.escapeHtml(liftName)).append("'/>")
                             .append("<div style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>")
                             .append("<label>Date <input type='date' name='date' disabled value='").append(WebHtml.escapeHtml(DATE_FORMAT.format(execution.date()))).append("'/></label>")
                             .append("<label>Notes <input type='text' name='notes' style='min-width:220px;' disabled value='").append(WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes())).append("'/></label>")
