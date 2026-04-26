@@ -2,6 +2,7 @@ package com.lifttrax.cli;
 
 import com.lifttrax.db.SqliteDb;
 import com.lifttrax.models.ExecutionSet;
+import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.LiftExecution;
@@ -55,6 +56,23 @@ class WebUiRendererTest {
 
             assertFalse(html.contains("2026-04-13 —"));
             assertFalse(html.contains("2026-04-14 —"));
+        }
+    }
+
+    @Test
+    void executionListIncludesDeleteLiftForm() throws Exception {
+        Path dbPath = Files.createTempFile("lifttrax-exec-delete-lift", ".db");
+        try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+            db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+            List<Lift> lifts = db.listLifts();
+
+            String html = WebUiRenderer.renderExecutionList(db, lifts, "", "all lifts");
+
+            assertTrue(html.contains("action='/delete-lift'"));
+            assertTrue(html.contains("name='tab' value='executions'"));
+            assertTrue(html.contains("name='lift' value='Back Squat'"));
+            assertTrue(html.contains("Delete lift"));
+            assertTrue(html.contains("Delete this lift and all its executions?"));
         }
     }
 
