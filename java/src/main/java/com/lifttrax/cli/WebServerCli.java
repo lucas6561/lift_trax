@@ -56,6 +56,7 @@ public class WebServerCli {
         server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
         server.createContext("/update-execution", exchange -> handleUpdateExecution(exchange, db));
         server.createContext("/delete-execution", exchange -> handleDeleteExecution(exchange, db));
+        server.createContext("/delete-lift", exchange -> handleDeleteLift(exchange, db));
         server.createContext("/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
         server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
         server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
@@ -335,6 +336,28 @@ public class WebServerCli {
             redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Execution deleted"));
         } catch (Exception e) {
             redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage()));
+        }
+    }
+
+    private static void handleDeleteLift(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        String redirectBase = "/?tab=executions";
+        try {
+            Map<String, String> form = parseForm(exchange.getRequestBody());
+            redirectBase = buildExecutionRedirectBase(form);
+            String lift = form.getOrDefault("lift", "").trim();
+            if (lift.isBlank()) {
+                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
+                return;
+            }
+            db.deleteLift(lift);
+            redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Deleted lift: " + lift));
+        } catch (Exception e) {
+            redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete lift: " + e.getMessage()));
         }
     }
 

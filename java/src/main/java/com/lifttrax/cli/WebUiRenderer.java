@@ -1586,6 +1586,12 @@ final class WebUiRenderer {
                     .append("<input type='hidden' name='enabled' value='").append(enabled ? "0" : "1").append("'/>")
                     .append("<button type='submit'>").append(enabled ? "Disable for wave" : "Enable for wave").append("</button>")
                     .append("</form>");
+            html.append("<form method='post' action='/delete-lift' class='query-form' style='margin:8px 0;' ")
+                    .append("onsubmit=\"return window.confirm('Delete this lift and all its executions?');\">")
+                    .append("<input type='hidden' name='tab' value='executions'/>")
+                    .append("<input type='hidden' name='lift' value='").append(WebHtml.escapeHtml(lift.name())).append("'/>")
+                    .append("<button type='submit' class='danger'>Delete lift</button>")
+                    .append("</form>");
             html.append("<div class='js-exec-body' data-lift='")
                     .append(WebHtml.escapeHtml(lift.name()))
                     .append("' data-loaded='false'><p>Expand to load executions...</p></div>");
