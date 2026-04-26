@@ -10,10 +10,10 @@ This is the initial Java + Gradle port slice. It includes:
 
 ## Run
 
-From the `java/` directory:
+From the repository root:
 
 ```bash
-gradle run --args='path/to/lifts.db'
+./gradlew run --args='path/to/lifts.db'
 ```
 
 If no argument is provided, it defaults to the repository-root `lifts.db` (it auto-detects the repo root by looking for `shared/sql/schema.sql`).
@@ -22,17 +22,17 @@ If no argument is provided, it defaults to the repository-root `lifts.db` (it au
 Generate a wave markdown file:
 
 ```bash
-gradle run --args='path/to/lifts.db'
-java -cp build/libs/lift_trax-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 wave.md
+./gradlew run --args='path/to/lifts.db'
+java -cp build/libs/lift-trax-java-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 wave.md
 ```
 
 
 ## Run the network-accessible Web UI
 
-From the `java/` directory:
+From the repository root:
 
 ```bash
-gradle runWeb --args='path/to/lifts.db 8080'
+./gradlew runWeb --args='path/to/lifts.db 8080'
 ```
 
 - First arg: SQLite database path (defaults to repository-root `lifts.db`).
@@ -84,7 +84,7 @@ Tip: in most IDEs, opening a package and viewing its documentation shows the `pa
 
 ## Test + coverage workflow
 
-From `java/`, run:
+From repository root, run:
 
 ```bash
 ./gradlew test jacocoTestReport jacocoTestCoverageVerification
