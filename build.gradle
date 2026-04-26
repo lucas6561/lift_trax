@@ -19,7 +19,7 @@ repositories {
 sourceSets {
     main {
         resources {
-            srcDir '../shared'
+            srcDir 'shared'
         }
     }
 }

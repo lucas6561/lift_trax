@@ -113,7 +113,7 @@ class ConjugateWorkoutBuilderTest {
                 RandomSupport.DETERMINISTIC
         ).getWave(1, db);
         String markdown = String.join("\n", WaveMarkdownWriter.createMarkdown(wave, db));
-        String expected = Files.readString(Path.of("..", "testdata", "conjugate_wave_parity.md"));
+        String expected = Files.readString(Path.of("testdata", "conjugate_wave_parity.md"));
         assertEquals(expected.trim(), markdown.trim());
     }
 
