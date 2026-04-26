@@ -15,7 +15,10 @@ import java.util.stream.Collectors;
 
 public class DumpDatabaseCli {
     public static void main(String[] args) throws Exception {
-        String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
+        CliOptions options = parseArgs(args);
+        String dbPath = options.dbPath() == null
+                ? DbPathResolver.resolveFromArgsOrDefault(new String[0])
+                : options.dbPath();
 
         try (SqliteDb db = new SqliteDb(dbPath)) {
             List<Lift> lifts = db.listLifts();
@@ -26,18 +29,41 @@ public class DumpDatabaseCli {
 
             for (Lift lift : lifts) {
                 System.out.println(formatLiftHeader(lift));
-                List<LiftExecution> executions = db.getExecutions(lift.name());
-                if (executions.isEmpty()) {
-                    System.out.println("  (no executions)");
-                } else {
-                    for (LiftExecution execution : executions) {
-                        System.out.println("  - " + formatExecution(execution));
+                if (!options.liftsOnly()) {
+                    List<LiftExecution> executions = db.getExecutions(lift.name());
+                    if (executions.isEmpty()) {
+                        System.out.println("  (no executions)");
+                    } else {
+                        for (LiftExecution execution : executions) {
+                            System.out.println("  - " + formatExecution(execution));
+                        }
                     }
                 }
                 System.out.println();
             }
         }
     }
+
+    private static CliOptions parseArgs(String[] args) {
+        boolean liftsOnly = false;
+        String dbPath = null;
+        for (String arg : args) {
+            if ("--lifts-only".equals(arg)) {
+                liftsOnly = true;
+                continue;
+            }
+            if (arg.startsWith("--")) {
+                throw new IllegalArgumentException("Unknown option: " + arg);
+            }
+            if (dbPath != null) {
+                throw new IllegalArgumentException("Unexpected argument: " + arg);
+            }
+            dbPath = arg;
+        }
+        return new CliOptions(dbPath, liftsOnly);
+    }
+
+    private record CliOptions(String dbPath, boolean liftsOnly) {}
 
     private static String formatLiftHeader(Lift lift) {
         String main = lift.main() == null ? "" : " [" + lift.main() + "]";

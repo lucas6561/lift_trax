@@ -34,3 +34,13 @@ From the repository root:
 ## Java project notes
 
 See `JAVA_PROJECT.md` for detailed package and feature documentation.
+
+## Dump lifts only (no executions)
+
+From the repository root:
+
+```bash
+./gradlew run --args='path/to/lifts.db --lifts-only'
+```
+
+This prints lift/exercise metadata (name, region, main lift type, muscles, notes) and skips execution history.
