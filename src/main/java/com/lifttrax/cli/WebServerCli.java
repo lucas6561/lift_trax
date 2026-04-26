@@ -439,20 +439,22 @@ public class WebServerCli {
             sendText(exchange, 405, "Method Not Allowed");
             return;
         }
+        String redirectBase = "/?tab=executions";
         try {
             Map<String, String> form = parseForm(exchange.getRequestBody());
+            redirectBase = buildExecutionRedirectBase(form);
             String lift = form.getOrDefault("lift", "").trim();
             if (lift.isBlank()) {
-                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required");
+                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
                 return;
             }
             boolean enabled = "1".equals(form.getOrDefault("enabled", "1"));
             db.setLiftEnabled(lift, enabled);
             String status = enabled ? "Enabled" : "Disabled";
-            redirect(exchange, "/?tab=add-execution&statusType=success&status="
+            redirect(exchange, redirectBase + "&statusType=success&status="
                     + WebUiRenderer.urlEncode(status + " lift: " + lift));
         } catch (Exception e) {
-            redirect(exchange, "/?tab=add-execution&statusType=error&status="
+            redirect(exchange, redirectBase + "&statusType=error&status="
                     + WebUiRenderer.urlEncode("Failed to update lift status: " + e.getMessage()));
         }
     }

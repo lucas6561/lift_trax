@@ -1624,6 +1624,7 @@ final class WebUiRenderer {
             html.append("<form method='post' action='/set-lift-enabled' class='query-form compact-actions' style='margin:8px 0;'>")
                     .append("<input type='hidden' name='lift' value='").append(WebHtml.escapeHtml(lift.name())).append("'/>")
                     .append("<input type='hidden' name='enabled' value='").append(enabled ? "0" : "1").append("'/>")
+                    .append("<input type='hidden' name='tab' value='executions'/>")
                     .append("<button type='submit' class='compact-btn'>").append(enabled ? "Disable for wave" : "Enable for wave").append("</button>")
                     .append("</form>");
             html.append("<details style='margin:8px 0;'>")
