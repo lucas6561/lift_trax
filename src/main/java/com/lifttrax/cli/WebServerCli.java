@@ -57,6 +57,7 @@ public class WebServerCli {
         server.createContext("/update-execution", exchange -> handleUpdateExecution(exchange, db));
         server.createContext("/delete-execution", exchange -> handleDeleteExecution(exchange, db));
         server.createContext("/delete-lift", exchange -> handleDeleteLift(exchange, db));
+        server.createContext("/update-lift", exchange -> handleUpdateLift(exchange, db));
         server.createContext("/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
         server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
         server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
@@ -358,6 +359,37 @@ public class WebServerCli {
             redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Deleted lift: " + lift));
         } catch (Exception e) {
             redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete lift: " + e.getMessage()));
+        }
+    }
+
+    private static void handleUpdateLift(HttpExchange exchange, SqliteDb db) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        String redirectBase = "/?tab=executions";
+        try {
+            Map<String, String> form = parseForm(exchange.getRequestBody());
+            redirectBase = buildExecutionRedirectBase(form);
+            String currentName = form.getOrDefault("currentName", "").trim();
+            String newName = form.getOrDefault("name", "").trim();
+            if (currentName.isBlank() || newName.isBlank()) {
+                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20name%20is%20required");
+                return;
+            }
+
+            LiftRegion region = LiftRegion.fromString(form.getOrDefault("region", "UPPER"));
+            LiftType main = LiftType.fromDbValue(form.getOrDefault("main", "none"));
+            List<Muscle> muscles = parseMuscles(form.get("muscles"));
+            String notes = form.getOrDefault("notes", "");
+
+            db.updateLift(currentName, newName, region, main, muscles, notes);
+            redirect(exchange, redirectBase + "&statusType=success&status="
+                    + WebUiRenderer.urlEncode("Updated lift: " + newName));
+        } catch (Exception e) {
+            redirect(exchange, redirectBase + "&statusType=error&status="
+                    + WebUiRenderer.urlEncode("Failed to update lift: " + e.getMessage()));
         }
     }
 

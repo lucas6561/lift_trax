@@ -5,6 +5,7 @@ import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
+import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.Muscle;
@@ -1625,6 +1626,28 @@ final class WebUiRenderer {
                     .append("<input type='hidden' name='enabled' value='").append(enabled ? "0" : "1").append("'/>")
                     .append("<button type='submit' class='compact-btn'>").append(enabled ? "Disable for wave" : "Enable for wave").append("</button>")
                     .append("</form>");
+            html.append("<details style='margin:8px 0;'>")
+                    .append("<summary>Edit lift</summary>")
+                    .append("<form method='post' action='/update-lift' class='query-form compact-actions' style='margin:8px 0;'>")
+                    .append("<input type='hidden' name='tab' value='executions'/>")
+                    .append("<input type='hidden' name='currentName' value='").append(WebHtml.escapeHtml(lift.name())).append("'/>")
+                    .append("<label>Name <input type='text' name='name' required value='").append(WebHtml.escapeHtml(lift.name())).append("'/></label>")
+                    .append("<label>Region <select name='region'>").append(renderLiftRegionOptions(lift.region())).append("</select></label>")
+                    .append("<label>Main <select name='main'>").append(renderLiftMainOptions(lift.main())).append("</select></label>")
+                    .append("<label>Muscles")
+                    .append("<select multiple size='6' ")
+                    .append("onchange=\"this.nextElementSibling.value=Array.from(this.selectedOptions).map(o=>o.value).join(',')\">")
+                    .append(renderLiftMuscleOptions(lift))
+                    .append("</select>")
+                    .append("<input type='hidden' name='muscles' value='")
+                    .append(WebHtml.escapeHtml(lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(","))))
+                    .append("'/></label>")
+                    .append("<label>Notes <input type='text' name='notes' value='")
+                    .append(WebHtml.escapeHtml(lift.notes() == null ? "" : lift.notes()))
+                    .append("'/></label>")
+                    .append("<button type='submit' class='compact-btn'>Save lift</button>")
+                    .append("</form>")
+                    .append("</details>");
             html.append("<form method='post' action='/delete-lift' class='query-form compact-actions' style='margin:8px 0;' ")
                     .append("onsubmit=\"return window.confirm('Delete this lift and all its executions?');\">")
                     .append("<input type='hidden' name='tab' value='executions'/>")
@@ -1640,6 +1663,48 @@ final class WebUiRenderer {
 
         if (!hasLift) {
             html.append("<p>No lifts found for current filters.</p>");
+        }
+        return html.toString();
+    }
+
+    private static String renderLiftRegionOptions(LiftRegion selected) {
+        StringBuilder html = new StringBuilder();
+        for (LiftRegion region : LiftRegion.values()) {
+            html.append("<option value='")
+                    .append(WebHtml.escapeHtml(region.name()))
+                    .append("'")
+                    .append(region == selected ? " selected" : "")
+                    .append(">")
+                    .append(WebHtml.escapeHtml(region.name()))
+                    .append("</option>");
+        }
+        return html.toString();
+    }
+
+    private static String renderLiftMainOptions(LiftType selected) {
+        StringBuilder html = new StringBuilder();
+        for (LiftType type : LiftType.values()) {
+            html.append("<option value='")
+                    .append(WebHtml.escapeHtml(type.toDbValue()))
+                    .append("'")
+                    .append(type == selected ? " selected" : "")
+                    .append(">")
+                    .append(WebHtml.escapeHtml(type.toDbValue()))
+                    .append("</option>");
+        }
+        return html.toString();
+    }
+
+    private static String renderLiftMuscleOptions(Lift lift) {
+        StringBuilder html = new StringBuilder();
+        for (Muscle muscle : Muscle.values()) {
+            html.append("<option value='")
+                    .append(WebHtml.escapeHtml(muscle.name()))
+                    .append("'")
+                    .append(lift.muscles().contains(muscle) ? " selected" : "")
+                    .append(">")
+                    .append(WebHtml.escapeHtml(muscle.name()))
+                    .append("</option>");
         }
         return html.toString();
     }
