@@ -76,6 +76,23 @@ class WebUiRendererTest {
         }
     }
 
+    @Test
+    void executionRowsIncludeEditContextForExecutionsTab() throws Exception {
+        Path dbPath = Files.createTempFile("lifttrax-exec-rows-context", ".db");
+        try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+            db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+            db.addLiftExecution("Back Squat", execution(LocalDate.of(2026, 4, 20), false));
+
+            String html = WebUiRenderer.renderExecutionRows(db, "Back Squat");
+
+            assertTrue(html.contains("name='executionId'"));
+            assertTrue(html.contains("name='tab' value='executions'"));
+            assertTrue(html.contains("name='liftQuery' value='Back Squat'"));
+            assertTrue(html.contains("action='/update-execution'"));
+            assertTrue(html.contains("action='/delete-execution'"));
+        }
+    }
+
     private static LiftExecution execution(LocalDate date, boolean warmup) {
         return new LiftExecution(
                 null,
