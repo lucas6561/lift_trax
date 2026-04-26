@@ -94,6 +94,9 @@ final class AddExecutionTabPanel extends JPanel {
         JButton refreshButton = new JButton("Refresh");
         JButton loadLastButton = new JButton("Load Last");
         JButton newLiftButton = new JButton("New Lift");
+        applyCompactButtonStyle(refreshButton);
+        applyCompactButtonStyle(loadLastButton);
+        applyCompactButtonStyle(newLiftButton);
 
         int row = 0;
         addRowLabel(formPanel, gbc, row, "Lift:");
@@ -138,6 +141,8 @@ final class AddExecutionTabPanel extends JPanel {
         rpeField = sizedField(90);
         JButton addSetButton = new JButton("Add Set");
         JButton removeSetButton = new JButton("Remove Set");
+        applyCompactButtonStyle(addSetButton);
+        applyCompactButtonStyle(removeSetButton);
         JPanel rpeRow = inlinePanel();
         rpeRow.add(rpeField);
         rpeRow.add(addSetButton);
@@ -596,5 +601,9 @@ final class AddExecutionTabPanel extends JPanel {
         public String toString() {
             return label;
         }
+    }
+
+    private static void applyCompactButtonStyle(JButton button) {
+        button.setMargin(new Insets(2, 8, 2, 8));
     }
 }
