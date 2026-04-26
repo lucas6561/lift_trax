@@ -826,10 +826,39 @@ final class WebUiRenderer {
             };
             var wave = builder.getWave(normalizedWeeks, db);
             List<String> markdown = WaveMarkdownWriter.createMarkdown(wave, db);
+            String markdownText = String.join("\n", markdown);
             return planner + """
                     <p>Configured weeks: <strong>%s</strong></p>
+                    <div class='stacked-row'>
+                      <button type='button' class='secondary' onclick='liftTraxSaveWaveMarkdown()'>Save As Markdown</button>
+                    </div>
                     <pre class='query-output'>%s</pre>
-                    """.formatted(normalizedWeeks, WebHtml.escapeHtml(String.join("\n", markdown)));
+                    <script>
+                      function liftTraxSaveWaveMarkdown() {
+                        const content = "%s";
+                        const fallback = "wave-%s.md";
+                        const input = window.prompt("Save wave as", fallback);
+                        if (input === null) {
+                          return;
+                        }
+                        const fileName = input.trim() || fallback;
+                        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        URL.revokeObjectURL(url);
+                      }
+                    </script>
+                    """.formatted(
+                    normalizedWeeks,
+                    WebHtml.escapeHtml(markdownText),
+                    jsonEscape(markdownText),
+                    normalizedWeeks
+            );
         } catch (Exception e) {
             return planner + """
                     <p>Configured weeks: <strong>%s</strong></p>

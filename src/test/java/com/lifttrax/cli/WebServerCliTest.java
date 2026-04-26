@@ -593,6 +593,62 @@ class WebServerCliTest {
     }
 
     @Test
+    void generatedWaveIncludesSaveAsMarkdownControl() throws Exception {
+        Path dbPath = Files.createTempFile("lifttrax-wave-save", ".db");
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             SqliteDb db = new SqliteDb(dbPath.toString())) {
+            conn.createStatement().execute("""
+                    CREATE TABLE IF NOT EXISTS lifts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        region TEXT NOT NULL,
+                        main_lift TEXT,
+                        muscles TEXT NOT NULL,
+                        notes TEXT NOT NULL DEFAULT ''
+                    )
+                    """);
+            conn.createStatement().execute("""
+                    CREATE TABLE IF NOT EXISTS lift_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lift_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        sets TEXT NOT NULL,
+                        warmup INTEGER NOT NULL DEFAULT 0,
+                        deload INTEGER NOT NULL DEFAULT 0,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                    )
+                    """);
+
+            db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "");
+            db.addLift("Conventional Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of(Muscle.HAMSTRING), "");
+            db.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(Muscle.CHEST), "");
+            db.addLift("Overhead Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of(Muscle.SHOULDER), "");
+            db.addLift("Sled Push", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(Muscle.QUAD), "");
+            db.addLift("Bike", LiftRegion.UPPER, LiftType.CONDITIONING, List.of(Muscle.CORE), "");
+            db.addLift("Leg Swings", LiftRegion.LOWER, LiftType.MOBILITY, List.of(Muscle.QUAD), "");
+            db.addLift("Shoulder CARs", LiftRegion.UPPER, LiftType.MOBILITY, List.of(Muscle.SHOULDER), "");
+            db.addLift("Hamstring Curl", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.HAMSTRING), "");
+            db.addLift("Leg Extension", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.QUAD), "");
+            db.addLift("Plank", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.CORE), "");
+            db.addLift("Lat Pulldown", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.LAT), "");
+            db.addLift("Tricep Pushdown", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRICEP), "");
+            db.addLift("Chest Fly", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.CHEST), "");
+
+            String html = WebUiRenderer.renderWaveContent(
+                    db,
+                    2,
+                    Map.of("waveType", "hypertrophy", "waveGenerate", "true")
+            );
+
+            assertTrue(html.contains("Save As Markdown"));
+            assertTrue(html.contains("liftTraxSaveWaveMarkdown"));
+        } finally {
+            Files.deleteIfExists(dbPath);
+        }
+    }
+
+    @Test
     void selectExecutionForFlagsMatchesWarmupAndDeload() {
         LiftExecution normal = new LiftExecution(1, LocalDate.parse("2026-01-01"), List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", null)), false, false, "");
         LiftExecution warmup = new LiftExecution(2, LocalDate.parse("2026-01-02"), List.of(new ExecutionSet(new SetMetric.Reps(3), "185 lb", null)), true, false, "");
