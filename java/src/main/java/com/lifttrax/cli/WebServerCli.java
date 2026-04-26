@@ -222,7 +222,7 @@ public class WebServerCli {
             LiftExecution last = selectExecutionForFlags(executions, warmup, deload);
             if (last == null) {
                 String criteria = "warmup=" + warmup + ", deload=" + deload;
-                redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("No prior executions for " + liftName + " with " + criteria) + "&prefillLift=" + WebUiRenderer.urlEncode(liftName));
+                redirect(exchange, buildLoadLastNoPriorRedirect(query, liftName, selectedDate, warmup, deload, criteria));
                 return;
             }
 
@@ -428,6 +428,25 @@ public class WebServerCli {
                 Boolean.parseBoolean(query.getOrDefault("prefillDeload", "false")),
                 query.getOrDefault("prefillNotes", "")
         );
+    }
+
+    private static String buildLoadLastNoPriorRedirect(Map<String, String> query, String liftName, LocalDate selectedDate,
+                                                        boolean warmup, boolean deload, String criteria) {
+        StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=error");
+        redirectUrl.append("&status=").append(WebUiRenderer.urlEncode("No prior executions for " + liftName + " with " + criteria));
+        redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
+        redirectUrl.append("&prefillWeight=").append(WebUiRenderer.urlEncode(query.getOrDefault("weight", "")));
+        redirectUrl.append("&prefillSetCount=").append(WebUiRenderer.urlEncode(query.getOrDefault("setCount", "1")));
+        redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(selectedDate.toString()));
+        redirectUrl.append("&prefillRpe=").append(WebUiRenderer.urlEncode(query.getOrDefault("rpe", "")));
+        redirectUrl.append("&prefillMetricType=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricType", "reps")));
+        redirectUrl.append("&prefillMetricValue=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricValue", "5")));
+        redirectUrl.append("&prefillMetricLeft=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricLeft", "5")));
+        redirectUrl.append("&prefillMetricRight=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricRight", "5")));
+        redirectUrl.append("&prefillWarmup=").append(warmup);
+        redirectUrl.append("&prefillDeload=").append(deload);
+        redirectUrl.append("&prefillNotes=").append(WebUiRenderer.urlEncode(query.getOrDefault("notes", "")));
+        return redirectUrl.toString();
     }
 
     private static String safe(String value) {

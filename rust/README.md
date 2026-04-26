@@ -1,5 +1,7 @@
 # lift_trax
 
+> **Archived status (April 26, 2026):** this Rust implementation is being kept as source reference only and is no longer under active development.
+
 Simple command-line tool to track your lifts using a local SQLite database. Run these commands from this `rust` directory.
 
 ## Build & Run
