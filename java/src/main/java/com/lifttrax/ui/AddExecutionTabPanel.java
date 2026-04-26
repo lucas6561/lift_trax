@@ -70,6 +70,7 @@ final class AddExecutionTabPanel extends JPanel {
     private final JTextField newLiftNotes;
 
     private List<Lift> allLifts = new ArrayList<>();
+    private boolean suppressAutoLoadLastExecution;
 
     AddExecutionTabPanel(Database database) {
         super(new BorderLayout(0, 4));
@@ -211,6 +212,11 @@ final class AddExecutionTabPanel extends JPanel {
         add(new JScrollPane(content), BorderLayout.CENTER);
 
         refreshButton.addActionListener(event -> reloadLifts(true));
+        liftCombo.addActionListener(event -> {
+            if (!suppressAutoLoadLastExecution && liftCombo.getSelectedIndex() >= 0) {
+                loadLastExecution();
+            }
+        });
         newLiftButton.addActionListener(event -> newLiftPanel.setVisible(!newLiftPanel.isVisible()));
         loadLastButton.addActionListener(event -> loadLastExecution());
         addSetButton.addActionListener(event -> addDetailedSet());
@@ -287,20 +293,25 @@ final class AddExecutionTabPanel extends JPanel {
     }
 
     private void refreshLiftOptions(boolean keepSelection) {
-        String selected = keepSelection ? (String) liftCombo.getSelectedItem() : null;
-        List<Lift> filtered = filterPanel.apply(allLifts);
+        suppressAutoLoadLastExecution = true;
+        try {
+            String selected = keepSelection ? (String) liftCombo.getSelectedItem() : null;
+            List<Lift> filtered = filterPanel.apply(allLifts);
 
-        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
-        for (Lift lift : filtered) {
-            model.addElement(lift.name());
-        }
-        liftCombo.setModel(model);
+            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+            for (Lift lift : filtered) {
+                model.addElement(lift.name());
+            }
+            liftCombo.setModel(model);
 
-        if (selected != null) {
-            liftCombo.setSelectedItem(selected);
-        }
-        if (liftCombo.getSelectedIndex() < 0 && model.getSize() > 0) {
-            liftCombo.setSelectedIndex(0);
+            if (selected != null) {
+                liftCombo.setSelectedItem(selected);
+            }
+            if (liftCombo.getSelectedIndex() < 0 && model.getSize() > 0) {
+                liftCombo.setSelectedIndex(0);
+            }
+        } finally {
+            suppressAutoLoadLastExecution = false;
         }
     }
 
