@@ -45,6 +45,52 @@ class WebServerCliTest {
     }
 
     @Test
+    void loadLastNoPriorRedirectPreservesAddExecutionPrefill() throws Exception {
+        Method method = WebServerCli.class.getDeclaredMethod(
+                "buildLoadLastNoPriorRedirect",
+                Map.class,
+                String.class,
+                LocalDate.class,
+                boolean.class,
+                boolean.class,
+                String.class
+        );
+        method.setAccessible(true);
+
+        String redirectUrl = (String) method.invoke(
+                null,
+                Map.of(
+                        "weight", "185 lb",
+                        "setCount", "3",
+                        "rpe", "8.5",
+                        "metricType", "time",
+                        "metricValue", "45",
+                        "metricLeft", "7",
+                        "metricRight", "8",
+                        "notes", "keep this"
+                ),
+                "Bench Press",
+                LocalDate.parse("2026-04-20"),
+                true,
+                false,
+                "warmup=true, deload=false"
+        );
+
+        assertTrue(redirectUrl.contains("prefillLift=Bench+Press"));
+        assertTrue(redirectUrl.contains("prefillWeight=185+lb"));
+        assertTrue(redirectUrl.contains("prefillSetCount=3"));
+        assertTrue(redirectUrl.contains("prefillDate=2026-04-20"));
+        assertTrue(redirectUrl.contains("prefillRpe=8.5"));
+        assertTrue(redirectUrl.contains("prefillMetricType=time"));
+        assertTrue(redirectUrl.contains("prefillMetricValue=45"));
+        assertTrue(redirectUrl.contains("prefillMetricLeft=7"));
+        assertTrue(redirectUrl.contains("prefillMetricRight=8"));
+        assertTrue(redirectUrl.contains("prefillWarmup=true"));
+        assertTrue(redirectUrl.contains("prefillDeload=false"));
+        assertTrue(redirectUrl.contains("prefillNotes=keep+this"));
+    }
+
+    @Test
     void formatSetsIncludesMetricWeightAndRpe() {
         String formatted = WebUiRenderer.formatSets(List.of(
                 new ExecutionSet(new SetMetric.Reps(5), "225 lb", 8.5f),
