@@ -643,6 +643,8 @@ class WebServerCliTest {
 
             assertTrue(html.contains("Save As Markdown"));
             assertTrue(html.contains("liftTraxSaveWaveMarkdown"));
+            assertTrue(html.contains("liftTraxWaveTimestamp"));
+            assertTrue(html.contains("wave-${liftTraxWaveTimestamp()}.md"));
         } finally {
             Files.deleteIfExists(dbPath);
         }

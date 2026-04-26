@@ -834,9 +834,20 @@ final class WebUiRenderer {
                     </div>
                     <pre class='query-output'>%s</pre>
                     <script>
+                      function liftTraxWaveTimestamp() {
+                        const now = new Date();
+                        const yyyy = now.getUTCFullYear();
+                        const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+                        const dd = String(now.getUTCDate()).padStart(2, '0');
+                        const hh = String(now.getUTCHours()).padStart(2, '0');
+                        const min = String(now.getUTCMinutes()).padStart(2, '0');
+                        const ss = String(now.getUTCSeconds()).padStart(2, '0');
+                        return `${yyyy}${mm}${dd}-${hh}${min}${ss}`;
+                      }
+
                       function liftTraxSaveWaveMarkdown() {
                         const content = "%s";
-                        const fallback = "wave-%s.md";
+                        const fallback = `wave-${liftTraxWaveTimestamp()}.md`;
                         const input = window.prompt("Save wave as", fallback);
                         if (input === null) {
                           return;
@@ -856,8 +867,7 @@ final class WebUiRenderer {
                     """.formatted(
                     normalizedWeeks,
                     WebHtml.escapeHtml(markdownText),
-                    jsonEscape(markdownText),
-                    normalizedWeeks
+                    jsonEscape(markdownText)
             );
         } catch (Exception e) {
             return planner + """
