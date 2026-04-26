@@ -121,13 +121,18 @@ impl SqliteDb {
 
     /// Open (or create) a SQLite database at `path`.
     pub fn new(path: &str) -> DbResult<Self> {
-        if Path::new(path).exists() {
+        let db_path = Path::new(path);
+        if let Some(parent) = db_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+        if db_path.exists() {
             let timestamp = Utc::now().format("%Y%m%d%H%M%S");
             let backup_path = format!("{}.backup-{}", path, timestamp);
             fs::copy(path, &backup_path)?;
 
             // remove old backups
-            let db_path = Path::new(path);
             let dir = match db_path.parent() {
                 Some(p) if !p.as_os_str().is_empty() => p,
                 _ => Path::new("."),
