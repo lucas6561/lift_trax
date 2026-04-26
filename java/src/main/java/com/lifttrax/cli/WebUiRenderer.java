@@ -141,15 +141,15 @@ final class WebUiRenderer {
                   <section class='tab-panel' data-panel='last-week' role='tabpanel'>
                     <h2>Last Week</h2>
                     <p class='muted'>This tab shows a 7-day window. Use Previous Week or adjust the dates to view older history.</p>
-                    <form method='get' action='/' class='query-form'>
+                    <form method='get' action='/' class='query-form compact-actions'>
                       <input type='hidden' name='tab' value='last-week'/>
                       <label>Start <input type='date' name='lastWeekStart' value='%s'/></label>
                       <label>End <input type='date' name='lastWeekEnd' value='%s'/></label>
-                      <button type='submit'>Apply</button>
-                      <button type='submit' name='lastWeekNav' value='prev'>← Previous Week</button>
-                      <button type='submit' name='lastWeekNav' value='next'>Next Week →</button>
-                      <button type='submit' name='lastWeekNav' value='current'>Current Week</button>
-                      <button type='submit' name='lastWeekNav' value='last'>Last Week</button>
+                      <button type='submit' class='compact-btn'>Apply</button>
+                      <button type='submit' name='lastWeekNav' value='prev' class='compact-btn'>← Previous Week</button>
+                      <button type='submit' name='lastWeekNav' value='next' class='compact-btn'>Next Week →</button>
+                      <button type='submit' name='lastWeekNav' value='current' class='compact-btn'>Current Week</button>
+                      <button type='submit' name='lastWeekNav' value='last' class='compact-btn'>Last Week</button>
                     </form>
                     %s
                     %s
@@ -1252,7 +1252,7 @@ final class WebUiRenderer {
                     <select name='lift'>%s</select>
                   </label>
                   <div class='stacked-row'>
-                    <button type='submit' formaction='/load-last-execution' formmethod='get' class='secondary'>Load Last</button>
+                    <button type='submit' formaction='/load-last-execution' formmethod='get' class='secondary compact-btn'>Load Last</button>
                   </div>
                   <input type='hidden' name='weight' class='js-weight-hidden' value='%s'/>
                   <input type='hidden' name='detailedSets' class='js-detailed-sets' value='[]'/>
@@ -1581,16 +1581,16 @@ final class WebUiRenderer {
                 html.append(" <span class='status error' style='margin-left:8px;'>Disabled</span>");
             }
             html.append("</summary>");
-            html.append("<form method='post' action='/set-lift-enabled' class='query-form' style='margin:8px 0;'>")
+            html.append("<form method='post' action='/set-lift-enabled' class='query-form compact-actions' style='margin:8px 0;'>")
                     .append("<input type='hidden' name='lift' value='").append(WebHtml.escapeHtml(lift.name())).append("'/>")
                     .append("<input type='hidden' name='enabled' value='").append(enabled ? "0" : "1").append("'/>")
-                    .append("<button type='submit'>").append(enabled ? "Disable for wave" : "Enable for wave").append("</button>")
+                    .append("<button type='submit' class='compact-btn'>").append(enabled ? "Disable for wave" : "Enable for wave").append("</button>")
                     .append("</form>");
-            html.append("<form method='post' action='/delete-lift' class='query-form' style='margin:8px 0;' ")
+            html.append("<form method='post' action='/delete-lift' class='query-form compact-actions' style='margin:8px 0;' ")
                     .append("onsubmit=\"return window.confirm('Delete this lift and all its executions?');\">")
                     .append("<input type='hidden' name='tab' value='executions'/>")
                     .append("<input type='hidden' name='lift' value='").append(WebHtml.escapeHtml(lift.name())).append("'/>")
-                    .append("<button type='submit' class='danger'>Delete lift</button>")
+                    .append("<button type='submit' class='danger compact-btn'>Delete lift</button>")
                     .append("</form>");
             html.append("<div class='js-exec-body' data-lift='")
                     .append(WebHtml.escapeHtml(lift.name()))

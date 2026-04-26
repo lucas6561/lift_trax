@@ -77,7 +77,6 @@ To help new developers, each main Java package now includes a `package-info.java
 - `com.lifttrax.cli`: app entry points and web/CLI request handling.
 - `com.lifttrax.db`: SQLite data access layer.
 - `com.lifttrax.models`: shared domain data records/enums.
-- `com.lifttrax.ui`: Swing desktop UI components.
 - `com.lifttrax.workout`: workout planning and wave logic.
 
 Tip: in most IDEs, opening a package and viewing its documentation shows the `package-info.java` description first.
@@ -94,7 +93,6 @@ From `java/`, run:
 Coverage is enforced at **80% instruction coverage** for the currently maintained Java core slice:
 
 - selected `com.lifttrax.workout` planner classes (see `build.gradle` `coverageIncludes`)
-- `com.lifttrax.ui.ExecutionFormatter`
 - `com.lifttrax.cli.WeightInputParser`
 - `com.lifttrax.cli.WebHtml`
 

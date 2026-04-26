@@ -60,8 +60,6 @@ def coverageIncludes = [
     'com/lifttrax/workout/RandomSupport.class',
     'com/lifttrax/workout/SwingDynamicLiftSource.class',
     'com/lifttrax/workout/SwingMaxEffortPlanSource.class',
-    // Execution formatting used by Swing + web UIs
-    'com/lifttrax/ui/ExecutionFormatter.class',
     // Web weight parsing and HTML safety helpers
     'com/lifttrax/cli/WeightInputParser.class',
     'com/lifttrax/cli/WeightInputParser$*.class',
@@ -101,13 +99,6 @@ tasks.named('check') {
 
 application {
     mainClass = 'com.lifttrax.cli.DumpDatabaseCli'
-}
-
-tasks.register('runUi', JavaExec) {
-    group = 'application'
-    description = 'Runs the Swing UI port with the Executions tab.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.lifttrax.ui.LiftTraxApp'
 }
 
 tasks.register('runWeb', JavaExec) {
