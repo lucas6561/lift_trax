@@ -1765,6 +1765,7 @@ final class WebUiRenderer {
                     .append("'>Wave status: ")
                     .append(liftEnabled ? "Enabled" : "Disabled for wave")
                     .append("</p>");
+            html.append("<p class='help-text' style='margin:6px 0 10px;'>Use <strong>Edit</strong> to change set details (for example, switch a set from ft to reps), then click Save.</p>");
             html.append("<ul class='execution-list'>");
             for (LiftExecution execution : executions) {
                 html.append("<li class='execution-item' style='margin:6px 0;'>");
