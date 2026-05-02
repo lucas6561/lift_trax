@@ -42,7 +42,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     }
 
     private static WorkoutLift maxEffortSingle(Lift lift) {
-        return new WorkoutLift("Max Effort Single", new WorkoutLiftKind.SingleKind(
+        return new WorkoutLift("Max Effort Single (target 95% of max; go higher only if it feels great)", new WorkoutLiftKind.SingleKind(
                 new SingleLift(lift, new SetMetric.Reps(1), null, null, null, false)
         ));
     }
@@ -109,9 +109,9 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             lifts.add(conditioning(conditioning, "Light Conditioning", 300, true));
         } else {
             lifts.add(maxEffortSingle(lower));
-            lifts.addAll(repeatedSingles("Backoff Sets", lower, 2, new SetMetric.Reps(5), 70, 7.0f, false, null));
+            lifts.addAll(repeatedSingles("Backoff Sets (log top single; use 80-85% of today's 1RM)", lower, 2, new SetMetric.Reps(5), 80, null, false, null));
             Lift next = lowerPlan.get((weekNumber + 1) % lowerPlan.size());
-            lifts.addAll(repeatedSingles("Supplemental Sets", next, 3, new SetMetric.Reps(5), 80, null, false, null));
+            lifts.addAll(repeatedSingles("Supplemental Sets", next, 2, new SetMetric.Reps(5), 85, null, false, null));
             lifts.add(accessoryCircuit(accessories, Muscle.HAMSTRING, Muscle.QUAD, Muscle.CALF));
             lifts.add(conditioning(conditioning, "Conditioning", 600, false));
             SingleLift forearm = accessories.forearm();
@@ -146,9 +146,9 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             lifts.add(conditioning(conditioning, "Light Conditioning", 300, true));
         } else {
             lifts.add(maxEffortSingle(upper));
-            lifts.addAll(repeatedSingles("Backoff Sets", upper, 2, new SetMetric.Reps(5), 70, 7.0f, false, null));
+            lifts.addAll(repeatedSingles("Backoff Sets (log top single; use 80-85% of today's 1RM)", upper, 2, new SetMetric.Reps(5), 80, null, false, null));
             Lift next = upperPlan.get((weekNumber + 1) % upperPlan.size());
-            lifts.addAll(repeatedSingles("Supplemental Sets", next, 3, new SetMetric.Reps(5), 80, null, false, null));
+            lifts.addAll(repeatedSingles("Supplemental Sets", next, 2, new SetMetric.Reps(5), 85, null, false, null));
 
             Muscle[] upperOpts = {Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP};
             Muscle third = upperOpts[randomizer.nextInt(new Random(), upperOpts.length)];
