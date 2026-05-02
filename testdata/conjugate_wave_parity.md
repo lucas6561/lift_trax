@@ -6,12 +6,12 @@
   2. **Leg Extension**
   3. **Hamstring Curl**
   4. **Plank**
-### Max Effort Single
+### Max Effort Single (target 95% of max; go higher only if it feels great)
 **Squat** 1 reps
-### Backoff Sets
-**Squat** 2x 5 reps @ 70% RPE 7.0
+### Backoff Sets (log top single; use 80-85% of today's 1RM)
+**Squat** 2x 5 reps @ 80%
 ### Supplemental Sets
-**Squat** 3x 5 reps @ 80%
+**Squat** 2x 5 reps @ 85%
 ### Accessory Circuit
 - Circuit: 3 rounds
   1. **Hamstring Curl** 3x 8-12 reps
@@ -27,12 +27,12 @@
   2. **Upper Compound Accessory**
   3. **Delt Giant Set**
   4. **Plank**
-### Max Effort Single
+### Max Effort Single (target 95% of max; go higher only if it feels great)
 **Bench Press** 1 reps
-### Backoff Sets
-**Bench Press** 2x 5 reps @ 70% RPE 7.0
+### Backoff Sets (log top single; use 80-85% of today's 1RM)
+**Bench Press** 2x 5 reps @ 80%
 ### Supplemental Sets
-**Bench Press** 3x 5 reps @ 80%
+**Bench Press** 2x 5 reps @ 85%
 ### Accessory Circuit
 - Circuit: 3 rounds
   1. **Upper Compound Accessory** 3x 8-12 reps
