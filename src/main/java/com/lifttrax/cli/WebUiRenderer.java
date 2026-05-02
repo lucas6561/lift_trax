@@ -506,9 +506,46 @@ final class WebUiRenderer {
                       });
                     }
 
+                    const ADD_EXECUTION_DRAFT_KEY = 'lifttrax.addExecutionDraft.v1';
+
+                    function loadAddExecutionDraft(form) {
+                      try {
+                        const raw = localStorage.getItem(ADD_EXECUTION_DRAFT_KEY);
+                        if (!raw) {
+                          return;
+                        }
+                        const draft = JSON.parse(raw);
+                        const dateInput = form.querySelector("input[name='date']");
+                        if (dateInput && typeof draft.date === 'string' && draft.date.trim()) {
+                          dateInput.value = draft.date;
+                        }
+                      } catch (error) {
+                        // Ignore malformed or unavailable storage.
+                      }
+                    }
+
+                    function saveAddExecutionDraft(form) {
+                      try {
+                        const dateInput = form.querySelector("input[name='date']");
+                        const draft = {
+                          date: dateInput ? (dateInput.value || '') : ''
+                        };
+                        localStorage.setItem(ADD_EXECUTION_DRAFT_KEY, JSON.stringify(draft));
+                      } catch (error) {
+                        // Ignore storage issues and continue.
+                      }
+                    }
+
                     const addExecutionForm = document.querySelector("form.add-execution-form");
                     if (addExecutionForm) {
+                      loadAddExecutionDraft(addExecutionForm);
+                      const dateInput = addExecutionForm.querySelector("input[name='date']");
+                      if (dateInput) {
+                        dateInput.addEventListener('change', () => saveAddExecutionDraft(addExecutionForm));
+                        dateInput.addEventListener('input', () => saveAddExecutionDraft(addExecutionForm));
+                      }
                       addExecutionForm.addEventListener('submit', () => {
+                        saveAddExecutionDraft(addExecutionForm);
                         const hiddenWeight = addExecutionForm.querySelector('.js-weight-hidden');
                         if (hiddenWeight) {
                           hiddenWeight.value = computeWeight();
