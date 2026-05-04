@@ -110,36 +110,46 @@ final class WebUiRenderer {
         String filterControls = renderFilterControls(lifts, search);
         String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType, prefill);
         String queryControls = renderQueryControls(lifts, queryLift);
+        String addExecutionTabClass = "add-execution".equals(activeTab) ? "tab is-active" : "tab";
+        String wavesTabClass = "waves".equals(activeTab) ? "tab is-active" : "tab";
+        String executionsTabClass = "executions".equals(activeTab) ? "tab is-active" : "tab";
+        String queryTabClass = "query".equals(activeTab) ? "tab is-active" : "tab";
+        String lastWeekTabClass = "last-week".equals(activeTab) ? "tab is-active" : "tab";
+        String addExecutionPanelClass = "add-execution".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+        String executionsPanelClass = "executions".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+        String wavesPanelClass = "waves".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+        String queryPanelClass = "query".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+        String lastWeekPanelClass = "last-week".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
 
         return """
                 <div class='tabbed-ui' data-initial-tab='%s'>
                   <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
-                    <button class='tab is-active' role='tab' type='button' data-tab='add-execution' aria-selected='true'>Add Execution</button>
-                    <button class='tab' role='tab' type='button' data-tab='waves' aria-selected='false'>Workout Waves</button>
-                    <button class='tab' role='tab' type='button' data-tab='executions' aria-selected='false'>Executions</button>
-                    <button class='tab' role='tab' type='button' data-tab='query' aria-selected='false'>Query</button>
-                    <button class='tab' role='tab' type='button' data-tab='last-week' aria-selected='false'>Last Week</button>
+                    <button class='%s' role='tab' type='button' data-tab='add-execution' aria-selected='%s'>Add Execution</button>
+                    <button class='%s' role='tab' type='button' data-tab='waves' aria-selected='%s'>Workout Waves</button>
+                    <button class='%s' role='tab' type='button' data-tab='executions' aria-selected='%s'>Executions</button>
+                    <button class='%s' role='tab' type='button' data-tab='query' aria-selected='%s'>Query</button>
+                    <button class='%s' role='tab' type='button' data-tab='last-week' aria-selected='%s'>Last Week</button>
                   </div>
-                  <section class='tab-panel is-active' data-panel='add-execution' role='tabpanel'>
+                  <section class='%s' data-panel='add-execution' role='tabpanel'>
                     <h2>Add Execution</h2>
                     %s
                     %s
                   </section>
-                  <section class='tab-panel' data-panel='executions' role='tabpanel'>
+                  <section class='%s' data-panel='executions' role='tabpanel'>
                     %s
                     %s
                   </section>
-                  <section class='tab-panel' data-panel='waves' role='tabpanel'>
+                  <section class='%s' data-panel='waves' role='tabpanel'>
                     <h2>Workout Waves</h2>
                     %s
                   </section>
-                  <section class='tab-panel' data-panel='query' role='tabpanel'>
+                  <section class='%s' data-panel='query' role='tabpanel'>
                     <h2>Query</h2>
                     %s
                     %s
                     %s
                   </section>
-                  <section class='tab-panel' data-panel='last-week' role='tabpanel'>
+                  <section class='%s' data-panel='last-week' role='tabpanel'>
                     <h2>Last Week</h2>
                     <p class='muted'>This tab shows a 7-day window. Use Previous Week or adjust the dates to view older history.</p>
                     <form method='get' action='/' class='query-form compact-actions'>
@@ -830,14 +840,29 @@ final class WebUiRenderer {
                 </script>
                 """.formatted(
                 WebHtml.escapeHtml(activeTab),
+                addExecutionTabClass,
+                "add-execution".equals(activeTab) ? "true" : "false",
+                wavesTabClass,
+                "waves".equals(activeTab) ? "true" : "false",
+                executionsTabClass,
+                "executions".equals(activeTab) ? "true" : "false",
+                queryTabClass,
+                "query".equals(activeTab) ? "true" : "false",
+                lastWeekTabClass,
+                "last-week".equals(activeTab) ? "true" : "false",
+                addExecutionPanelClass,
                 filterControls,
                 addExecutionContent,
+                executionsPanelClass,
                 filterControls,
                 executionContent,
+                wavesPanelClass,
                 waveContent,
+                queryPanelClass,
                 filterControls,
                 queryControls,
                 queryContent,
+                lastWeekPanelClass,
                 WebHtml.escapeHtml(lastWeekStart.toString()),
                 WebHtml.escapeHtml(lastWeekEnd.toString()),
                 filterControls,
