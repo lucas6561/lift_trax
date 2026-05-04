@@ -194,6 +194,31 @@ final class WebUiRenderer {
 
                     const FILTER_STORAGE_PREFIX = 'lifttrax.filters.';
 
+                    function syncWaveTypeVisibility() {
+                      const waveType = document.querySelector("select[name='waveType']");
+                      const conjugateSections = document.querySelectorAll('.js-conjugate-only');
+                      if (!waveType || conjugateSections.length === 0) {
+                        return;
+                      }
+                      const showConjugate = waveType.value === 'conjugate';
+                      conjugateSections.forEach((section) => {
+                        section.classList.toggle('is-hidden', !showConjugate);
+                      });
+                    }
+
+                    const waveTypeSelect = document.querySelector("select[name='waveType']");
+                    if (waveTypeSelect) {
+                      waveTypeSelect.addEventListener('change', syncWaveTypeVisibility);
+                      syncWaveTypeVisibility();
+                    }
+
+                    if (window.location.search.includes('waveGenerate=true')) {
+                      const sanitized = new URL(window.location.href);
+                      sanitized.search = '';
+                      sanitized.searchParams.set('tab', 'waves');
+                      window.history.replaceState({}, '', sanitized.toString());
+                    }
+
                     function savePanelFilters(panel) {
                       const nameFilter = panel.querySelector('.js-filter-name');
                       const regionFilter = panel.querySelector('.js-filter-region');
@@ -959,12 +984,6 @@ final class WebUiRenderer {
                 .append(">Hypertrophy</option>")
                 .append("</select></label>");
 
-        if (!"conjugate".equals(waveType)) {
-            html.append("<div class='stacked-row'><button type='submit'>Generate Wave</button></div>");
-            html.append("</form>");
-            return html.toString();
-        }
-
         try {
             List<Lift> squats = db.liftsByType(LiftType.SQUAT);
             List<Lift> deadlifts = db.liftsByType(LiftType.DEADLIFT);
@@ -977,6 +996,7 @@ final class WebUiRenderer {
             List<MaxEffortPlan.DeloadLowerLifts> lowerDeloadDefaults = MaxEffortPlan.deriveLowerDeloadFromPlan(lowerDefaults);
             List<MaxEffortPlan.DeloadUpperLifts> upperDeloadDefaults = MaxEffortPlan.deriveUpperDeloadFromPlan(upperDefaults);
 
+            html.append("<div class='js-conjugate-only'>");
             html.append("<h3>Max Effort Rotation</h3>");
 
             for (int i = 0; i < weeks; i++) {
@@ -1041,6 +1061,7 @@ final class WebUiRenderer {
                     .append("<label>Bench AR ").append(renderArSelect("deBenchAr", values.get("deBenchAr"))).append("</label>")
                     .append("<label>Overhead AR ").append(renderArSelect("deOverheadAr", values.get("deOverheadAr"))).append("</label>")
                     .append("</div>");
+            html.append("</div>");
         } catch (Exception e) {
             html.append("<p class='status error'>Failed to load conjugate planner options: ")
                     .append(WebHtml.escapeHtml(e.getMessage()))
