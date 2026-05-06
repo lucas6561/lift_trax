@@ -117,6 +117,34 @@ class ConjugateWorkoutBuilderTest {
         assertEquals(expected.trim(), markdown.trim());
     }
 
+    @Test
+    void circuitsAvoidDuplicateCableAndDbExercises() throws Exception {
+        FakeDb db = FakeDb.withCableAndDbCircuitData();
+        var wave = new ConjugateWorkoutBuilder(
+                new SwingMaxEffortPlanSource(),
+                new SwingDynamicLiftSource(),
+                RandomSupport.DETERMINISTIC
+        ).getWave(1, db);
+
+        for (Workout day : wave.get(0).values()) {
+            for (WorkoutLift workoutLift : day.lifts()) {
+                if (!(workoutLift.kind() instanceof WorkoutLiftKind.CircuitKind ck)) {
+                    continue;
+                }
+                long cable = ck.circuitLift().circuitLifts().stream()
+                        .map(sl -> sl.lift().name().toLowerCase())
+                        .filter(name -> name.contains("cable"))
+                        .count();
+                long dbCount = ck.circuitLift().circuitLifts().stream()
+                        .map(sl -> sl.lift().name().toLowerCase())
+                        .filter(name -> name.contains("db"))
+                        .count();
+                assertTrue(cable <= 1);
+                assertTrue(dbCount <= 1);
+            }
+        }
+    }
+
     static class FakeDb implements Database {
         private final List<Lift> lifts = new ArrayList<>();
         private final Map<String, List<LiftExecution>> executions = new HashMap<>();
@@ -180,6 +208,29 @@ class ConjugateWorkoutBuilderTest {
             db.add("Plank", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.CORE));
             db.add("Delt Giant Set", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP));
             db.add("Upper Compound Accessory", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.LAT, Muscle.TRICEP, Muscle.BICEP));
+
+            return db;
+        }
+
+        static FakeDb withCableAndDbCircuitData() {
+            FakeDb db = withSeedData();
+
+            db.add("Cable Hamstring Curl", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.HAMSTRING));
+            db.add("Machine Hamstring Curl", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.HAMSTRING));
+            db.add("Cable Leg Extension", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.QUAD));
+            db.add("Belt Squat", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.QUAD));
+            db.add("Cable Lat Pulldown", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.LAT));
+            db.add("Chest Supported Row", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.LAT));
+            db.add("Cable Tricep Pushdown", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRICEP));
+            db.add("Dip", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRICEP));
+            db.add("DB Rear Delt Fly", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.REAR_DELT));
+            db.add("Face Pull", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.REAR_DELT));
+            db.add("DB Lateral Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.SHOULDER));
+            db.add("Machine Lateral Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.SHOULDER));
+            db.add("DB Front Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.FRONT_DELT));
+            db.add("Plate Front Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.FRONT_DELT));
+            db.add("DB Shrug 2", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRAP));
+            db.add("Barbell Shrug", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRAP));
 
             return db;
         }

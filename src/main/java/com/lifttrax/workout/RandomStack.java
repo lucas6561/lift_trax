@@ -42,6 +42,16 @@ public class RandomStack<T> {
         return items.get(idx);
     }
 
+    public void putBack(T item) {
+        int idx = items.indexOf(item);
+        if (idx < 0) {
+            throw new IllegalArgumentException("item does not belong to this stack");
+        }
+        if (!order.contains(idx)) {
+            order.add(0, idx);
+        }
+    }
+
     private void reshuffle() {
         order.clear();
         for (int i = 0; i < items.size(); i++) {

@@ -9,6 +9,7 @@ import com.lifttrax.models.SetMetric;
 
 import java.time.DayOfWeek;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -62,13 +63,51 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     }
 
     private static WorkoutLift accessoryCircuit(AccessoryStacks accessories, Muscle m1, Muscle m2, Muscle m3) {
-        List<SingleLift> lifts = List.of(accessories.single(m1), accessories.single(m2), accessories.single(m3));
+        List<SingleLift> lifts = constrainedCircuit(accessories, List.of(m1, m2, m3), false);
         return new WorkoutLift("Accessory Circuit", new WorkoutLiftKind.CircuitKind(new CircuitLift(lifts, 3, false)));
     }
 
     private static WorkoutLift deloadCircuit(AccessoryStacks accessories, Muscle m1, Muscle m2, Muscle m3) {
-        List<SingleLift> lifts = List.of(markDeload(accessories.single(m1)), markDeload(accessories.single(m2)), markDeload(accessories.single(m3)));
+        List<SingleLift> lifts = constrainedCircuit(accessories, List.of(m1, m2, m3), true);
         return new WorkoutLift("Deload Circuit", new WorkoutLiftKind.CircuitKind(new CircuitLift(lifts, 2, false)));
+    }
+
+    private static List<SingleLift> constrainedCircuit(AccessoryStacks accessories, List<Muscle> muscles, boolean deload) {
+        List<Lift> selected = new ArrayList<>();
+        int cableCount = 0;
+        int dbCount = 0;
+
+        for (Muscle muscle : muscles) {
+            List<Lift> rejected = new ArrayList<>();
+            Lift pick;
+            while (true) {
+                pick = accessories.pop(muscle);
+                String name = pick.name().toLowerCase();
+                boolean isCable = name.contains("cable");
+                boolean isDb = name.contains("db");
+                if ((isCable && cableCount > 0) || (isDb && dbCount > 0)) {
+                    rejected.add(pick);
+                    if (rejected.size() > 25) {
+                        throw new IllegalArgumentException("unable to build circuit without duplicate cable/db exercises");
+                    }
+                    continue;
+                }
+                if (isCable) cableCount++;
+                if (isDb) dbCount++;
+                break;
+            }
+            for (Lift lift : rejected) {
+                accessories.putBack(muscle, lift);
+            }
+            selected.add(pick);
+        }
+
+        List<SingleLift> lifts = new ArrayList<>();
+        for (Lift lift : selected) {
+            SingleLift single = new SingleLift(lift, new SetMetric.RepsRange(8, 12), null, null, null, false);
+            lifts.add(deload ? markDeload(single) : single);
+        }
+        return Collections.unmodifiableList(lifts);
     }
 
     private static SingleLift markDeload(SingleLift lift) {

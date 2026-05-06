@@ -43,6 +43,11 @@ public class AccessoryStacks {
     }
 
     public SingleLift single(Muscle muscle) {
+        Lift lift = pop(muscle);
+        return asSingleLift(lift);
+    }
+
+    Lift pop(Muscle muscle) {
         RandomStack<Lift> stack = stacks.get(muscle);
         if (stack == null) {
             throw new IllegalArgumentException("not enough accessory lifts available for " + muscle);
@@ -51,6 +56,18 @@ public class AccessoryStacks {
         if (lift == null) {
             throw new IllegalArgumentException("not enough accessory lifts available for " + muscle);
         }
+        return lift;
+    }
+
+    void putBack(Muscle muscle, Lift lift) {
+        RandomStack<Lift> stack = stacks.get(muscle);
+        if (stack == null) {
+            throw new IllegalArgumentException("not enough accessory lifts available for " + muscle);
+        }
+        stack.putBack(lift);
+    }
+
+    private static SingleLift asSingleLift(Lift lift) {
         return new SingleLift(lift, new SetMetric.RepsRange(8, 12), null, null, null, false);
     }
 
