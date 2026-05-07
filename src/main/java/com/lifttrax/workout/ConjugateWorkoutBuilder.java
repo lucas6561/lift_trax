@@ -84,7 +84,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
                 pick = accessories.pop(muscle);
                 String name = pick.name().toLowerCase();
                 boolean isCable = name.contains("cable");
-                boolean isDb = name.contains("db");
+                boolean isDb = isDbLike(name);
                 if ((isCable && cableCount > 0) || (isDb && dbCount > 0)) {
                     rejected.add(pick);
                     if (rejected.size() > 25) {
@@ -108,6 +108,10 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             lifts.add(deload ? markDeload(single) : single);
         }
         return Collections.unmodifiableList(lifts);
+    }
+
+    private static boolean isDbLike(String name) {
+        return name.contains("db") || name.contains("dumbbell") || name.contains("dumb bell");
     }
 
     private static SingleLift markDeload(SingleLift lift) {

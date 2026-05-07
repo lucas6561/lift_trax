@@ -137,7 +137,7 @@ class ConjugateWorkoutBuilderTest {
                         .count();
                 long dbCount = ck.circuitLift().circuitLifts().stream()
                         .map(sl -> sl.lift().name().toLowerCase())
-                        .filter(name -> name.contains("db"))
+                        .filter(name -> name.contains("db") || name.contains("dumbbell") || name.contains("dumb bell"))
                         .count();
                 assertTrue(cable <= 1);
                 assertTrue(dbCount <= 1);
@@ -225,9 +225,9 @@ class ConjugateWorkoutBuilderTest {
             db.add("Dip", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRICEP));
             db.add("DB Rear Delt Fly", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.REAR_DELT));
             db.add("Face Pull", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.REAR_DELT));
-            db.add("DB Lateral Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.SHOULDER));
+            db.add("Dumbbell Lateral Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.SHOULDER));
             db.add("Machine Lateral Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.SHOULDER));
-            db.add("DB Front Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.FRONT_DELT));
+            db.add("Dumb Bell Front Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.FRONT_DELT));
             db.add("Plate Front Raise", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.FRONT_DELT));
             db.add("DB Shrug 2", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRAP));
             db.add("Barbell Shrug", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRAP));
