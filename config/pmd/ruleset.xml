@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ruleset name="lift-trax-static-analysis"
+<ruleset name="lift-trax-strict-analysis"
          xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="
@@ -7,8 +7,8 @@
             https://pmd.github.io/pmd-7.0.0/ruleset_xml_schema.xsd">
 
     <description>
-        PMD rules focused on correctness, security, and maintainability.
-        Avoids low-value stylistic churn.
+        Strict PMD rules focused on correctness, maintainability,
+        readability, and preventing large/fragile code structures.
     </description>
 
     <rule ref="category/java/errorprone.xml">
@@ -30,18 +30,16 @@
     <rule ref="category/java/codestyle.xml/ClassNamingConventions"/>
     <rule ref="category/java/codestyle.xml/MethodNamingConventions"/>
     <rule ref="category/java/codestyle.xml/FieldNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/LocalVariableNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/FormalParameterNamingConventions"/>
     <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryModifier"/>
+    <rule ref="category/java/codestyle.xml/UselessParentheses"/>
 
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
-            <property name="classReportLevel" value="250"/>
             <property name="methodReportLevel" value="30"/>
-        </properties>
-    </rule>
-    <!-- PMD 7 removed ExcessiveMethodLength from design rules; using closest size-oriented surrogate. -->
-    <rule ref="category/java/design.xml/ExcessiveParameterList">
-        <properties>
-            <property name="minimum" value="15"/>
+            <property name="classReportLevel" value="250"/>
         </properties>
     </rule>
 
@@ -50,5 +48,26 @@
             <property name="reportLevel" value="100000000"/>
         </properties>
     </rule>
+
+    <rule ref="category/java/design.xml/ExcessiveParameterList">
+        <properties>
+            <property name="minimum" value="15"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/TooManyFields">
+        <properties>
+            <property name="maxfields" value="50"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/ExcessivePublicCount">
+        <properties>
+            <property name="minimum" value="40"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/SwitchDensity"/>
+    <rule ref="category/java/design.xml/SingularField"/>
 
 </ruleset>
