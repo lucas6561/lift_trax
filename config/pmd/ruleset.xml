@@ -11,30 +11,37 @@
         Avoids low-value stylistic churn.
     </description>
 
-    <!-- Real bug prevention -->
     <rule ref="category/java/errorprone.xml">
-        <!-- Too noisy / stylistic -->
         <exclude name="AvoidDuplicateLiterals"/>
         <exclude name="AvoidLiteralsInIfCondition"/>
         <exclude name="LiteralsFirstInComparisons"/>
     </rule>
 
-    <!-- Security checks -->
     <rule ref="category/java/security.xml">
-        <!-- Often noisy with frameworks/reflection -->
         <exclude name="AvoidAccessibilityAlteration"/>
     </rule>
 
-    <!-- Practical best practices -->
     <rule ref="category/java/bestpractices.xml">
-        <!-- Logging migration can happen separately -->
         <exclude name="SystemPrintln"/>
-
-        <!-- Low signal -->
         <exclude name="ImplicitFunctionalInterface"/>
-
-        <!-- Often legitimate domain naming -->
         <exclude name="AvoidFieldNameMatchingMethodName"/>
+    </rule>
+
+    <rule ref="category/java/design.xml/CyclomaticComplexity">
+        <properties>
+            <property name="classReportLevel" value="250"/>
+            <property name="methodReportLevel" value="30"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/NPathComplexity">
+        <properties>
+            <property name="reportLevel" value="100000000"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/ExcessiveParameterList">
+        <properties>
+            <property name="minimum" value="15"/>
+        </properties>
     </rule>
 
 </ruleset>
