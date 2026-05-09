@@ -7,7 +7,6 @@ import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 
 import java.time.DayOfWeek;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

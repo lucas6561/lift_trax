@@ -27,20 +27,27 @@
         <exclude name="AvoidFieldNameMatchingMethodName"/>
     </rule>
 
+    <rule ref="category/java/codestyle.xml/ClassNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/MethodNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/FieldNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
             <property name="classReportLevel" value="250"/>
             <property name="methodReportLevel" value="30"/>
         </properties>
     </rule>
-    <rule ref="category/java/design.xml/NPathComplexity">
-        <properties>
-            <property name="reportLevel" value="100000000"/>
-        </properties>
-    </rule>
+    <!-- PMD 7 removed ExcessiveMethodLength from design rules; using closest size-oriented surrogate. -->
     <rule ref="category/java/design.xml/ExcessiveParameterList">
         <properties>
             <property name="minimum" value="15"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/NPathComplexity">
+        <properties>
+            <property name="reportLevel" value="100000000"/>
         </properties>
     </rule>
 
