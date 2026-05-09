@@ -7,7 +7,6 @@ import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 
 import java.time.DayOfWeek;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -242,7 +241,7 @@ public final class WaveMarkdownWriter {
             }
             for (ExecutionSet set : exec.sets()) {
                 if (set.metric() instanceof SetMetric.Reps reps && reps.reps() == 1
-                        && set.weight() != null && !set.weight().equalsIgnoreCase("none")) {
+                        && set.weight() != null && !"none".equalsIgnoreCase(set.weight())) {
                     return set.weight();
                 }
             }
@@ -251,7 +250,7 @@ public final class WaveMarkdownWriter {
     }
 
     private static String title(DayOfWeek day) {
-        return day.name().charAt(0) + day.name().substring(1).toLowerCase();
+        return day.name().charAt(0) + day.name().substring(1).toLowerCase(java.util.Locale.ROOT);
     }
 
     private static boolean equal(Object a, Object b) {

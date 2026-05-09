@@ -44,7 +44,7 @@ public class DumpDatabaseCli {
         }
     }
 
-    private static CliOptions parseArgs(String[] args) {
+    private static CliOptions parseArgs(String... args) {
         boolean liftsOnly = false;
         String dbPath = null;
         for (String arg : args) {

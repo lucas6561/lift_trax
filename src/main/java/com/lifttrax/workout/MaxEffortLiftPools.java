@@ -13,8 +13,8 @@ import java.util.Random;
  */
 
 public class MaxEffortLiftPools {
-    private final List<Lift> lowerWeeks;
-    private final List<Lift> upperWeeks;
+        private final List<Lift> lowerWeekLifts;
+    private final List<Lift> upperWeekLifts;
 
     public MaxEffortLiftPools(int numWeeks, Database db) throws Exception {
         this(numWeeks, db, RandomSupport.DEFAULT);
@@ -42,8 +42,8 @@ public class MaxEffortLiftPools {
         randomizer.shuffle(benches, random);
         randomizer.shuffle(overheads, random);
 
-        lowerWeeks = new ArrayList<>(numWeeks);
-        upperWeeks = new ArrayList<>(numWeeks);
+        lowerWeekLifts = new ArrayList<>(numWeeks);
+        upperWeekLifts = new ArrayList<>(numWeeks);
 
         int squatIdx = 0;
         int deadliftIdx = 0;
@@ -52,20 +52,20 @@ public class MaxEffortLiftPools {
 
         for (int i = 0; i < numWeeks; i++) {
             if (i % 2 == 0) {
-                lowerWeeks.add(squats.get(squatIdx++));
-                upperWeeks.add(benches.get(benchIdx++));
+                lowerWeekLifts.add(squats.get(squatIdx++));
+                upperWeekLifts.add(benches.get(benchIdx++));
             } else {
-                lowerWeeks.add(deadlifts.get(deadliftIdx++));
-                upperWeeks.add(overheads.get(overheadIdx++));
+                lowerWeekLifts.add(deadlifts.get(deadliftIdx++));
+                upperWeekLifts.add(overheads.get(overheadIdx++));
             }
         }
     }
 
     public List<Lift> lowerWeeks() {
-        return List.copyOf(lowerWeeks);
+        return List.copyOf(lowerWeekLifts);
     }
 
     public List<Lift> upperWeeks() {
-        return List.copyOf(upperWeeks);
+        return List.copyOf(upperWeekLifts);
     }
 }

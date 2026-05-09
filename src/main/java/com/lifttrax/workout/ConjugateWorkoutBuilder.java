@@ -79,22 +79,13 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
 
         for (Muscle muscle : muscles) {
             List<Lift> rejected = new ArrayList<>();
-            Lift pick;
-            while (true) {
-                pick = accessories.pop(muscle);
-                String name = pick.name().toLowerCase();
-                boolean isCable = name.contains("cable");
-                boolean isDb = isDbLike(name);
-                if ((isCable && cableCount > 0) || (isDb && dbCount > 0)) {
-                    rejected.add(pick);
-                    if (rejected.size() > 25) {
-                        throw new IllegalArgumentException("unable to build circuit without duplicate cable/db exercises");
-                    }
-                    continue;
-                }
-                if (isCable) cableCount++;
-                if (isDb) dbCount++;
-                break;
+            Lift pick = nextValidCircuitLift(accessories, muscle, rejected, cableCount, dbCount);
+            String name = pick.name().toLowerCase(java.util.Locale.ROOT);
+            if (name.contains("cable")) {
+                cableCount++;
+            }
+            if (isDbLike(name)) {
+                dbCount++;
             }
             for (Lift lift : rejected) {
                 accessories.putBack(muscle, lift);
@@ -108,6 +99,23 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
             lifts.add(deload ? markDeload(single) : single);
         }
         return Collections.unmodifiableList(lifts);
+    }
+
+
+    private static Lift nextValidCircuitLift(AccessoryStacks accessories, Muscle muscle, List<Lift> rejected, int cableCount, int dbCount) {
+        while (true) {
+            Lift pick = accessories.pop(muscle);
+            String name = pick.name().toLowerCase(java.util.Locale.ROOT);
+            boolean duplicateCable = name.contains("cable") && cableCount > 0;
+            boolean duplicateDb = isDbLike(name) && dbCount > 0;
+            if (!duplicateCable && !duplicateDb) {
+                return pick;
+            }
+            rejected.add(pick);
+            if (rejected.size() > 25) {
+                throw new IllegalArgumentException("unable to build circuit without duplicate cable/db exercises");
+            }
+        }
     }
 
     private static boolean isDbLike(String name) {

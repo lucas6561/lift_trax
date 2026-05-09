@@ -6,7 +6,7 @@ import java.nio.file.Path;
 public final class DbPathResolver {
     private DbPathResolver() {}
 
-    public static String resolveFromArgsOrDefault(String[] args) {
+    public static String resolveFromArgsOrDefault(String... args) {
         if (args.length > 0 && !args[0].isBlank()) {
             return args[0];
         }

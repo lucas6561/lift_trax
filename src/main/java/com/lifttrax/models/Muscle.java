@@ -23,6 +23,6 @@ public enum Muscle {
     TRAP;
 
     public static Muscle fromString(String value) {
-        return Muscle.valueOf(value.toUpperCase().replace('-', '_'));
+        return Muscle.valueOf(value.toUpperCase(java.util.Locale.ROOT).replace('-', '_'));
     }
 }

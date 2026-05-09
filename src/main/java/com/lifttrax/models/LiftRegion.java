@@ -9,6 +9,6 @@ public enum LiftRegion {
     LOWER;
 
     public static LiftRegion fromString(String value) {
-        return LiftRegion.valueOf(value.toUpperCase());
+        return LiftRegion.valueOf(value.toUpperCase(java.util.Locale.ROOT));
     }
 }

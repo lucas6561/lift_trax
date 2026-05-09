@@ -38,6 +38,7 @@ import com.lifttrax.models.SetMetric;
 public class WebServerCli {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    @SuppressWarnings("PMD.CloseResource")
     public static void main(String[] args) throws Exception {
         String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
         int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
@@ -50,7 +51,11 @@ public class WebServerCli {
             }
         }));
 
-        HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+        String bindAddress = System.getProperty("lifttrax.web.bind");
+        if (bindAddress == null || bindAddress.isBlank()) {
+            bindAddress = "localhost";
+        }
+        HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
         server.createContext("/", exchange -> handleIndex(exchange, db));
         server.createContext("/lift", exchange -> handleLift(exchange, db));
         server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
@@ -136,7 +141,7 @@ public class WebServerCli {
                     query
             );
             sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
-        } catch (Throwable e) {
+        } catch (Exception e) {
             String message = e.getMessage() == null ? e.getClass().getName() : e.getClass().getName() + ": " + e.getMessage();
             sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(message) + "</pre>"));
         }
@@ -263,7 +268,7 @@ public class WebServerCli {
             }
             String body = WebUiRenderer.renderExecutionRows(db, liftName);
             sendHtml(exchange, body);
-        } catch (Throwable e) {
+        } catch (Exception e) {
             String message = e.getMessage() == null ? e.getClass().getName() : e.getClass().getName() + ": " + e.getMessage();
             sendHtml(exchange, "<div class='status error'>" + WebHtml.escapeHtml(message) + "</div>");
         }

@@ -1,6 +1,7 @@
 plugins {
     id 'application'
     id 'jacoco'
+    id 'pmd'
 }
 
 group = 'com.lifttrax'
@@ -45,6 +46,30 @@ tasks.named('test') {
 
 jacoco {
     toolVersion = '0.8.12'
+}
+
+
+pmd {
+    toolVersion = "7.13.0"
+    consoleOutput = true
+    ignoreFailures = false
+
+    // Only use our custom ruleset
+    ruleSetFiles = files("config/pmd/ruleset.xml")
+    ruleSets = []
+}
+
+tasks.withType(Pmd).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.register('staticAnalysis') {
+    group = 'verification'
+    description = 'Runs PMD static analysis with a strict threshold.'
+    dependsOn tasks.named('pmdMain')
 }
 
 def coverageIncludes = [
@@ -95,6 +120,7 @@ tasks.named('jacocoTestCoverageVerification') {
 
 tasks.named('check') {
     dependsOn tasks.named('jacocoTestCoverageVerification')
+    dependsOn tasks.named('staticAnalysis')
 }
 
 application {
@@ -106,4 +132,9 @@ tasks.register('runWeb', JavaExec) {
     description = 'Runs the embedded HTTP server with a browser-based UI.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.cli.WebServerCli'
+}
+
+
+tasks.named('pmdTest') {
+    enabled = false
 }
