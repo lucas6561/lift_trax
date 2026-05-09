@@ -59,7 +59,7 @@ public class WebConfiguredDynamicLiftSource implements DynamicLiftSource {
             return fallback;
         }
         try {
-            return AccommodatingResistance.valueOf(value.trim().toUpperCase());
+            return AccommodatingResistance.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
         } catch (Exception ignored) {
             return fallback;
         }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="lift-trax-static-analysis"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://pmd.sourceforge.net/ruleset/2.0.0
+            https://pmd.github.io/pmd-7.0.0/ruleset_xml_schema.xsd">
+
+    <description>
+        PMD rules focused on correctness, security, and maintainability.
+        Avoids low-value stylistic churn.
+    </description>
+
+    <!-- Real bug prevention -->
+    <rule ref="category/java/errorprone.xml">
+        <!-- Too noisy / stylistic -->
+        <exclude name="AvoidDuplicateLiterals"/>
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="LiteralsFirstInComparisons"/>
+    </rule>
+
+    <!-- Security checks -->
+    <rule ref="category/java/security.xml">
+        <!-- Often noisy with frameworks/reflection -->
+        <exclude name="AvoidAccessibilityAlteration"/>
+    </rule>
+
+    <!-- Practical best practices -->
+    <rule ref="category/java/bestpractices.xml">
+        <!-- Logging migration can happen separately -->
+        <exclude name="SystemPrintln"/>
+
+        <!-- Low signal -->
+        <exclude name="ImplicitFunctionalInterface"/>
+
+        <!-- Often legitimate domain naming -->
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+    </rule>
+
+</ruleset>

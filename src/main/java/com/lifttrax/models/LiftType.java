@@ -17,7 +17,7 @@ public enum LiftType {
         if (value == null || value.isBlank()) {
             return null;
         }
-        return LiftType.valueOf(value.replace(' ', '_').toUpperCase());
+        return LiftType.valueOf(value.replace(' ', '_').toUpperCase(java.util.Locale.ROOT));
     }
 
     public String toDbValue() {

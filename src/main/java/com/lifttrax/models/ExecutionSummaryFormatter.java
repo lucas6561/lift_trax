@@ -17,7 +17,7 @@ public final class ExecutionSummaryFormatter {
         }
         ExecutionSet first = execution.sets().get(0);
         String rpe = first.rpe() == null ? "" : " RPE " + first.rpe();
-        String weight = first.weight() == null || first.weight().isBlank() || first.weight().equalsIgnoreCase("none")
+        String weight = first.weight() == null || first.weight().isBlank() || "none".equalsIgnoreCase(first.weight())
                 ? ""
                 : " @ " + first.weight();
         String tags = formatTags(execution);

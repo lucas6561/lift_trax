@@ -214,7 +214,11 @@ public class SqliteDb implements Database, AutoCloseable {
         int current;
         try (PreparedStatement statement = connection.prepareStatement("PRAGMA user_version");
              ResultSet rs = statement.executeQuery()) {
-            current = rs.next() ? rs.getInt(1) : 0;
+            if (rs.next()) {
+                current = rs.getInt(1);
+            } else {
+                current = 0;
+            }
         }
         if (current != expected) {
             try (PreparedStatement statement = connection.prepareStatement("PRAGMA user_version = " + expected)) {
@@ -472,7 +476,7 @@ public class SqliteDb implements Database, AutoCloseable {
         if (weight == null) {
             return 0.0;
         }
-        String trimmed = weight.trim().toLowerCase();
+        String trimmed = weight.trim().toLowerCase(java.util.Locale.ROOT);
         if (trimmed.isEmpty() || "none".equals(trimmed)) {
             return 0.0;
         }

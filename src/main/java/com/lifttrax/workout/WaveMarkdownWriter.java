@@ -242,7 +242,7 @@ public final class WaveMarkdownWriter {
             }
             for (ExecutionSet set : exec.sets()) {
                 if (set.metric() instanceof SetMetric.Reps reps && reps.reps() == 1
-                        && set.weight() != null && !set.weight().equalsIgnoreCase("none")) {
+                        && set.weight() != null && !"none".equalsIgnoreCase(set.weight())) {
                     return set.weight();
                 }
             }
@@ -251,7 +251,7 @@ public final class WaveMarkdownWriter {
     }
 
     private static String title(DayOfWeek day) {
-        return day.name().charAt(0) + day.name().substring(1).toLowerCase();
+        return day.name().charAt(0) + day.name().substring(1).toLowerCase(java.util.Locale.ROOT);
     }
 
     private static boolean equal(Object a, Object b) {
