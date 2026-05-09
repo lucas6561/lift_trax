@@ -1,15 +1,17 @@
 package com.lifttrax.cli;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.db.SqliteDb;
+import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
-
+import com.lifttrax.models.SetMetric;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,709 +27,843 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.lifttrax.models.ExecutionSet;
-import com.lifttrax.models.SetMetric;
-
-/**
- * Core WebServerCli component used by LiftTrax.
- */
-
+/** Core WebServerCli component used by LiftTrax. */
 public class WebServerCli {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @SuppressWarnings("PMD.CloseResource")
-    public static void main(String[] args) throws Exception {
-        String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
-        int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
+  @SuppressWarnings("PMD.CloseResource")
+  public static void main(String[] args) throws Exception {
+    String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
+    int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
 
-        SqliteDb db = new SqliteDb(dbPath);
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                db.close();
-            } catch (Exception ignored) {
-            }
-        }));
+    SqliteDb db = new SqliteDb(dbPath);
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  try {
+                    db.close();
+                  } catch (Exception ignored) {
+                  }
+                }));
 
-        String bindAddress = System.getProperty("lifttrax.web.bind");
-        if (bindAddress == null || bindAddress.isBlank()) {
-            bindAddress = "localhost";
-        }
-        HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
-        server.createContext("/", exchange -> handleIndex(exchange, db));
-        server.createContext("/lift", exchange -> handleLift(exchange, db));
-        server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
-        server.createContext("/update-execution", exchange -> handleUpdateExecution(exchange, db));
-        server.createContext("/delete-execution", exchange -> handleDeleteExecution(exchange, db));
-        server.createContext("/delete-lift", exchange -> handleDeleteLift(exchange, db));
-        server.createContext("/update-lift", exchange -> handleUpdateLift(exchange, db));
-        server.createContext("/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
-        server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
-        server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
-        server.createContext("/set-lift-enabled", exchange -> handleSetLiftEnabled(exchange, db));
-        server.setExecutor(null);
-        server.start();
+    String bindAddress = System.getProperty("lifttrax.web.bind");
+    if (bindAddress == null || bindAddress.isBlank()) {
+      bindAddress = "localhost";
+    }
+    HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
+    server.createContext("/", exchange -> handleIndex(exchange, db));
+    server.createContext("/lift", exchange -> handleLift(exchange, db));
+    server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
+    server.createContext("/update-execution", exchange -> handleUpdateExecution(exchange, db));
+    server.createContext("/delete-execution", exchange -> handleDeleteExecution(exchange, db));
+    server.createContext("/delete-lift", exchange -> handleDeleteLift(exchange, db));
+    server.createContext("/update-lift", exchange -> handleUpdateLift(exchange, db));
+    server.createContext(
+        "/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
+    server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
+    server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
+    server.createContext("/set-lift-enabled", exchange -> handleSetLiftEnabled(exchange, db));
+    server.setExecutor(null);
+    server.start();
 
-        System.out.println("LiftTrax web UI started.");
-        System.out.printf(Locale.ROOT, "Open http://localhost:%d or http://<your-ip>:%d from any device on your network.%n", port, port);
+    System.out.println("LiftTrax web UI started.");
+    System.out.printf(
+        Locale.ROOT,
+        "Open http://localhost:%d or http://<your-ip>:%d from any device on your network.%n",
+        port,
+        port);
+  }
+
+  private static void handleIndex(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static void handleIndex(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
+    try {
+      Map<String, String> query = parseQuery(exchange.getRequestURI());
+      String search = query.getOrDefault("q", "").trim().toLowerCase(Locale.ROOT);
+      String queryLift = query.getOrDefault("queryLift", "").trim();
+      String activeTab = query.getOrDefault("tab", "add-execution").trim();
+      String statusMessage = query.getOrDefault("status", "").trim();
+      String statusType = query.getOrDefault("statusType", "").trim();
+      int waveWeeks = parseBoundedInt(query.get("waveWeeks"), 7, 1, 24);
+      LocalDate today = LocalDate.now();
+      LocalDate lastWeekStart = parseDateOrDefault(query.get("lastWeekStart"), today.minusDays(6));
+      LocalDate lastWeekEnd = parseDateOrDefault(query.get("lastWeekEnd"), today);
+      String lastWeekNav = query.getOrDefault("lastWeekNav", "").trim();
+      if (!lastWeekNav.isBlank()) {
+        switch (lastWeekNav) {
+          case "prev" -> {
+            lastWeekStart = lastWeekStart.minusDays(7);
+            lastWeekEnd = lastWeekEnd.minusDays(7);
+          }
+          case "next" -> {
+            lastWeekStart = lastWeekStart.plusDays(7);
+            lastWeekEnd = lastWeekEnd.plusDays(7);
+          }
+          case "current" -> {
+            lastWeekStart = today.minusDays(6);
+            lastWeekEnd = today;
+          }
+          case "last" -> {
+            lastWeekEnd = today.minusDays(7);
+            lastWeekStart = lastWeekEnd.minusDays(6);
+          }
+          default -> {}
         }
+      }
+      WebUiRenderer.AddExecutionPrefill prefill = parsePrefill(query);
 
-        try {
-            Map<String, String> query = parseQuery(exchange.getRequestURI());
-            String search = query.getOrDefault("q", "").trim().toLowerCase(Locale.ROOT);
-            String queryLift = query.getOrDefault("queryLift", "").trim();
-            String activeTab = query.getOrDefault("tab", "add-execution").trim();
-            String statusMessage = query.getOrDefault("status", "").trim();
-            String statusType = query.getOrDefault("statusType", "").trim();
-            int waveWeeks = parseBoundedInt(query.get("waveWeeks"), 7, 1, 24);
-            LocalDate today = LocalDate.now();
-            LocalDate lastWeekStart = parseDateOrDefault(query.get("lastWeekStart"), today.minusDays(6));
-            LocalDate lastWeekEnd = parseDateOrDefault(query.get("lastWeekEnd"), today);
-            String lastWeekNav = query.getOrDefault("lastWeekNav", "").trim();
-            if (!lastWeekNav.isBlank()) {
-                switch (lastWeekNav) {
-                    case "prev" -> {
-                        lastWeekStart = lastWeekStart.minusDays(7);
-                        lastWeekEnd = lastWeekEnd.minusDays(7);
+      List<Lift> lifts;
+      try {
+        lifts = new ArrayList<>(db.listLifts());
+        lifts.sort(Comparator.comparing(Lift::name));
+      } catch (Exception listError) {
+        lifts = List.of();
+        statusType = "error";
+        statusMessage = "No lifts table found. Initialize or provide a populated database.";
+      }
+
+      String body =
+          WebUiRenderer.renderIndexBody(
+              db,
+              lifts,
+              search,
+              queryLift,
+              activeTab,
+              statusMessage,
+              statusType,
+              prefill,
+              lastWeekStart,
+              lastWeekEnd,
+              waveWeeks,
+              query);
+      sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
+    } catch (Exception e) {
+      String message =
+          e.getMessage() == null
+              ? e.getClass().getName()
+              : e.getClass().getName() + ": " + e.getMessage();
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(message) + "</pre>"));
+    }
+  }
+
+  private static void handleAddExecution(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      String liftName = form.getOrDefault("lift", "").trim();
+      if (liftName.isBlank()) {
+        redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required");
+        return;
+      }
+
+      LocalDate date =
+          Optional.ofNullable(form.get("date"))
+              .filter(value -> !value.isBlank())
+              .map(LocalDate::parse)
+              .orElse(LocalDate.now());
+
+      int setCount = parsePositiveInt(form.getOrDefault("setCount", "1"), "Set count");
+      String weight = form.getOrDefault("weight", "").trim();
+      Float rpe = parseOptionalFloat(form.get("rpe"));
+
+      List<ExecutionSet> sets = parseDetailedSets(form.getOrDefault("detailedSets", "[]"));
+      if (sets.isEmpty()) {
+        SetMetric metric = parseMetric(form);
+        sets = new ArrayList<>();
+        for (int i = 0; i < setCount; i++) {
+          sets.add(new ExecutionSet(metric, weight, rpe));
+        }
+      }
+
+      LiftExecution execution =
+          new LiftExecution(
+              null,
+              date,
+              sets,
+              form.containsKey("warmup"),
+              form.containsKey("deload"),
+              form.getOrDefault("notes", ""));
+      db.addLiftExecution(liftName, execution);
+      StringBuilder redirectUrl =
+          new StringBuilder("/?tab=add-execution&statusType=success&status=Execution%20saved");
+      redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
+      redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(date.toString()));
+      redirectUrl.append("&prefillWarmup=").append(form.containsKey("warmup"));
+      redirectUrl.append("&prefillDeload=").append(form.containsKey("deload"));
+      redirect(exchange, redirectUrl.toString());
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          "/?tab=add-execution&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to save execution: " + e.getMessage()));
+    }
+  }
+
+  private static void handleLoadLastExecution(HttpExchange exchange, SqliteDb db)
+      throws IOException {
+    if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      Map<String, String> query = parseQuery(exchange.getRequestURI());
+      String liftName = query.getOrDefault("lift", "").trim();
+      if (liftName.isBlank()) {
+        redirect(
+            exchange,
+            "/?tab=add-execution&statusType=error&status=Lift%20is%20required%20for%20Load%20Last");
+        return;
+      }
+      LocalDate selectedDate =
+          Optional.ofNullable(query.get("date"))
+              .filter(value -> !value.isBlank())
+              .map(
+                  value -> {
+                    try {
+                      return LocalDate.parse(value);
+                    } catch (Exception ignored) {
+                      return LocalDate.now();
                     }
-                    case "next" -> {
-                        lastWeekStart = lastWeekStart.plusDays(7);
-                        lastWeekEnd = lastWeekEnd.plusDays(7);
-                    }
-                    case "current" -> {
-                        lastWeekStart = today.minusDays(6);
-                        lastWeekEnd = today;
-                    }
-                    case "last" -> {
-                        lastWeekEnd = today.minusDays(7);
-                        lastWeekStart = lastWeekEnd.minusDays(6);
-                    }
-                    default -> {
-                    }
-                }
-            }
-            WebUiRenderer.AddExecutionPrefill prefill = parsePrefill(query);
+                  })
+              .orElse(LocalDate.now());
+      boolean warmup = query.containsKey("warmup");
+      boolean deload = query.containsKey("deload");
 
-            List<Lift> lifts;
-            try {
-                lifts = new ArrayList<>(db.listLifts());
-                lifts.sort(Comparator.comparing(Lift::name));
-            } catch (Exception listError) {
-                lifts = List.of();
-                statusType = "error";
-                statusMessage = "No lifts table found. Initialize or provide a populated database.";
-            }
+      List<LiftExecution> executions = db.getExecutions(liftName);
+      LiftExecution last = selectExecutionForFlags(executions, warmup, deload);
+      if (last == null) {
+        String criteria = "warmup=" + warmup + ", deload=" + deload;
+        redirect(
+            exchange,
+            buildLoadLastNoPriorRedirect(query, liftName, selectedDate, warmup, deload, criteria));
+        return;
+      }
 
-            String body = WebUiRenderer.renderIndexBody(
-                    db,
-                    lifts,
-                    search,
-                    queryLift,
-                    activeTab,
-                    statusMessage,
-                    statusType,
-                    prefill,
-                    lastWeekStart,
-                    lastWeekEnd,
-                    waveWeeks,
-                    query
-            );
-            sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
-        } catch (Exception e) {
-            String message = e.getMessage() == null ? e.getClass().getName() : e.getClass().getName() + ": " + e.getMessage();
-            sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(message) + "</pre>"));
-        }
+      StringBuilder redirectUrl =
+          new StringBuilder(
+              "/?tab=add-execution&statusType=success&status=Loaded%20last%20execution");
+      redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
+      redirectUrl
+          .append("&prefillWeight=")
+          .append(
+              WebUiRenderer.urlEncode(
+                  last.sets().isEmpty() ? "" : safe(last.sets().get(0).weight())));
+      redirectUrl.append("&prefillSetCount=").append(last.sets().size());
+      redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(selectedDate.toString()));
+      redirectUrl.append("&prefillWarmup=").append(last.warmup());
+      redirectUrl.append("&prefillDeload=").append(last.deload());
+      redirectUrl.append("&prefillNotes=").append(WebUiRenderer.urlEncode(safe(last.notes())));
+      if (!last.sets().isEmpty()) {
+        ExecutionSet first = last.sets().get(0);
+        redirectUrl
+            .append("&prefillRpe=")
+            .append(
+                WebUiRenderer.urlEncode(
+                    first.rpe() == null ? "" : String.format(Locale.ROOT, "%s", first.rpe())));
+        applyMetricPrefill(redirectUrl, first.metric());
+      }
+
+      redirect(exchange, redirectUrl.toString());
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          "/?tab=add-execution&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to load execution: " + e.getMessage()));
+    }
+  }
+
+  private static void handleExecutionsFragment(HttpExchange exchange, SqliteDb db)
+      throws IOException {
+    if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static void handleAddExecution(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
+    try {
+      Map<String, String> query = parseQuery(exchange.getRequestURI());
+      String liftName = query.getOrDefault("lift", "").trim();
+      if (liftName.isBlank()) {
+        sendText(exchange, 400, "Missing lift");
+        return;
+      }
+      String body = WebUiRenderer.renderExecutionRows(db, liftName);
+      sendHtml(exchange, body);
+    } catch (Exception e) {
+      String message =
+          e.getMessage() == null
+              ? e.getClass().getName()
+              : e.getClass().getName() + ": " + e.getMessage();
+      sendHtml(exchange, "<div class='status error'>" + WebHtml.escapeHtml(message) + "</div>");
+    }
+  }
 
-        try {
-            Map<String, String> form = parseForm(exchange.getRequestBody());
-            String liftName = form.getOrDefault("lift", "").trim();
-            if (liftName.isBlank()) {
-                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required");
-                return;
-            }
-
-            LocalDate date = Optional.ofNullable(form.get("date"))
-                    .filter(value -> !value.isBlank())
-                    .map(LocalDate::parse)
-                    .orElse(LocalDate.now());
-
-            int setCount = parsePositiveInt(form.getOrDefault("setCount", "1"), "Set count");
-            String weight = form.getOrDefault("weight", "").trim();
-            Float rpe = parseOptionalFloat(form.get("rpe"));
-
-            List<ExecutionSet> sets = parseDetailedSets(form.getOrDefault("detailedSets", "[]"));
-            if (sets.isEmpty()) {
-                SetMetric metric = parseMetric(form);
-                sets = new ArrayList<>();
-                for (int i = 0; i < setCount; i++) {
-                    sets.add(new ExecutionSet(metric, weight, rpe));
-                }
-            }
-
-            LiftExecution execution = new LiftExecution(
-                    null,
-                    date,
-                    sets,
-                    form.containsKey("warmup"),
-                    form.containsKey("deload"),
-                    form.getOrDefault("notes", "")
-            );
-            db.addLiftExecution(liftName, execution);
-            StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=success&status=Execution%20saved");
-            redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
-            redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(date.toString()));
-            redirectUrl.append("&prefillWarmup=").append(form.containsKey("warmup"));
-            redirectUrl.append("&prefillDeload=").append(form.containsKey("deload"));
-            redirect(exchange, redirectUrl.toString());
-        } catch (Exception e) {
-            redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to save execution: " + e.getMessage()));
-        }
+  private static void handleUpdateExecution(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static void handleLoadLastExecution(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
+    String redirectBase = "/?tab=executions";
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      redirectBase = buildExecutionRedirectBase(form);
+      String liftName = form.getOrDefault("lift", "").trim();
+      int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
+      if (liftName.isBlank()) {
+        redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
+        return;
+      }
+
+      LiftExecution existing = findExecutionById(db.getExecutions(liftName), executionId);
+      if (existing == null) {
+        redirect(
+            exchange,
+            redirectBase
+                + "&statusType=error&status="
+                + WebUiRenderer.urlEncode("Execution not found for " + liftName));
+        return;
+      }
+
+      LocalDate date =
+          Optional.ofNullable(form.get("date"))
+              .filter(value -> !value.isBlank())
+              .map(LocalDate::parse)
+              .orElse(existing.date());
+      String notes = form.getOrDefault("notes", "");
+      String detailedSetsJson = form.getOrDefault("detailedSets", "").trim();
+      List<ExecutionSet> sets = existing.sets();
+      if (!detailedSetsJson.isBlank()) {
+        List<ExecutionSet> parsed = parseDetailedSets(detailedSetsJson);
+        if (parsed.isEmpty()) {
+          throw new IllegalArgumentException(
+              "Detailed sets must be valid JSON and contain at least one set");
         }
+        sets = parsed;
+      }
 
-        try {
-            Map<String, String> query = parseQuery(exchange.getRequestURI());
-            String liftName = query.getOrDefault("lift", "").trim();
-            if (liftName.isBlank()) {
-                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required%20for%20Load%20Last");
-                return;
-            }
-            LocalDate selectedDate = Optional.ofNullable(query.get("date"))
-                    .filter(value -> !value.isBlank())
-                    .map(value -> {
-                        try {
-                            return LocalDate.parse(value);
-                        } catch (Exception ignored) {
-                            return LocalDate.now();
-                        }
-                    })
-                    .orElse(LocalDate.now());
-            boolean warmup = query.containsKey("warmup");
-            boolean deload = query.containsKey("deload");
+      LiftExecution updated =
+          new LiftExecution(
+              existing.id(),
+              date,
+              sets,
+              form.containsKey("warmup"),
+              form.containsKey("deload"),
+              notes);
+      db.updateLiftExecution(executionId, updated);
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=success&status="
+              + WebUiRenderer.urlEncode("Execution updated"));
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to update execution: " + e.getMessage()));
+    }
+  }
 
-            List<LiftExecution> executions = db.getExecutions(liftName);
-            LiftExecution last = selectExecutionForFlags(executions, warmup, deload);
-            if (last == null) {
-                String criteria = "warmup=" + warmup + ", deload=" + deload;
-                redirect(exchange, buildLoadLastNoPriorRedirect(query, liftName, selectedDate, warmup, deload, criteria));
-                return;
-            }
-
-            StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=success&status=Loaded%20last%20execution");
-            redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
-            redirectUrl.append("&prefillWeight=").append(WebUiRenderer.urlEncode(last.sets().isEmpty() ? "" : safe(last.sets().get(0).weight())));
-            redirectUrl.append("&prefillSetCount=").append(last.sets().size());
-            redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(selectedDate.toString()));
-            redirectUrl.append("&prefillWarmup=").append(last.warmup());
-            redirectUrl.append("&prefillDeload=").append(last.deload());
-            redirectUrl.append("&prefillNotes=").append(WebUiRenderer.urlEncode(safe(last.notes())));
-            if (!last.sets().isEmpty()) {
-                ExecutionSet first = last.sets().get(0);
-                redirectUrl.append("&prefillRpe=").append(WebUiRenderer.urlEncode(first.rpe() == null ? "" : String.format(Locale.ROOT, "%s", first.rpe())));
-                applyMetricPrefill(redirectUrl, first.metric());
-            }
-
-            redirect(exchange, redirectUrl.toString());
-        } catch (Exception e) {
-            redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to load execution: " + e.getMessage()));
-        }
+  private static void handleDeleteExecution(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static void handleExecutionsFragment(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
+    String redirectBase = "/?tab=executions";
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      redirectBase = buildExecutionRedirectBase(form);
+      int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
+      db.deleteLiftExecution(executionId);
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=success&status="
+              + WebUiRenderer.urlEncode("Execution deleted"));
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage()));
+    }
+  }
 
-        try {
-            Map<String, String> query = parseQuery(exchange.getRequestURI());
-            String liftName = query.getOrDefault("lift", "").trim();
-            if (liftName.isBlank()) {
-                sendText(exchange, 400, "Missing lift");
-                return;
-            }
-            String body = WebUiRenderer.renderExecutionRows(db, liftName);
-            sendHtml(exchange, body);
-        } catch (Exception e) {
-            String message = e.getMessage() == null ? e.getClass().getName() : e.getClass().getName() + ": " + e.getMessage();
-            sendHtml(exchange, "<div class='status error'>" + WebHtml.escapeHtml(message) + "</div>");
-        }
+  private static void handleDeleteLift(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static void handleUpdateExecution(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
+    String redirectBase = "/?tab=executions";
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      redirectBase = buildExecutionRedirectBase(form);
+      String lift = form.getOrDefault("lift", "").trim();
+      if (lift.isBlank()) {
+        redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
+        return;
+      }
+      db.deleteLift(lift);
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=success&status="
+              + WebUiRenderer.urlEncode("Deleted lift: " + lift));
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to delete lift: " + e.getMessage()));
+    }
+  }
 
-        String redirectBase = "/?tab=executions";
-        try {
-            Map<String, String> form = parseForm(exchange.getRequestBody());
-            redirectBase = buildExecutionRedirectBase(form);
-            String liftName = form.getOrDefault("lift", "").trim();
-            int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
-            if (liftName.isBlank()) {
-                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
-                return;
-            }
-
-            LiftExecution existing = findExecutionById(db.getExecutions(liftName), executionId);
-            if (existing == null) {
-                redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Execution not found for " + liftName));
-                return;
-            }
-
-            LocalDate date = Optional.ofNullable(form.get("date"))
-                    .filter(value -> !value.isBlank())
-                    .map(LocalDate::parse)
-                    .orElse(existing.date());
-            String notes = form.getOrDefault("notes", "");
-            String detailedSetsJson = form.getOrDefault("detailedSets", "").trim();
-            List<ExecutionSet> sets = existing.sets();
-            if (!detailedSetsJson.isBlank()) {
-                List<ExecutionSet> parsed = parseDetailedSets(detailedSetsJson);
-                if (parsed.isEmpty()) {
-                    throw new IllegalArgumentException("Detailed sets must be valid JSON and contain at least one set");
-                }
-                sets = parsed;
-            }
-
-            LiftExecution updated = new LiftExecution(
-                    existing.id(),
-                    date,
-                    sets,
-                    form.containsKey("warmup"),
-                    form.containsKey("deload"),
-                    notes
-            );
-            db.updateLiftExecution(executionId, updated);
-            redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Execution updated"));
-        } catch (Exception e) {
-            redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to update execution: " + e.getMessage()));
-        }
+  private static void handleUpdateLift(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static void handleDeleteExecution(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
+    String redirectBase = "/?tab=executions";
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      redirectBase = buildExecutionRedirectBase(form);
+      String currentName = form.getOrDefault("currentName", "").trim();
+      String newName = form.getOrDefault("name", "").trim();
+      if (currentName.isBlank() || newName.isBlank()) {
+        redirect(exchange, redirectBase + "&statusType=error&status=Lift%20name%20is%20required");
+        return;
+      }
 
-        String redirectBase = "/?tab=executions";
-        try {
-            Map<String, String> form = parseForm(exchange.getRequestBody());
-            redirectBase = buildExecutionRedirectBase(form);
-            int executionId = parsePositiveInt(form.getOrDefault("executionId", ""), "Execution ID");
-            db.deleteLiftExecution(executionId);
-            redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Execution deleted"));
-        } catch (Exception e) {
-            redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage()));
-        }
+      LiftRegion region = LiftRegion.fromString(form.getOrDefault("region", "UPPER"));
+      LiftType main = LiftType.fromDbValue(form.getOrDefault("main", "none"));
+      List<Muscle> muscles = parseMuscles(form.get("muscles"));
+      String notes = form.getOrDefault("notes", "");
+
+      db.updateLift(currentName, newName, region, main, muscles, notes);
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=success&status="
+              + WebUiRenderer.urlEncode("Updated lift: " + newName));
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to update lift: " + e.getMessage()));
+    }
+  }
+
+  private static String buildExecutionRedirectBase(Map<String, String> form) {
+    String tab = form.getOrDefault("tab", "executions").trim();
+    StringBuilder redirectBase = new StringBuilder("/?tab=");
+    redirectBase.append(WebUiRenderer.urlEncode(tab.isBlank() ? "executions" : tab));
+    String lastWeekStart = form.getOrDefault("lastWeekStart", "").trim();
+    String lastWeekEnd = form.getOrDefault("lastWeekEnd", "").trim();
+    if (!lastWeekStart.isBlank()) {
+      redirectBase.append("&lastWeekStart=").append(WebUiRenderer.urlEncode(lastWeekStart));
+    }
+    if (!lastWeekEnd.isBlank()) {
+      redirectBase.append("&lastWeekEnd=").append(WebUiRenderer.urlEncode(lastWeekEnd));
+    }
+    return redirectBase.toString();
+  }
+
+  private static void handleAddLift(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static void handleDeleteLift(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      String name = form.getOrDefault("name", "").trim();
+      if (name.isBlank()) {
+        redirect(
+            exchange, "/?tab=add-execution&statusType=error&status=Lift%20name%20is%20required");
+        return;
+      }
 
-        String redirectBase = "/?tab=executions";
-        try {
-            Map<String, String> form = parseForm(exchange.getRequestBody());
-            redirectBase = buildExecutionRedirectBase(form);
-            String lift = form.getOrDefault("lift", "").trim();
-            if (lift.isBlank()) {
-                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
-                return;
-            }
-            db.deleteLift(lift);
-            redirect(exchange, redirectBase + "&statusType=success&status=" + WebUiRenderer.urlEncode("Deleted lift: " + lift));
-        } catch (Exception e) {
-            redirect(exchange, redirectBase + "&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to delete lift: " + e.getMessage()));
-        }
+      LiftRegion region = LiftRegion.fromString(form.getOrDefault("region", "UPPER"));
+      LiftType main = LiftType.fromDbValue(form.getOrDefault("main", "none"));
+      List<Muscle> muscles = parseMuscles(form.get("muscles"));
+      String notes = form.getOrDefault("notes", "");
+
+      db.addLift(name, region, main, muscles, notes);
+      redirect(
+          exchange,
+          "/?tab=add-execution&statusType=success&status="
+              + WebUiRenderer.urlEncode("Created lift: " + name)
+              + "&prefillLift="
+              + WebUiRenderer.urlEncode(name));
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          "/?tab=add-execution&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to create lift: " + e.getMessage()));
     }
+  }
 
-    private static void handleUpdateLift(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
-
-        String redirectBase = "/?tab=executions";
-        try {
-            Map<String, String> form = parseForm(exchange.getRequestBody());
-            redirectBase = buildExecutionRedirectBase(form);
-            String currentName = form.getOrDefault("currentName", "").trim();
-            String newName = form.getOrDefault("name", "").trim();
-            if (currentName.isBlank() || newName.isBlank()) {
-                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20name%20is%20required");
-                return;
-            }
-
-            LiftRegion region = LiftRegion.fromString(form.getOrDefault("region", "UPPER"));
-            LiftType main = LiftType.fromDbValue(form.getOrDefault("main", "none"));
-            List<Muscle> muscles = parseMuscles(form.get("muscles"));
-            String notes = form.getOrDefault("notes", "");
-
-            db.updateLift(currentName, newName, region, main, muscles, notes);
-            redirect(exchange, redirectBase + "&statusType=success&status="
-                    + WebUiRenderer.urlEncode("Updated lift: " + newName));
-        } catch (Exception e) {
-            redirect(exchange, redirectBase + "&statusType=error&status="
-                    + WebUiRenderer.urlEncode("Failed to update lift: " + e.getMessage()));
-        }
+  private static void handleSetLiftEnabled(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
-
-    private static String buildExecutionRedirectBase(Map<String, String> form) {
-        String tab = form.getOrDefault("tab", "executions").trim();
-        StringBuilder redirectBase = new StringBuilder("/?tab=");
-        redirectBase.append(WebUiRenderer.urlEncode(tab.isBlank() ? "executions" : tab));
-        String lastWeekStart = form.getOrDefault("lastWeekStart", "").trim();
-        String lastWeekEnd = form.getOrDefault("lastWeekEnd", "").trim();
-        if (!lastWeekStart.isBlank()) {
-            redirectBase.append("&lastWeekStart=").append(WebUiRenderer.urlEncode(lastWeekStart));
-        }
-        if (!lastWeekEnd.isBlank()) {
-            redirectBase.append("&lastWeekEnd=").append(WebUiRenderer.urlEncode(lastWeekEnd));
-        }
-        return redirectBase.toString();
+    String redirectBase = "/?tab=executions";
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      redirectBase = buildExecutionRedirectBase(form);
+      String lift = form.getOrDefault("lift", "").trim();
+      if (lift.isBlank()) {
+        redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
+        return;
+      }
+      boolean enabled = "1".equals(form.getOrDefault("enabled", "1"));
+      db.setLiftEnabled(lift, enabled);
+      String status = enabled ? "Enabled" : "Disabled";
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=success&status="
+              + WebUiRenderer.urlEncode(status + " lift: " + lift));
+    } catch (Exception e) {
+      redirect(
+          exchange,
+          redirectBase
+              + "&statusType=error&status="
+              + WebUiRenderer.urlEncode("Failed to update lift status: " + e.getMessage()));
     }
+  }
 
-    private static void handleAddLift(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
-
-        try {
-            Map<String, String> form = parseForm(exchange.getRequestBody());
-            String name = form.getOrDefault("name", "").trim();
-            if (name.isBlank()) {
-                redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20name%20is%20required");
-                return;
-            }
-
-            LiftRegion region = LiftRegion.fromString(form.getOrDefault("region", "UPPER"));
-            LiftType main = LiftType.fromDbValue(form.getOrDefault("main", "none"));
-            List<Muscle> muscles = parseMuscles(form.get("muscles"));
-            String notes = form.getOrDefault("notes", "");
-
-            db.addLift(name, region, main, muscles, notes);
-            redirect(exchange, "/?tab=add-execution&statusType=success&status=" + WebUiRenderer.urlEncode("Created lift: " + name) + "&prefillLift=" + WebUiRenderer.urlEncode(name));
-        } catch (Exception e) {
-            redirect(exchange, "/?tab=add-execution&statusType=error&status=" + WebUiRenderer.urlEncode("Failed to create lift: " + e.getMessage()));
-        }
+  private static List<Muscle> parseMuscles(String value) {
+    if (value == null || value.isBlank()) {
+      return List.of();
     }
+    return List.of(value.split(",")).stream()
+        .map(String::trim)
+        .filter(item -> !item.isBlank())
+        .map(Muscle::fromString)
+        .collect(Collectors.toList());
+  }
 
-    private static void handleSetLiftEnabled(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
-        }
-        String redirectBase = "/?tab=executions";
-        try {
-            Map<String, String> form = parseForm(exchange.getRequestBody());
-            redirectBase = buildExecutionRedirectBase(form);
-            String lift = form.getOrDefault("lift", "").trim();
-            if (lift.isBlank()) {
-                redirect(exchange, redirectBase + "&statusType=error&status=Lift%20is%20required");
-                return;
-            }
-            boolean enabled = "1".equals(form.getOrDefault("enabled", "1"));
-            db.setLiftEnabled(lift, enabled);
-            String status = enabled ? "Enabled" : "Disabled";
-            redirect(exchange, redirectBase + "&statusType=success&status="
-                    + WebUiRenderer.urlEncode(status + " lift: " + lift));
-        } catch (Exception e) {
-            redirect(exchange, redirectBase + "&statusType=error&status="
-                    + WebUiRenderer.urlEncode("Failed to update lift status: " + e.getMessage()));
-        }
+  private static WebUiRenderer.AddExecutionPrefill parsePrefill(Map<String, String> query) {
+    return new WebUiRenderer.AddExecutionPrefill(
+        query.getOrDefault("prefillLift", ""),
+        query.getOrDefault("prefillWeight", ""),
+        query.getOrDefault("prefillSetCount", "1"),
+        query.getOrDefault("prefillRpe", ""),
+        query.getOrDefault("prefillMetricType", "reps"),
+        query.getOrDefault("prefillMetricValue", "5"),
+        query.getOrDefault("prefillMetricLeft", "5"),
+        query.getOrDefault("prefillMetricRight", "5"),
+        query.getOrDefault("prefillDate", ""),
+        Boolean.parseBoolean(query.getOrDefault("prefillWarmup", "false")),
+        Boolean.parseBoolean(query.getOrDefault("prefillDeload", "false")),
+        query.getOrDefault("prefillNotes", ""));
+  }
+
+  private static String buildLoadLastNoPriorRedirect(
+      Map<String, String> query,
+      String liftName,
+      LocalDate selectedDate,
+      boolean warmup,
+      boolean deload,
+      String criteria) {
+    StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=error");
+    redirectUrl
+        .append("&status=")
+        .append(
+            WebUiRenderer.urlEncode("No prior executions for " + liftName + " with " + criteria));
+    redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
+    redirectUrl
+        .append("&prefillWeight=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("weight", "")));
+    redirectUrl
+        .append("&prefillSetCount=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("setCount", "1")));
+    redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(selectedDate.toString()));
+    redirectUrl
+        .append("&prefillRpe=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("rpe", "")));
+    redirectUrl
+        .append("&prefillMetricType=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("metricType", "reps")));
+    redirectUrl
+        .append("&prefillMetricValue=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("metricValue", "5")));
+    redirectUrl
+        .append("&prefillMetricLeft=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("metricLeft", "5")));
+    redirectUrl
+        .append("&prefillMetricRight=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("metricRight", "5")));
+    redirectUrl.append("&prefillWarmup=").append(warmup);
+    redirectUrl.append("&prefillDeload=").append(deload);
+    redirectUrl
+        .append("&prefillNotes=")
+        .append(WebUiRenderer.urlEncode(query.getOrDefault("notes", "")));
+    return redirectUrl.toString();
+  }
+
+  private static String safe(String value) {
+    return value == null ? "" : value;
+  }
+
+  private static void applyMetricPrefill(StringBuilder redirectUrl, SetMetric metric) {
+    if (metric instanceof SetMetric.Reps reps) {
+      redirectUrl.append("&prefillMetricType=reps");
+      redirectUrl.append("&prefillMetricValue=").append(reps.reps());
+      return;
     }
-
-    private static List<Muscle> parseMuscles(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        return List.of(value.split(",")).stream()
-                .map(String::trim)
-                .filter(item -> !item.isBlank())
-                .map(Muscle::fromString)
-                .collect(Collectors.toList());
+    if (metric instanceof SetMetric.RepsLr repsLr) {
+      redirectUrl.append("&prefillMetricType=reps-lr");
+      redirectUrl.append("&prefillMetricLeft=").append(repsLr.left());
+      redirectUrl.append("&prefillMetricRight=").append(repsLr.right());
+      return;
     }
-
-    private static WebUiRenderer.AddExecutionPrefill parsePrefill(Map<String, String> query) {
-        return new WebUiRenderer.AddExecutionPrefill(
-                query.getOrDefault("prefillLift", ""),
-                query.getOrDefault("prefillWeight", ""),
-                query.getOrDefault("prefillSetCount", "1"),
-                query.getOrDefault("prefillRpe", ""),
-                query.getOrDefault("prefillMetricType", "reps"),
-                query.getOrDefault("prefillMetricValue", "5"),
-                query.getOrDefault("prefillMetricLeft", "5"),
-                query.getOrDefault("prefillMetricRight", "5"),
-                query.getOrDefault("prefillDate", ""),
-                Boolean.parseBoolean(query.getOrDefault("prefillWarmup", "false")),
-                Boolean.parseBoolean(query.getOrDefault("prefillDeload", "false")),
-                query.getOrDefault("prefillNotes", "")
-        );
+    if (metric instanceof SetMetric.TimeSecs timeSecs) {
+      redirectUrl.append("&prefillMetricType=time");
+      redirectUrl.append("&prefillMetricValue=").append(timeSecs.seconds());
+      return;
     }
-
-    private static String buildLoadLastNoPriorRedirect(Map<String, String> query, String liftName, LocalDate selectedDate,
-                                                        boolean warmup, boolean deload, String criteria) {
-        StringBuilder redirectUrl = new StringBuilder("/?tab=add-execution&statusType=error");
-        redirectUrl.append("&status=").append(WebUiRenderer.urlEncode("No prior executions for " + liftName + " with " + criteria));
-        redirectUrl.append("&prefillLift=").append(WebUiRenderer.urlEncode(liftName));
-        redirectUrl.append("&prefillWeight=").append(WebUiRenderer.urlEncode(query.getOrDefault("weight", "")));
-        redirectUrl.append("&prefillSetCount=").append(WebUiRenderer.urlEncode(query.getOrDefault("setCount", "1")));
-        redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(selectedDate.toString()));
-        redirectUrl.append("&prefillRpe=").append(WebUiRenderer.urlEncode(query.getOrDefault("rpe", "")));
-        redirectUrl.append("&prefillMetricType=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricType", "reps")));
-        redirectUrl.append("&prefillMetricValue=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricValue", "5")));
-        redirectUrl.append("&prefillMetricLeft=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricLeft", "5")));
-        redirectUrl.append("&prefillMetricRight=").append(WebUiRenderer.urlEncode(query.getOrDefault("metricRight", "5")));
-        redirectUrl.append("&prefillWarmup=").append(warmup);
-        redirectUrl.append("&prefillDeload=").append(deload);
-        redirectUrl.append("&prefillNotes=").append(WebUiRenderer.urlEncode(query.getOrDefault("notes", "")));
-        return redirectUrl.toString();
+    if (metric instanceof SetMetric.DistanceFeet distanceFeet) {
+      redirectUrl.append("&prefillMetricType=distance");
+      redirectUrl.append("&prefillMetricValue=").append(distanceFeet.feet());
     }
+  }
 
-    private static String safe(String value) {
-        return value == null ? "" : value;
+  static LiftExecution selectExecutionForFlags(
+      List<LiftExecution> executions, boolean warmup, boolean deload) {
+    for (LiftExecution execution : executions) {
+      if (execution.warmup() == warmup && execution.deload() == deload) {
+        return execution;
+      }
     }
+    return null;
+  }
 
-    private static void applyMetricPrefill(StringBuilder redirectUrl, SetMetric metric) {
-        if (metric instanceof SetMetric.Reps reps) {
-            redirectUrl.append("&prefillMetricType=reps");
-            redirectUrl.append("&prefillMetricValue=").append(reps.reps());
-            return;
-        }
-        if (metric instanceof SetMetric.RepsLr repsLr) {
-            redirectUrl.append("&prefillMetricType=reps-lr");
-            redirectUrl.append("&prefillMetricLeft=").append(repsLr.left());
-            redirectUrl.append("&prefillMetricRight=").append(repsLr.right());
-            return;
-        }
-        if (metric instanceof SetMetric.TimeSecs timeSecs) {
-            redirectUrl.append("&prefillMetricType=time");
-            redirectUrl.append("&prefillMetricValue=").append(timeSecs.seconds());
-            return;
-        }
-        if (metric instanceof SetMetric.DistanceFeet distanceFeet) {
-            redirectUrl.append("&prefillMetricType=distance");
-            redirectUrl.append("&prefillMetricValue=").append(distanceFeet.feet());
-        }
+  static LiftExecution findExecutionById(List<LiftExecution> executions, int executionId) {
+    for (LiftExecution execution : executions) {
+      if (execution.id() != null && execution.id() == executionId) {
+        return execution;
+      }
     }
+    return null;
+  }
 
-    static LiftExecution selectExecutionForFlags(List<LiftExecution> executions, boolean warmup, boolean deload) {
-        for (LiftExecution execution : executions) {
-            if (execution.warmup() == warmup && execution.deload() == deload) {
-                return execution;
-            }
-        }
-        return null;
+  private static int parsePositiveInt(String value, String fieldName) {
+    int parsed = Integer.parseInt(value.trim());
+    if (parsed <= 0) {
+      throw new IllegalArgumentException(fieldName + " must be greater than 0");
     }
+    return parsed;
+  }
 
-    static LiftExecution findExecutionById(List<LiftExecution> executions, int executionId) {
-        for (LiftExecution execution : executions) {
-            if (execution.id() != null && execution.id() == executionId) {
-                return execution;
-            }
-        }
-        return null;
+  private static Float parseOptionalFloat(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
     }
+    return Float.parseFloat(value.trim());
+  }
 
-    private static int parsePositiveInt(String value, String fieldName) {
-        int parsed = Integer.parseInt(value.trim());
-        if (parsed <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than 0");
-        }
-        return parsed;
+  private static int parseBoundedInt(String value, int fallback, int min, int max) {
+    if (value == null || value.isBlank()) {
+      return fallback;
     }
-
-    private static Float parseOptionalFloat(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return Float.parseFloat(value.trim());
+    try {
+      int parsed = Integer.parseInt(value.trim());
+      return Math.max(min, Math.min(max, parsed));
+    } catch (NumberFormatException ignored) {
+      return fallback;
     }
+  }
 
-    private static int parseBoundedInt(String value, int fallback, int min, int max) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        try {
-            int parsed = Integer.parseInt(value.trim());
-            return Math.max(min, Math.min(max, parsed));
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
+  private static LocalDate parseDateOrDefault(String value, LocalDate fallback) {
+    if (value == null || value.isBlank()) {
+      return fallback;
     }
-
-    private static LocalDate parseDateOrDefault(String value, LocalDate fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        try {
-            return LocalDate.parse(value.trim());
-        } catch (Exception ignored) {
-            return fallback;
-        }
+    try {
+      return LocalDate.parse(value.trim());
+    } catch (Exception ignored) {
+      return fallback;
     }
+  }
 
-    private static SetMetric parseMetric(Map<String, String> form) {
-        String metricType = form.getOrDefault("metricType", "reps").trim();
-        return switch (metricType) {
-            case "reps-lr" -> new SetMetric.RepsLr(
-                    parsePositiveInt(form.getOrDefault("metricLeft", ""), "Left reps"),
-                    parsePositiveInt(form.getOrDefault("metricRight", ""), "Right reps")
-            );
-            case "time" -> new SetMetric.TimeSecs(parsePositiveInt(form.getOrDefault("metricValue", ""), "Seconds"));
-            case "distance" -> new SetMetric.DistanceFeet(parsePositiveInt(form.getOrDefault("metricValue", ""), "Feet"));
-            default -> new SetMetric.Reps(parsePositiveInt(form.getOrDefault("metricValue", ""), "Reps"));
-        };
-    }
+  private static SetMetric parseMetric(Map<String, String> form) {
+    String metricType = form.getOrDefault("metricType", "reps").trim();
+    return switch (metricType) {
+      case "reps-lr" ->
+          new SetMetric.RepsLr(
+              parsePositiveInt(form.getOrDefault("metricLeft", ""), "Left reps"),
+              parsePositiveInt(form.getOrDefault("metricRight", ""), "Right reps"));
+      case "time" ->
+          new SetMetric.TimeSecs(parsePositiveInt(form.getOrDefault("metricValue", ""), "Seconds"));
+      case "distance" ->
+          new SetMetric.DistanceFeet(
+              parsePositiveInt(form.getOrDefault("metricValue", ""), "Feet"));
+      default -> new SetMetric.Reps(parsePositiveInt(form.getOrDefault("metricValue", ""), "Reps"));
+    };
+  }
 
-    private static List<ExecutionSet> parseDetailedSets(String json) {
-        List<ExecutionSet> result = new ArrayList<>();
-        try {
-            JsonNode root = OBJECT_MAPPER.readTree(json);
-            if (root == null || !root.isArray()) {
-                return result;
-            }
-            for (JsonNode node : root) {
-                Map<String, String> fields = new HashMap<>();
-                fields.put("metricType", node.path("metricType").asText("reps"));
-                fields.put("metricValue", node.path("metricValue").asText(""));
-                fields.put("metricLeft", node.path("metricLeft").asText(""));
-                fields.put("metricRight", node.path("metricRight").asText(""));
-                SetMetric metric = parseMetric(fields);
-                String weight = node.path("weight").asText("");
-                Float rpe = parseOptionalFloat(node.path("rpe").asText(""));
-                result.add(new ExecutionSet(metric, weight, rpe));
-            }
-        } catch (Exception ignored) {
-            return List.of();
-        }
+  private static List<ExecutionSet> parseDetailedSets(String json) {
+    List<ExecutionSet> result = new ArrayList<>();
+    try {
+      JsonNode root = OBJECT_MAPPER.readTree(json);
+      if (root == null || !root.isArray()) {
         return result;
+      }
+      for (JsonNode node : root) {
+        Map<String, String> fields = new HashMap<>();
+        fields.put("metricType", node.path("metricType").asText("reps"));
+        fields.put("metricValue", node.path("metricValue").asText(""));
+        fields.put("metricLeft", node.path("metricLeft").asText(""));
+        fields.put("metricRight", node.path("metricRight").asText(""));
+        SetMetric metric = parseMetric(fields);
+        String weight = node.path("weight").asText("");
+        Float rpe = parseOptionalFloat(node.path("rpe").asText(""));
+        result.add(new ExecutionSet(metric, weight, rpe));
+      }
+    } catch (Exception ignored) {
+      return List.of();
+    }
+    return result;
+  }
+
+  private static Map<String, String> parseForm(InputStream body) throws IOException {
+    String form = new String(body.readAllBytes(), StandardCharsets.UTF_8);
+    return parseQuery(URI.create("/?" + form));
+  }
+
+  private static void handleLift(HttpExchange exchange, SqliteDb db) throws IOException {
+    if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
     }
 
-    private static Map<String, String> parseForm(InputStream body) throws IOException {
-        String form = new String(body.readAllBytes(), StandardCharsets.UTF_8);
-        return parseQuery(URI.create("/?" + form));
+    Map<String, String> query = parseQuery(exchange.getRequestURI());
+    String name = query.get("name");
+    if (name == null || name.isBlank()) {
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Missing lift", "<h1>Missing lift name</h1><p><a href='/'>Back</a></p>"));
+      return;
     }
 
-    private static void handleLift(HttpExchange exchange, SqliteDb db) throws IOException {
-        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-            sendText(exchange, 405, "Method Not Allowed");
-            return;
+    try {
+      Lift lift = db.getLift(name);
+      List<LiftExecution> executions = db.getExecutions(name);
+
+      StringBuilder body = new StringBuilder();
+      body.append("<p><a href='/'>← Back to all lifts</a></p>")
+          .append("<h1>")
+          .append(WebHtml.escapeHtml(lift.name()))
+          .append("</h1>")
+          .append("<p><strong>Region:</strong> ")
+          .append(WebHtml.escapeHtml(lift.region().toString()))
+          .append("</p>")
+          .append("<p><strong>Main type:</strong> ")
+          .append(WebHtml.escapeHtml(WebUiRenderer.formatMainType(lift)))
+          .append("</p>")
+          .append("<p><strong>Muscles:</strong> ")
+          .append(
+              WebHtml.escapeHtml(
+                  WebUiRenderer.joinList(lift.muscles().stream().map(Object::toString).toList())))
+          .append("</p>")
+          .append("<p><strong>Notes:</strong> ")
+          .append(WebHtml.escapeHtml(lift.notes() == null ? "" : lift.notes()))
+          .append("</p>")
+          .append("<h2>Executions</h2>");
+
+      if (executions.isEmpty()) {
+        body.append("<p>No executions recorded.</p>");
+      } else {
+        body.append(
+            "<table><thead><tr><th>Date</th><th>Sets</th><th>Notes</th></tr></thead><tbody>");
+        for (LiftExecution execution : executions) {
+          body.append("<tr><td>")
+              .append(WebHtml.escapeHtml(WebUiRenderer.DATE_FORMAT.format(execution.date())))
+              .append("</td><td>")
+              .append(WebHtml.escapeHtml(WebUiRenderer.formatSets(execution.sets())))
+              .append("</td><td>")
+              .append(WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes()))
+              .append("</td></tr>");
         }
+        body.append("</tbody></table>");
+      }
 
-        Map<String, String> query = parseQuery(exchange.getRequestURI());
-        String name = query.get("name");
-        if (name == null || name.isBlank()) {
-            sendHtml(exchange, WebHtml.wrapPage("Missing lift", "<h1>Missing lift name</h1><p><a href='/'>Back</a></p>"));
-            return;
-        }
-
-        try {
-            Lift lift = db.getLift(name);
-            List<LiftExecution> executions = db.getExecutions(name);
-
-            StringBuilder body = new StringBuilder();
-            body.append("<p><a href='/'>← Back to all lifts</a></p>")
-                    .append("<h1>").append(WebHtml.escapeHtml(lift.name())).append("</h1>")
-                    .append("<p><strong>Region:</strong> ").append(WebHtml.escapeHtml(lift.region().toString())).append("</p>")
-                    .append("<p><strong>Main type:</strong> ").append(WebHtml.escapeHtml(WebUiRenderer.formatMainType(lift))).append("</p>")
-                    .append("<p><strong>Muscles:</strong> ").append(WebHtml.escapeHtml(WebUiRenderer.joinList(lift.muscles().stream().map(Object::toString).toList()))).append("</p>")
-                    .append("<p><strong>Notes:</strong> ").append(WebHtml.escapeHtml(lift.notes() == null ? "" : lift.notes())).append("</p>")
-                    .append("<h2>Executions</h2>");
-
-            if (executions.isEmpty()) {
-                body.append("<p>No executions recorded.</p>");
-            } else {
-                body.append("<table><thead><tr><th>Date</th><th>Sets</th><th>Notes</th></tr></thead><tbody>");
-                for (LiftExecution execution : executions) {
-                    body.append("<tr><td>")
-                            .append(WebHtml.escapeHtml(WebUiRenderer.DATE_FORMAT.format(execution.date())))
-                            .append("</td><td>")
-                            .append(WebHtml.escapeHtml(WebUiRenderer.formatSets(execution.sets())))
-                            .append("</td><td>")
-                            .append(WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes()))
-                            .append("</td></tr>");
-                }
-                body.append("</tbody></table>");
-            }
-
-            sendHtml(exchange, WebHtml.wrapPage(lift.name(), body.toString()));
-        } catch (Exception e) {
-            sendHtml(exchange, WebHtml.wrapPage("Error", "<h1>Error loading lift</h1><pre>" + WebHtml.escapeHtml(e.getMessage()) + "</pre><p><a href='/'>Back</a></p>"));
-        }
+      sendHtml(exchange, WebHtml.wrapPage(lift.name(), body.toString()));
+    } catch (Exception e) {
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Error",
+              "<h1>Error loading lift</h1><pre>"
+                  + WebHtml.escapeHtml(e.getMessage())
+                  + "</pre><p><a href='/'>Back</a></p>"));
     }
+  }
 
-    private static Map<String, String> parseQuery(URI uri) {
-        Map<String, String> result = new HashMap<>();
-        String query = uri.getRawQuery();
-        if (query == null || query.isBlank()) {
-            return result;
-        }
-        String[] pairs = query.split("&");
-        for (String pair : pairs) {
-            if (pair.isBlank()) {
-                continue;
-            }
-            String[] parts = pair.split("=", 2);
-            String key = urlDecode(parts[0]);
-            String value = parts.length == 2 ? urlDecode(parts[1]) : "";
-            result.put(key, value);
-        }
-        return result;
+  private static Map<String, String> parseQuery(URI uri) {
+    Map<String, String> result = new HashMap<>();
+    String query = uri.getRawQuery();
+    if (query == null || query.isBlank()) {
+      return result;
     }
+    String[] pairs = query.split("&");
+    for (String pair : pairs) {
+      if (pair.isBlank()) {
+        continue;
+      }
+      String[] parts = pair.split("=", 2);
+      String key = urlDecode(parts[0]);
+      String value = parts.length == 2 ? urlDecode(parts[1]) : "";
+      result.put(key, value);
+    }
+    return result;
+  }
 
-    private static String urlDecode(String value) {
-        return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8);
-    }
+  private static String urlDecode(String value) {
+    return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8);
+  }
 
-    private static void sendHtml(HttpExchange exchange, String html) throws IOException {
-        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
-        exchange.sendResponseHeaders(200, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-        }
+  private static void sendHtml(HttpExchange exchange, String html) throws IOException {
+    byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, bytes.length);
+    try (OutputStream os = exchange.getResponseBody()) {
+      os.write(bytes);
     }
+  }
 
-    private static void redirect(HttpExchange exchange, String location) throws IOException {
-        exchange.getResponseHeaders().add("Location", location);
-        exchange.sendResponseHeaders(303, -1);
-        exchange.close();
-    }
+  private static void redirect(HttpExchange exchange, String location) throws IOException {
+    exchange.getResponseHeaders().add("Location", location);
+    exchange.sendResponseHeaders(303, -1);
+    exchange.close();
+  }
 
-    private static void sendText(HttpExchange exchange, int status, String text) throws IOException {
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
-        exchange.sendResponseHeaders(status, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-        }
+  private static void sendText(HttpExchange exchange, int status, String text) throws IOException {
+    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
+    exchange.sendResponseHeaders(status, bytes.length);
+    try (OutputStream os = exchange.getResponseBody()) {
+      os.write(bytes);
     }
+  }
 }

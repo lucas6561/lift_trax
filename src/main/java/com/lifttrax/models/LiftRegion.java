@@ -1,14 +1,11 @@
 package com.lifttrax.models;
 
-/**
- * List of allowed LiftRegion values used throughout LiftTrax.
- */
-
+/** List of allowed LiftRegion values used throughout LiftTrax. */
 public enum LiftRegion {
-    UPPER,
-    LOWER;
+  UPPER,
+  LOWER;
 
-    public static LiftRegion fromString(String value) {
-        return LiftRegion.valueOf(value.toUpperCase(java.util.Locale.ROOT));
-    }
+  public static LiftRegion fromString(String value) {
+    return LiftRegion.valueOf(value.toUpperCase(java.util.Locale.ROOT));
+  }
 }

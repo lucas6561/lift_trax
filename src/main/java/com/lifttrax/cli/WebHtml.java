@@ -1,10 +1,9 @@
 package com.lifttrax.cli;
 
-/**
- * Shared HTML helpers for the lightweight embedded web UI.
- */
+/** Shared HTML helpers for the lightweight embedded web UI. */
 final class WebHtml {
-    private static final String PAGE_TEMPLATE = """
+  private static final String PAGE_TEMPLATE =
+      """
             <!DOCTYPE html>
             <html lang='en' data-theme='dark'>
             <head>
@@ -24,7 +23,8 @@ final class WebHtml {
             </html>
             """;
 
-    private static final String BASE_STYLES = """
+  private static final String BASE_STYLES =
+      """
                 :root {
                   --pico-font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                   --pico-font-size: 84%%;
@@ -89,28 +89,23 @@ final class WebHtml {
                 .is-hidden { display: none; }
             """;
 
-    private WebHtml() {
-    }
+  private WebHtml() {}
 
-    /**
-     * Wraps page body markup in a shared themed layout shell.
-     */
-    static String wrapPage(String title, String body) {
-        return PAGE_TEMPLATE.formatted(escapeHtml(title), BASE_STYLES, body);
-    }
+  /** Wraps page body markup in a shared themed layout shell. */
+  static String wrapPage(String title, String body) {
+    return PAGE_TEMPLATE.formatted(escapeHtml(title), BASE_STYLES, body);
+  }
 
-    /**
-     * Escapes unsafe HTML characters for safe interpolation into attributes and text nodes.
-     */
-    static String escapeHtml(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+  /** Escapes unsafe HTML characters for safe interpolation into attributes and text nodes. */
+  static String escapeHtml(String value) {
+    if (value == null) {
+      return "";
     }
+    return value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;");
+  }
 }

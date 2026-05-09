@@ -5,32 +5,35 @@ import java.util.List;
 import java.util.Random;
 
 final class RandomSupport {
-    private RandomSupport() {}
+  private RandomSupport() {}
 
-    interface Randomizer {
-        <T> void shuffle(List<T> values, Random random);
-        int nextInt(Random random, int bound);
-    }
+  interface Randomizer {
+    <T> void shuffle(List<T> values, Random random);
 
-    static final Randomizer DEFAULT = new Randomizer() {
+    int nextInt(Random random, int bound);
+  }
+
+  static final Randomizer DEFAULT =
+      new Randomizer() {
         @Override
         public <T> void shuffle(List<T> values, Random random) {
-            Collections.shuffle(values, random);
+          Collections.shuffle(values, random);
         }
 
         @Override
         public int nextInt(Random random, int bound) {
-            return random.nextInt(bound);
+          return random.nextInt(bound);
         }
-    };
+      };
 
-    static final Randomizer DETERMINISTIC = new Randomizer() {
+  static final Randomizer DETERMINISTIC =
+      new Randomizer() {
         @Override
         public <T> void shuffle(List<T> values, Random random) {}
 
         @Override
         public int nextInt(Random random, int bound) {
-            return 0;
+          return 0;
         }
-    };
+      };
 }
