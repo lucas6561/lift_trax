@@ -162,6 +162,29 @@ class ConjugateWorkoutBuilderTest {
     }
   }
 
+  @Test
+  void conjugateWaveDoesNotInjectDeloadWeek() throws Exception {
+    FakeDb db = FakeDb.withSeedData();
+    var week = new ConjugateWorkoutBuilder().getWave(1, db).get(0);
+    assertTrue(
+        week.values().stream()
+            .flatMap(workout -> workout.lifts().stream())
+            .noneMatch(lift -> lift.name().toLowerCase().contains("deload")));
+  }
+
+  @Test
+  void deloadBuilderCreatesDeloadOnlyWorkouts() throws Exception {
+    FakeDb db = FakeDb.withSeedData();
+    var week = new DeloadWorkoutBuilder().getWave(1, db).get(0);
+    assertTrue(
+        week.values().stream()
+            .flatMap(workout -> workout.lifts().stream())
+            .allMatch(
+                lift ->
+                    lift.name().toLowerCase().contains("deload")
+                        || lift.name().equals("Light Conditioning")));
+  }
+
   static class FakeDb implements Database {
     private final List<Lift> lifts = new ArrayList<>();
     private final Map<String, List<LiftExecution>> executions = new HashMap<>();

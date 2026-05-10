@@ -69,26 +69,15 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     return lifts;
   }
 
-  private static boolean isDeloadWeek(int weekNumber) {
-    return (weekNumber + 1) % 7 == 0;
-  }
-
   private static WorkoutLift accessoryCircuit(
       AccessoryStacks accessories, Muscle m1, Muscle m2, Muscle m3) {
-    List<SingleLift> lifts = constrainedCircuit(accessories, List.of(m1, m2, m3), false);
+    List<SingleLift> lifts = constrainedCircuit(accessories, List.of(m1, m2, m3));
     return new WorkoutLift(
         "Accessory Circuit", new WorkoutLiftKind.CircuitKind(new CircuitLift(lifts, 3, false)));
   }
 
-  private static WorkoutLift deloadCircuit(
-      AccessoryStacks accessories, Muscle m1, Muscle m2, Muscle m3) {
-    List<SingleLift> lifts = constrainedCircuit(accessories, List.of(m1, m2, m3), true);
-    return new WorkoutLift(
-        "Deload Circuit", new WorkoutLiftKind.CircuitKind(new CircuitLift(lifts, 2, false)));
-  }
-
   private static List<SingleLift> constrainedCircuit(
-      AccessoryStacks accessories, List<Muscle> muscles, boolean deload) {
+      AccessoryStacks accessories, List<Muscle> muscles) {
     List<Lift> selected = new ArrayList<>();
     int cableCount = 0;
     int dbCount = 0;
@@ -113,7 +102,7 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     for (Lift lift : selected) {
       SingleLift single =
           new SingleLift(lift, new SetMetric.RepsRange(8, 12), null, null, null, false);
-      lifts.add(deload ? markDeload(single) : single);
+      lifts.add(single);
     }
     return Collections.unmodifiableList(lifts);
   }
@@ -144,16 +133,6 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     return name.contains("db") || name.contains("dumbbell") || name.contains("dumb bell");
   }
 
-  private static SingleLift markDeload(SingleLift lift) {
-    return new SingleLift(
-        lift.lift(),
-        lift.metric(),
-        lift.percent(),
-        lift.rpe(),
-        lift.accommodatingResistance(),
-        true);
-  }
-
   private static WorkoutLift conditioning(
       RandomStack<Lift> stack, String name, int seconds, boolean deload) {
     Lift cond = stack.pop();
@@ -169,7 +148,6 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
   private static Workout buildLowerMaxDay(
       int weekNumber,
       List<Lift> lowerPlan,
-      List<MaxEffortPlan.DeloadLowerLifts> lowerDeload,
       RandomStack<Lift> conditioning,
       WarmupStacks warmups,
       AccessoryStacks accessories) {
@@ -177,52 +155,20 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     List<WorkoutLift> lifts = new ArrayList<>();
     lifts.add(warmups.warmup(LiftRegion.LOWER));
 
-    if (isDeloadWeek(weekNumber)) {
-      int deloadIdx = weekNumber / 7;
-      if (deloadIdx < lowerDeload.size()) {
-        lifts.addAll(
-            repeatedSingles(
-                "Deload Technique",
-                lowerDeload.get(deloadIdx).squat(),
-                3,
-                new SetMetric.Reps(3),
-                70,
-                6.0f,
-                true,
-                null));
-        lifts.addAll(
-            repeatedSingles(
-                "Deload Technique",
-                lowerDeload.get(deloadIdx).deadlift(),
-                3,
-                new SetMetric.Reps(3),
-                70,
-                6.0f,
-                true,
-                null));
-      } else {
-        lifts.addAll(
-            repeatedSingles(
-                "Deload Technique", lower, 3, new SetMetric.Reps(3), 70, 6.0f, true, null));
-      }
-      lifts.add(deloadCircuit(accessories, Muscle.HAMSTRING, Muscle.QUAD, Muscle.CORE));
-      lifts.add(conditioning(conditioning, "Light Conditioning", 300, true));
-    } else {
-      lifts.add(maxEffortSingle(lower));
-      lifts.addAll(
-          repeatedSingles(
-              "Backoff Sets (log top single; use 80-85% of today's 1RM)",
-              lower, 2, new SetMetric.Reps(5), 80, null, false, null));
-      Lift next = lowerPlan.get((weekNumber + 1) % lowerPlan.size());
-      lifts.addAll(
-          repeatedSingles(
-              "Supplemental Sets", next, 2, new SetMetric.Reps(5), 85, null, false, null));
-      lifts.add(accessoryCircuit(accessories, Muscle.HAMSTRING, Muscle.QUAD, Muscle.CALF));
-      lifts.add(conditioning(conditioning, "Conditioning", 600, false));
-      SingleLift forearm = accessories.forearm();
-      if (forearm != null) {
-        lifts.add(new WorkoutLift("Forearm Finisher", new WorkoutLiftKind.SingleKind(forearm)));
-      }
+    lifts.add(maxEffortSingle(lower));
+    lifts.addAll(
+        repeatedSingles(
+            "Backoff Sets (log top single; use 80-85% of today's 1RM)",
+            lower, 2, new SetMetric.Reps(5), 80, null, false, null));
+    Lift next = lowerPlan.get((weekNumber + 1) % lowerPlan.size());
+    lifts.addAll(
+        repeatedSingles(
+            "Supplemental Sets", next, 2, new SetMetric.Reps(5), 85, null, false, null));
+    lifts.add(accessoryCircuit(accessories, Muscle.HAMSTRING, Muscle.QUAD, Muscle.CALF));
+    lifts.add(conditioning(conditioning, "Conditioning", 600, false));
+    SingleLift forearm = accessories.forearm();
+    if (forearm != null) {
+      lifts.add(new WorkoutLift("Forearm Finisher", new WorkoutLiftKind.SingleKind(forearm)));
     }
     return new Workout(lifts);
   }
@@ -230,7 +176,6 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
   private Workout buildUpperMaxDay(
       int weekNumber,
       List<Lift> upperPlan,
-      List<MaxEffortPlan.DeloadUpperLifts> upperDeload,
       RandomStack<Lift> conditioning,
       WarmupStacks warmups,
       AccessoryStacks accessories) {
@@ -238,55 +183,23 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
     List<WorkoutLift> lifts = new ArrayList<>();
     lifts.add(warmups.warmup(LiftRegion.UPPER));
 
-    if (isDeloadWeek(weekNumber)) {
-      int deloadIdx = weekNumber / 7;
-      if (deloadIdx < upperDeload.size()) {
-        lifts.addAll(
-            repeatedSingles(
-                "Deload Technique",
-                upperDeload.get(deloadIdx).bench(),
-                3,
-                new SetMetric.Reps(3),
-                70,
-                6.0f,
-                true,
-                null));
-        lifts.addAll(
-            repeatedSingles(
-                "Deload Technique",
-                upperDeload.get(deloadIdx).overhead(),
-                3,
-                new SetMetric.Reps(3),
-                70,
-                6.0f,
-                true,
-                null));
-      } else {
-        lifts.addAll(
-            repeatedSingles(
-                "Deload Technique", upper, 3, new SetMetric.Reps(3), 70, 6.0f, true, null));
-      }
-      lifts.add(deloadCircuit(accessories, Muscle.LAT, Muscle.TRICEP, Muscle.CORE));
-      lifts.add(conditioning(conditioning, "Light Conditioning", 300, true));
-    } else {
-      lifts.add(maxEffortSingle(upper));
-      lifts.addAll(
-          repeatedSingles(
-              "Backoff Sets (log top single; use 80-85% of today's 1RM)",
-              upper, 2, new SetMetric.Reps(5), 80, null, false, null));
-      Lift next = upperPlan.get((weekNumber + 1) % upperPlan.size());
-      lifts.addAll(
-          repeatedSingles(
-              "Supplemental Sets", next, 2, new SetMetric.Reps(5), 85, null, false, null));
+    lifts.add(maxEffortSingle(upper));
+    lifts.addAll(
+        repeatedSingles(
+            "Backoff Sets (log top single; use 80-85% of today's 1RM)",
+            upper, 2, new SetMetric.Reps(5), 80, null, false, null));
+    Lift next = upperPlan.get((weekNumber + 1) % upperPlan.size());
+    lifts.addAll(
+        repeatedSingles(
+            "Supplemental Sets", next, 2, new SetMetric.Reps(5), 85, null, false, null));
 
-      Muscle[] upperOpts = {Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP};
-      Muscle third = upperOpts[randomizer.nextInt(new Random(), upperOpts.length)];
-      lifts.add(accessoryCircuit(accessories, Muscle.LAT, Muscle.TRICEP, third));
-      lifts.add(conditioning(conditioning, "Conditioning", 600, false));
-      SingleLift forearm = accessories.forearm();
-      if (forearm != null) {
-        lifts.add(new WorkoutLift("Forearm Finisher", new WorkoutLiftKind.SingleKind(forearm)));
-      }
+    Muscle[] upperOpts = {Muscle.REAR_DELT, Muscle.SHOULDER, Muscle.FRONT_DELT, Muscle.TRAP};
+    Muscle third = upperOpts[randomizer.nextInt(new Random(), upperOpts.length)];
+    lifts.add(accessoryCircuit(accessories, Muscle.LAT, Muscle.TRICEP, third));
+    lifts.add(conditioning(conditioning, "Conditioning", 600, false));
+    SingleLift forearm = accessories.forearm();
+    if (forearm != null) {
+      lifts.add(new WorkoutLift("Forearm Finisher", new WorkoutLiftKind.SingleKind(forearm)));
     }
     return new Workout(lifts);
   }
@@ -310,32 +223,6 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
       AccessoryStacks accessories) {
     List<WorkoutLift> lifts = new ArrayList<>();
     lifts.add(warmups.warmup(LiftRegion.LOWER));
-
-    if (isDeloadWeek(weekNumber)) {
-      lifts.addAll(
-          repeatedSingles(
-              "Deload Speed Work",
-              deLifts.squat().lift(),
-              3,
-              new SetMetric.Reps(3),
-              50,
-              null,
-              true,
-              AccommodatingResistance.STRAIGHT));
-      lifts.addAll(
-          repeatedSingles(
-              "Deload Speed Work",
-              deLifts.deadlift().lift(),
-              3,
-              new SetMetric.Reps(2),
-              50,
-              null,
-              true,
-              AccommodatingResistance.STRAIGHT));
-      lifts.add(deloadCircuit(accessories, Muscle.HAMSTRING, Muscle.QUAD, Muscle.CORE));
-      lifts.add(conditioning(conditioning, "Light Conditioning", 300, true));
-      return new Workout(lifts);
-    }
 
     int[] squatPlan = dynamicPlan(weekNumber, deLifts.squat().ar());
     lifts.addAll(
@@ -376,32 +263,6 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
       AccessoryStacks accessories) {
     List<WorkoutLift> lifts = new ArrayList<>();
     lifts.add(warmups.warmup(LiftRegion.UPPER));
-
-    if (isDeloadWeek(weekNumber)) {
-      lifts.addAll(
-          repeatedSingles(
-              "Deload Speed Work",
-              deLifts.bench().lift(),
-              5,
-              new SetMetric.Reps(3),
-              50,
-              null,
-              true,
-              AccommodatingResistance.STRAIGHT));
-      lifts.addAll(
-          repeatedSingles(
-              "Deload Speed Work",
-              deLifts.overhead().lift(),
-              3,
-              new SetMetric.Reps(2),
-              50,
-              null,
-              true,
-              AccommodatingResistance.STRAIGHT));
-      lifts.add(deloadCircuit(accessories, Muscle.LAT, Muscle.TRICEP, Muscle.CORE));
-      lifts.add(conditioning(conditioning, "Light Conditioning", 300, true));
-      return new Workout(lifts);
-    }
 
     int[] benchPlan = dynamicPlan(weekNumber, deLifts.bench().ar());
     lifts.addAll(
@@ -460,7 +321,6 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
           buildLowerMaxDay(
               week,
               maxEffortPlan.lower(),
-              maxEffortPlan.lowerDeload(),
               lowerConditioning,
               warmups,
               accessories));
@@ -469,7 +329,6 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
           buildUpperMaxDay(
               week,
               maxEffortPlan.upper(),
-              maxEffortPlan.upperDeload(),
               upperConditioning,
               warmups,
               accessories));

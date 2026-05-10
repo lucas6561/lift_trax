@@ -11,6 +11,7 @@ import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.ConjugateWorkoutBuilder;
+import com.lifttrax.workout.DeloadWorkoutBuilder;
 import com.lifttrax.workout.HypertrophyWorkoutBuilder;
 import com.lifttrax.workout.MaxEffortLiftPools;
 import com.lifttrax.workout.MaxEffortPlan;
@@ -937,6 +938,7 @@ final class WebUiRenderer {
       WorkoutBuilder builder =
           switch (waveType) {
             case "hypertrophy" -> new HypertrophyWorkoutBuilder();
+            case "deload" -> new DeloadWorkoutBuilder();
             default ->
                 new ConjugateWorkoutBuilder(
                     new WebConfiguredMaxEffortPlanSource(normalizedWeeks, waveInput),
@@ -1013,6 +1015,9 @@ final class WebUiRenderer {
         .append("<option value='hypertrophy'")
         .append("hypertrophy".equals(waveType) ? " selected" : "")
         .append(">Hypertrophy</option>")
+        .append("<option value='deload'")
+        .append("deload".equals(waveType) ? " selected" : "")
+        .append(">Deload</option>")
         .append("</select></label>");
 
     try {
