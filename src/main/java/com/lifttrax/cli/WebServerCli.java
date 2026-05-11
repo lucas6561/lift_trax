@@ -50,7 +50,7 @@ public class WebServerCli {
 
     String bindAddress = System.getProperty("lifttrax.web.bind");
     if (bindAddress == null || bindAddress.isBlank()) {
-      bindAddress = "localhost";
+      bindAddress = "0.0.0.0";
     }
     HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
     server.createContext("/", exchange -> handleIndex(exchange, db));
