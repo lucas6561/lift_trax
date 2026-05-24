@@ -12,6 +12,7 @@ import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.ConjugateWorkoutBuilder;
 import com.lifttrax.workout.DeloadWorkoutBuilder;
+import com.lifttrax.workout.DynamicLifts;
 import com.lifttrax.workout.HypertrophyWorkoutBuilder;
 import com.lifttrax.workout.MaxEffortLiftPools;
 import com.lifttrax.workout.MaxEffortPlan;
@@ -80,7 +81,7 @@ final class WebUiRenderer {
     return html.toString();
   }
 
-  /** Produces the full page body by composing each tab's content section. */
+  /** Produces the page body, rendering expensive tab bodies only when they are active. */
   static String renderIndexBody(
       SqliteDb db,
       List<Lift> lifts,
@@ -94,15 +95,28 @@ final class WebUiRenderer {
       LocalDate lastWeekEnd,
       int waveWeeks,
       Map<String, String> waveInput) {
-    String executionContent = renderExecutionList(db, lifts, search, "Recorded lifts:");
-    String queryContent = renderQueryContent(db, queryLift);
-    String lastWeekContent = renderLastWeekContent(db, lifts, lastWeekStart, lastWeekEnd);
-    String waveContent = renderWaveContent(db, waveWeeks, waveInput);
+    String normalizedTab = normalizeTab(activeTab);
+    String executionContent =
+        "executions".equals(normalizedTab)
+            ? renderExecutionList(db, lifts, search, "Recorded lifts:")
+            : deferredTabContent("Executions");
+    String queryContent =
+        "query".equals(normalizedTab)
+            ? renderQueryContent(db, queryLift)
+            : deferredTabContent("Query");
+    String lastWeekContent =
+        "last-week".equals(normalizedTab)
+            ? renderLastWeekContent(db, lifts, lastWeekStart, lastWeekEnd)
+            : deferredTabContent("Last Week");
+    String waveContent =
+        "waves".equals(normalizedTab)
+            ? renderWaveContent(db, waveWeeks, waveInput)
+            : deferredTabContent("Workout Waves");
     return renderTabbedLayout(
         lifts,
         search,
         queryLift,
-        activeTab,
+        normalizedTab,
         executionContent,
         queryContent,
         lastWeekContent,
@@ -113,6 +127,17 @@ final class WebUiRenderer {
         lastWeekStart,
         lastWeekEnd,
         waveWeeks);
+  }
+
+  private static String normalizeTab(String activeTab) {
+    return switch (activeTab == null ? "" : activeTab.trim()) {
+      case "waves", "executions", "query", "last-week" -> activeTab.trim();
+      default -> "add-execution";
+    };
+  }
+
+  private static String deferredTabContent(String label) {
+    return "<p class='muted'>Open this tab to load " + WebHtml.escapeHtml(label) + ".</p>";
   }
 
   /**
@@ -149,6 +174,11 @@ final class WebUiRenderer {
     String wavesPanelClass = "waves".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
     String queryPanelClass = "query".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
     String lastWeekPanelClass = "last-week".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+    String addExecutionLoaded = "true";
+    String executionsLoaded = "executions".equals(activeTab) ? "true" : "false";
+    String wavesLoaded = "waves".equals(activeTab) ? "true" : "false";
+    String queryLoaded = "query".equals(activeTab) ? "true" : "false";
+    String lastWeekLoaded = "last-week".equals(activeTab) ? "true" : "false";
 
     return """
                 <div class='tabbed-ui' data-initial-tab='%s'>
@@ -159,26 +189,26 @@ final class WebUiRenderer {
                     <button class='%s' role='tab' type='button' data-tab='query' aria-selected='%s'>Query</button>
                     <button class='%s' role='tab' type='button' data-tab='last-week' aria-selected='%s'>Last Week</button>
                   </div>
-                  <section class='%s' data-panel='add-execution' role='tabpanel'>
+                  <section class='%s' data-panel='add-execution' data-loaded='%s' role='tabpanel'>
                     <h2>Add Execution</h2>
                     %s
                     %s
                   </section>
-                  <section class='%s' data-panel='executions' role='tabpanel'>
+                  <section class='%s' data-panel='executions' data-loaded='%s' role='tabpanel'>
                     %s
                     %s
                   </section>
-                  <section class='%s' data-panel='waves' role='tabpanel'>
+                  <section class='%s' data-panel='waves' data-loaded='%s' role='tabpanel'>
                     <h2>Workout Waves</h2>
                     %s
                   </section>
-                  <section class='%s' data-panel='query' role='tabpanel'>
+                  <section class='%s' data-panel='query' data-loaded='%s' role='tabpanel'>
                     <h2>Query</h2>
                     %s
                     %s
                     %s
                   </section>
-                  <section class='%s' data-panel='last-week' role='tabpanel'>
+                  <section class='%s' data-panel='last-week' data-loaded='%s' role='tabpanel'>
                     <h2>Last Week</h2>
                     <p class='muted'>This tab shows a 7-day window. Use Previous Week or adjust the dates to view older history.</p>
                     <form method='get' action='/' class='query-form compact-actions'>
@@ -217,6 +247,13 @@ final class WebUiRenderer {
 
                     tabs.forEach((tab) => {
                       tab.addEventListener('click', () => {
+                        const panel = document.querySelector(`[data-panel='${tab.dataset.tab}']`);
+                        if (panel && panel.dataset.loaded === 'false') {
+                          const url = new URL(window.location.href);
+                          url.searchParams.set('tab', tab.dataset.tab);
+                          window.location.href = url.toString();
+                          return;
+                        }
                         activateTab(tab.dataset.tab);
                       });
                     });
@@ -398,8 +435,10 @@ final class WebUiRenderer {
                         clearButton.addEventListener('click', () => clearPanelFilters(panel));
                       }
 
-                      applyPanelFilters(panel);
-                      savePanelFilters(panel);
+                      if (panel.classList.contains('is-active')) {
+                        applyPanelFilters(panel);
+                        savePanelFilters(panel);
+                      }
                     });
 
                     function syncMetricInputs() {
@@ -906,18 +945,23 @@ final class WebUiRenderer {
             lastWeekTabClass,
             "last-week".equals(activeTab) ? "true" : "false",
             addExecutionPanelClass,
+            addExecutionLoaded,
             filterControls,
             addExecutionContent,
             executionsPanelClass,
+            executionsLoaded,
             filterControls,
             executionContent,
             wavesPanelClass,
+            wavesLoaded,
             waveContent,
             queryPanelClass,
+            queryLoaded,
             filterControls,
             queryControls,
             queryContent,
             lastWeekPanelClass,
+            lastWeekLoaded,
             WebHtml.escapeHtml(lastWeekStart.toString()),
             WebHtml.escapeHtml(lastWeekEnd.toString()),
             filterControls,
@@ -1025,6 +1069,7 @@ final class WebUiRenderer {
       List<Lift> deadlifts = db.liftsByType(LiftType.DEADLIFT);
       List<Lift> benches = db.liftsByType(LiftType.BENCH_PRESS);
       List<Lift> overheads = db.liftsByType(LiftType.OVERHEAD_PRESS);
+      DynamicLifts dynamicDefaults = DynamicLifts.fromDatabase(db, false);
 
       MaxEffortLiftPools pools = new MaxEffortLiftPools(weeks, db);
       List<Lift> lowerDefaults = pools.lowerWeeks();
@@ -1137,16 +1182,28 @@ final class WebUiRenderer {
           .append("</div>");
       html.append("<div class='stacked-row'>")
           .append("<label>Squat AR ")
-          .append(renderArSelect("deSquatAr", values.get("deSquatAr")))
+          .append(
+              renderArSelect(
+                  "deSquatAr",
+                  values.getOrDefault("deSquatAr", dynamicDefaults.squat().ar().name())))
           .append("</label>")
           .append("<label>Deadlift AR ")
-          .append(renderArSelect("deDeadliftAr", values.get("deDeadliftAr")))
+          .append(
+              renderArSelect(
+                  "deDeadliftAr",
+                  values.getOrDefault("deDeadliftAr", dynamicDefaults.deadlift().ar().name())))
           .append("</label>")
           .append("<label>Bench AR ")
-          .append(renderArSelect("deBenchAr", values.get("deBenchAr")))
+          .append(
+              renderArSelect(
+                  "deBenchAr",
+                  values.getOrDefault("deBenchAr", dynamicDefaults.bench().ar().name())))
           .append("</label>")
           .append("<label>Overhead AR ")
-          .append(renderArSelect("deOverheadAr", values.get("deOverheadAr")))
+          .append(
+              renderArSelect(
+                  "deOverheadAr",
+                  values.getOrDefault("deOverheadAr", dynamicDefaults.overhead().ar().name())))
           .append("</label>")
           .append("</div>");
       html.append("</div>");

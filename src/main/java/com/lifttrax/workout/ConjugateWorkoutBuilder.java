@@ -318,20 +318,10 @@ public class ConjugateWorkoutBuilder implements WorkoutBuilder {
       Map<DayOfWeek, Workout> workoutWeek = new EnumMap<>(DayOfWeek.class);
       workoutWeek.put(
           DayOfWeek.MONDAY,
-          buildLowerMaxDay(
-              week,
-              maxEffortPlan.lower(),
-              lowerConditioning,
-              warmups,
-              accessories));
+          buildLowerMaxDay(week, maxEffortPlan.lower(), lowerConditioning, warmups, accessories));
       workoutWeek.put(
           DayOfWeek.TUESDAY,
-          buildUpperMaxDay(
-              week,
-              maxEffortPlan.upper(),
-              upperConditioning,
-              warmups,
-              accessories));
+          buildUpperMaxDay(week, maxEffortPlan.upper(), upperConditioning, warmups, accessories));
       workoutWeek.put(
           DayOfWeek.THURSDAY,
           buildLowerDynamicDay(week, dynamicLifts, lowerConditioning, warmups, accessories));

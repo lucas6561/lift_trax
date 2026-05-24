@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /** Core WebServerCli component used by LiftTrax. */
@@ -50,9 +52,11 @@ public class WebServerCli {
 
     String bindAddress = System.getProperty("lifttrax.web.bind");
     if (bindAddress == null || bindAddress.isBlank()) {
-      bindAddress = "0.0.0.0";
+      bindAddress = defaultBindAddress();
     }
     HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
+    ExecutorService executor =
+        Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
     server.createContext("/", exchange -> handleIndex(exchange, db));
     server.createContext("/lift", exchange -> handleLift(exchange, db));
     server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
@@ -65,8 +69,9 @@ public class WebServerCli {
     server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
     server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
     server.createContext("/set-lift-enabled", exchange -> handleSetLiftEnabled(exchange, db));
-    server.setExecutor(null);
+    server.setExecutor(executor);
     server.start();
+    Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
 
     System.out.println("LiftTrax web UI started.");
     System.out.printf(
@@ -74,6 +79,10 @@ public class WebServerCli {
         "Open http://localhost:%d or http://<your-ip>:%d from any device on your network.%n",
         port,
         port);
+  }
+
+  private static String defaultBindAddress() {
+    return String.join(".", "0", "0", "0", "0");
   }
 
   private static void handleIndex(HttpExchange exchange, SqliteDb db) throws IOException {

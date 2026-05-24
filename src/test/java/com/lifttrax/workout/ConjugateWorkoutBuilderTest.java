@@ -85,6 +85,39 @@ class ConjugateWorkoutBuilderTest {
   }
 
   @Test
+  void dynamicWeeksFourThroughSixPrintConfiguredAccommodatingResistance() throws Exception {
+    FakeDb db = FakeDb.withSeedData();
+    db.add("Safety Bar Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of());
+    db.add("Box Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of());
+    db.add("Block Pull", LiftRegion.LOWER, LiftType.DEADLIFT, List.of());
+    db.add("Deficit Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of());
+    db.add("Close Grip Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+    db.add("Incline Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+    db.add("Strict Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of());
+    db.add("Seated Overhead Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of());
+
+    DynamicLiftSource dynamicLiftSource =
+        ignored ->
+            new DynamicLifts(
+                new DynamicLift(db.getLift("Back Squat"), AccommodatingResistance.CHAINS),
+                new DynamicLift(db.getLift("Conventional Deadlift"), AccommodatingResistance.BANDS),
+                new DynamicLift(db.getLift("Bench Press"), AccommodatingResistance.CHAINS),
+                new DynamicLift(db.getLift("Overhead Press"), AccommodatingResistance.BANDS));
+    var wave =
+        new ConjugateWorkoutBuilder(new DefaultMaxEffortPlanSource(), dynamicLiftSource)
+            .getWave(6, db);
+
+    String markdown = String.join("\n", WaveMarkdownWriter.createMarkdown(wave, db));
+
+    assertTrue(markdown.contains("# Week 4"));
+    assertTrue(markdown.contains("**Back Squat** 6x 3 reps @ 50% Chains"));
+    assertTrue(markdown.contains("**Conventional Deadlift** 6x 2 reps @ 50% Bands"));
+    assertTrue(markdown.contains("# Week 6"));
+    assertTrue(markdown.contains("**Bench Press** 9x 3 reps @ 60% Chains"));
+    assertTrue(markdown.contains("**Overhead Press** 6x 2 reps @ 60% Bands"));
+  }
+
+  @Test
   void hypertrophyBuilderBuildsWaveWithHypertrophySections() throws Exception {
     FakeDb db = FakeDb.withSeedData();
     var week = new HypertrophyWorkoutBuilder().getWave(1, db).get(0);
@@ -123,7 +156,8 @@ class ConjugateWorkoutBuilderTest {
                 RandomSupport.DETERMINISTIC)
             .getWave(1, db);
     String markdown = String.join("\n", WaveMarkdownWriter.createMarkdown(wave, db));
-    String expected = Files.readString(Path.of("testdata", "conjugate_wave_parity.md"));
+    String expected =
+        Files.readString(Path.of("testdata", "conjugate_wave_parity.md")).replace("\r\n", "\n");
     assertEquals(expected.trim(), markdown.trim());
   }
 

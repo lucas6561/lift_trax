@@ -462,7 +462,7 @@ class WebServerCliTest {
   }
 
   @Test
-  void indexBodyRendersWavePlannerEvenWhenAnotherTabIsActive() throws Exception {
+  void indexBodyDefersWavePlannerWhenAnotherTabIsActive() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-index", ".db");
     try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         SqliteDb db = new SqliteDb(dbPath.toString())) {
@@ -536,8 +536,80 @@ class WebServerCliTest {
               1,
               Map.of());
 
+      assertFalse(html.contains("<select name='waveType'"));
+      assertFalse(html.contains("Generate Wave"));
+      assertTrue(html.contains("data-panel='waves' data-loaded='false'"));
+      assertTrue(html.contains("Open this tab to load Workout Waves."));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void indexBodyRendersWavePlannerWhenWavesTabIsActive() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-index-waves", ".db");
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        SqliteDb db = new SqliteDb(dbPath.toString())) {
+      conn.createStatement()
+          .execute(
+              """
+                    CREATE TABLE IF NOT EXISTS lifts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        region TEXT NOT NULL,
+                        main_lift TEXT,
+                        muscles TEXT NOT NULL,
+                        notes TEXT NOT NULL DEFAULT ''
+                    )
+                    """);
+      conn.createStatement()
+          .execute(
+              """
+                    CREATE TABLE IF NOT EXISTS lift_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lift_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        sets TEXT NOT NULL,
+                        warmup INTEGER NOT NULL DEFAULT 0,
+                        deload INTEGER NOT NULL DEFAULT 0,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                    )
+                    """);
+
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "");
+      db.addLift(
+          "Conventional Deadlift",
+          LiftRegion.LOWER,
+          LiftType.DEADLIFT,
+          List.of(Muscle.HAMSTRING),
+          "");
+      db.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(Muscle.CHEST), "");
+      db.addLift(
+          "Overhead Press",
+          LiftRegion.UPPER,
+          LiftType.OVERHEAD_PRESS,
+          List.of(Muscle.SHOULDER),
+          "");
+
+      String html =
+          WebUiRenderer.renderIndexBody(
+              db,
+              List.of(),
+              "",
+              "",
+              "waves",
+              "",
+              "",
+              WebUiRenderer.AddExecutionPrefill.empty(),
+              LocalDate.parse("2026-01-01"),
+              LocalDate.parse("2026-01-07"),
+              1,
+              Map.of());
+
       assertTrue(html.contains("name='waveType'"));
       assertTrue(html.contains("Generate Wave"));
+      assertTrue(html.contains("data-panel='waves' data-loaded='true'"));
     } finally {
       Files.deleteIfExists(dbPath);
     }
@@ -582,6 +654,77 @@ class WebServerCliTest {
       assertTrue(html.contains("name='waveType'"));
       assertTrue(html.contains("Generate Wave"));
       assertTrue(html.contains("Failed to load conjugate planner options"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void conjugateWavePlannerDefaultsDynamicArToAccommodatingResistance() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-conjugate-ar", ".db");
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        SqliteDb db = new SqliteDb(dbPath.toString())) {
+      conn.createStatement()
+          .execute(
+              """
+                    CREATE TABLE IF NOT EXISTS lifts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        region TEXT NOT NULL,
+                        main_lift TEXT,
+                        muscles TEXT NOT NULL,
+                        notes TEXT NOT NULL DEFAULT ''
+                    )
+                    """);
+      conn.createStatement()
+          .execute(
+              """
+                    CREATE TABLE IF NOT EXISTS lift_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lift_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        sets TEXT NOT NULL,
+                        warmup INTEGER NOT NULL DEFAULT 0,
+                        deload INTEGER NOT NULL DEFAULT 0,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                    )
+                    """);
+
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "");
+      db.addLift(
+          "Conventional Deadlift",
+          LiftRegion.LOWER,
+          LiftType.DEADLIFT,
+          List.of(Muscle.HAMSTRING),
+          "");
+      db.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(Muscle.CHEST), "");
+      db.addLift(
+          "Overhead Press",
+          LiftRegion.UPPER,
+          LiftType.OVERHEAD_PRESS,
+          List.of(Muscle.SHOULDER),
+          "");
+      db.addLift("Sled Push", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(Muscle.QUAD), "");
+      db.addLift("Bike", LiftRegion.UPPER, LiftType.CONDITIONING, List.of(Muscle.CORE), "");
+      db.addLift("Leg Swings", LiftRegion.LOWER, LiftType.MOBILITY, List.of(Muscle.QUAD), "");
+      db.addLift(
+          "Shoulder CARs", LiftRegion.UPPER, LiftType.MOBILITY, List.of(Muscle.SHOULDER), "");
+      db.addLift(
+          "Hamstring Curl", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.HAMSTRING), "");
+      db.addLift("Leg Extension", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.QUAD), "");
+      db.addLift("Plank", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.CORE), "");
+      db.addLift("Lat Pulldown", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.LAT), "");
+      db.addLift(
+          "Tricep Pushdown", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.TRICEP), "");
+      db.addLift("Curl", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(Muscle.BICEP), "");
+
+      String html = WebUiRenderer.renderWaveContent(db, 1, Map.of("waveType", "conjugate"));
+
+      assertFalse(html.contains("<option value='STRAIGHT' selected>"));
+      assertTrue(
+          html.contains("<option value='CHAINS' selected>")
+              || html.contains("<option value='BANDS' selected>"));
     } finally {
       Files.deleteIfExists(dbPath);
     }
