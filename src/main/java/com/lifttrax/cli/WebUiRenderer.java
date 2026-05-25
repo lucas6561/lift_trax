@@ -1261,11 +1261,6 @@ final class WebUiRenderer {
       SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate end) {
     LocalDate normalizedStart = start.isAfter(end) ? end : start;
     LocalDate normalizedEnd = end.isBefore(start) ? start : end;
-    LocalDate historyMin = null;
-    LocalDate historyMax = null;
-    int historyCount = 0;
-    LocalDate nearestBefore = null;
-    LocalDate nearestAfter = null;
     StringBuilder html = new StringBuilder();
     html.append("<p>Showing ")
         .append(WebHtml.escapeHtml(DATE_FORMAT.format(normalizedStart)))
@@ -1274,53 +1269,38 @@ final class WebUiRenderer {
         .append("</p>");
 
     Map<LocalDate, List<LastWeekExecutionRow>> rowsByDate = new LinkedHashMap<>();
-    for (Lift lift : lifts) {
-      try {
-        for (LiftExecution execution : db.getExecutions(lift.name())) {
-          historyCount++;
-          if (historyMin == null || execution.date().isBefore(historyMin)) {
-            historyMin = execution.date();
-          }
-          if (historyMax == null || execution.date().isAfter(historyMax)) {
-            historyMax = execution.date();
-          }
-          if (execution.date().isBefore(normalizedStart)) {
-            if (nearestBefore == null || execution.date().isAfter(nearestBefore)) {
-              nearestBefore = execution.date();
-            }
-            continue;
-          }
-          if (execution.date().isAfter(normalizedEnd)) {
-            if (nearestAfter == null || execution.date().isBefore(nearestAfter)) {
-              nearestAfter = execution.date();
-            }
-            continue;
-          }
-          if (execution.id() == null) {
-            continue;
-          }
-          rowsByDate
-              .computeIfAbsent(execution.date(), ignored -> new ArrayList<>())
-              .add(
-                  new LastWeekExecutionRow(
-                      lift.name(),
-                      executionSortOrder(lift, execution),
-                      renderLastWeekExecutionItem(
-                          lift, execution, normalizedStart, normalizedEnd)));
+    Map<String, Lift> liftsByName =
+        lifts.stream().collect(Collectors.toMap(Lift::name, lift -> lift, (left, right) -> left));
+    SqliteDb.ExecutionHistorySummary history;
+    try {
+      history = db.executionHistorySummary(normalizedStart, normalizedEnd);
+      for (SqliteDb.LiftExecutionRow row :
+          db.getExecutionsBetween(normalizedStart, normalizedEnd)) {
+        Lift lift = liftsByName.getOrDefault(row.lift().name(), row.lift());
+        LiftExecution execution = row.execution();
+        if (execution.id() == null) {
+          continue;
         }
-      } catch (Exception e) {
-        return "<p class='status error'>Failed to load last-week view: "
-            + WebHtml.escapeHtml(e.getMessage())
-            + "</p>";
+        rowsByDate
+            .computeIfAbsent(execution.date(), ignored -> new ArrayList<>())
+            .add(
+                new LastWeekExecutionRow(
+                    lift.name(),
+                    executionSortOrder(lift, execution),
+                    renderLastWeekExecutionItem(lift, execution, normalizedStart, normalizedEnd)));
       }
+    } catch (Exception e) {
+      return "<p class='status error'>Failed to load last-week view: "
+          + WebHtml.escapeHtml(e.getMessage())
+          + "</p>";
     }
-    if (historyMin != null && historyMax != null) {
+    if (history.minDate() != null && history.maxDate() != null) {
       html.append("<p class='muted'>History available: ")
-          .append(historyCount)
+          .append(history.count())
           .append(" total records from ")
-          .append(WebHtml.escapeHtml(DATE_FORMAT.format(historyMin)))
+          .append(WebHtml.escapeHtml(DATE_FORMAT.format(history.minDate())))
           .append(" through ")
-          .append(WebHtml.escapeHtml(DATE_FORMAT.format(historyMax)))
+          .append(WebHtml.escapeHtml(DATE_FORMAT.format(history.maxDate())))
           .append("</p>");
     } else {
       html.append("<p class='muted'>History available: no execution records found</p>");
@@ -1328,14 +1308,14 @@ final class WebUiRenderer {
 
     if (rowsByDate.isEmpty()) {
       html.append("<p>no executions in this range (check the date range and filters)</p>");
-      if (nearestBefore != null) {
+      if (history.nearestBefore() != null) {
         html.append("<p class='muted'>Closest earlier record in current filters: ")
-            .append(WebHtml.escapeHtml(DATE_FORMAT.format(nearestBefore)))
+            .append(WebHtml.escapeHtml(DATE_FORMAT.format(history.nearestBefore())))
             .append("</p>");
       }
-      if (nearestAfter != null) {
+      if (history.nearestAfter() != null) {
         html.append("<p class='muted'>Closest later record in current filters: ")
-            .append(WebHtml.escapeHtml(DATE_FORMAT.format(nearestAfter)))
+            .append(WebHtml.escapeHtml(DATE_FORMAT.format(history.nearestAfter())))
             .append("</p>");
       }
       return html.toString();

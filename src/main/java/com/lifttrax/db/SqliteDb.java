@@ -31,13 +31,31 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Core SqliteDb component used by LiftTrax. */
 public class SqliteDb implements Database, AutoCloseable {
   public static final int MAX_BACKUPS = 5;
+  private static final Logger LOGGER = LoggerFactory.getLogger(SqliteDb.class);
+
+  public record LiftExecutionRow(Lift lift, LiftExecution execution) {}
+
+  public record ExecutionHistorySummary(
+      int count,
+      LocalDate minDate,
+      LocalDate maxDate,
+      LocalDate nearestBefore,
+      LocalDate nearestAfter) {}
 
   private final Connection connection;
   private final ObjectMapper objectMapper = new ObjectMapper();
+
+  private static void logInfo(String message, Object... args) {
+    if (LOGGER.isInfoEnabled()) {
+      LOGGER.info(message, args);
+    }
+  }
 
   public SqliteDb(String dbPath) throws Exception {
     Path dbFile = Paths.get(dbPath);
@@ -52,6 +70,7 @@ public class SqliteDb implements Database, AutoCloseable {
     ensureExecutionSetsTable();
     backfillExecutionSetsFromLegacyJson();
     ensureUserVersion();
+    logInfo("db.open path={} result=ok", dbPath);
   }
 
   @Override
@@ -63,6 +82,7 @@ public class SqliteDb implements Database, AutoCloseable {
       while (rs.next()) {
         lifts.add(mapLift(rs));
       }
+      logInfo("db.listLifts result=ok");
       return lifts;
     }
   }
@@ -74,9 +94,16 @@ public class SqliteDb implements Database, AutoCloseable {
       statement.setString(1, name);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
+          logInfo("db.getLift name={} result=not_found", name);
           throw new IllegalArgumentException("Lift not found: " + name);
         }
-        return mapLift(rs);
+        Lift lift = mapLift(rs);
+        logInfo(
+            "db.getLift name={} result=ok region={} main={}",
+            name,
+            lift.region(),
+            lift.main() == null ? "" : lift.main().toDbValue());
+        return lift;
       }
     }
   }
@@ -106,9 +133,159 @@ public class SqliteDb implements Database, AutoCloseable {
                   rs.getInt("deload") != 0,
                   rs.getString("notes")));
         }
+        logInfo("db.getExecutions lift={} result=ok", liftName);
         return executions;
       }
     }
+  }
+
+  public List<LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
+      throws Exception {
+    String sql =
+        """
+                SELECT
+                    l.name, l.region, l.main_lift, l.muscles, l.notes AS lift_notes,
+                    lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes AS record_notes
+                FROM lift_records lr
+                JOIN lifts l ON l.id = lr.lift_id
+                WHERE lr.date BETWEEN ? AND ?
+                ORDER BY lr.date ASC, l.name ASC, lr.id ASC
+                """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, start.toString());
+      statement.setString(2, end.toString());
+      try (ResultSet rs = statement.executeQuery()) {
+        List<LiftExecutionRow> rows = new ArrayList<>();
+        while (rs.next()) {
+          int recordId = rs.getInt("id");
+          Lift lift =
+              new Lift(
+                  rs.getString("name"),
+                  LiftRegion.fromString(rs.getString("region")),
+                  LiftType.fromDbValue(rs.getString("main_lift")),
+                  parseMuscles(rs.getString("muscles")),
+                  rs.getString("lift_notes"));
+          LiftExecution execution =
+              new LiftExecution(
+                  recordId,
+                  LocalDate.parse(rs.getString("date")),
+                  loadExecutionSets(recordId, rs.getString("sets")),
+                  rs.getInt("warmup") != 0,
+                  rs.getInt("deload") != 0,
+                  rs.getString("record_notes"));
+          rows.add(new LiftExecutionRow(lift, execution));
+        }
+        logInfo("db.getExecutionsBetween start={} end={} result=ok", start, end);
+        return rows;
+      }
+    }
+  }
+
+  public ExecutionHistorySummary executionHistorySummary(LocalDate start, LocalDate end)
+      throws Exception {
+    String sql =
+        """
+                SELECT
+                    COUNT(*) AS record_count,
+                    MIN(date) AS min_date,
+                    MAX(date) AS max_date,
+                    MAX(CASE WHEN date < ? THEN date END) AS nearest_before,
+                    MIN(CASE WHEN date > ? THEN date END) AS nearest_after
+                FROM lift_records
+                """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, start.toString());
+      statement.setString(2, end.toString());
+      try (ResultSet rs = statement.executeQuery()) {
+        if (!rs.next()) {
+          logInfo("db.executionHistorySummary start={} end={} result=empty", start, end);
+          return new ExecutionHistorySummary(0, null, null, null, null);
+        }
+        ExecutionHistorySummary summary =
+            new ExecutionHistorySummary(
+                rs.getInt("record_count"),
+                parseNullableDate(rs.getString("min_date")),
+                parseNullableDate(rs.getString("max_date")),
+                parseNullableDate(rs.getString("nearest_before")),
+                parseNullableDate(rs.getString("nearest_after")));
+        logInfo("db.executionHistorySummary start={} end={} result=ok", start, end);
+        return summary;
+      }
+    }
+  }
+
+  public LiftExecution getLastExecution(String liftName, boolean warmup, boolean deload)
+      throws Exception {
+    String sql =
+        """
+                SELECT lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes
+                FROM lift_records lr
+                JOIN lifts l ON l.id = lr.lift_id
+                WHERE l.name = ? AND lr.warmup = ? AND lr.deload = ?
+                ORDER BY lr.date DESC, lr.id DESC
+                LIMIT 1
+                """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, liftName);
+      statement.setInt(2, warmup ? 1 : 0);
+      statement.setInt(3, deload ? 1 : 0);
+      try (ResultSet rs = statement.executeQuery()) {
+        if (!rs.next()) {
+          logInfo(
+              "db.getLastExecution lift={} warmup={} deload={} result=none",
+              liftName,
+              warmup,
+              deload);
+          return null;
+        }
+        LiftExecution execution = mapExecution(rs);
+        logInfo(
+            "db.getLastExecution lift={} warmup={} deload={} result=id:{}",
+            liftName,
+            warmup,
+            deload,
+            execution.id());
+        return execution;
+      }
+    }
+  }
+
+  public LiftExecution getExecution(String liftName, int executionId) throws Exception {
+    String sql =
+        """
+                SELECT lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes
+                FROM lift_records lr
+                JOIN lifts l ON l.id = lr.lift_id
+                WHERE l.name = ? AND lr.id = ?
+                """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, liftName);
+      statement.setInt(2, executionId);
+      try (ResultSet rs = statement.executeQuery()) {
+        if (!rs.next()) {
+          logInfo("db.getExecution lift={} id={} result=not_found", liftName, executionId);
+          return null;
+        }
+        LiftExecution execution = mapExecution(rs);
+        logInfo("db.getExecution lift={} id={} result=ok", liftName, executionId);
+        return execution;
+      }
+    }
+  }
+
+  private LiftExecution mapExecution(ResultSet rs) throws Exception {
+    int recordId = rs.getInt("id");
+    return new LiftExecution(
+        recordId,
+        LocalDate.parse(rs.getString("date")),
+        loadExecutionSets(recordId, rs.getString("sets")),
+        rs.getInt("warmup") != 0,
+        rs.getInt("deload") != 0,
+        rs.getString("notes"));
+  }
+
+  private static LocalDate parseNullableDate(String value) {
+    return value == null || value.isBlank() ? null : LocalDate.parse(value);
   }
 
   private Lift mapLift(ResultSet rs) throws Exception {
@@ -438,6 +615,7 @@ public class SqliteDb implements Database, AutoCloseable {
   @Override
   public void close() throws Exception {
     connection.close();
+    logInfo("db.close result=ok");
   }
 
   private Integer findLiftId(String name) throws Exception {
@@ -609,7 +787,13 @@ public class SqliteDb implements Database, AutoCloseable {
       statement.setString(3, main == null ? null : main.toDbValue());
       statement.setString(4, musclesValue);
       statement.setString(5, notes == null ? "" : notes);
-      statement.executeUpdate();
+      int rows = statement.executeUpdate();
+      logInfo(
+          "db.addLift name={} region={} main={} result=rows:{}",
+          name,
+          region,
+          main == null ? "" : main.toDbValue(),
+          rows);
     }
   }
 
@@ -617,6 +801,7 @@ public class SqliteDb implements Database, AutoCloseable {
   public void addLiftExecution(String name, LiftExecution execution) throws Exception {
     Integer liftId = findLiftId(name);
     if (liftId == null) {
+      logInfo("db.addLiftExecution lift={} result=not_found", name);
       throw new IllegalArgumentException("Lift not found: " + name);
     }
     String setsJson = objectMapper.writeValueAsString(execution.sets());
@@ -631,11 +816,19 @@ public class SqliteDb implements Database, AutoCloseable {
       statement.setInt(5, execution.deload() ? 1 : 0);
       statement.setString(6, execution.notes() == null ? "" : execution.notes());
       statement.executeUpdate();
+      Integer recordId = null;
       try (ResultSet keys = statement.getGeneratedKeys()) {
         if (keys.next()) {
-          saveExecutionSets(keys.getInt(1), execution.sets());
+          recordId = keys.getInt(1);
+          saveExecutionSets(recordId, execution.sets());
         }
       }
+      logInfo(
+          "db.addLiftExecution lift={} date={} sets={} result=id:{}",
+          name,
+          execution.date(),
+          execution.sets().size(),
+          recordId == null ? "" : recordId);
     }
   }
 
@@ -661,7 +854,14 @@ public class SqliteDb implements Database, AutoCloseable {
       statement.setString(4, musclesValue);
       statement.setString(5, notes == null ? "" : notes);
       statement.setString(6, currentName);
-      statement.executeUpdate();
+      int rows = statement.executeUpdate();
+      logInfo(
+          "db.updateLift currentName={} newName={} region={} main={} result=rows:{}",
+          currentName,
+          newName,
+          region,
+          main == null ? "" : main.toDbValue(),
+          rows);
     }
   }
 
@@ -669,18 +869,22 @@ public class SqliteDb implements Database, AutoCloseable {
   public void deleteLift(String name) throws Exception {
     Integer liftId = findLiftId(name);
     if (liftId == null) {
+      logInfo("db.deleteLift name={} result=not_found", name);
       return;
     }
+    int recordsDeleted;
     try (PreparedStatement statement =
         connection.prepareStatement("DELETE FROM lift_records WHERE lift_id = ?")) {
       statement.setInt(1, liftId);
-      statement.executeUpdate();
+      recordsDeleted = statement.executeUpdate();
     }
+    int liftsDeleted;
     try (PreparedStatement statement =
         connection.prepareStatement("DELETE FROM lifts WHERE id = ?")) {
       statement.setInt(1, liftId);
-      statement.executeUpdate();
+      liftsDeleted = statement.executeUpdate();
     }
+    logInfo("db.deleteLift name={} result=lifts:{},records:{}", name, liftsDeleted, recordsDeleted);
   }
 
   @Override
@@ -689,7 +893,8 @@ public class SqliteDb implements Database, AutoCloseable {
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, enabled ? 1 : 0);
       statement.setString(2, name);
-      statement.executeUpdate();
+      int rows = statement.executeUpdate();
+      logInfo("db.setLiftEnabled name={} enabled={} result=rows:{}", name, enabled, rows);
     }
   }
 
@@ -700,9 +905,12 @@ public class SqliteDb implements Database, AutoCloseable {
       statement.setString(1, name);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
+          logInfo("db.isLiftEnabled name={} result=not_found", name);
           throw new IllegalArgumentException("Lift not found: " + name);
         }
-        return rs.getInt("enabled") != 0;
+        boolean enabled = rs.getInt("enabled") != 0;
+        logInfo("db.isLiftEnabled name={} result={}", name, enabled);
+        return enabled;
       }
     }
   }
@@ -719,34 +927,50 @@ public class SqliteDb implements Database, AutoCloseable {
       statement.setInt(4, execution.deload() ? 1 : 0);
       statement.setString(5, execution.notes() == null ? "" : execution.notes());
       statement.setInt(6, execId);
-      statement.executeUpdate();
+      int rows = statement.executeUpdate();
+      logInfo(
+          "db.updateLiftExecution id={} date={} sets={} result=rows:{}",
+          execId,
+          execution.date(),
+          execution.sets().size(),
+          rows);
     }
     saveExecutionSets(execId, execution.sets());
   }
 
   @Override
   public void deleteLiftExecution(int execId) throws Exception {
+    int setsDeleted;
     try (PreparedStatement statement =
         connection.prepareStatement("DELETE FROM execution_sets WHERE record_id = ?")) {
       statement.setInt(1, execId);
-      statement.executeUpdate();
+      setsDeleted = statement.executeUpdate();
     }
+    int recordsDeleted;
     try (PreparedStatement statement =
         connection.prepareStatement("DELETE FROM lift_records WHERE id = ?")) {
       statement.setInt(1, execId);
-      statement.executeUpdate();
+      recordsDeleted = statement.executeUpdate();
     }
+    logInfo(
+        "db.deleteLiftExecution id={} result=records:{},sets:{}",
+        execId,
+        recordsDeleted,
+        setsDeleted);
   }
 
   @Override
   public LiftStats liftStats(String name) throws Exception {
     Integer liftId = findLiftId(name);
     if (liftId == null) {
+      logInfo("db.liftStats name={} result=not_found", name);
       throw new IllegalArgumentException("Lift not found: " + name);
     }
     LiftExecution last = getLastExecution(liftId);
     Map<Integer, String> bestByReps = collectBestByReps(liftId);
-    return new LiftStats(last, bestByReps);
+    LiftStats stats = new LiftStats(last, bestByReps);
+    logInfo("db.liftStats name={} result=ok last={}", name, last == null ? "none" : last.date());
+    return stats;
   }
 
   @Override
@@ -760,6 +984,7 @@ public class SqliteDb implements Database, AutoCloseable {
         while (rs.next()) {
           lifts.add(mapLift(rs));
         }
+        logInfo("db.liftsByType type={} result=ok", liftType);
         return lifts;
       }
     }
@@ -780,6 +1005,7 @@ public class SqliteDb implements Database, AutoCloseable {
             lifts.add(lift);
           }
         }
+        logInfo("db.getAccessoriesByMuscle muscle={} result=ok", muscle);
         return lifts;
       }
     }
@@ -797,6 +1023,7 @@ public class SqliteDb implements Database, AutoCloseable {
         while (rs.next()) {
           lifts.add(mapLift(rs));
         }
+        logInfo("db.liftsByRegionAndType region={} type={} result=ok", region, liftType);
         return lifts;
       }
     }

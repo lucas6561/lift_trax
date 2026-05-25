@@ -251,8 +251,7 @@ public class WebServerCli {
       boolean warmup = query.containsKey("warmup");
       boolean deload = query.containsKey("deload");
 
-      List<LiftExecution> executions = db.getExecutions(liftName);
-      LiftExecution last = selectExecutionForFlags(executions, warmup, deload);
+      LiftExecution last = db.getLastExecution(liftName, warmup, deload);
       if (last == null) {
         String criteria = "warmup=" + warmup + ", deload=" + deload;
         redirect(
@@ -336,7 +335,7 @@ public class WebServerCli {
         return;
       }
 
-      LiftExecution existing = findExecutionById(db.getExecutions(liftName), executionId);
+      LiftExecution existing = db.getExecution(liftName, executionId);
       if (existing == null) {
         redirect(
             exchange,
