@@ -1,6 +1,7 @@
 package com.lifttrax.workout;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -144,6 +145,35 @@ class ConjugateWorkoutBuilderTest {
     assertTrue(markdown.stream().anyMatch(line -> line.startsWith("- Circuit: 3 rounds")));
     assertTrue(markdown.stream().anyMatch(line -> line.contains("**") && line.contains("1 reps")));
     assertTrue(markdown.stream().anyMatch(line -> line.contains("- Last:")));
+  }
+
+  @Test
+  void markdownWriterShowsBestOneRepMaxInsteadOfLastOneRepMax() throws Exception {
+    FakeDb db = FakeDb.withSeedData();
+    db.exec(
+        "Back Squat",
+        new LiftExecution(
+            4,
+            LocalDate.now().minusDays(10),
+            List.of(new ExecutionSet(new SetMetric.Reps(1), "365 lb", 9.5f)),
+            false,
+            false,
+            ""));
+    db.exec(
+        "Back Squat",
+        new LiftExecution(
+            5,
+            LocalDate.now(),
+            List.of(new ExecutionSet(new SetMetric.Reps(1), "315 lb", 8.0f)),
+            false,
+            false,
+            ""));
+    var wave = new ConjugateWorkoutBuilder().getWave(1, db);
+
+    String markdown = String.join("\n", WaveMarkdownWriter.createMarkdown(wave, db));
+
+    assertTrue(markdown.contains("- Best 1RM: 365 lb"));
+    assertFalse(markdown.contains("- Last 1RM:"));
   }
 
   @Test

@@ -73,9 +73,9 @@ public final class WaveMarkdownWriter {
         if (last != null) {
           lines.add("   - Last: " + last);
         }
-        String max = lastOneRepMax(db, s.lift().name());
+        String max = bestOneRepMax(db, s.lift().name());
         if (max != null) {
-          lines.add("   - Last 1RM: " + max);
+          lines.add("   - Best 1RM: " + max);
         }
         i += count;
       } else if (lift.kind() instanceof WorkoutLiftKind.CircuitKind ck) {
@@ -93,9 +93,9 @@ public final class WaveMarkdownWriter {
           if (last != null) {
             lines.add("     - Last: " + last);
           }
-          String max = lastOneRepMax(db, sl.lift().name());
+          String max = bestOneRepMax(db, sl.lift().name());
           if (max != null) {
-            lines.add("     - Last 1RM: " + max);
+            lines.add("     - Best 1RM: " + max);
           }
         }
         i += 1;
@@ -247,7 +247,9 @@ public final class WaveMarkdownWriter {
     return ExecutionSummaryFormatter.formatCompactSummary(exec);
   }
 
-  private static String lastOneRepMax(Database db, String liftName) throws Exception {
+  private static String bestOneRepMax(Database db, String liftName) throws Exception {
+    String bestWeight = null;
+    double bestWeightLbs = 0.0;
     for (LiftExecution exec : db.getExecutions(liftName)) {
       if (exec.warmup()) {
         continue;
@@ -257,11 +259,61 @@ public final class WaveMarkdownWriter {
             && reps.reps() == 1
             && set.weight() != null
             && !"none".equalsIgnoreCase(set.weight())) {
-          return set.weight();
+          double weightLbs = weightToLbs(set.weight());
+          if (bestWeight == null || weightLbs > bestWeightLbs) {
+            bestWeight = set.weight();
+            bestWeightLbs = weightLbs;
+          }
         }
       }
     }
-    return null;
+    return bestWeight;
+  }
+
+  private static double weightToLbs(String weight) {
+    String trimmed = weight.trim().toLowerCase(java.util.Locale.ROOT);
+    if (trimmed.isEmpty() || "none".equals(trimmed)) {
+      return 0.0;
+    }
+    if (trimmed.contains("|")) {
+      String[] parts = trimmed.split("\\|", 2);
+      try {
+        return parseWeightSide(parts[0]) + parseWeightSide(parts[1]);
+      } catch (IllegalArgumentException e) {
+        return 0.0;
+      }
+    }
+    if (trimmed.contains("+")) {
+      String[] parts = trimmed.split("\\+");
+      try {
+        double raw = parseWeightSide(parts[0]);
+        if (parts.length == 2 && parts[1].trim().endsWith("c")) {
+          String chain = parts[1].trim().substring(0, parts[1].trim().length() - 1);
+          return raw + parseWeightSide(chain);
+        }
+        return raw;
+      } catch (IllegalArgumentException e) {
+        return 0.0;
+      }
+    }
+    try {
+      return parseWeightSide(trimmed);
+    } catch (IllegalArgumentException e) {
+      return 0.0;
+    }
+  }
+
+  private static double parseWeightSide(String value) {
+    String trimmed = value.trim();
+    if (trimmed.endsWith("kg")) {
+      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
+      return Double.parseDouble(stripped) * 2.20462;
+    }
+    if (trimmed.endsWith("lb")) {
+      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
+      return Double.parseDouble(stripped);
+    }
+    return Double.parseDouble(trimmed);
   }
 
   private static String title(DayOfWeek day) {

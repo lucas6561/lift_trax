@@ -46,8 +46,14 @@ tasks.named('test') {
     }
 }
 
+tasks.named('compileTestJava') {
+    // JDK 24 javac in this Windows environment does not resolve the exploded main output
+    // directory reliably during test compilation, so compile main sources with tests too.
+    source sourceSets.main.java
+}
+
 jacoco {
-    toolVersion = '0.8.12'
+    toolVersion = '0.8.14'
 }
 
 
