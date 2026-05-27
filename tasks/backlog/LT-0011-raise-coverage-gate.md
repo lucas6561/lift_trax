@@ -1,7 +1,7 @@
 ---
 id: LT-0011
 title: Raise coverage gate to 90 percent
-status: ready
+status: done
 track: quality
 priority: high
 effort: medium
@@ -28,11 +28,11 @@ The Gradle coverage verification task enforces a 90 percent minimum for the agre
 
 ## Acceptance criteria
 
-- [ ] `jacocoTestCoverageVerification` requires at least 90 percent covered instructions for the agreed scope.
-- [ ] `check` fails when the coverage gate fails.
-- [ ] The coverage scope is documented in the build or project notes.
-- [ ] A local quality run passes with the new threshold.
+- [x] `jacocoTestCoverageVerification` requires at least 90 percent covered instructions for the agreed scope.
+- [x] `check` fails when the coverage gate fails.
+- [x] The coverage scope is documented in the build or project notes.
+- [x] A local quality run passes with the new threshold.
 
 ## Notes
 
-The current build enforces 80 percent coverage over an explicit class include list. Decide whether 90 percent applies to that list first or to a broader package set.
+The 90 percent gate applies first to the explicit stable coverage include list in `build.gradle`. The latest verified scoped instruction coverage was 93.57 percent.

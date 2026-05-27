@@ -16,6 +16,8 @@ if "%DIST_URL%"=="" (
 set DIST_URL=%DIST_URL:\:=:%
 for %%F in (%DIST_URL%) do set DIST_FILE=%%~nxF
 set DIST_NAME=%DIST_FILE:.zip=%
+set DIST_NAME=%DIST_NAME:-bin=%
+set DIST_NAME=%DIST_NAME:-all=%
 set GRADLE_HOME=%SCRIPT_DIR%.gradle-dist\%DIST_NAME%
 set GRADLE_EXE=%GRADLE_HOME%\bin\gradle.bat
 

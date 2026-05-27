@@ -89,7 +89,8 @@ tasks.register('staticAnalysis') {
 }
 
 def coverageIncludes = [
-    // Workout planning classes with stable tests
+    // LT-0011 coverage policy: enforce 90% instruction coverage on stable workout-planning
+    // and web input/rendering helpers. Expand this list as more product surfaces stabilize.
     'com/lifttrax/workout/ConjugateWorkoutBuilder.class',
     'com/lifttrax/workout/HypertrophyWorkoutBuilder.class',
     'com/lifttrax/workout/WaveMarkdownWriter.class',
@@ -128,7 +129,7 @@ tasks.named('jacocoTestCoverageVerification') {
             limit {
                 counter = 'INSTRUCTION'
                 value = 'COVEREDRATIO'
-                minimum = 0.80
+                minimum = 0.90
             }
         }
     }

@@ -177,6 +177,66 @@ class ConjugateWorkoutBuilderTest {
   }
 
   @Test
+  void markdownWriterComparesOneRepMaxAcrossWeightFormats() throws Exception {
+    FakeDb db = new FakeDb();
+    db.add("Kilogram Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+    db.add("Split Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of());
+    db.add("Chain Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of());
+    db.add("Band Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+    db.add("Invalid Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+
+    db.exec("Kilogram Bench", oneRepMax(1, "225 lb"));
+    db.exec("Kilogram Bench", oneRepMax(2, "110 kg"));
+    db.exec("Split Deadlift", oneRepMax(3, "245"));
+    db.exec("Split Deadlift", oneRepMax(4, "120|130"));
+    db.exec("Chain Squat", oneRepMax(5, "250"));
+    db.exec("Chain Squat", oneRepMax(6, "200+60c"));
+    db.exec("Band Bench", oneRepMax(7, "180"));
+    db.exec("Band Bench", oneRepMax(8, "185+red"));
+    db.exec("Invalid Bench", oneRepMax(9, "bad|40"));
+    db.exec("Invalid Bench", oneRepMax(10, "95 lb"));
+
+    String markdown = markdownFor(db, SetMetricFixtures.oneRep(), db.listLifts());
+
+    assertTrue(markdown.contains("- Best 1RM: 110 kg"));
+    assertTrue(markdown.contains("- Best 1RM: 120|130"));
+    assertTrue(markdown.contains("- Best 1RM: 200+60c"));
+    assertTrue(markdown.contains("- Best 1RM: 185+red"));
+    assertTrue(markdown.contains("- Best 1RM: 95 lb"));
+  }
+
+  @Test
+  void markdownWriterPrioritizesClosestHistoricalMetric() throws Exception {
+    FakeDb db = new FakeDb();
+    db.add("Carry", LiftRegion.LOWER, LiftType.ACCESSORY, List.of());
+    db.add("Hold", LiftRegion.UPPER, LiftType.ACCESSORY, List.of());
+    db.add("Split Curl", LiftRegion.UPPER, LiftType.ACCESSORY, List.of());
+    db.add("Rep Curl", LiftRegion.UPPER, LiftType.ACCESSORY, List.of());
+
+    db.exec("Carry", execution(1, new SetMetric.DistanceFeet(100), "none"));
+    db.exec("Carry", execution(2, new SetMetric.DistanceFeet(42), "none"));
+    db.exec("Hold", execution(3, new SetMetric.TimeSecs(60), "none"));
+    db.exec("Hold", execution(4, new SetMetric.TimeSecs(32), "none"));
+    db.exec("Split Curl", execution(5, new SetMetric.RepsLr(12, 12), "25"));
+    db.exec("Split Curl", execution(6, new SetMetric.Reps(8), "20"));
+    db.exec("Rep Curl", execution(7, new SetMetric.Reps(8), "20"));
+    db.exec("Rep Curl", execution(8, new SetMetric.RepsLr(12, 12), "25"));
+
+    List<WorkoutLift> planned =
+        List.of(
+            plannedSingle(db.getLift("Carry"), new SetMetric.DistanceFeet(40)),
+            plannedSingle(db.getLift("Hold"), new SetMetric.TimeSecs(30)),
+            plannedSingle(db.getLift("Split Curl"), new SetMetric.Reps(10)),
+            plannedSingle(db.getLift("Rep Curl"), new SetMetric.RepsLr(10, 10)));
+    String markdown = markdownFor(db, planned);
+
+    assertTrue(markdown.contains("- Last: 1 sets x 42 ft"));
+    assertTrue(markdown.contains("- Last: 1 sets x 32 sec"));
+    assertTrue(markdown.contains("- Last: 1 sets x 8 reps"));
+    assertTrue(markdown.contains("- Last: 1 sets x 12|12 reps"));
+  }
+
+  @Test
   void conjugateWaveMarkdownMatchesParityFixture() throws Exception {
     FakeDb db = FakeDb.withParitySeedData();
     var wave =
@@ -247,6 +307,45 @@ class ConjugateWorkoutBuilderTest {
                 lift ->
                     lift.name().toLowerCase().contains("deload")
                         || lift.name().equals("Light Conditioning")));
+  }
+
+  private static LiftExecution oneRepMax(int id, String weight) {
+    return execution(id, new SetMetric.Reps(1), weight);
+  }
+
+  private static LiftExecution execution(int id, SetMetric metric, String weight) {
+    return new LiftExecution(
+        id,
+        LocalDate.now().minusDays(id),
+        List.of(new ExecutionSet(metric, weight, null)),
+        false,
+        false,
+        "");
+  }
+
+  private static WorkoutLift plannedSingle(Lift lift, SetMetric metric) {
+    return new WorkoutLift(
+        "Test Work",
+        new WorkoutLiftKind.SingleKind(new SingleLift(lift, metric, null, null, null, false)));
+  }
+
+  private static String markdownFor(FakeDb db, List<WorkoutLift> planned) throws Exception {
+    var wave = List.of(Map.of(DayOfWeek.MONDAY, new Workout(planned)));
+    return String.join("\n", WaveMarkdownWriter.createMarkdown(wave, db));
+  }
+
+  private static String markdownFor(FakeDb db, SetMetric metric, List<Lift> lifts)
+      throws Exception {
+    List<WorkoutLift> planned = lifts.stream().map(lift -> plannedSingle(lift, metric)).toList();
+    return markdownFor(db, planned);
+  }
+
+  private static final class SetMetricFixtures {
+    private SetMetricFixtures() {}
+
+    static SetMetric oneRep() {
+      return new SetMetric.Reps(1);
+    }
   }
 
   static class FakeDb implements Database {

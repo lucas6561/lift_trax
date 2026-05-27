@@ -14,17 +14,13 @@
     <rule ref="category/java/errorprone.xml">
         <exclude name="AvoidDuplicateLiterals"/>
         <exclude name="AvoidLiteralsInIfCondition"/>
-        <exclude name="LiteralsFirstInComparisons"/>
     </rule>
 
-    <rule ref="category/java/security.xml">
-        <exclude name="AvoidAccessibilityAlteration"/>
-    </rule>
+    <rule ref="category/java/security.xml"/>
 
     <rule ref="category/java/bestpractices.xml">
         <exclude name="SystemPrintln"/>
         <exclude name="ImplicitFunctionalInterface"/>
-        <exclude name="AvoidFieldNameMatchingMethodName"/>
     </rule>
 
     <rule ref="category/java/codestyle.xml/ClassNamingConventions"/>
