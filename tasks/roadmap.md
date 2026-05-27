@@ -1,67 +1,107 @@
 # LiftTrax roadmap
 
-LiftTrax is becoming a practical strength-training log and planning companion: a local-first app that stores lifts and executions, helps plan useful training waves, and makes past work easy to inspect.
+LiftTrax is becoming a practical strength-training planning and logging system: quality software with a strict engineering bar, an easy workout experience on desktop and phone, and a schema-driven program builder that can support coaches, generated programs, and future distribution.
 
 ## North star
 
-Make it easy to answer three questions:
+Make it easy for a lifter or coach to answer four questions:
 
 1. What should I train today?
 2. What did I do last time?
 3. Is the plan moving me forward?
+4. Can I create, share, load, and adjust training programs without changing code?
 
-## Roadmap tracks
+## Product goals
 
-### 1. Product core
+### 1. Quality software
 
-Make the app feel complete for day-to-day training: add, view, edit, and review lifts and executions without touching the database directly.
+LiftTrax should be readable, documented, tested, and safe to change. A build should fail if static analysis has warnings or errors, formatting is off, tests fail, or covered code drops below the agreed threshold.
 
-Starter tasks:
+Key tasks:
+
+- `LT-0011`: Raise coverage gate to 90 percent.
+- `LT-0012`: Add a single quality gate command.
+- `LT-0013`: Document package boundaries and coding standards.
+- `LT-0014`: Add CI quality checks.
+
+### 2. Cross-device application
+
+The app should work comfortably from a desktop browser and a phone. The near-term product can stay web-first, but the architecture should leave room for a packaged mobile app, multiple users, and distribution.
+
+Key tasks:
 
 - `LT-0001`: Define the daily training dashboard.
 - `LT-0002`: Add execution editing and deletion.
+- `LT-0007`: Improve mobile workout logging flow.
+- `LT-0015`: Choose the web, mobile, and distribution architecture.
+- `LT-0016`: Add user and ownership model design.
+- `LT-0017`: Define install, update, and release strategy.
 
-### 2. Training logic
+### 3. Schema-driven workout building
 
-Turn the conjugate and wave builders into a clearer planning system with predictable inputs, explainable outputs, and room for future programming styles.
+The wave builder should accept a program schema instead of depending only on specific implementations. Coaches should be able to create multi-week programs through a future editor, an AI-generated schema file, or specialized generators such as conjugate and hypertrophy.
 
-Starter tasks:
+Key tasks:
 
 - `LT-0003`: Design the workout plan model.
-- `LT-0004`: Add plan history and regeneration rules.
+- `LT-0018`: Define the program schema v1.
+- `LT-0019`: Build a schema validation layer.
+- `LT-0020`: Create a generic schema-to-wave builder.
+- `LT-0021`: Convert existing conjugate and hypertrophy builders to schema output.
+- `LT-0022`: Design the coach program editor.
 
-### 3. Data and persistence
+### 4. Followable workout output
 
-Keep the database trustworthy as the app grows: migrations, seed data, backup/restore, and richer query paths.
+Generated workouts should be saved in a stable format that the application can load, display, follow in real time, and update as the workout changes. The lifter should be able to enter data as they train and swap exercises when the day requires it.
 
-Starter tasks:
+Key tasks:
 
-- `LT-0005`: Add schema migration tracking.
-- `LT-0006`: Define backup and restore flow.
+- `LT-0023`: Define the workout file format v1.
+- `LT-0024`: Load planned workouts into the app.
+- `LT-0025`: Build the follow-along workout session.
+- `LT-0026`: Add exercise swap rules.
+- `LT-0027`: Persist planned versus completed workout data.
 
-### 4. Interface
+## Roadmap tracks
 
-Improve the lightweight web UI so it feels dense, fast, and usable during an actual lifting session.
+### Product core
 
-Starter tasks:
+Make the app feel complete for day-to-day training: add, view, edit, and review lifts and executions without touching the database directly.
 
-- `LT-0007`: Improve mobile workout logging flow.
-- `LT-0008`: Add lift detail trends.
+### Training logic
 
-### 5. Quality and maintainability
+Move from hard-coded builders to program definitions, validation, generated plans, and regeneration rules.
 
-Keep the Java port easy to change with focused tests, package boundaries, and simple developer workflows.
+### Data and persistence
 
-Starter tasks:
+Keep the database trustworthy as the app grows: migrations, seed data, backup/restore, plan storage, workout sessions, and user-owned records.
 
-- `LT-0009`: Expand web route tests.
-- `LT-0010`: Document architecture decisions.
+### Interface
+
+Improve the web UI so it feels dense, fast, and usable during an actual lifting session on both desktop and phone.
+
+### Platform and distribution
+
+Prepare the application for multiple users, deployable releases, and eventual mobile app packaging without forcing that jump too early.
+
+### Quality and maintainability
+
+Keep the codebase easy to change with strict checks, focused tests, package boundaries, architecture notes, and clear developer workflows.
+
+## Milestones
+
+See `tasks/milestones/` for the working sequence.
+
+1. `M1-quality-baseline`: Make quality gates explicit and hard to bypass.
+2. `M2-training-model`: Define plan, program schema, and workout output contracts.
+3. `M3-followable-workouts`: Load a generated workout and log it while training.
+4. `M4-coach-authoring`: Enable program creation through files first, then editor workflows.
+5. `M5-multi-user-distribution`: Add user ownership, packaging, release, and deployment foundations.
 
 ## Near-term sequence
 
-1. Complete the day-to-day logging loop: create lift, log execution, view history, edit mistakes.
-2. Make the planner persist generated workouts instead of only producing one-off output.
-3. Add visual progress signals on lift detail pages.
-4. Add migration and backup confidence before changing the data model aggressively.
-5. Polish the mobile workout experience.
-
+1. Finish `M1-quality-baseline` so every future change has a reliable safety net.
+2. Complete the day-to-day logging loop: dashboard, create lift, log execution, view history, edit mistakes.
+3. Design the plan model, program schema v1, and workout file format v1 before changing persistence aggressively.
+4. Build a generic schema-to-wave path and convert existing specific builders to emit that schema.
+5. Load generated workouts into the app and support a follow-along session with data entry and exercise swaps.

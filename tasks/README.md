@@ -9,6 +9,10 @@ tasks/
   README.md
   schema.md
   roadmap.md
+  epics/
+    EPIC-001-quality-foundation.md
+  milestones/
+    M1-quality-baseline.md
   backlog/
     LT-0001-daily-training-dashboard.md
 ```
@@ -16,10 +20,12 @@ tasks/
 ## How to use it
 
 1. Start with `roadmap.md` when deciding what matters next.
-2. Create one markdown file in `backlog/` for each concrete task.
-3. Use `schema.md` as the shape for every task file.
-4. Keep tasks small enough that "done" is testable.
-5. Move status forward in the task file as work becomes clearer.
+2. Use `epics/` for long-lived product goals that group many tasks.
+3. Use `milestones/` for short sequencing plans that can actually finish.
+4. Create one markdown file in `backlog/` for each concrete task.
+5. Use `schema.md` as the shape for every task file.
+6. Keep tasks small enough that "done" is testable.
+7. Move status forward in the task file as work becomes clearer.
 
 ## Task ID format
 

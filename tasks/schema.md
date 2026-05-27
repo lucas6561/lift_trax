@@ -54,7 +54,7 @@ Useful context, decisions, links, or implementation thoughts.
 : One of `idea`, `ready`, `doing`, `blocked`, `done`, or `dropped`.
 
 `track`
-: The roadmap lane. Suggested values are `product`, `training-logic`, `data`, `interface`, `quality`, and `docs`.
+: The roadmap lane. Suggested values are `product`, `training-logic`, `data`, `interface`, `platform`, `quality`, `distribution`, and `docs`.
 
 `priority`
 : One of `low`, `medium`, `high`, or `critical`.
@@ -70,4 +70,3 @@ Useful context, decisions, links, or implementation thoughts.
 
 `depends_on`
 : List of task IDs that should happen first.
-
