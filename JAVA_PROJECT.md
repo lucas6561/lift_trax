@@ -82,15 +82,18 @@ To help new developers, each main Java package now includes a `package-info.java
 Tip: in most IDEs, opening a package and viewing its documentation shows the `package-info.java` description first.
 
 
-## Test + coverage workflow
+## Quality gate workflow
 
 From repository root, run:
 
 ```bash
-./gradlew test jacocoTestReport jacocoTestCoverageVerification
+./gradlew qualityGate
 ```
 
-Coverage is enforced at **80% instruction coverage** for the currently maintained Java core slice:
+This single command checks Java formatting, runs PMD static analysis, runs the
+test suite, and verifies the JaCoCo coverage threshold.
+
+Coverage is enforced at **90% instruction coverage** for the currently maintained Java core slice:
 
 - selected `com.lifttrax.workout` planner classes (see `build.gradle` `coverageIncludes`)
 - `com.lifttrax.cli.WeightInputParser`

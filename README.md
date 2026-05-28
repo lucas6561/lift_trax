@@ -35,6 +35,18 @@ From the repository root:
 
 See `JAVA_PROJECT.md` for detailed package and feature documentation.
 
+## Quality gate
+
+Before considering a change shippable, run the single project quality gate from
+the repository root:
+
+```bash
+./gradlew qualityGate
+```
+
+This checks Java formatting, runs PMD static analysis, runs the test suite, and
+verifies the JaCoCo coverage threshold.
+
 ## Dump lifts only (no executions)
 
 From the repository root:

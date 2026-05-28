@@ -88,6 +88,15 @@ tasks.register('staticAnalysis') {
     dependsOn tasks.named('pmdMain')
 }
 
+tasks.register('qualityGate') {
+    group = 'verification'
+    description = 'Runs formatting, static analysis, tests, and coverage verification.'
+    dependsOn tasks.named('spotlessCheck')
+    dependsOn tasks.named('staticAnalysis')
+    dependsOn tasks.named('test')
+    dependsOn tasks.named('jacocoTestCoverageVerification')
+}
+
 def coverageIncludes = [
     // LT-0011 coverage policy: enforce 90% instruction coverage on stable workout-planning
     // and web input/rendering helpers. Expand this list as more product surfaces stabilize.
@@ -138,6 +147,7 @@ tasks.named('jacocoTestCoverageVerification') {
 tasks.named('check') {
     dependsOn tasks.named('jacocoTestCoverageVerification')
     dependsOn tasks.named('staticAnalysis')
+    dependsOn tasks.named('qualityGate')
 }
 
 application {

@@ -1,7 +1,7 @@
 ---
 id: LT-0012
 title: Add a single quality gate command
-status: ready
+status: done
 track: quality
 priority: high
 effort: small
@@ -28,11 +28,13 @@ The repository documents and exposes a single quality gate that runs formatting 
 
 ## Acceptance criteria
 
-- [ ] A documented command runs format checks, PMD, tests, and JaCoCo verification.
-- [ ] The command fails on static analysis warnings or errors.
-- [ ] The command fails when tests fail.
-- [ ] The command fails when coverage is below the threshold.
+- [x] A documented command runs format checks, PMD, tests, and JaCoCo verification.
+- [x] The command fails on static analysis warnings or errors.
+- [x] The command fails when tests fail.
+- [x] The command fails when coverage is below the threshold.
 
 ## Notes
 
-The existing `check` task already runs PMD and coverage verification. This task should decide whether `check` is the product quality gate or whether a clearer alias such as `qualityGate` should be added.
+Added `qualityGate` as the explicit product quality gate. It depends on `spotlessCheck`, `staticAnalysis`, `test`, and `jacocoTestCoverageVerification`; `check` also depends on `qualityGate`.
+
+Verified with `./gradlew qualityGate` on 2026-05-27.
