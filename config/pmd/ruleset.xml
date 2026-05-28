@@ -8,10 +8,12 @@
 
     <description>
         Strict PMD rules focused on correctness, maintainability,
-        readability, and preventing large/fragile code structures.
+        readability, fragile concurrency, and risky file/string usage.
     </description>
 
     <rule ref="category/java/errorprone.xml">
+        <!-- UI rendering and parser code still uses repeated domain literals heavily; extract constants
+             before enabling duplicate/magic literal checks so the signal stays reviewable. -->
         <exclude name="AvoidDuplicateLiterals"/>
         <exclude name="AvoidLiteralsInIfCondition"/>
     </rule>
@@ -19,29 +21,54 @@
     <rule ref="category/java/security.xml"/>
 
     <rule ref="category/java/bestpractices.xml">
+        <!-- CLI entry points intentionally print user-facing output; the app also avoids explicit
+             functional-interface markers for small local extension seams. -->
         <exclude name="SystemPrintln"/>
         <exclude name="ImplicitFunctionalInterface"/>
     </rule>
 
     <rule ref="category/java/codestyle.xml/ClassNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/ControlStatementBraces"/>
+    <rule ref="category/java/codestyle.xml/EmptyControlStatement"/>
     <rule ref="category/java/codestyle.xml/MethodNamingConventions"/>
     <rule ref="category/java/codestyle.xml/FieldNamingConventions"/>
     <rule ref="category/java/codestyle.xml/LocalVariableNamingConventions"/>
     <rule ref="category/java/codestyle.xml/FormalParameterNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryCast"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryLocalBeforeReturn"/>
     <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
     <rule ref="category/java/codestyle.xml/UnnecessaryModifier"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryReturn"/>
+    <rule ref="category/java/codestyle.xml/UnnecessarySemicolon"/>
+    <rule ref="category/java/codestyle.xml/UseDiamondOperator"/>
+    <rule ref="category/java/codestyle.xml/UseShortArrayInitializer"/>
     <rule ref="category/java/codestyle.xml/UselessParentheses"/>
+
+    <rule ref="category/java/design.xml/AvoidRethrowingException"/>
+    <rule ref="category/java/design.xml/AvoidThrowingNewInstanceOfSameException"/>
+    <rule ref="category/java/design.xml/AvoidThrowingNullPointerException"/>
+    <rule ref="category/java/design.xml/AvoidThrowingRawExceptionTypes"/>
+    <rule ref="category/java/design.xml/AvoidUncheckedExceptionsInSignatures"/>
+    <rule ref="category/java/design.xml/ClassWithOnlyPrivateConstructorsShouldBeFinal"/>
+    <rule ref="category/java/design.xml/CollapsibleIfStatements"/>
+    <rule ref="category/java/design.xml/MutableStaticState"/>
+    <rule ref="category/java/design.xml/SimplifiedTernary"/>
+    <rule ref="category/java/design.xml/SimplifyBooleanExpressions"/>
+    <rule ref="category/java/design.xml/SimplifyBooleanReturns"/>
+    <rule ref="category/java/design.xml/SimplifyConditional"/>
+    <rule ref="category/java/design.xml/UselessOverridingMethod"/>
+    <rule ref="category/java/design.xml/UseUtilityClass"/>
 
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
-            <property name="methodReportLevel" value="30"/>
-            <property name="classReportLevel" value="250"/>
+            <property name="methodReportLevel" value="29"/>
+            <property name="classReportLevel" value="225"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/NPathComplexity">
         <properties>
-            <property name="reportLevel" value="100000000"/>
+            <property name="reportLevel" value="60000000"/>
         </properties>
     </rule>
 
@@ -53,17 +80,38 @@
 
     <rule ref="category/java/design.xml/TooManyFields">
         <properties>
-            <property name="maxfields" value="50"/>
+            <property name="maxfields" value="35"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/ExcessivePublicCount">
         <properties>
-            <property name="minimum" value="40"/>
+            <property name="minimum" value="30"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/SwitchDensity"/>
     <rule ref="category/java/design.xml/SingularField"/>
+
+    <rule ref="category/java/multithreading.xml">
+        <!-- LiftTrax owns a tiny embedded web server and shutdown hook; ban the sharp edges of
+             synchronization while allowing explicit thread/executor ownership at the boundary.
+             UseConcurrentHashMap is noisy for local maps that are not shared across request threads. -->
+        <exclude name="DoNotUseThreads"/>
+        <exclude name="UseConcurrentHashMap"/>
+    </rule>
+
+    <rule ref="category/java/performance.xml/AddEmptyString"/>
+    <rule ref="category/java/performance.xml/AvoidFileStream"/>
+    <rule ref="category/java/performance.xml/BigIntegerInstantiation"/>
+    <rule ref="category/java/performance.xml/InefficientEmptyStringCheck"/>
+    <rule ref="category/java/performance.xml/InefficientStringBuffering"/>
+    <rule ref="category/java/performance.xml/OptimizableToArrayCall"/>
+    <rule ref="category/java/performance.xml/RedundantFieldInitializer"/>
+    <rule ref="category/java/performance.xml/StringInstantiation"/>
+    <rule ref="category/java/performance.xml/StringToString"/>
+    <rule ref="category/java/performance.xml/UseIndexOfChar"/>
+    <rule ref="category/java/performance.xml/UseStringBufferLength"/>
+    <rule ref="category/java/performance.xml/UselessStringValueOf"/>
 
 </ruleset>

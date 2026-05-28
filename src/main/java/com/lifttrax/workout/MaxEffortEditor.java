@@ -74,7 +74,7 @@ final class MaxEffortEditor {
       dead.setSelectedItem(def.deadlift());
       lowerDeloadSquat.add(squat);
       lowerDeloadDeadlift.add(dead);
-      panel.add(row("Lower Week " + ((i + 1) * 7) + "", "Squat", squat, "Deadlift", dead));
+      panel.add(row("Lower Week " + ((i + 1) * 7), "Squat", squat, "Deadlift", dead));
     }
 
     for (int i = 0; i < upperDeloadDefaults.size(); i++) {
@@ -85,7 +85,7 @@ final class MaxEffortEditor {
       ohp.setSelectedItem(def.overhead());
       upperDeloadBench.add(bench);
       upperDeloadOhp.add(ohp);
-      panel.add(row("Upper Week " + ((i + 1) * 7) + "", "Bench", bench, "OHP", ohp));
+      panel.add(row("Upper Week " + ((i + 1) * 7), "Bench", bench, "OHP", ohp));
     }
 
     int result =

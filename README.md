@@ -47,6 +47,10 @@ the repository root:
 This checks Java formatting, runs PMD static analysis, runs the test suite, and
 verifies the JaCoCo coverage threshold.
 
+PMD scans production Java sources for correctness, security, best-practice,
+style, maintainability, concurrency, and selected file/string performance risks.
+Intentional rule exclusions are documented in `config/pmd/ruleset.xml`.
+
 ## Dump lifts only (no executions)
 
 From the repository root:

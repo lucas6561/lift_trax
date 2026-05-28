@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Core DumpDatabaseCli component used by LiftTrax. */
-public class DumpDatabaseCli {
+public final class DumpDatabaseCli {
+  private DumpDatabaseCli() {}
+
   public static void main(String[] args) throws Exception {
     CliOptions options = parseArgs(args);
     String dbPath =

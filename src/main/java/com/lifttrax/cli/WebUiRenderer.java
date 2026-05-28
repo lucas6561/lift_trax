@@ -1243,7 +1243,8 @@ final class WebUiRenderer {
   private static String renderArSelect(String name, String selected) {
     String current =
         selected == null || selected.isBlank() ? "STRAIGHT" : selected.toUpperCase(Locale.ROOT);
-    StringBuilder html = new StringBuilder("<select name='" + WebHtml.escapeHtml(name) + "'>");
+    StringBuilder html = new StringBuilder("<select name='");
+    html.append(WebHtml.escapeHtml(name)).append("'>");
     for (String value : List.of("STRAIGHT", "CHAINS", "BANDS")) {
       html.append("<option value='")
           .append(value)

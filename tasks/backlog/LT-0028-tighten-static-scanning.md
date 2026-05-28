@@ -1,7 +1,7 @@
 ---
 id: LT-0028
 title: Tighten static scanning rules
-status: idea
+status: done
 track: quality
 priority: medium
 effort: medium
@@ -28,12 +28,16 @@ The project has a stricter static scanning policy with expanded PMD coverage, do
 
 ## Acceptance criteria
 
-- [ ] The PMD ruleset includes additional strict rules for correctness, maintainability, and fragile code patterns.
-- [ ] Any rule exclusions are documented with a short rationale.
-- [ ] Existing violations introduced by the stricter rules are fixed or explicitly deferred with a follow-up task.
-- [ ] `qualityGate` fails when the stricter static scanning rules are violated.
-- [ ] Project documentation explains what static scanning covers and how to run it locally.
+- [x] The PMD ruleset includes additional strict rules for correctness, maintainability, and fragile code patterns.
+- [x] Any rule exclusions are documented with a short rationale.
+- [x] Existing violations introduced by the stricter rules are fixed or explicitly deferred with a follow-up task.
+- [x] `qualityGate` fails when the stricter static scanning rules are violated.
+- [x] Project documentation explains what static scanning covers and how to run it locally.
 
 ## Notes
 
-Start by auditing PMD categories that are currently excluded or only lightly enforced, then tighten rules in small batches so failures stay understandable.
+Added stricter PMD coverage for code style, design, concurrency, and selected performance risks. Fixed the clean baseline issues from the new rules: CLI utility-class shape, StringBuilder/string concatenation findings, and missing braces around max-effort pool guard clauses.
+
+The static analysis policy and intentional exclusions are documented in `config/pmd/ruleset.xml`; local workflow docs now explain what PMD covers and point back to the ruleset.
+
+Verified on 2026-05-28 by adding a temporary `ControlStatementBraces` violation and confirming `qualityGate` failed in `pmdMain`, then removing the probe and rerunning `qualityGate` successfully.

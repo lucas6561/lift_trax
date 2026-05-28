@@ -31,8 +31,10 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /** Core WebServerCli component used by LiftTrax. */
-public class WebServerCli {
+public final class WebServerCli {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  private WebServerCli() {}
 
   @SuppressWarnings("PMD.CloseResource")
   public static void main(String[] args) throws Exception {

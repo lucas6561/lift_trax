@@ -28,14 +28,18 @@ public class MaxEffortLiftPools {
     int benchWeeks = (numWeeks + 1) / 2;
     int overheadWeeks = numWeeks / 2;
 
-    if (squats.size() < squatWeeks)
+    if (squats.size() < squatWeeks) {
       throw new IllegalArgumentException("not enough squat lifts available");
-    if (deadlifts.size() < deadliftWeeks)
+    }
+    if (deadlifts.size() < deadliftWeeks) {
       throw new IllegalArgumentException("not enough deadlift lifts available");
-    if (benches.size() < benchWeeks)
+    }
+    if (benches.size() < benchWeeks) {
       throw new IllegalArgumentException("not enough bench press lifts available");
-    if (overheads.size() < overheadWeeks)
+    }
+    if (overheads.size() < overheadWeeks) {
       throw new IllegalArgumentException("not enough overhead press lifts available");
+    }
 
     Random random = new Random();
     randomizer.shuffle(squats, random);
