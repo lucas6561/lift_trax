@@ -8,6 +8,8 @@ This repository now uses a **root-level Java/Gradle project layout**.
 - `src/test/java` – tests
 - `build.gradle` / `settings.gradle` – Gradle project configuration
 - `shared/sql` – shared SQL schema assets
+- `shared/programs` - program schema and example training program assets
+- `docs` - project documentation, including program schema authoring guidance
 
 ## Run
 
@@ -34,6 +36,13 @@ From the repository root:
 ## Java project notes
 
 See `JAVA_PROJECT.md` for detailed package and feature documentation.
+
+## Program schema
+
+Program schema v1 lives in `shared/programs/schema/program.schema.v1.json`.
+Example conjugate and hypertrophy program files live in
+`shared/programs/examples/`. Authoring guidance is in
+`docs/program-schema-v1.md`.
 
 ## Quality gate
 

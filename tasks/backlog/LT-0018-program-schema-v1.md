@@ -1,12 +1,12 @@
 ---
 id: LT-0018
 title: Define the program schema v1
-status: ready
+status: done
 track: training-logic
 priority: high
 effort: large
 created: 2026-05-27
-updated: 2026-05-27
+updated: 2026-05-28
 owner: unassigned
 depends_on: [LT-0003]
 ---
@@ -28,12 +28,17 @@ A versioned schema describes multi-week programs, training days, lift slots, pro
 
 ## Acceptance criteria
 
-- [ ] Schema v1 can represent the current conjugate builder.
-- [ ] Schema v1 can represent the current hypertrophy builder.
-- [ ] Example valid program files exist.
-- [ ] The schema includes version, program metadata, weeks, days, blocks, exercises, progression, and substitution rules.
-- [ ] The documentation explains how a coach or AI tool should create a file.
+- [x] Schema v1 can represent the current conjugate builder.
+- [x] Schema v1 can represent the current hypertrophy builder.
+- [x] Example valid program files exist.
+- [x] The schema includes version, program metadata, weeks, days, blocks, exercises, progression, and substitution rules.
+- [x] The documentation explains how a coach or AI tool should create a file.
 
 ## Notes
 
 JSON is a likely first format because Java validation support is strong and AI tools can generate it reliably.
+
+Completed with `shared/programs/schema/program.schema.v1.json`,
+`shared/programs/examples/conjugate-v1.json`,
+`shared/programs/examples/hypertrophy-v1.json`, and
+`docs/program-schema-v1.md`.

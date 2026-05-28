@@ -1,0 +1,1363 @@
+{
+  "schemaVersion": 1,
+  "program": {
+    "name": "Conjugate Wave",
+    "description": "A schema representation of the current LiftTrax conjugate builder: lower and upper max effort days, lower and upper dynamic effort days, accessories, conditioning, and optional forearm finishers.",
+    "goal": "mixed",
+    "author": "LiftTrax",
+    "createdBy": "app",
+    "tags": [
+      "conjugate",
+      "strength",
+      "dynamic-effort"
+    ],
+    "defaultUnits": "lb",
+    "durationWeeks": 6,
+    "daysPerWeek": 4,
+    "notes": "The max effort and dynamic lift pools can be coach-selected or app-selected before validation."
+  },
+  "exercisePools": {
+    "lowerMaxEffort": {
+      "description": "Lower-body max effort lift rotation.",
+      "selection": "ordered",
+      "query": {
+        "region": "LOWER",
+        "types": [
+          "SQUAT",
+          "DEADLIFT"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Back Squat",
+          "region": "LOWER",
+          "type": "SQUAT"
+        },
+        {
+          "name": "Conventional Deadlift",
+          "region": "LOWER",
+          "type": "DEADLIFT"
+        }
+      ]
+    },
+    "upperMaxEffort": {
+      "description": "Upper-body max effort lift rotation.",
+      "selection": "ordered",
+      "query": {
+        "region": "UPPER",
+        "types": [
+          "BENCH_PRESS",
+          "OVERHEAD_PRESS"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Bench Press",
+          "region": "UPPER",
+          "type": "BENCH_PRESS"
+        },
+        {
+          "name": "Overhead Press",
+          "region": "UPPER",
+          "type": "OVERHEAD_PRESS"
+        }
+      ]
+    },
+    "dynamicSquat": {
+      "description": "Selected lower dynamic squat movement.",
+      "selection": "coachChoice",
+      "query": {
+        "region": "LOWER",
+        "types": [
+          "SQUAT"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Box Squat",
+          "region": "LOWER",
+          "type": "SQUAT"
+        }
+      ]
+    },
+    "dynamicDeadlift": {
+      "description": "Selected lower dynamic pull.",
+      "selection": "coachChoice",
+      "query": {
+        "region": "LOWER",
+        "types": [
+          "DEADLIFT"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Speed Deadlift",
+          "region": "LOWER",
+          "type": "DEADLIFT"
+        }
+      ]
+    },
+    "dynamicBench": {
+      "description": "Selected upper dynamic bench movement.",
+      "selection": "coachChoice",
+      "query": {
+        "region": "UPPER",
+        "types": [
+          "BENCH_PRESS"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Competition Bench Press",
+          "region": "UPPER",
+          "type": "BENCH_PRESS"
+        }
+      ]
+    },
+    "dynamicOverhead": {
+      "description": "Selected upper dynamic overhead movement.",
+      "selection": "coachChoice",
+      "query": {
+        "region": "UPPER",
+        "types": [
+          "OVERHEAD_PRESS"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Push Press",
+          "region": "UPPER",
+          "type": "OVERHEAD_PRESS"
+        }
+      ]
+    },
+    "lowerWarmup": {
+      "description": "Lower-body mobility warm-up options.",
+      "selection": "random",
+      "query": {
+        "region": "LOWER",
+        "types": [
+          "MOBILITY"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Leg Swings",
+          "region": "LOWER",
+          "type": "MOBILITY"
+        }
+      ]
+    },
+    "upperWarmup": {
+      "description": "Upper-body mobility warm-up options.",
+      "selection": "random",
+      "query": {
+        "region": "UPPER",
+        "types": [
+          "MOBILITY"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Shoulder CARs",
+          "region": "UPPER",
+          "type": "MOBILITY"
+        }
+      ]
+    },
+    "lowerConditioning": {
+      "description": "Lower-day conditioning finishers.",
+      "selection": "random",
+      "query": {
+        "region": "LOWER",
+        "types": [
+          "CONDITIONING"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Sled Push",
+          "region": "LOWER",
+          "type": "CONDITIONING"
+        }
+      ]
+    },
+    "upperConditioning": {
+      "description": "Upper-day conditioning finishers.",
+      "selection": "random",
+      "query": {
+        "region": "UPPER",
+        "types": [
+          "CONDITIONING"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Battle Rope",
+          "region": "UPPER",
+          "type": "CONDITIONING"
+        }
+      ]
+    },
+    "hamstrings": {
+      "description": "Accessory pool for hamstrings.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "HAMSTRING"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Hamstring Curl",
+          "region": "LOWER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "HAMSTRING"
+          ]
+        }
+      ]
+    },
+    "quads": {
+      "description": "Accessory pool for quads.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "QUAD"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Leg Extension",
+          "region": "LOWER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "QUAD"
+          ]
+        }
+      ]
+    },
+    "calves": {
+      "description": "Accessory pool for calves.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "CALF"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Calf Raise",
+          "region": "LOWER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "CALF"
+          ]
+        }
+      ]
+    },
+    "core": {
+      "description": "Accessory pool for core work.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "CORE"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Plank",
+          "region": "LOWER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "CORE"
+          ]
+        }
+      ]
+    },
+    "lats": {
+      "description": "Accessory pool for lats.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "LAT"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Lat Pulldown",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "LAT"
+          ]
+        }
+      ]
+    },
+    "triceps": {
+      "description": "Accessory pool for triceps.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "TRICEP"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Tricep Pushdown",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "TRICEP"
+          ]
+        }
+      ]
+    },
+    "upperThirdAccessory": {
+      "description": "Rotating third upper accessory slot used by the current conjugate builder.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "REAR_DELT",
+          "SHOULDER",
+          "FRONT_DELT",
+          "TRAP"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Rear Delt Fly",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "REAR_DELT"
+          ]
+        }
+      ]
+    },
+    "biceps": {
+      "description": "Accessory pool for upper dynamic biceps.",
+      "selection": "random",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "BICEP"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Curl",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "BICEP"
+          ]
+        }
+      ]
+    },
+    "forearms": {
+      "description": "Optional forearm finisher pool.",
+      "selection": "firstAvailable",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "FOREARM"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Wrist Curl",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "FOREARM"
+          ]
+        }
+      ]
+    }
+  },
+  "progressionRules": {
+    "maxEffortTopSingle": {
+      "type": "fixed",
+      "pattern": [
+        {
+          "percent": 95,
+          "instruction": "Target 95% of max; go higher only if it feels great."
+        }
+      ]
+    },
+    "backoffTodayOneRepMax": {
+      "type": "fixed",
+      "pattern": [
+        {
+          "percentMin": 80,
+          "percentMax": 85,
+          "instruction": "Use 80-85% of today's top single."
+        }
+      ]
+    },
+    "supplementalEightyFive": {
+      "type": "fixed",
+      "pattern": [
+        {
+          "percent": 85
+        }
+      ]
+    },
+    "dynamicChainsWave": {
+      "type": "wave_percent",
+      "cycleWeeks": 6,
+      "pattern": [
+        {
+          "week": 1,
+          "percent": 60,
+          "accommodatingResistance": "STRAIGHT"
+        },
+        {
+          "week": 2,
+          "percent": 65,
+          "accommodatingResistance": "STRAIGHT"
+        },
+        {
+          "week": 3,
+          "percent": 70,
+          "accommodatingResistance": "STRAIGHT"
+        },
+        {
+          "week": 4,
+          "percent": 50,
+          "accommodatingResistance": "CHAINS"
+        },
+        {
+          "week": 5,
+          "percent": 55,
+          "accommodatingResistance": "CHAINS"
+        },
+        {
+          "week": 6,
+          "percent": 60,
+          "accommodatingResistance": "CHAINS"
+        }
+      ]
+    },
+    "dynamicBandsWave": {
+      "type": "wave_percent",
+      "cycleWeeks": 6,
+      "pattern": [
+        {
+          "week": 1,
+          "percent": 60,
+          "accommodatingResistance": "STRAIGHT"
+        },
+        {
+          "week": 2,
+          "percent": 65,
+          "accommodatingResistance": "STRAIGHT"
+        },
+        {
+          "week": 3,
+          "percent": 70,
+          "accommodatingResistance": "STRAIGHT"
+        },
+        {
+          "week": 4,
+          "percent": 50,
+          "accommodatingResistance": "BANDS"
+        },
+        {
+          "week": 5,
+          "percent": 55,
+          "accommodatingResistance": "BANDS"
+        },
+        {
+          "week": 6,
+          "percent": 60,
+          "accommodatingResistance": "BANDS"
+        }
+      ]
+    }
+  },
+  "substitutionRules": {
+    "mainLiftSamePattern": {
+      "description": "Swap a main lift only for another lift from the same pattern family unless a coach overrides it.",
+      "allowedPoolRefs": [
+        "lowerMaxEffort",
+        "upperMaxEffort",
+        "dynamicSquat",
+        "dynamicDeadlift",
+        "dynamicBench",
+        "dynamicOverhead"
+      ],
+      "allowCoachChoice": true
+    },
+    "accessoryNoDuplicateCableOrDb": {
+      "description": "Accessory circuits should avoid duplicate cable or dumbbell-like movements in the same circuit.",
+      "allowedPoolRefs": [
+        "hamstrings",
+        "quads",
+        "calves",
+        "core",
+        "lats",
+        "triceps",
+        "upperThirdAccessory",
+        "biceps"
+      ],
+      "avoidDuplicateTags": [
+        "cable",
+        "dumbbell"
+      ],
+      "allowCoachChoice": true
+    }
+  },
+  "dayTemplates": {
+    "lowerMaxEffort": {
+      "name": "Lower Max Effort",
+      "focus": "LOWER_MAX_EFFORT",
+      "blocks": [
+        {
+          "id": "lower-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerWarmup",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "max-effort-single",
+          "name": "Max Effort Single",
+          "type": "single",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerMaxEffort",
+                "selection": "byWeekNumber"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 1
+                },
+                "percent": 95
+              },
+              "progressionRuleRef": "maxEffortTopSingle"
+            }
+          ]
+        },
+        {
+          "id": "backoff-sets",
+          "name": "Backoff Sets",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "blockExercise",
+                "blockRef": "max-effort-single"
+              },
+              "setScheme": {
+                "sets": 2,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 5
+                },
+                "percentMin": 80,
+                "percentMax": 85
+              },
+              "progressionRuleRef": "backoffTodayOneRepMax"
+            }
+          ]
+        },
+        {
+          "id": "supplemental-sets",
+          "name": "Supplemental Sets",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerMaxEffort",
+                "selection": "offsetByWeek",
+                "selectionOffset": 1
+              },
+              "setScheme": {
+                "sets": 2,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 5
+                },
+                "percent": 85
+              },
+              "progressionRuleRef": "supplementalEightyFive"
+            }
+          ]
+        },
+        {
+          "id": "accessory-circuit",
+          "name": "Accessory Circuit",
+          "type": "circuit",
+          "rounds": 3,
+          "substitutionRuleRef": "accessoryNoDuplicateCableOrDb",
+          "slots": [
+            {
+              "label": "hamstrings",
+              "target": {
+                "kind": "pool",
+                "poolRef": "hamstrings",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "label": "quads",
+              "target": {
+                "kind": "pool",
+                "poolRef": "quads",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "label": "calves",
+              "target": {
+                "kind": "pool",
+                "poolRef": "calves",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "conditioning",
+          "name": "Conditioning",
+          "type": "conditioning",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerConditioning",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "timeSecs",
+                  "seconds": 600
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "forearm-finisher",
+          "name": "Forearm Finisher",
+          "type": "single",
+          "optional": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "forearms",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "upperMaxEffort": {
+      "name": "Upper Max Effort",
+      "focus": "UPPER_MAX_EFFORT",
+      "blocks": [
+        {
+          "id": "upper-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperWarmup",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "max-effort-single",
+          "name": "Max Effort Single",
+          "type": "single",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperMaxEffort",
+                "selection": "byWeekNumber"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 1
+                },
+                "percent": 95
+              },
+              "progressionRuleRef": "maxEffortTopSingle"
+            }
+          ]
+        },
+        {
+          "id": "backoff-sets",
+          "name": "Backoff Sets",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "blockExercise",
+                "blockRef": "max-effort-single"
+              },
+              "setScheme": {
+                "sets": 2,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 5
+                },
+                "percentMin": 80,
+                "percentMax": 85
+              },
+              "progressionRuleRef": "backoffTodayOneRepMax"
+            }
+          ]
+        },
+        {
+          "id": "supplemental-sets",
+          "name": "Supplemental Sets",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperMaxEffort",
+                "selection": "offsetByWeek",
+                "selectionOffset": 1
+              },
+              "setScheme": {
+                "sets": 2,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 5
+                },
+                "percent": 85
+              },
+              "progressionRuleRef": "supplementalEightyFive"
+            }
+          ]
+        },
+        {
+          "id": "accessory-circuit",
+          "name": "Accessory Circuit",
+          "type": "circuit",
+          "rounds": 3,
+          "substitutionRuleRef": "accessoryNoDuplicateCableOrDb",
+          "slots": [
+            {
+              "label": "lats",
+              "target": {
+                "kind": "pool",
+                "poolRef": "lats",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "label": "triceps",
+              "target": {
+                "kind": "pool",
+                "poolRef": "triceps",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "label": "third upper accessory",
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperThirdAccessory",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "conditioning",
+          "name": "Conditioning",
+          "type": "conditioning",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperConditioning",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "timeSecs",
+                  "seconds": 600
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "forearm-finisher",
+          "name": "Forearm Finisher",
+          "type": "single",
+          "optional": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "forearms",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "lowerDynamicEffort": {
+      "name": "Lower Dynamic Effort",
+      "focus": "LOWER_DYNAMIC_EFFORT",
+      "blocks": [
+        {
+          "id": "lower-dynamic-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerWarmup",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dynamic-squat",
+          "name": "Dynamic Effort",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "dynamicSquat",
+                "selection": "coachChoice"
+              },
+              "setScheme": {
+                "sets": 6,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 3
+                }
+              },
+              "progressionRuleRef": "dynamicChainsWave"
+            }
+          ]
+        },
+        {
+          "id": "dynamic-deadlift",
+          "name": "Dynamic Effort",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "dynamicDeadlift",
+                "selection": "coachChoice"
+              },
+              "setScheme": {
+                "sets": 6,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 2
+                }
+              },
+              "progressionRuleRef": "dynamicBandsWave"
+            }
+          ]
+        },
+        {
+          "id": "accessory-circuit",
+          "name": "Accessory Circuit",
+          "type": "circuit",
+          "rounds": 3,
+          "substitutionRuleRef": "accessoryNoDuplicateCableOrDb",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "hamstrings",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "quads",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "core",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "conditioning",
+          "name": "Conditioning",
+          "type": "conditioning",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerConditioning",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "timeSecs",
+                  "seconds": 600
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "upperDynamicEffort": {
+      "name": "Upper Dynamic Effort",
+      "focus": "UPPER_DYNAMIC_EFFORT",
+      "blocks": [
+        {
+          "id": "upper-dynamic-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperWarmup",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dynamic-bench",
+          "name": "Dynamic Effort",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "dynamicBench",
+                "selection": "coachChoice"
+              },
+              "setScheme": {
+                "sets": 9,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 3
+                }
+              },
+              "progressionRuleRef": "dynamicChainsWave"
+            }
+          ]
+        },
+        {
+          "id": "dynamic-overhead",
+          "name": "Dynamic Effort",
+          "type": "repeated",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "dynamicOverhead",
+                "selection": "coachChoice"
+              },
+              "setScheme": {
+                "sets": 6,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 2
+                }
+              },
+              "progressionRuleRef": "dynamicBandsWave"
+            }
+          ]
+        },
+        {
+          "id": "accessory-circuit",
+          "name": "Accessory Circuit",
+          "type": "circuit",
+          "rounds": 3,
+          "substitutionRuleRef": "accessoryNoDuplicateCableOrDb",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lats",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "triceps",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            },
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "biceps",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "repsRange",
+                  "min": 8,
+                  "max": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "conditioning",
+          "name": "Conditioning",
+          "type": "conditioning",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperConditioning",
+                "selection": "random"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "timeSecs",
+                  "seconds": 600
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerMaxEffort"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperMaxEffort"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerDynamicEffort"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperDynamicEffort"
+        }
+      ]
+    },
+    {
+      "weekNumber": 2,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerMaxEffort"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperMaxEffort"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerDynamicEffort"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperDynamicEffort"
+        }
+      ]
+    },
+    {
+      "weekNumber": 3,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerMaxEffort"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperMaxEffort"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerDynamicEffort"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperDynamicEffort"
+        }
+      ]
+    },
+    {
+      "weekNumber": 4,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerMaxEffort"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperMaxEffort"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerDynamicEffort"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperDynamicEffort"
+        }
+      ]
+    },
+    {
+      "weekNumber": 5,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerMaxEffort"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperMaxEffort"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerDynamicEffort"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperDynamicEffort"
+        }
+      ]
+    },
+    {
+      "weekNumber": 6,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerMaxEffort"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperMaxEffort"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerDynamicEffort"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperDynamicEffort"
+        }
+      ]
+    }
+  ]
+}

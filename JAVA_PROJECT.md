@@ -7,6 +7,7 @@ This is the initial Java + Gradle port slice. It includes:
 - A CLI command that loads the existing `lifts.db` file and prints lifts and executions.
 
 - A Java conjugate wave builder port (`com.lifttrax.workout`) and markdown wave generator CLI (`com.lifttrax.cli.WaveCli`).
+- Program schema v1 assets in `shared/programs`, with authoring documentation in `docs/program-schema-v1.md`.
 
 ## Run
 
@@ -81,6 +82,12 @@ To help new developers, each main Java package now includes a `package-info.java
 
 Tip: in most IDEs, opening a package and viewing its documentation shows the `package-info.java` description first.
 
+## Program schema assets
+
+Schema-driven program work starts with `shared/programs/schema/program.schema.v1.json`.
+Representative conjugate and hypertrophy files are in `shared/programs/examples/`.
+See `docs/program-schema-v1.md` for the authoring rules that coaches and AI tools
+should follow.
 
 ## Quality gate workflow
 
