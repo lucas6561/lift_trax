@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 99,
+  "program": {
+    "name": "Unsupported Version Example",
+    "goal": "strength",
+    "durationWeeks": 1,
+    "daysPerWeek": 1
+  },
+  "exercisePools": {
+    "mainLift": {
+      "description": "Main lift options.",
+      "exercises": [
+        {
+          "name": "Back Squat",
+          "region": "LOWER",
+          "type": "SQUAT"
+        }
+      ]
+    }
+  },
+  "dayTemplates": {
+    "lowerDay": {
+      "name": "Lower Day",
+      "focus": "LOWER_MAX_EFFORT",
+      "blocks": [
+        {
+          "id": "main",
+          "name": "Main Lift",
+          "type": "single",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "mainLift"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerDay"
+        }
+      ]
+    }
+  ]
+}

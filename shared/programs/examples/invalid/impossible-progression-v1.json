@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "program": {
+    "name": "Impossible Progression Example",
+    "goal": "strength",
+    "durationWeeks": 2,
+    "daysPerWeek": 1
+  },
+  "exercisePools": {
+    "mainLift": {
+      "description": "Main lift options.",
+      "exercises": [
+        {
+          "name": "Back Squat",
+          "region": "LOWER",
+          "type": "SQUAT"
+        }
+      ]
+    }
+  },
+  "progressionRules": {
+    "badWave": {
+      "type": "wave_percent",
+      "cycleWeeks": 2,
+      "pattern": [
+        {
+          "week": 3,
+          "percentMin": 90,
+          "percentMax": 80
+        }
+      ]
+    }
+  },
+  "dayTemplates": {
+    "lowerDay": {
+      "name": "Lower Day",
+      "focus": "LOWER_MAX_EFFORT",
+      "blocks": [
+        {
+          "id": "main",
+          "name": "Main Lift",
+          "type": "single",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "mainLift"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 1
+                }
+              },
+              "progressionRuleRef": "badWave"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerDay"
+        }
+      ]
+    },
+    {
+      "weekNumber": 2,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerDay"
+        }
+      ]
+    }
+  ]
+}
