@@ -273,6 +273,32 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
+  public Map<String, LiftExecution> latestExecutionsByLift() throws Exception {
+    String sql =
+        """
+                SELECT l.name, lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes
+                FROM lifts l
+                JOIN lift_records lr ON lr.lift_id = l.id
+                WHERE lr.id = (
+                    SELECT lr2.id
+                    FROM lift_records lr2
+                    WHERE lr2.lift_id = l.id
+                    ORDER BY lr2.date DESC, lr2.id DESC
+                    LIMIT 1
+                )
+                ORDER BY l.name
+                """;
+    Map<String, LiftExecution> latestByLift = new HashMap<>();
+    try (PreparedStatement statement = connection.prepareStatement(sql);
+        ResultSet rs = statement.executeQuery()) {
+      while (rs.next()) {
+        latestByLift.put(rs.getString("name"), mapExecution(rs));
+      }
+    }
+    logInfo("db.latestExecutionsByLift result=rows:{}", latestByLift.size());
+    return latestByLift;
+  }
+
   private LiftExecution mapExecution(ResultSet rs) throws Exception {
     int recordId = rs.getInt("id");
     return new LiftExecution(
@@ -913,6 +939,19 @@ public class SqliteDb implements Database, AutoCloseable {
         return enabled;
       }
     }
+  }
+
+  public Map<String, Boolean> liftEnabledStatuses() throws Exception {
+    String sql = "SELECT name, enabled FROM lifts";
+    Map<String, Boolean> statuses = new HashMap<>();
+    try (PreparedStatement statement = connection.prepareStatement(sql);
+        ResultSet rs = statement.executeQuery()) {
+      while (rs.next()) {
+        statuses.put(rs.getString("name"), rs.getInt("enabled") != 0);
+      }
+    }
+    logInfo("db.liftEnabledStatuses result=rows:{}", statuses.size());
+    return statuses;
   }
 
   @Override

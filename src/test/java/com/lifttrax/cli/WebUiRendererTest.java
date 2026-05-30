@@ -15,9 +15,114 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class WebUiRendererTest {
+
+  @Test
+  void indexBodyDefaultsToDailyDashboard() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-dashboard-default", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      String html =
+          WebUiRenderer.renderIndexBody(
+              db,
+              List.of(),
+              "",
+              "",
+              "",
+              "",
+              "",
+              WebUiRenderer.AddExecutionPrefill.empty(),
+              LocalDate.parse("2026-01-01"),
+              LocalDate.parse("2026-01-07"),
+              1,
+              Map.of());
+
+      assertTrue(html.contains("data-initial-tab='dashboard'"));
+      assertTrue(html.contains("data-panel='dashboard' data-loaded='true'"));
+      assertTrue(html.contains("Today's Training"));
+    }
+  }
+
+  @Test
+  void indexBodyDefersDashboardWhenAnotherTabIsActive() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-dashboard-deferred", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      String html =
+          WebUiRenderer.renderIndexBody(
+              db,
+              List.of(),
+              "",
+              "",
+              "add-execution",
+              "",
+              "",
+              WebUiRenderer.AddExecutionPrefill.empty(),
+              LocalDate.parse("2026-01-01"),
+              LocalDate.parse("2026-01-07"),
+              1,
+              Map.of());
+
+      assertTrue(html.contains("data-panel='dashboard' data-loaded='false'"));
+      assertTrue(html.contains("Open this tab to load Dashboard."));
+    }
+  }
+
+  @Test
+  void dailyDashboardShowsSuggestionsRecentHistoryAndLoggingLinks() throws Exception {
+    LocalDate today = LocalDate.of(2026, 5, 30);
+    Path dbPath = Files.createTempFile("lifttrax-dashboard", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+      db.addLiftExecution("Back Squat", execution(today.minusDays(5), false));
+      db.addLiftExecution("Bench Press", execution(today.minusDays(1), false));
+
+      String html = WebUiRenderer.renderDailyDashboard(db, db.listLifts(), today);
+
+      assertTrue(html.contains("Today's Training"));
+      assertTrue(html.contains("Suggested Work"));
+      assertTrue(html.contains("Recent History"));
+      assertTrue(html.contains("Back Squat"));
+      assertTrue(html.contains("Bench Press"));
+      assertTrue(html.contains("Last: 2026-05-25 - 1 sets x 5 reps @ 225 lb RPE 8.0"));
+      assertTrue(
+          html.contains(
+              "href='/?tab=add-execution&amp;prefillDate=2026-05-30&amp;prefillLift=Back+Squat'"));
+      assertTrue(html.contains("Log Again"));
+      assertTrue(html.contains("2026-05-29"));
+    }
+  }
+
+  @Test
+  void dailyDashboardUsesLatestExecutionOutsideRecentWindowForSuggestions() throws Exception {
+    LocalDate today = LocalDate.of(2026, 5, 30);
+    Path dbPath = Files.createTempFile("lifttrax-dashboard-latest", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLiftExecution("Back Squat", execution(today.minusDays(30), false));
+
+      String html = WebUiRenderer.renderDailyDashboard(db, db.listLifts(), today);
+
+      assertTrue(html.contains("Last: 2026-04-30 - 1 sets x 5 reps @ 225 lb RPE 8.0"));
+      assertTrue(html.contains("No executions in the last 14 days."));
+    }
+  }
+
+  @Test
+  void dailyDashboardShowsEmptyStatesWithoutLiftsOrExecutions() throws Exception {
+    LocalDate today = LocalDate.of(2026, 5, 30);
+    Path dbPath = Files.createTempFile("lifttrax-dashboard-empty", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      String html = WebUiRenderer.renderDailyDashboard(db, db.listLifts(), today);
+
+      assertTrue(html.contains("No lifts yet"));
+      assertTrue(html.contains("Add First Lift"));
+      assertTrue(html.contains("No executions in the last 14 days."));
+      assertTrue(html.contains("href='/?tab=add-execution&amp;prefillDate=2026-05-30'"));
+    }
+  }
 
   @Test
   void lastWeekContentGroupsByDayAndUsesLiftOrderWithoutDatePrefix() throws Exception {

@@ -98,6 +98,10 @@ final class WebUiRenderer {
       int waveWeeks,
       Map<String, String> waveInput) {
     String normalizedTab = normalizeTab(activeTab);
+    String dashboardContent =
+        "dashboard".equals(normalizedTab)
+            ? renderDailyDashboard(db, lifts, LocalDate.now())
+            : deferredTabContent("Dashboard");
     String executionContent =
         "executions".equals(normalizedTab)
             ? renderExecutionList(db, lifts, search, "Recorded lifts:")
@@ -123,11 +127,13 @@ final class WebUiRenderer {
         search,
         queryLift,
         normalizedTab,
-        executionContent,
-        queryContent,
-        lastWeekContent,
-        waveContent,
-        importWorkoutContent,
+        new TabContent(
+            dashboardContent,
+            executionContent,
+            queryContent,
+            lastWeekContent,
+            waveContent,
+            importWorkoutContent),
         statusMessage,
         statusType,
         prefill,
@@ -138,8 +144,15 @@ final class WebUiRenderer {
 
   private static String normalizeTab(String activeTab) {
     return switch (activeTab == null ? "" : activeTab.trim()) {
-      case "waves", "import-workout", "executions", "query", "last-week" -> activeTab.trim();
-      default -> "add-execution";
+      case "dashboard",
+          "add-execution",
+          "waves",
+          "import-workout",
+          "executions",
+          "query",
+          "last-week" ->
+          activeTab.trim();
+      default -> "dashboard";
     };
   }
 
@@ -167,34 +180,67 @@ final class WebUiRenderer {
       LocalDate lastWeekStart,
       LocalDate lastWeekEnd,
       int waveWeeks) {
+    return renderTabbedLayout(
+        lifts,
+        search,
+        queryLift,
+        activeTab,
+        new TabContent(
+            deferredTabContent("Dashboard"),
+            executionContent,
+            queryContent,
+            lastWeekContent,
+            waveContent,
+            importWorkoutContent),
+        statusMessage,
+        statusType,
+        prefill,
+        lastWeekStart,
+        lastWeekEnd,
+        waveWeeks);
+  }
+
+  static String renderTabbedLayout(
+      List<Lift> lifts,
+      String search,
+      String queryLift,
+      String activeTab,
+      TabContent tabContent,
+      String statusMessage,
+      String statusType,
+      AddExecutionPrefill prefill,
+      LocalDate lastWeekStart,
+      LocalDate lastWeekEnd,
+      int waveWeeks) {
     String filterControls = renderFilterControls(lifts, search);
     String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType, prefill);
     String queryControls = renderQueryControls(lifts, queryLift);
-    String addExecutionTabClass = "add-execution".equals(activeTab) ? "tab is-active" : "tab";
-    String wavesTabClass = "waves".equals(activeTab) ? "tab is-active" : "tab";
-    String importWorkoutTabClass = "import-workout".equals(activeTab) ? "tab is-active" : "tab";
-    String executionsTabClass = "executions".equals(activeTab) ? "tab is-active" : "tab";
-    String queryTabClass = "query".equals(activeTab) ? "tab is-active" : "tab";
-    String lastWeekTabClass = "last-week".equals(activeTab) ? "tab is-active" : "tab";
-    String addExecutionPanelClass =
-        "add-execution".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
-    String executionsPanelClass =
-        "executions".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
-    String wavesPanelClass = "waves".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
-    String importWorkoutPanelClass =
-        "import-workout".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
-    String queryPanelClass = "query".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
-    String lastWeekPanelClass = "last-week".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+    String dashboardTabClass = tabClass(activeTab, "dashboard");
+    String addExecutionTabClass = tabClass(activeTab, "add-execution");
+    String wavesTabClass = tabClass(activeTab, "waves");
+    String importWorkoutTabClass = tabClass(activeTab, "import-workout");
+    String executionsTabClass = tabClass(activeTab, "executions");
+    String queryTabClass = tabClass(activeTab, "query");
+    String lastWeekTabClass = tabClass(activeTab, "last-week");
+    String dashboardPanelClass = panelClass(activeTab, "dashboard");
+    String addExecutionPanelClass = panelClass(activeTab, "add-execution");
+    String executionsPanelClass = panelClass(activeTab, "executions");
+    String wavesPanelClass = panelClass(activeTab, "waves");
+    String importWorkoutPanelClass = panelClass(activeTab, "import-workout");
+    String queryPanelClass = panelClass(activeTab, "query");
+    String lastWeekPanelClass = panelClass(activeTab, "last-week");
+    String dashboardLoaded = loaded(activeTab, "dashboard");
     String addExecutionLoaded = "true";
-    String executionsLoaded = "executions".equals(activeTab) ? "true" : "false";
-    String wavesLoaded = "waves".equals(activeTab) ? "true" : "false";
-    String importWorkoutLoaded = "import-workout".equals(activeTab) ? "true" : "false";
-    String queryLoaded = "query".equals(activeTab) ? "true" : "false";
-    String lastWeekLoaded = "last-week".equals(activeTab) ? "true" : "false";
+    String executionsLoaded = loaded(activeTab, "executions");
+    String wavesLoaded = loaded(activeTab, "waves");
+    String importWorkoutLoaded = loaded(activeTab, "import-workout");
+    String queryLoaded = loaded(activeTab, "query");
+    String lastWeekLoaded = loaded(activeTab, "last-week");
 
     return """
                 <div class='tabbed-ui' data-initial-tab='%s'>
                   <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
+                    <button class='%s' role='tab' type='button' data-tab='dashboard' aria-selected='%s'>Dashboard</button>
                     <button class='%s' role='tab' type='button' data-tab='add-execution' aria-selected='%s'>Add Execution</button>
                     <button class='%s' role='tab' type='button' data-tab='waves' aria-selected='%s'>Workout Waves</button>
                     <button class='%s' role='tab' type='button' data-tab='import-workout' aria-selected='%s'>Import Workout</button>
@@ -202,6 +248,9 @@ final class WebUiRenderer {
                     <button class='%s' role='tab' type='button' data-tab='query' aria-selected='%s'>Query</button>
                     <button class='%s' role='tab' type='button' data-tab='last-week' aria-selected='%s'>Last Week</button>
                   </div>
+                  <section class='%s' data-panel='dashboard' data-loaded='%s' role='tabpanel'>
+                    %s
+                  </section>
                   <section class='%s' data-panel='add-execution' data-loaded='%s' role='tabpanel'>
                     <h2>Add Execution</h2>
                     %s
@@ -259,7 +308,7 @@ final class WebUiRenderer {
                       });
                     }
 
-                    const initialTab = shell && shell.dataset.initialTab ? shell.dataset.initialTab : 'add-execution';
+                    const initialTab = shell && shell.dataset.initialTab ? shell.dataset.initialTab : 'dashboard';
                     activateTab(initialTab);
 
                     tabs.forEach((tab) => {
@@ -951,18 +1000,23 @@ final class WebUiRenderer {
                 """
         .formatted(
             WebHtml.escapeHtml(activeTab),
+            dashboardTabClass,
+            selected(activeTab, "dashboard"),
             addExecutionTabClass,
-            "add-execution".equals(activeTab) ? "true" : "false",
+            selected(activeTab, "add-execution"),
             wavesTabClass,
-            "waves".equals(activeTab) ? "true" : "false",
+            selected(activeTab, "waves"),
             importWorkoutTabClass,
-            "import-workout".equals(activeTab) ? "true" : "false",
+            selected(activeTab, "import-workout"),
             executionsTabClass,
-            "executions".equals(activeTab) ? "true" : "false",
+            selected(activeTab, "executions"),
             queryTabClass,
-            "query".equals(activeTab) ? "true" : "false",
+            selected(activeTab, "query"),
             lastWeekTabClass,
-            "last-week".equals(activeTab) ? "true" : "false",
+            selected(activeTab, "last-week"),
+            dashboardPanelClass,
+            dashboardLoaded,
+            tabContent.dashboardContent(),
             addExecutionPanelClass,
             addExecutionLoaded,
             filterControls,
@@ -970,24 +1024,52 @@ final class WebUiRenderer {
             executionsPanelClass,
             executionsLoaded,
             filterControls,
-            executionContent,
+            tabContent.executionContent(),
             wavesPanelClass,
             wavesLoaded,
-            waveContent,
+            tabContent.waveContent(),
             importWorkoutPanelClass,
             importWorkoutLoaded,
-            importWorkoutContent,
+            tabContent.importWorkoutContent(),
             queryPanelClass,
             queryLoaded,
             filterControls,
             queryControls,
-            queryContent,
+            tabContent.queryContent(),
             lastWeekPanelClass,
             lastWeekLoaded,
             WebHtml.escapeHtml(lastWeekStart.toString()),
             WebHtml.escapeHtml(lastWeekEnd.toString()),
             filterControls,
-            lastWeekContent);
+            tabContent.lastWeekContent());
+  }
+
+  record TabContent(
+      String dashboardContent,
+      String executionContent,
+      String queryContent,
+      String lastWeekContent,
+      String waveContent,
+      String importWorkoutContent) {}
+
+  private static String tabClass(String activeTab, String tab) {
+    return tab.equals(activeTab) ? "tab is-active" : "tab";
+  }
+
+  private static String panelClass(String activeTab, String tab) {
+    return tab.equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+  }
+
+  private static String selected(String activeTab, String tab) {
+    return Boolean.toString(tab.equals(activeTab));
+  }
+
+  private static String loaded(String activeTab, String tab) {
+    return Boolean.toString(tab.equals(activeTab));
+  }
+
+  static String renderDailyDashboard(SqliteDb db, List<Lift> lifts, LocalDate today) {
+    return DailyDashboardRenderer.render(db, lifts, today);
   }
 
   static String renderWaveContent(SqliteDb db, int weeks, Map<String, String> waveInput) {
@@ -1476,6 +1558,10 @@ final class WebUiRenderer {
     if (execution.warmup()) {
       return 0;
     }
+    return liftSortOrder(lift);
+  }
+
+  private static int liftSortOrder(Lift lift) {
     LiftType mainType = lift.main();
     if (mainType == null) {
       return 50;

@@ -102,7 +102,7 @@ public final class WebServerCli {
       Map<String, String> query = parseQuery(exchange.getRequestURI());
       String search = query.getOrDefault("q", "").trim().toLowerCase(Locale.ROOT);
       String queryLift = query.getOrDefault("queryLift", "").trim();
-      String activeTab = query.getOrDefault("tab", "add-execution").trim();
+      String activeTab = query.getOrDefault("tab", "dashboard").trim();
       String statusMessage = query.getOrDefault("status", "").trim();
       String statusType = query.getOrDefault("statusType", "").trim();
       int waveWeeks = parseBoundedInt(query.get("waveWeeks"), 7, 1, 24);

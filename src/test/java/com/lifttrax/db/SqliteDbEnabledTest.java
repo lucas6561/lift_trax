@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SqliteDbEnabledTest {
@@ -66,6 +67,9 @@ class SqliteDbEnabledTest {
 
       assertTrue(db.isLiftEnabled("Enabled Bench"));
       assertFalse(db.isLiftEnabled("Disabled Bench"));
+      Map<String, Boolean> statuses = db.liftEnabledStatuses();
+      assertTrue(statuses.get("Enabled Bench"));
+      assertFalse(statuses.get("Disabled Bench"));
 
       List<Lift> allLifts = db.listLifts();
       assertEquals(2, allLifts.size());

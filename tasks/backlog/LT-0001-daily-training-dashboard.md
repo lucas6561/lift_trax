@@ -1,12 +1,12 @@
 ---
 id: LT-0001
 title: Define the daily training dashboard
-status: ready
+status: done
 track: product
 priority: high
 effort: medium
 created: 2026-05-27
-updated: 2026-05-27
+updated: 2026-05-30
 owner: unassigned
 depends_on: []
 ---
@@ -28,12 +28,17 @@ The home page shows today's planned or suggested work, recent execution history,
 
 ## Acceptance criteria
 
-- [ ] The default web page presents a daily training view.
-- [ ] A user can jump from the dashboard to logging a set.
-- [ ] Recent relevant executions are visible without searching first.
-- [ ] Web UI tests cover the rendered dashboard states.
+- [x] The default web page presents a daily training view.
+- [x] A user can jump from the dashboard to logging a set.
+- [x] Recent relevant executions are visible without searching first.
+- [x] Web UI tests cover the rendered dashboard states.
 
 ## Notes
 
 This should probably build on `WebUiRenderer` and existing database read paths before introducing a larger frontend framework.
 
+Implemented 2026-05-30 with a default Dashboard tab, suggested work links, recent history, empty states, and focused renderer tests.
+
+Verification: `./gradlew.bat qualityGate` passed on 2026-05-30.
+
+Follow-up 2026-05-30: fixed returning to the deferred Dashboard tab and reduced dashboard first-load database work by bulk-loading enabled lift statuses, latest executions, and recent history.
