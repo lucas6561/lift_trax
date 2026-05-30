@@ -10,6 +10,8 @@ import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutJson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -66,6 +69,8 @@ public final class WebServerCli {
     server.createContext("/delete-execution", exchange -> handleDeleteExecution(exchange, db));
     server.createContext("/delete-lift", exchange -> handleDeleteLift(exchange, db));
     server.createContext("/update-lift", exchange -> handleUpdateLift(exchange, db));
+    server.createContext(
+        "/planned-workout-preview", exchange -> handlePlannedWorkoutPreview(exchange, db));
     server.createContext(
         "/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
     server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
@@ -441,6 +446,51 @@ public final class WebServerCli {
               + "&statusType=error&status="
               + WebUiRenderer.urlEncode("Failed to delete lift: " + e.getMessage()));
     }
+  }
+
+  private static void handlePlannedWorkoutPreview(HttpExchange exchange, SqliteDb db)
+      throws IOException {
+    String method = exchange.getRequestMethod();
+    if (!"POST".equalsIgnoreCase(method) && !"GET".equalsIgnoreCase(method)) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      Map<String, String> values =
+          "POST".equalsIgnoreCase(method)
+              ? parseForm(exchange.getRequestBody())
+              : parseQuery(exchange.getRequestURI());
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(values);
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              workoutFile.metadata().name(), PlannedWorkoutHtml.renderPage(workoutFile, db)));
+    } catch (Exception e) {
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Planned Workout Import Error",
+              "<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>"
+                  + "<h1>Import Error</h1><p class='status error'>"
+                  + WebHtml.escapeHtml(e.getMessage())
+                  + "</p>"));
+    }
+  }
+
+  private static PlannedWorkoutFile loadPlannedWorkout(Map<String, String> values)
+      throws IOException {
+    String pasted = values.getOrDefault("plannedWorkoutJson", "").trim();
+    if (!pasted.isBlank()) {
+      return PlannedWorkoutJson.readString(pasted);
+    }
+
+    String path = values.getOrDefault("plannedWorkoutPath", "").trim();
+    if (!path.isBlank()) {
+      return PlannedWorkoutJson.readPath(Path.of(path));
+    }
+
+    throw new IllegalArgumentException("Paste a workout file or enter a file path.");
   }
 
   private static void handleUpdateLift(HttpExchange exchange, SqliteDb db) throws IOException {

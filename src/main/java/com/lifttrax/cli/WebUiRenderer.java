@@ -16,6 +16,8 @@ import com.lifttrax.workout.DynamicLifts;
 import com.lifttrax.workout.HypertrophyWorkoutBuilder;
 import com.lifttrax.workout.MaxEffortLiftPools;
 import com.lifttrax.workout.MaxEffortPlan;
+import com.lifttrax.workout.PlannedWorkoutExporter;
+import com.lifttrax.workout.PlannedWorkoutJson;
 import com.lifttrax.workout.WaveMarkdownWriter;
 import com.lifttrax.workout.WebConfiguredDynamicLiftSource;
 import com.lifttrax.workout.WebConfiguredMaxEffortPlanSource;
@@ -112,6 +114,10 @@ final class WebUiRenderer {
         "waves".equals(normalizedTab)
             ? renderWaveContent(db, waveWeeks, waveInput)
             : deferredTabContent("Workout Waves");
+    String importWorkoutContent =
+        "import-workout".equals(normalizedTab)
+            ? PlannedWorkoutHtml.renderImportPanel()
+            : deferredTabContent("Import Workout");
     return renderTabbedLayout(
         lifts,
         search,
@@ -121,6 +127,7 @@ final class WebUiRenderer {
         queryContent,
         lastWeekContent,
         waveContent,
+        importWorkoutContent,
         statusMessage,
         statusType,
         prefill,
@@ -131,7 +138,7 @@ final class WebUiRenderer {
 
   private static String normalizeTab(String activeTab) {
     return switch (activeTab == null ? "" : activeTab.trim()) {
-      case "waves", "executions", "query", "last-week" -> activeTab.trim();
+      case "waves", "import-workout", "executions", "query", "last-week" -> activeTab.trim();
       default -> "add-execution";
     };
   }
@@ -153,6 +160,7 @@ final class WebUiRenderer {
       String queryContent,
       String lastWeekContent,
       String waveContent,
+      String importWorkoutContent,
       String statusMessage,
       String statusType,
       AddExecutionPrefill prefill,
@@ -164,6 +172,7 @@ final class WebUiRenderer {
     String queryControls = renderQueryControls(lifts, queryLift);
     String addExecutionTabClass = "add-execution".equals(activeTab) ? "tab is-active" : "tab";
     String wavesTabClass = "waves".equals(activeTab) ? "tab is-active" : "tab";
+    String importWorkoutTabClass = "import-workout".equals(activeTab) ? "tab is-active" : "tab";
     String executionsTabClass = "executions".equals(activeTab) ? "tab is-active" : "tab";
     String queryTabClass = "query".equals(activeTab) ? "tab is-active" : "tab";
     String lastWeekTabClass = "last-week".equals(activeTab) ? "tab is-active" : "tab";
@@ -172,11 +181,14 @@ final class WebUiRenderer {
     String executionsPanelClass =
         "executions".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
     String wavesPanelClass = "waves".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
+    String importWorkoutPanelClass =
+        "import-workout".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
     String queryPanelClass = "query".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
     String lastWeekPanelClass = "last-week".equals(activeTab) ? "tab-panel is-active" : "tab-panel";
     String addExecutionLoaded = "true";
     String executionsLoaded = "executions".equals(activeTab) ? "true" : "false";
     String wavesLoaded = "waves".equals(activeTab) ? "true" : "false";
+    String importWorkoutLoaded = "import-workout".equals(activeTab) ? "true" : "false";
     String queryLoaded = "query".equals(activeTab) ? "true" : "false";
     String lastWeekLoaded = "last-week".equals(activeTab) ? "true" : "false";
 
@@ -185,6 +197,7 @@ final class WebUiRenderer {
                   <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
                     <button class='%s' role='tab' type='button' data-tab='add-execution' aria-selected='%s'>Add Execution</button>
                     <button class='%s' role='tab' type='button' data-tab='waves' aria-selected='%s'>Workout Waves</button>
+                    <button class='%s' role='tab' type='button' data-tab='import-workout' aria-selected='%s'>Import Workout</button>
                     <button class='%s' role='tab' type='button' data-tab='executions' aria-selected='%s'>Executions</button>
                     <button class='%s' role='tab' type='button' data-tab='query' aria-selected='%s'>Query</button>
                     <button class='%s' role='tab' type='button' data-tab='last-week' aria-selected='%s'>Last Week</button>
@@ -200,6 +213,10 @@ final class WebUiRenderer {
                   </section>
                   <section class='%s' data-panel='waves' data-loaded='%s' role='tabpanel'>
                     <h2>Workout Waves</h2>
+                    %s
+                  </section>
+                  <section class='%s' data-panel='import-workout' data-loaded='%s' role='tabpanel'>
+                    <h2>Import Workout</h2>
                     %s
                   </section>
                   <section class='%s' data-panel='query' data-loaded='%s' role='tabpanel'>
@@ -938,6 +955,8 @@ final class WebUiRenderer {
             "add-execution".equals(activeTab) ? "true" : "false",
             wavesTabClass,
             "waves".equals(activeTab) ? "true" : "false",
+            importWorkoutTabClass,
+            "import-workout".equals(activeTab) ? "true" : "false",
             executionsTabClass,
             "executions".equals(activeTab) ? "true" : "false",
             queryTabClass,
@@ -955,6 +974,9 @@ final class WebUiRenderer {
             wavesPanelClass,
             wavesLoaded,
             waveContent,
+            importWorkoutPanelClass,
+            importWorkoutLoaded,
+            importWorkoutContent,
             queryPanelClass,
             queryLoaded,
             filterControls,
@@ -991,11 +1013,15 @@ final class WebUiRenderer {
       var wave = builder.getWave(normalizedWeeks, db);
       List<String> markdown = WaveMarkdownWriter.createMarkdown(wave, db);
       String markdownText = String.join("\n", markdown);
+      String plannedWorkoutJson =
+          PlannedWorkoutJson.writeString(
+              PlannedWorkoutExporter.fromWave(waveProgramName(waveType), waveType, wave));
       return planner
           + """
                     <p>Configured weeks: <strong>%s</strong></p>
                     <div class='stacked-row'>
                       <button type='button' class='secondary' onclick='liftTraxSaveWaveMarkdown()'>Save As Markdown</button>
+                      <button type='button' class='secondary' onclick='liftTraxSavePlannedWorkoutJson()'>Save As Workout JSON</button>
                     </div>
                     <pre class='query-output'>%s</pre>
                     <script>
@@ -1028,10 +1054,32 @@ final class WebUiRenderer {
                         link.remove();
                         URL.revokeObjectURL(url);
                       }
+
+                      function liftTraxSavePlannedWorkoutJson() {
+                        const content = "%s";
+                        const fallback = `planned-workout-${liftTraxWaveTimestamp()}.json`;
+                        const input = window.prompt("Save workout as", fallback);
+                        if (input === null) {
+                          return;
+                        }
+                        const fileName = input.trim() || fallback;
+                        const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        URL.revokeObjectURL(url);
+                      }
                     </script>
                     """
               .formatted(
-                  normalizedWeeks, WebHtml.escapeHtml(markdownText), jsonEscape(markdownText));
+                  normalizedWeeks,
+                  WebHtml.escapeHtml(markdownText),
+                  jsonEscape(markdownText),
+                  jsonEscape(plannedWorkoutJson));
     } catch (Exception e) {
       return planner
           + """
@@ -1040,6 +1088,14 @@ final class WebUiRenderer {
                     """
               .formatted(normalizedWeeks, WebHtml.escapeHtml(e.getMessage()));
     }
+  }
+
+  private static String waveProgramName(String waveType) {
+    return switch (waveType) {
+      case "hypertrophy" -> "Hypertrophy Wave";
+      case "deload" -> "Deload Wave";
+      default -> "Conjugate Wave";
+    };
   }
 
   private static String renderWavePlannerForm(SqliteDb db, int weeks, Map<String, String> values) {

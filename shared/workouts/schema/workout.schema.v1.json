@@ -1,0 +1,495 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifttrax.local/schemas/workout.schema.v1.json",
+  "title": "LiftTrax Planned Workout Schema v1",
+  "description": "A versioned contract for generated planned workouts that can be loaded without rerunning the original generator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "metadata",
+    "source",
+    "weeks",
+    "completedWorkouts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "weeks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/week"
+      }
+    },
+    "completedWorkouts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/completedWorkout"
+      }
+    }
+  },
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "totalWeeks",
+        "tags"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "totalWeeks": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generator",
+        "programName",
+        "programSchemaVersion",
+        "generatedAt"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "wave-generation",
+            "program-schema",
+            "manual",
+            "import"
+          ]
+        },
+        "generator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "programName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "programSchemaVersion": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "generatedAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "week": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "weekNumber",
+        "days"
+      ],
+      "properties": {
+        "weekNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "days": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/day"
+          }
+        }
+      }
+    },
+    "day": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dayOfWeek",
+        "title",
+        "blocks",
+        "notes"
+      ],
+      "properties": {
+        "dayOfWeek": {
+          "enum": [
+            "MONDAY",
+            "TUESDAY",
+            "WEDNESDAY",
+            "THURSDAY",
+            "FRIDAY",
+            "SATURDAY",
+            "SUNDAY"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "title",
+        "blockType",
+        "rounds",
+        "warmup",
+        "exercises",
+        "notes"
+      ],
+      "properties": {
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blockType": {
+          "enum": [
+            "warmup",
+            "max_effort",
+            "dynamic_effort",
+            "supplemental",
+            "accessory",
+            "conditioning",
+            "circuit",
+            "single",
+            "other"
+          ]
+        },
+        "rounds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "warmup": {
+          "type": "boolean"
+        },
+        "exercises": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/plannedExercise"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "plannedExercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "region",
+        "type",
+        "muscles",
+        "plannedSets",
+        "notes",
+        "substitutionOptions"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "plannedSets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/plannedSet"
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "substitutionOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "plannedSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setNumber",
+        "metricType",
+        "reps",
+        "repsLeft",
+        "repsRight",
+        "repsMin",
+        "repsMax",
+        "seconds",
+        "distanceFeet",
+        "percent",
+        "rpe",
+        "accommodatingResistance",
+        "deload"
+      ],
+      "properties": {
+        "setNumber": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "metricType": {
+          "enum": [
+            "reps",
+            "reps_lr",
+            "reps_range",
+            "time_seconds",
+            "distance_feet",
+            "none"
+          ]
+        },
+        "reps": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "repsLeft": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "repsRight": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "repsMin": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "repsMax": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "distanceFeet": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "percent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 100
+        },
+        "rpe": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "accommodatingResistance": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deload": {
+          "type": "boolean"
+        }
+      }
+    },
+    "completedWorkout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completionId",
+        "weekNumber",
+        "dayOfWeek",
+        "completedAt",
+        "exercises",
+        "notes"
+      ],
+      "properties": {
+        "completionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "weekNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completedAt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/completedExercise"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "completedExercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "sets",
+        "notes"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/completedSet"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "completedSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setNumber",
+        "result",
+        "weight",
+        "rpe",
+        "notes"
+      ],
+      "properties": {
+        "setNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "result": {
+          "type": "string",
+          "minLength": 1
+        },
+        "weight": {
+          "type": "string"
+        },
+        "rpe": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

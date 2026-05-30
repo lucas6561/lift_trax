@@ -10,6 +10,7 @@ import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.workout.PlannedWorkoutFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -89,6 +90,111 @@ class WebUiRendererTest {
       assertTrue(html.contains("name='liftQuery' value='Back Squat'"));
       assertTrue(html.contains("action='/update-execution'"));
       assertTrue(html.contains("action='/delete-execution'"));
+    }
+  }
+
+  @Test
+  void plannedWorkoutPageRendersWeeksBlocksAndGroupedTargets() {
+    PlannedWorkoutFile.PlannedSetTarget firstSet =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1, "reps", 5, null, null, null, null, null, null, 80, 8.0f, "CHAINS", false);
+    PlannedWorkoutFile.PlannedSetTarget secondSet =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            2, "reps", 5, null, null, null, null, null, null, 80, 8.0f, "CHAINS", false);
+    PlannedWorkoutFile workoutFile =
+        new PlannedWorkoutFile(
+            1,
+            new PlannedWorkoutFile.PlannedWorkoutMetadata(
+                "Imported Wave", "Ready to train.", 1, List.of("test")),
+            new PlannedWorkoutFile.PlannedWorkoutSource(
+                "wave-generation", "conjugate", "Conjugate Wave", null, "2026-05-29T00:00:00Z"),
+            List.of(
+                new PlannedWorkoutFile.PlannedWorkoutWeek(
+                    1,
+                    List.of(
+                        new PlannedWorkoutFile.PlannedWorkoutDay(
+                            "MONDAY",
+                            "Monday",
+                            List.of(
+                                new PlannedWorkoutFile.PlannedWorkoutBlock(
+                                    1,
+                                    "Backoff Sets",
+                                    "supplemental",
+                                    null,
+                                    false,
+                                    List.of(
+                                        new PlannedWorkoutFile.PlannedExercise(
+                                            "Back Squat",
+                                            "LOWER",
+                                            "SQUAT",
+                                            List.of("QUAD"),
+                                            List.of(firstSet, secondSet),
+                                            "Stay fast.",
+                                            List.of("Front Squat"))),
+                                    List.of("Use today's top single."))),
+                            List.of())))),
+            List.of());
+
+    String html = PlannedWorkoutHtml.renderPage(workoutFile);
+
+    assertTrue(html.contains("Imported Wave"));
+    assertTrue(html.contains("Back to Import Workout"));
+    assertTrue(html.contains("Week 1"));
+    assertTrue(html.contains("Monday"));
+    assertTrue(html.contains("Backoff Sets"));
+    assertTrue(html.contains("2x 5 reps @ 80% RPE 8.0 CHAINS"));
+    assertTrue(html.contains("Swap options: Front Squat"));
+  }
+
+  @Test
+  void plannedWorkoutPageIncludesMatchingLiftHistory() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-planned-history", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 5, 24),
+              List.of(new ExecutionSet(new SetMetric.Reps(5), "275 lb", 8.0f)),
+              false,
+              false,
+              "smooth"));
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 5, 25),
+              List.of(new ExecutionSet(new SetMetric.Reps(1), "365 lb", null)),
+              false,
+              false,
+              ""));
+
+      PlannedWorkoutFile.PlannedSetTarget setTarget =
+          new PlannedWorkoutFile.PlannedSetTarget(
+              1, "reps", 5, null, null, null, null, null, null, 80, 8.0f, "STRAIGHT", false);
+      PlannedWorkoutFile.PlannedExercise exercise =
+          new PlannedWorkoutFile.PlannedExercise(
+              "Back Squat", "LOWER", "SQUAT", List.of("QUAD"), List.of(setTarget), "", List.of());
+      PlannedWorkoutFile.PlannedWorkoutBlock block =
+          new PlannedWorkoutFile.PlannedWorkoutBlock(
+              1, "Backoff Sets", "supplemental", null, false, List.of(exercise), List.of());
+      PlannedWorkoutFile.PlannedWorkoutDay day =
+          new PlannedWorkoutFile.PlannedWorkoutDay("MONDAY", "Monday", List.of(block), List.of());
+      PlannedWorkoutFile workoutFile =
+          new PlannedWorkoutFile(
+              1,
+              new PlannedWorkoutFile.PlannedWorkoutMetadata(
+                  "Imported Wave", "Ready to train.", 1, List.of("test")),
+              new PlannedWorkoutFile.PlannedWorkoutSource(
+                  "wave-generation", "conjugate", "Conjugate Wave", null, "2026-05-29T00:00:00Z"),
+              List.of(new PlannedWorkoutFile.PlannedWorkoutWeek(1, List.of(day))),
+              List.of());
+
+      String html = PlannedWorkoutHtml.renderPage(workoutFile, db);
+
+      assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
+      assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
     }
   }
 

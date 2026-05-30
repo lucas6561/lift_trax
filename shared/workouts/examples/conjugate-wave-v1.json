@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "Example Conjugate Planned Wave",
+    "description": "A compact planned-workout example generated from a conjugate wave.",
+    "totalWeeks": 1,
+    "tags": [
+      "example",
+      "conjugate"
+    ]
+  },
+  "source": {
+    "kind": "wave-generation",
+    "generator": "conjugate",
+    "programName": "Conjugate Wave",
+    "programSchemaVersion": null,
+    "generatedAt": "2026-05-29T00:00:00Z"
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "title": "Monday",
+          "blocks": [
+            {
+              "order": 1,
+              "title": "Max Effort Single",
+              "blockType": "max_effort",
+              "rounds": null,
+              "warmup": false,
+              "exercises": [
+                {
+                  "name": "Back Squat",
+                  "region": "LOWER",
+                  "type": "SQUAT",
+                  "muscles": [
+                    "QUAD",
+                    "GLUTE"
+                  ],
+                  "plannedSets": [
+                    {
+                      "setNumber": 1,
+                      "metricType": "reps",
+                      "reps": 1,
+                      "repsLeft": null,
+                      "repsRight": null,
+                      "repsMin": null,
+                      "repsMax": null,
+                      "seconds": null,
+                      "distanceFeet": null,
+                      "percent": null,
+                      "rpe": null,
+                      "accommodatingResistance": null,
+                      "deload": false
+                    }
+                  ],
+                  "notes": "Work up only if speed stays crisp.",
+                  "substitutionOptions": [
+                    "Safety Bar Squat",
+                    "Front Squat"
+                  ]
+                }
+              ],
+              "notes": [
+                "Target 95% of max; go higher only if it feels great."
+              ]
+            }
+          ],
+          "notes": []
+        }
+      ]
+    }
+  ],
+  "completedWorkouts": []
+}

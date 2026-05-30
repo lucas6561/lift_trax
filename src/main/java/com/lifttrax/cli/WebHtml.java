@@ -86,6 +86,32 @@ final class WebHtml {
                 .status { border-radius: 0.4rem; padding: 0.35rem 0.5rem; font-weight: 600; margin-bottom: 0.4rem; }
                 .status.success { border: 1px solid #15803d; color: #86efac; background: #052e16; }
                 .status.error { border: 1px solid #b91c1c; color: #fca5a5; background: #450a0a; }
+                .muted { color: var(--pico-muted-color); }
+                .planned-import-form { max-width: 760px; margin: 0.25rem 0 0.55rem; }
+                .planned-import-layout { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.85fr); gap: 0.75rem; align-items: stretch; }
+                .planned-file-zone { display: grid; grid-template-columns: auto 1fr; gap: 0.6rem; align-items: center; border: 1px dashed #38bdf8; border-radius: 0.65rem; padding: 0.75rem; background: rgba(14, 116, 144, 0.12); }
+                .planned-file-input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+                .planned-file-picker { display: inline-flex; align-items: center; justify-content: center; min-height: 2.1rem; padding: 0.28rem 0.68rem; border-radius: 0.45rem; border: 1px solid #22c55e; color: #dcfce7; background: rgba(21, 128, 61, 0.32); cursor: pointer; margin: 0; white-space: nowrap; }
+                .planned-file-picker:hover { border-color: #86efac; background: rgba(22, 163, 74, 0.42); }
+                .planned-file-meta { min-width: 0; display: flex; flex-direction: column; gap: 0.12rem; }
+                .planned-file-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .planned-import-actions { display: flex; flex-direction: column; justify-content: center; gap: 0.45rem; border-left: 1px solid var(--pico-muted-border-color); padding-left: 0.75rem; }
+                .planned-import-actions .status,
+                .planned-import-actions p { margin-bottom: 0; }
+                .planned-import-actions .success { color: #86efac; }
+                .planned-import-actions .error { color: #fca5a5; }
+                .planned-week { margin-top: 0.75rem; }
+                .planned-day { border-top: 1px solid var(--pico-muted-border-color); padding-top: 0.5rem; margin-top: 0.55rem; }
+                .planned-block { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.5rem; margin-bottom: 0.5rem; background: rgba(9, 16, 30, 0.7); }
+                .planned-block header h4 { margin-bottom: 0.15rem; }
+                .planned-exercise-list { margin-bottom: 0; }
+                .planned-exercise-list li { margin-bottom: 0.5rem; }
+                .planned-history { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; margin-top: 0.18rem; color: var(--pico-muted-color); }
+                .planned-notes { margin-bottom: 0.45rem; }
+                @media (max-width: 720px) {
+                  .planned-import-layout { grid-template-columns: 1fr; }
+                  .planned-import-actions { border-left: 0; border-top: 1px solid var(--pico-muted-border-color); padding-left: 0; padding-top: 0.65rem; }
+                }
                 .is-hidden { display: none; }
             """;
 

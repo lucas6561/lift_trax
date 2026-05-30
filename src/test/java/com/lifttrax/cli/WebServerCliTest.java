@@ -174,6 +174,7 @@ class WebServerCliTest {
             "<p>query result</p>",
             "<p>last week result</p>",
             "<form><input name='waveWeeks'/><button>Generate Wave</button></form><p>wave result</p>",
+            "<form action='/planned-workout-preview'><input type='file'/></form>",
             "Saved",
             "success",
             WebUiRenderer.AddExecutionPrefill.empty(),
@@ -184,6 +185,7 @@ class WebServerCliTest {
     assertTrue(html.contains("Add Execution"));
     assertTrue(html.contains("Executions"));
     assertTrue(html.contains("Workout Waves"));
+    assertTrue(html.contains("Import Workout"));
     assertTrue(html.contains("Query"));
     assertTrue(html.contains("Last Week"));
     assertTrue(html.contains("data-initial-tab='query'"));
@@ -205,6 +207,8 @@ class WebServerCliTest {
     assertTrue(html.contains("Current Week"));
     assertTrue(html.contains("last week result"));
     assertTrue(html.contains("wave result"));
+    assertTrue(html.contains("data-panel='import-workout'"));
+    assertTrue(html.contains("action='/planned-workout-preview'"));
     assertTrue(html.contains("data-muscles='QUAD,GLUTE'"));
     assertTrue(html.contains("<option value='QUAD'>QUAD</option>"));
     assertTrue(html.contains("Hold Ctrl/Cmd to select multiple"));
@@ -862,9 +866,74 @@ class WebServerCliTest {
               db, 2, Map.of("waveType", "hypertrophy", "waveGenerate", "true"));
 
       assertTrue(html.contains("Save As Markdown"));
+      assertTrue(html.contains("Save As Workout JSON"));
       assertTrue(html.contains("liftTraxSaveWaveMarkdown"));
+      assertTrue(html.contains("liftTraxSavePlannedWorkoutJson"));
       assertTrue(html.contains("liftTraxWaveTimestamp"));
       assertTrue(html.contains("wave-${liftTraxWaveTimestamp()}.md"));
+      assertTrue(html.contains("planned-workout-${liftTraxWaveTimestamp()}.json"));
+      assertFalse(html.contains("Select Workout JSON"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void importWorkoutTabUsesFilePickerDialog() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-import-workout-tab", ".db");
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        SqliteDb db = new SqliteDb(dbPath.toString())) {
+      conn.createStatement()
+          .execute(
+              """
+                    CREATE TABLE IF NOT EXISTS lifts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        region TEXT NOT NULL,
+                        main_lift TEXT,
+                        muscles TEXT NOT NULL,
+                        notes TEXT NOT NULL DEFAULT ''
+                    )
+                    """);
+      conn.createStatement()
+          .execute(
+              """
+                    CREATE TABLE IF NOT EXISTS lift_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lift_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        sets TEXT NOT NULL,
+                        warmup INTEGER NOT NULL DEFAULT 0,
+                        deload INTEGER NOT NULL DEFAULT 0,
+                        notes TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(lift_id) REFERENCES lifts(id)
+                    )
+                    """);
+
+      String html =
+          WebUiRenderer.renderIndexBody(
+              db,
+              List.of(),
+              "",
+              "",
+              "import-workout",
+              "",
+              "",
+              WebUiRenderer.AddExecutionPrefill.empty(),
+              LocalDate.parse("2026-01-01"),
+              LocalDate.parse("2026-01-07"),
+              1,
+              Map.of());
+
+      assertTrue(html.contains("data-initial-tab='import-workout'"));
+      assertTrue(html.contains("data-panel='import-workout' data-loaded='true'"));
+      assertTrue(html.contains("type='file' accept='application/json,.json'"));
+      assertTrue(html.contains("Select Workout JSON"));
+      assertTrue(html.contains("class='js-planned-workout-json'"));
+      assertTrue(html.contains("FileReader"));
+      assertTrue(html.contains("Preview Workout"));
+      assertFalse(html.contains("Workout File Path"));
+      assertFalse(html.contains("Paste File Contents"));
     } finally {
       Files.deleteIfExists(dbPath);
     }

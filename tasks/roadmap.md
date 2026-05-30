@@ -61,6 +61,7 @@ Key tasks:
 - `LT-0025`: Build the follow-along workout session.
 - `LT-0026`: Add exercise swap rules.
 - `LT-0027`: Persist planned versus completed workout data.
+- `LT-0030`: Add exercise equipment requirements.
 
 ## Roadmap tracks
 

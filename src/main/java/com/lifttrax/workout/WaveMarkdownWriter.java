@@ -1,13 +1,9 @@
 package com.lifttrax.workout;
 
 import com.lifttrax.db.Database;
-import com.lifttrax.models.ExecutionSet;
-import com.lifttrax.models.ExecutionSummaryFormatter;
-import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -69,11 +65,13 @@ public final class WaveMarkdownWriter {
           lines.add("   - Notes: " + s.lift().notes());
         }
         SetMetric historyMetric = s.metric() instanceof SetMetric.RepsRange ? null : s.metric();
-        String last = lastExecDesc(db, s.lift().name(), false, historyMetric, s.deload());
+        String last =
+            WorkoutHistoryFormatter.lastExecutionSummary(
+                db, s.lift().name(), false, historyMetric, s.deload());
         if (last != null) {
           lines.add("   - Last: " + last);
         }
-        String max = bestOneRepMax(db, s.lift().name());
+        String max = WorkoutHistoryFormatter.bestOneRepMax(db, s.lift().name());
         if (max != null) {
           lines.add("   - Best 1RM: " + max);
         }
@@ -89,11 +87,13 @@ public final class WaveMarkdownWriter {
           if (!sl.lift().notes().isEmpty()) {
             lines.add("     - Notes: " + sl.lift().notes());
           }
-          String last = lastExecDesc(db, sl.lift().name(), circuit.warmup(), null, sl.deload());
+          String last =
+              WorkoutHistoryFormatter.lastExecutionSummary(
+                  db, sl.lift().name(), circuit.warmup(), null, sl.deload());
           if (last != null) {
             lines.add("     - Last: " + last);
           }
-          String max = bestOneRepMax(db, sl.lift().name());
+          String max = WorkoutHistoryFormatter.bestOneRepMax(db, sl.lift().name());
           if (max != null) {
             lines.add("     - Best 1RM: " + max);
           }
@@ -156,164 +156,6 @@ public final class WaveMarkdownWriter {
       return dist.feet() + " ft";
     }
     return "";
-  }
-
-  private static String lastExecDesc(
-      Database db, String liftName, boolean warmup, SetMetric metric, boolean includeDeload)
-      throws Exception {
-    List<LiftExecution> executions =
-        db.getExecutions(liftName).stream()
-            .filter(e -> e.warmup() == warmup && (includeDeload || !e.deload()))
-            .sorted(
-                Comparator.comparing(LiftExecution::date)
-                    .thenComparing(e -> e.id() == null ? Integer.MIN_VALUE : e.id())
-                    .reversed())
-            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-
-    if (executions.isEmpty()) {
-      return null;
-    }
-
-    if (metric != null) {
-      prioritizeMetric(executions, metric);
-    }
-
-    List<String> summaries = new ArrayList<>();
-    for (int i = 0; i < Math.min(3, executions.size()); i++) {
-      summaries.add(formatExec(executions.get(i)));
-    }
-    return String.join(" | ", summaries);
-  }
-
-  private static void prioritizeMetric(List<LiftExecution> executions, SetMetric target) {
-    for (int i = 0; i < executions.size(); i++) {
-      ExecutionSet first =
-          executions.get(i).sets().isEmpty() ? null : executions.get(i).sets().get(0);
-      if (first != null && metricEquals(first.metric(), target)) {
-        LiftExecution match = executions.remove(i);
-        executions.add(0, match);
-        return;
-      }
-    }
-
-    int bestIdx = -1;
-    int bestDiff = Integer.MAX_VALUE;
-    for (int i = 0; i < executions.size(); i++) {
-      ExecutionSet first =
-          executions.get(i).sets().isEmpty() ? null : executions.get(i).sets().get(0);
-      if (first == null) {
-        continue;
-      }
-      Integer diff = metricDistance(first.metric(), target);
-      if (diff != null && diff < bestDiff) {
-        bestDiff = diff;
-        bestIdx = i;
-      }
-    }
-    if (bestIdx >= 0) {
-      LiftExecution match = executions.remove(bestIdx);
-      executions.add(0, match);
-    }
-  }
-
-  private static Integer metricDistance(SetMetric candidate, SetMetric target) {
-    if (candidate instanceof SetMetric.Reps a && target instanceof SetMetric.Reps b) {
-      return Math.abs(a.reps() - b.reps());
-    }
-    if (candidate instanceof SetMetric.RepsLr a && target instanceof SetMetric.RepsLr b) {
-      return Math.abs(a.left() - b.left()) + Math.abs(a.right() - b.right());
-    }
-    if (candidate instanceof SetMetric.RepsLr a && target instanceof SetMetric.Reps b) {
-      return Math.abs(((a.left() + a.right()) / 2) - b.reps());
-    }
-    if (candidate instanceof SetMetric.Reps a && target instanceof SetMetric.RepsLr b) {
-      return Math.abs(a.reps() - ((b.left() + b.right()) / 2));
-    }
-    if (candidate instanceof SetMetric.TimeSecs a && target instanceof SetMetric.TimeSecs b) {
-      return Math.abs(a.seconds() - b.seconds());
-    }
-    if (candidate instanceof SetMetric.DistanceFeet a
-        && target instanceof SetMetric.DistanceFeet b) {
-      return Math.abs(a.feet() - b.feet());
-    }
-    return null;
-  }
-
-  private static boolean metricEquals(SetMetric a, SetMetric b) {
-    return a.equals(b);
-  }
-
-  private static String formatExec(LiftExecution exec) {
-    return ExecutionSummaryFormatter.formatCompactSummary(exec);
-  }
-
-  private static String bestOneRepMax(Database db, String liftName) throws Exception {
-    String bestWeight = null;
-    double bestWeightLbs = 0.0;
-    for (LiftExecution exec : db.getExecutions(liftName)) {
-      if (exec.warmup()) {
-        continue;
-      }
-      for (ExecutionSet set : exec.sets()) {
-        if (set.metric() instanceof SetMetric.Reps reps
-            && reps.reps() == 1
-            && set.weight() != null
-            && !"none".equalsIgnoreCase(set.weight())) {
-          double weightLbs = weightToLbs(set.weight());
-          if (bestWeight == null || weightLbs > bestWeightLbs) {
-            bestWeight = set.weight();
-            bestWeightLbs = weightLbs;
-          }
-        }
-      }
-    }
-    return bestWeight;
-  }
-
-  private static double weightToLbs(String weight) {
-    String trimmed = weight.trim().toLowerCase(java.util.Locale.ROOT);
-    if (trimmed.isEmpty() || "none".equals(trimmed)) {
-      return 0.0;
-    }
-    if (trimmed.contains("|")) {
-      String[] parts = trimmed.split("\\|", 2);
-      try {
-        return parseWeightSide(parts[0]) + parseWeightSide(parts[1]);
-      } catch (IllegalArgumentException e) {
-        return 0.0;
-      }
-    }
-    if (trimmed.contains("+")) {
-      String[] parts = trimmed.split("\\+");
-      try {
-        double raw = parseWeightSide(parts[0]);
-        if (parts.length == 2 && parts[1].trim().endsWith("c")) {
-          String chain = parts[1].trim().substring(0, parts[1].trim().length() - 1);
-          return raw + parseWeightSide(chain);
-        }
-        return raw;
-      } catch (IllegalArgumentException e) {
-        return 0.0;
-      }
-    }
-    try {
-      return parseWeightSide(trimmed);
-    } catch (IllegalArgumentException e) {
-      return 0.0;
-    }
-  }
-
-  private static double parseWeightSide(String value) {
-    String trimmed = value.trim();
-    if (trimmed.endsWith("kg")) {
-      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
-      return Double.parseDouble(stripped) * 2.20462;
-    }
-    if (trimmed.endsWith("lb")) {
-      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
-      return Double.parseDouble(stripped);
-    }
-    return Double.parseDouble(trimmed);
   }
 
   private static String title(DayOfWeek day) {

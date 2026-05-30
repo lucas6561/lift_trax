@@ -9,6 +9,7 @@ This repository now uses a **root-level Java/Gradle project layout**.
 - `build.gradle` / `settings.gradle` – Gradle project configuration
 - `shared/sql` – shared SQL schema assets
 - `shared/programs` - program schema and example training program assets
+- `shared/workouts` - generated workout schema and example planned workout assets
 - `docs` - project documentation, including program schema authoring guidance
 
 ## Run
@@ -43,6 +44,22 @@ Program schema v1 lives in `shared/programs/schema/program.schema.v1.json`.
 Example conjugate and hypertrophy program files live in
 `shared/programs/examples/`. Authoring guidance is in
 `docs/program-schema-v1.md`.
+
+## Workout file format
+
+Generated workout format v1 lives in
+`shared/workouts/schema/workout.schema.v1.json`. Example planned workout files
+live in `shared/workouts/examples/`, and display/import guidance is in
+`docs/workout-file-format-v1.md`.
+
+The web UI imports planned workout JSON from the Import Workout tab.
+
+Wave generation can still save markdown. To export a loadable planned workout
+JSON file instead, use a `.json` output name:
+
+```bash
+java -cp build/libs/lift-trax-java-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 planned-workout.json
+```
 
 ## Quality gate
 

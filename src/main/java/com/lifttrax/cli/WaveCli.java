@@ -2,12 +2,15 @@ package com.lifttrax.cli;
 
 import com.lifttrax.db.SqliteDb;
 import com.lifttrax.workout.ConjugateWorkoutBuilder;
+import com.lifttrax.workout.PlannedWorkoutExporter;
+import com.lifttrax.workout.PlannedWorkoutJson;
 import com.lifttrax.workout.WaveMarkdownWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /** Core WaveCli component used by LiftTrax. */
 public final class WaveCli {
@@ -26,8 +29,14 @@ public final class WaveCli {
     try (SqliteDb db = new SqliteDb(dbPath)) {
       ConjugateWorkoutBuilder builder = new ConjugateWorkoutBuilder();
       var wave = builder.getWave(weeks, db);
-      Files.write(Path.of(output), WaveMarkdownWriter.createMarkdown(wave, db));
-      System.out.println("Wrote wave markdown to " + output);
+      if (output.toLowerCase(Locale.ROOT).endsWith(".json")) {
+        PlannedWorkoutJson.writePath(
+            Path.of(output), PlannedWorkoutExporter.fromWave("Conjugate Wave", "conjugate", wave));
+        System.out.println("Wrote planned workout JSON to " + output);
+      } else {
+        Files.write(Path.of(output), WaveMarkdownWriter.createMarkdown(wave, db));
+        System.out.println("Wrote wave markdown to " + output);
+      }
     }
   }
 }
