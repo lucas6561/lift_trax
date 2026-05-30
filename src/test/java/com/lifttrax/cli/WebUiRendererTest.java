@@ -90,6 +90,7 @@ class WebUiRendererTest {
       assertTrue(
           html.contains(
               "href='/?tab=add-execution&amp;prefillDate=2026-05-30&amp;prefillLift=Back+Squat'"));
+      assertTrue(html.contains("href='/lift?name=Back+Squat'"));
       assertTrue(html.contains("Log Again"));
       assertTrue(html.contains("2026-05-29"));
     }
@@ -172,6 +173,7 @@ class WebUiRendererTest {
 
       assertTrue(html.contains("action='/delete-lift'"));
       assertTrue(html.contains("action='/update-lift'"));
+      assertTrue(html.contains("href='/lift?name=Back+Squat'"));
       assertTrue(html.contains("name='currentName' value='Back Squat'"));
       assertTrue(html.contains("Save lift"));
       assertTrue(html.contains("name='tab' value='executions'"));
@@ -237,6 +239,55 @@ class WebUiRendererTest {
       assertTrue(html.contains("&quot;weight&quot;:&quot;20 lb&quot;"));
       assertTrue(html.contains("&quot;rpe&quot;:&quot;7.5&quot;"));
     }
+  }
+
+  @Test
+  void liftTrendSummaryShowsRecentPerformanceCards() {
+    String html =
+        WebUiRenderer.renderLiftTrendSummary(
+            List.of(
+                new LiftExecution(
+                    null,
+                    LocalDate.of(2026, 5, 20),
+                    List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", 8.0f)),
+                    false,
+                    false,
+                    "smooth"),
+                new LiftExecution(
+                    null,
+                    LocalDate.of(2026, 5, 25),
+                    List.of(new ExecutionSet(new SetMetric.Reps(1), "315 lb", 8.0f)),
+                    false,
+                    false,
+                    "")),
+            LocalDate.of(2026, 5, 30));
+
+    assertTrue(html.contains("Recent Trends"));
+    assertTrue(html.contains("Last 90 days"));
+    assertTrue(html.contains("Last trained"));
+    assertTrue(html.contains("Recent best set"));
+    assertTrue(html.contains("2026-05-25 - 1 rep @ 315 lb"));
+    assertTrue(html.contains("315 lb comparison RPE 8.0"));
+    assertTrue(html.contains("2 sessions"));
+    assertTrue(html.contains("2 training days"));
+    assertTrue(html.contains("2 work sets"));
+    assertTrue(html.contains("6 reps / 1,440 lb-reps"));
+  }
+
+  @Test
+  void liftTrendSummaryShowsHelpfulEmptyAndSparseStates() {
+    String empty = WebUiRenderer.renderLiftTrendSummary(List.of(), LocalDate.of(2026, 5, 30));
+    String sparse =
+        WebUiRenderer.renderLiftTrendSummary(
+            List.of(execution(LocalDate.of(2026, 5, 20), false)), LocalDate.of(2026, 5, 30));
+    String stale =
+        WebUiRenderer.renderLiftTrendSummary(
+            List.of(execution(LocalDate.of(2026, 1, 15), false)), LocalDate.of(2026, 5, 30));
+
+    assertTrue(empty.contains("No trend data yet"));
+    assertTrue(sparse.contains("Sparse recent history: 1 session so far"));
+    assertTrue(sparse.contains("Trends get clearer after three or more sessions."));
+    assertTrue(stale.contains("No executions in the last 90 days. Last trained 2026-01-15."));
   }
 
   @Test

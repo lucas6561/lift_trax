@@ -1,12 +1,12 @@
 ---
 id: LT-0008
 title: Add lift detail trends
-status: idea
+status: done
 track: interface
 priority: medium
 effort: medium
 created: 2026-05-27
-updated: 2026-05-27
+updated: 2026-05-30
 owner: unassigned
 depends_on: []
 ---
@@ -28,12 +28,15 @@ Each lift detail page shows useful trend summaries based on logged execution his
 
 ## Acceptance criteria
 
-- [ ] Lift detail pages show recent performance summaries.
-- [ ] Empty or sparse history has a helpful display state.
-- [ ] Calculations are covered by focused tests.
-- [ ] The UI remains readable on desktop and mobile widths.
+- [x] Lift detail pages show recent performance summaries.
+- [x] Empty or sparse history has a helpful display state.
+- [x] Calculations are covered by focused tests.
+- [x] The UI remains readable on desktop and mobile widths.
 
 ## Notes
 
 Start with summaries before adding charting dependencies.
 
+Implemented 2026-05-30 with a Recent Trends section on lift detail pages, including last trained, recent best set, 90-day frequency, 90-day volume, and empty/sparse/stale-history states.
+
+Verification: `./gradlew.bat qualityGate` passed on 2026-05-30. Local rendered-page smoke passed at `/lift?name=Back%20Squat` with a temporary seeded database.

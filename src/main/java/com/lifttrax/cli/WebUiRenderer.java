@@ -14,6 +14,7 @@ import com.lifttrax.workout.ConjugateWorkoutBuilder;
 import com.lifttrax.workout.DeloadWorkoutBuilder;
 import com.lifttrax.workout.DynamicLifts;
 import com.lifttrax.workout.HypertrophyWorkoutBuilder;
+import com.lifttrax.workout.LiftTrendSummary;
 import com.lifttrax.workout.MaxEffortLiftPools;
 import com.lifttrax.workout.MaxEffortPlan;
 import com.lifttrax.workout.PlannedWorkoutExporter;
@@ -1995,6 +1996,125 @@ final class WebUiRenderer {
     return liftList.toString();
   }
 
+  static String renderLiftTrendSummary(List<LiftExecution> executions, LocalDate today) {
+    LiftTrendSummary trends = LiftTrendSummary.from(executions, today);
+    StringBuilder html = new StringBuilder();
+    html.append("<section class='lift-trends'>")
+        .append("<div class='lift-trends-header'>")
+        .append("<h2>Recent Trends</h2>")
+        .append("<p class='muted'>Last ")
+        .append(LiftTrendSummary.RECENT_WINDOW_DAYS)
+        .append(" days, excluding warm-ups and deloads from bests and volume.</p>")
+        .append("</div>");
+
+    if (!trends.hasAnyExecutions()) {
+      html.append(
+              "<p class='muted'>No trend data yet. Log this lift a few times to build recent bests, volume, and frequency.</p>")
+          .append("</section>");
+      return html.toString();
+    }
+
+    if (!trends.hasRecentExecutions()) {
+      html.append("<p class='muted'>No executions in the last ")
+          .append(LiftTrendSummary.RECENT_WINDOW_DAYS)
+          .append(" days. Last trained ")
+          .append(WebHtml.escapeHtml(DATE_FORMAT.format(trends.lastExecution().date())))
+          .append(".</p>");
+    } else if (trends.hasSparseRecentHistory()) {
+      html.append("<p class='muted'>Sparse recent history: ")
+          .append(trends.recentExecutions())
+          .append(" ")
+          .append(plural(trends.recentExecutions(), "session", "sessions"))
+          .append(" so far. Trends get clearer after three or more sessions.</p>");
+    }
+
+    html.append("<div class='lift-trend-grid'>");
+    appendTrendCard(
+        html,
+        "Last trained",
+        DATE_FORMAT.format(trends.lastExecution().date()),
+        ExecutionSummaryFormatter.formatCompactSummary(trends.lastExecution()));
+    appendTrendCard(html, "Recent best set", bestSetValue(trends), bestSetDetail(trends));
+    appendTrendCard(
+        html,
+        "90-day frequency",
+        trends.recentExecutions() + " " + plural(trends.recentExecutions(), "session", "sessions"),
+        trends.recentTrainingDays()
+            + " "
+            + plural(trends.recentTrainingDays(), "training day", "training days"));
+    appendTrendCard(
+        html,
+        "90-day volume",
+        trends.recentWorkSets() + " " + plural(trends.recentWorkSets(), "work set", "work sets"),
+        volumeDetail(trends));
+    html.append("</div></section>");
+    return html.toString();
+  }
+
+  private static void appendTrendCard(
+      StringBuilder html, String label, String value, String detail) {
+    html.append("<div class='lift-trend-card'>")
+        .append("<p class='lift-trend-label'>")
+        .append(WebHtml.escapeHtml(label))
+        .append("</p>")
+        .append("<p class='lift-trend-value'>")
+        .append(WebHtml.escapeHtml(value))
+        .append("</p>");
+    if (detail != null && !detail.isBlank()) {
+      html.append("<p class='lift-trend-detail muted'>")
+          .append(WebHtml.escapeHtml(detail))
+          .append("</p>");
+    }
+    html.append("</div>");
+  }
+
+  private static String bestSetValue(LiftTrendSummary trends) {
+    LiftTrendSummary.BestSet bestSet = trends.bestRecentSet();
+    if (bestSet == null) {
+      return "No weighted rep best yet";
+    }
+    return DATE_FORMAT.format(bestSet.date())
+        + " - "
+        + formatTrendMetric(bestSet.metric())
+        + " @ "
+        + bestSet.weight();
+  }
+
+  private static String bestSetDetail(LiftTrendSummary trends) {
+    LiftTrendSummary.BestSet bestSet = trends.bestRecentSet();
+    if (bestSet == null) {
+      return "Add weighted rep sets to unlock recent bests.";
+    }
+    String rpe =
+        bestSet.rpe() == null ? "" : " RPE " + String.format(Locale.ROOT, "%.1f", bestSet.rpe());
+    return String.format(Locale.ROOT, "%,d lb comparison%s", bestSet.pounds(), rpe);
+  }
+
+  private static String volumeDetail(LiftTrendSummary trends) {
+    if (trends.recentWorkSets() == 0) {
+      return "No work sets in the recent window.";
+    }
+    if (trends.recentRepVolume() == 0) {
+      return "Timed or distance sets logged without rep volume.";
+    }
+    String reps = trends.recentRepVolume() + " " + plural(trends.recentRepVolume(), "rep", "reps");
+    if (trends.recentTonnageLbs() <= 0) {
+      return reps;
+    }
+    return reps + " / " + String.format(Locale.ROOT, "%,d lb-reps", trends.recentTonnageLbs());
+  }
+
+  private static String formatTrendMetric(SetMetric metric) {
+    if (metric instanceof SetMetric.Reps reps) {
+      return reps.reps() + " " + plural(reps.reps(), "rep", "reps");
+    }
+    return formatMetric(metric);
+  }
+
+  private static String plural(int count, String singular, String plural) {
+    return count == 1 ? singular : plural;
+  }
+
   static String renderExecutionList(SqliteDb db, List<Lift> lifts, String search, String label) {
     StringBuilder html = new StringBuilder();
     html.append("<p>").append(WebHtml.escapeHtml(label)).append("</p>");
@@ -2031,6 +2151,11 @@ final class WebUiRenderer {
         html.append(" <span class='status error' style='margin-left:8px;'>Disabled</span>");
       }
       html.append("</summary>");
+      html.append("<div class='compact-actions' style='margin:8px 0;'>")
+          .append("<a class='compact-btn secondary' href='/lift?name=")
+          .append(urlEncode(lift.name()))
+          .append("'>Details</a>")
+          .append("</div>");
       html.append(
               "<form method='post' action='/set-lift-enabled' class='query-form compact-actions' style='margin:8px 0;'>")
           .append("<input type='hidden' name='lift' value='")

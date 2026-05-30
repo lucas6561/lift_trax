@@ -136,9 +136,11 @@ final class DailyDashboardRenderer {
                 + " - "
                 + formatExecution(suggestion.lastExecution());
     return "<li class='dashboard-work-item'>"
-        + "<div><strong>"
+        + "<div><a href='"
+        + WebHtml.escapeHtml(liftHref(lift))
+        + "'><strong>"
         + WebHtml.escapeHtml(lift.name())
-        + "</strong><p class='muted'>"
+        + "</strong></a><p class='muted'>"
         + WebHtml.escapeHtml(lastText)
         + "</p></div>"
         + "<span class='dashboard-pill'>"
@@ -176,9 +178,11 @@ final class DailyDashboardRenderer {
     Lift lift = row.lift();
     LiftExecution execution = row.execution();
     return "<li class='dashboard-history-item'>"
-        + "<div><strong>"
+        + "<div><a href='"
+        + WebHtml.escapeHtml(liftHref(lift))
+        + "'><strong>"
         + WebHtml.escapeHtml(lift.name())
-        + "</strong><p class='muted'>"
+        + "</strong></a><p class='muted'>"
         + WebHtml.escapeHtml(WebUiRenderer.DATE_FORMAT.format(execution.date()))
         + "</p></div>"
         + "<span>"
@@ -252,6 +256,10 @@ final class DailyDashboardRenderer {
 
   private static String logHref(Lift lift, LocalDate date) {
     return logHref(date) + "&prefillLift=" + WebUiRenderer.urlEncode(lift.name());
+  }
+
+  private static String liftHref(Lift lift) {
+    return "/lift?name=" + WebUiRenderer.urlEncode(lift.name());
   }
 
   private record DashboardData(

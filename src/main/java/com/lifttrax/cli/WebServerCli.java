@@ -849,6 +849,7 @@ public final class WebServerCli {
           .append("<p><strong>Notes:</strong> ")
           .append(WebHtml.escapeHtml(lift.notes() == null ? "" : lift.notes()))
           .append("</p>")
+          .append(WebUiRenderer.renderLiftTrendSummary(executions, LocalDate.now()))
           .append("<h2>Executions</h2>");
 
       if (executions.isEmpty()) {

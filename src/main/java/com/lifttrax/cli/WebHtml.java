@@ -98,6 +98,15 @@ final class WebHtml {
                 .execution-lift-group { margin-bottom: 0.3rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.14rem 0.4rem; }
                 .execution-lift-toggle { cursor: pointer; display: block; width: 100%%; padding: 0.22rem 0.16rem; user-select: none; }
                 .execution-lift-toggle::-webkit-details-marker { margin-right: 0.35rem; }
+                .lift-trends { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.58rem; margin: 0.55rem 0; background: rgba(7, 13, 26, 0.54); }
+                .lift-trends-header { display: flex; justify-content: space-between; gap: 0.55rem; align-items: baseline; flex-wrap: wrap; }
+                .lift-trends-header h2,
+                .lift-trends-header p { margin-bottom: 0.32rem; }
+                .lift-trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.5rem; }
+                .lift-trend-card { min-width: 0; border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.5rem; padding: 0.48rem; background: rgba(15, 23, 42, 0.72); }
+                .lift-trend-label { margin-bottom: 0.16rem; color: #fde68a; font-size: 0.78rem; font-weight: 700; }
+                .lift-trend-value { margin-bottom: 0.12rem; font-weight: 700; overflow-wrap: anywhere; }
+                .lift-trend-detail { margin-bottom: 0; overflow-wrap: anywhere; }
                 .status { border-radius: 0.4rem; padding: 0.35rem 0.5rem; font-weight: 600; margin-bottom: 0.4rem; }
                 .status.success { border: 1px solid #15803d; color: #86efac; background: #052e16; }
                 .status.error { border: 1px solid #b91c1c; color: #fca5a5; background: #450a0a; }

@@ -10,6 +10,7 @@ import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.models.WeightText;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -684,55 +685,6 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
-  private double weightToLbs(String weight) {
-    if (weight == null) {
-      return 0.0;
-    }
-    String trimmed = weight.trim().toLowerCase(java.util.Locale.ROOT);
-    if (trimmed.isEmpty() || "none".equals(trimmed)) {
-      return 0.0;
-    }
-    if (trimmed.contains("|")) {
-      String[] parts = trimmed.split("\\|", 2);
-      try {
-        return parseSide(parts[0]) + parseSide(parts[1]);
-      } catch (IllegalArgumentException e) {
-        return 0.0;
-      }
-    }
-    if (trimmed.contains("+")) {
-      String[] parts = trimmed.split("\\+");
-      try {
-        double raw = parseSide(parts[0]);
-        if (parts.length == 2 && parts[1].trim().endsWith("c")) {
-          String chain = parts[1].trim().substring(0, parts[1].trim().length() - 1);
-          return raw + parseSide(chain);
-        }
-        return raw;
-      } catch (IllegalArgumentException e) {
-        return 0.0;
-      }
-    }
-    try {
-      return parseSide(trimmed);
-    } catch (IllegalArgumentException e) {
-      return 0.0;
-    }
-  }
-
-  private double parseSide(String value) {
-    String trimmed = value.trim();
-    if (trimmed.endsWith("kg")) {
-      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
-      return Double.parseDouble(stripped) * 2.20462;
-    }
-    if (trimmed.endsWith("lb")) {
-      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
-      return Double.parseDouble(stripped);
-    }
-    return Double.parseDouble(trimmed);
-  }
-
   private Map<Integer, String> collectBestByReps(int liftId) throws Exception {
     String sql =
         """
@@ -752,7 +704,7 @@ public class SqliteDb implements Database, AutoCloseable {
           if (weight == null || weight.isBlank()) {
             weight = "none";
           }
-          double lbs = weightToLbs(weight);
+          double lbs = WeightText.toPounds(weight);
           Double currentBest = bestByRepsWeight.get(repCount);
           if (currentBest == null || lbs > currentBest) {
             bestByRepsWeight.put(repCount, lbs);

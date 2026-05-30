@@ -5,6 +5,7 @@ import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.models.WeightText;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -52,7 +53,7 @@ public final class WorkoutHistoryFormatter {
             && reps.reps() == 1
             && set.weight() != null
             && !"none".equalsIgnoreCase(set.weight())) {
-          double weightLbs = weightToLbs(set.weight());
+          double weightLbs = WeightText.toPounds(set.weight());
           if (bestWeight == null || weightLbs > bestWeightLbs) {
             bestWeight = set.weight();
             bestWeightLbs = weightLbs;
@@ -115,51 +116,5 @@ public final class WorkoutHistoryFormatter {
       return Math.abs(a.feet() - b.feet());
     }
     return null;
-  }
-
-  private static double weightToLbs(String weight) {
-    String trimmed = weight.trim().toLowerCase(java.util.Locale.ROOT);
-    if (trimmed.isEmpty() || "none".equals(trimmed)) {
-      return 0.0;
-    }
-    if (trimmed.contains("|")) {
-      String[] parts = trimmed.split("\\|", 2);
-      try {
-        return parseWeightSide(parts[0]) + parseWeightSide(parts[1]);
-      } catch (IllegalArgumentException e) {
-        return 0.0;
-      }
-    }
-    if (trimmed.contains("+")) {
-      String[] parts = trimmed.split("\\+");
-      try {
-        double raw = parseWeightSide(parts[0]);
-        if (parts.length == 2 && parts[1].trim().endsWith("c")) {
-          String chain = parts[1].trim().substring(0, parts[1].trim().length() - 1);
-          return raw + parseWeightSide(chain);
-        }
-        return raw;
-      } catch (IllegalArgumentException e) {
-        return 0.0;
-      }
-    }
-    try {
-      return parseWeightSide(trimmed);
-    } catch (IllegalArgumentException e) {
-      return 0.0;
-    }
-  }
-
-  private static double parseWeightSide(String value) {
-    String trimmed = value.trim();
-    if (trimmed.endsWith("kg")) {
-      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
-      return Double.parseDouble(stripped) * 2.20462;
-    }
-    if (trimmed.endsWith("lb")) {
-      String stripped = trimmed.substring(0, trimmed.length() - 2).trim();
-      return Double.parseDouble(stripped);
-    }
-    return Double.parseDouble(trimmed);
   }
 }
