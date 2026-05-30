@@ -14,6 +14,8 @@ tasks/
   milestones/
     M1-quality-baseline.md
   backlog/
+    LT-0002-execution-edit-delete.md
+  completed/
     LT-0001-daily-training-dashboard.md
 ```
 
@@ -26,6 +28,7 @@ tasks/
 5. Use `schema.md` as the shape for every task file.
 6. Keep tasks small enough that "done" is testable.
 7. Move status forward in the task file as work becomes clearer.
+8. Move `done` task files from `backlog/` to `completed/`.
 
 ## Task ID format
 

@@ -1,6 +1,6 @@
 # Task schema
 
-Every task in `tasks/backlog/` should use this markdown shape.
+Every task in `tasks/backlog/` and `tasks/completed/` should use this markdown shape.
 
 ```markdown
 ---
