@@ -2160,62 +2160,43 @@ final class WebUiRenderer {
   private static String renderSetEditorRows(List<ExecutionSet> sets) {
     StringBuilder html = new StringBuilder();
     for (ExecutionSet set : sets) {
-      String metricType = "reps";
-      String metricValue = "";
-      String metricLeft = "";
-      String metricRight = "";
-      if (set.metric() instanceof SetMetric.Reps reps) {
-        metricType = "reps";
-        metricValue = String.valueOf(reps.reps());
-      } else if (set.metric() instanceof SetMetric.RepsLr repsLr) {
-        metricType = "reps-lr";
-        metricLeft = String.valueOf(repsLr.left());
-        metricRight = String.valueOf(repsLr.right());
-      } else if (set.metric() instanceof SetMetric.TimeSecs timeSecs) {
-        metricType = "time";
-        metricValue = String.valueOf(timeSecs.seconds());
-      } else if (set.metric() instanceof SetMetric.DistanceFeet distanceFeet) {
-        metricType = "distance";
-        metricValue = String.valueOf(distanceFeet.feet());
-      }
+      ExecutionSetFormValues formValues = ExecutionSetFormValues.from(set);
 
       html.append(
               "<div class='js-set-row' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>")
           .append("<select class='js-set-metric' disabled>")
           .append("<option value='reps'")
-          .append("reps".equals(metricType) ? " selected" : "")
+          .append(formValues.selectedAttribute("reps"))
           .append(">reps</option>")
           .append("<option value='reps-lr'")
-          .append("reps-lr".equals(metricType) ? " selected" : "")
+          .append(formValues.selectedAttribute("reps-lr"))
           .append(">reps-lr</option>")
           .append("<option value='time'")
-          .append("time".equals(metricType) ? " selected" : "")
+          .append(formValues.selectedAttribute("time"))
           .append(">time</option>")
           .append("<option value='distance'")
-          .append("distance".equals(metricType) ? " selected" : "")
+          .append(formValues.selectedAttribute("distance"))
           .append(">distance</option>")
           .append("</select>")
           .append(
               "<input type='number' class='js-set-value' disabled placeholder='value' style='width:90px;' value='")
-          .append(WebHtml.escapeHtml(metricValue))
+          .append(WebHtml.escapeHtml(formValues.metricValue()))
           .append("'/>")
           .append(
               "<input type='number' class='js-set-left' disabled placeholder='left' style='width:80px;' value='")
-          .append(WebHtml.escapeHtml(metricLeft))
+          .append(WebHtml.escapeHtml(formValues.metricLeft()))
           .append("'/>")
           .append(
               "<input type='number' class='js-set-right' disabled placeholder='right' style='width:80px;' value='")
-          .append(WebHtml.escapeHtml(metricRight))
+          .append(WebHtml.escapeHtml(formValues.metricRight()))
           .append("'/>")
           .append(
               "<input type='text' class='js-set-weight' disabled placeholder='weight' style='width:130px;' value='")
-          .append(WebHtml.escapeHtml(set.weight() == null ? "" : set.weight()))
+          .append(WebHtml.escapeHtml(formValues.weight()))
           .append("'/>")
           .append(
               "<input type='number' step='0.1' class='js-set-rpe' disabled placeholder='rpe' style='width:80px;' value='")
-          .append(
-              WebHtml.escapeHtml(
-                  set.rpe() == null ? "" : String.format(Locale.ROOT, "%s", set.rpe())))
+          .append(WebHtml.escapeHtml(formValues.rpe()))
           .append("'/>")
           .append("<a href='#' class='js-remove-set'>Remove</a>")
           .append("</div>");
@@ -2226,43 +2207,26 @@ final class WebUiRenderer {
   private static String setsToEditJson(List<ExecutionSet> sets) {
     List<String> items = new ArrayList<>();
     for (ExecutionSet set : sets) {
-      String metricType = "reps";
-      String metricValue = "";
-      String metricLeft = "";
-      String metricRight = "";
-      if (set.metric() instanceof SetMetric.Reps reps) {
-        metricType = "reps";
-        metricValue = String.valueOf(reps.reps());
-      } else if (set.metric() instanceof SetMetric.RepsLr repsLr) {
-        metricType = "reps-lr";
-        metricLeft = String.valueOf(repsLr.left());
-        metricRight = String.valueOf(repsLr.right());
-      } else if (set.metric() instanceof SetMetric.TimeSecs timeSecs) {
-        metricType = "time";
-        metricValue = String.valueOf(timeSecs.seconds());
-      } else if (set.metric() instanceof SetMetric.DistanceFeet distanceFeet) {
-        metricType = "distance";
-        metricValue = String.valueOf(distanceFeet.feet());
-      }
+      ExecutionSetFormValues formValues = ExecutionSetFormValues.from(set);
 
       String item =
           "{\"metricType\":\""
-              + jsonEscape(metricType)
+              + jsonEscape(formValues.metricType())
               + "\","
               + "\"metricValue\":\""
-              + jsonEscape(metricValue)
+              + jsonEscape(formValues.metricValue())
               + "\","
               + "\"metricLeft\":\""
-              + jsonEscape(metricLeft)
+              + jsonEscape(formValues.metricLeft())
               + "\","
               + "\"metricRight\":\""
-              + jsonEscape(metricRight)
+              + jsonEscape(formValues.metricRight())
               + "\","
               + "\"weight\":\""
-              + jsonEscape(set.weight() == null ? "" : set.weight())
+              + jsonEscape(formValues.weight())
               + "\","
               + "\"rpe\":\""
-              + jsonEscape(set.rpe() == null ? "" : String.format(Locale.ROOT, "%s", set.rpe()))
+              + jsonEscape(formValues.rpe())
               + "\"}";
       items.add(item);
     }

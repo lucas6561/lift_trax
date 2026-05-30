@@ -1,7 +1,7 @@
 ---
 id: LT-0029
 title: Reduce duplicate code
-status: ready
+status: done
 track: quality
 priority: medium
 effort: medium
@@ -28,12 +28,27 @@ The project has less repeated production code in the most visible hotspots, with
 
 ## Acceptance criteria
 
-- [ ] Duplicate-code hotspots are identified and the selected refactor target is noted in this task.
-- [ ] At least one meaningful duplicate production-code cluster is consolidated without changing user-visible behavior.
-- [ ] Refactored behavior is covered by focused tests or existing tests are extended to guard the shared path.
-- [ ] The extracted code follows the package-boundary guidance from `LT-0013`.
-- [ ] `qualityGate` passes after the refactor.
+- [x] Duplicate-code hotspots are identified and the selected refactor target is noted in this task.
+- [x] At least one meaningful duplicate production-code cluster is consolidated without changing user-visible behavior.
+- [x] Refactored behavior is covered by focused tests or existing tests are extended to guard the shared path.
+- [x] The extracted code follows the package-boundary guidance from `LT-0013`.
+- [x] `qualityGate` passes after the refactor.
 
 ## Notes
 
-Prioritize duplication that makes future feature work riskier, especially repeated CLI, rendering, serialization, validation, or file-format handling logic.
+Identified duplicate-code hotspots:
+
+- Repeated lift filter/data-attribute rendering in `WebUiRenderer` list rows and select options.
+- Repeated lift-name fallback lookup in web-configured workout selectors.
+- Repeated `SetMetric` to execution-edit form field mapping in `WebUiRenderer`.
+
+Selected refactor target: the repeated execution-edit form mapping, because the same production logic drove both visible edit controls and the hidden initial JSON payload used by browser-side execution editing.
+
+Completed by extracting package-local CLI helper `ExecutionSetFormValues` and using it from both execution-set edit row rendering and initial edit JSON serialization.
+
+Added `WebUiRendererTest.executionRowsUseSharedMetricFormValuesForEditorRowsAndInitialPayload` to guard reps-left/right, time, distance, weight, and RPE values through the shared path.
+
+Verified on 2026-05-30:
+
+- `.\gradlew.bat test --tests com.lifttrax.cli.WebUiRendererTest`
+- `.\gradlew.bat qualityGate`

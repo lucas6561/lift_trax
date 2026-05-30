@@ -94,6 +94,47 @@ class WebUiRendererTest {
   }
 
   @Test
+  void executionRowsUseSharedMetricFormValuesForEditorRowsAndInitialPayload() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-exec-rows-metrics", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 4, 20),
+              List.of(
+                  new ExecutionSet(new SetMetric.RepsLr(7, 8), "20 lb", 7.5f),
+                  new ExecutionSet(new SetMetric.TimeSecs(30), "none", null),
+                  new ExecutionSet(new SetMetric.DistanceFeet(100), "", null)),
+              false,
+              false,
+              ""));
+
+      String html = WebUiRenderer.renderExecutionRows(db, "Back Squat");
+
+      assertTrue(html.contains("<option value='reps-lr' selected>reps-lr</option>"));
+      assertTrue(
+          html.contains(
+              "class='js-set-left' disabled placeholder='left' style='width:80px;' value='7'"));
+      assertTrue(
+          html.contains(
+              "class='js-set-right' disabled placeholder='right' style='width:80px;' value='8'"));
+      assertTrue(html.contains("<option value='time' selected>time</option>"));
+      assertTrue(html.contains("<option value='distance' selected>distance</option>"));
+      assertTrue(html.contains("&quot;metricType&quot;:&quot;reps-lr&quot;"));
+      assertTrue(html.contains("&quot;metricLeft&quot;:&quot;7&quot;"));
+      assertTrue(html.contains("&quot;metricRight&quot;:&quot;8&quot;"));
+      assertTrue(html.contains("&quot;metricType&quot;:&quot;time&quot;"));
+      assertTrue(html.contains("&quot;metricValue&quot;:&quot;30&quot;"));
+      assertTrue(html.contains("&quot;metricType&quot;:&quot;distance&quot;"));
+      assertTrue(html.contains("&quot;metricValue&quot;:&quot;100&quot;"));
+      assertTrue(html.contains("&quot;weight&quot;:&quot;20 lb&quot;"));
+      assertTrue(html.contains("&quot;rpe&quot;:&quot;7.5&quot;"));
+    }
+  }
+
+  @Test
   void plannedWorkoutPageRendersWeeksBlocksAndGroupedTargets() {
     PlannedWorkoutFile.PlannedSetTarget firstSet =
         new PlannedWorkoutFile.PlannedSetTarget(
