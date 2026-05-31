@@ -89,6 +89,11 @@ final class WebHtml {
                 .query-output { border: 1px solid var(--pico-muted-border-color); border-radius: 0.45rem; padding: 0.55rem; white-space: pre-wrap; }
                 .add-execution-form { display: flex; flex-direction: column; gap: 0.48rem; max-width: 900px; border: 1px solid var(--pico-muted-border-color); border-radius: 0.65rem; padding: 0.58rem; }
                 .add-execution-form fieldset { border: 1px solid var(--pico-muted-border-color); border-radius: 0.55rem; padding: 0.4rem; margin-bottom: 0.2rem; }
+                .quick-log-presets { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; padding: 0.4rem; border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 0.55rem; background: rgba(14, 116, 144, 0.12); }
+                .quick-log-label { margin-right: 0.1rem; font-weight: 700; color: #bae6fd; }
+                .individual-sets-details { border: 1px dashed var(--pico-muted-border-color); border-radius: 0.45rem; padding: 0.35rem 0.45rem; }
+                .individual-sets-details > summary { cursor: pointer; color: var(--pico-primary); }
+                .individual-sets-details[open] > summary { margin-bottom: 0.42rem; }
                 .segmented { display: flex; flex-wrap: wrap; gap: 0.4rem; }
                 .stacked-row { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
                 .add-actions { display: flex; justify-content: flex-end; margin-bottom: 0.35rem; }
@@ -141,6 +146,30 @@ final class WebHtml {
                   .dashboard-history-item .compact-btn { width: 100%%; }
                   .planned-import-layout { grid-template-columns: 1fr; }
                   .planned-import-actions { border-left: 0; border-top: 1px solid var(--pico-muted-border-color); padding-left: 0; padding-top: 0.65rem; }
+                  main.container { padding-left: 0.4rem; padding-right: 0.4rem; }
+                  .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  .tab { min-width: 0; width: 100%%; }
+                  .tab-panel { padding: 0.45rem; }
+                  .tab-filter-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
+                  .tab-filter-bar label { min-width: 0; flex-direction: column; align-items: stretch; gap: 0.2rem; }
+                  .tab-filter-bar label:first-child { grid-column: 1 / -1; }
+                  .tab-filter-bar input,
+                  .tab-filter-bar select { min-width: 0; width: 100%%; }
+                  .js-clear-filters { align-self: end; width: 100%%; }
+                  .add-execution-form { min-width: 0; border: 0; padding: 0; }
+                  .add-execution-form fieldset { min-width: 0; }
+                  .add-execution-form .stacked-row { align-items: stretch; }
+                  .add-execution-form .stacked-row > label { flex: 1 1 8rem; min-width: 0; }
+                  .add-execution-form .stacked-row input,
+                  .add-execution-form .stacked-row select { width: 100%%; }
+                  .add-execution-form .segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.32rem; }
+                  .add-execution-form .segmented label { display: flex; gap: 0.35rem; align-items: center; min-width: 0; margin: 0; padding: 0.38rem; border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.42rem; background: rgba(15, 23, 42, 0.72); }
+                  .add-execution-form .segmented input[type='radio'],
+                  .add-execution-form .segmented input[type='checkbox'] { flex: 0 0 auto; width: auto; margin: 0; }
+                  .quick-log-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  .quick-log-label { grid-column: 1 / -1; }
+                  .quick-log-presets .compact-btn { width: 100%%; }
+                  .save-execution-btn { position: sticky; bottom: 0.35rem; width: 100%%; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
                 }
                 .is-hidden { display: none; }
             """;

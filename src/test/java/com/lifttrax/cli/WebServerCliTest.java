@@ -227,8 +227,29 @@ class WebServerCliTest {
     assertTrue(html.contains("name='metricType'"));
     assertTrue(html.contains("name='setCopies'"));
     assertTrue(html.contains("metricLabel(item)"));
+    assertTrue(html.contains("class='secondary compact-btn js-max-effort-single'"));
+    assertTrue(html.contains("class='secondary compact-btn js-bands-only'"));
+    assertTrue(html.contains("class='secondary compact-btn js-bar-bands'"));
+    assertTrue(html.contains("class='individual-sets-details'"));
+    assertTrue(html.contains("class='save-execution-btn'"));
+    assertTrue(html.contains("setInputValue('metricValue', '1')"));
+    assertTrue(html.contains("selectRadio('weightMode', 'bands')"));
     assertTrue(html.contains("bindExecutionActions(document);"));
-    assertTrue(html.contains("status success"));
+    assertTrue(html.contains("status success' role='status' aria-live='polite"));
+  }
+
+  @Test
+  void sharedPageStylesKeepAddExecutionFormCompactOnNarrowViewports() {
+    String html = WebHtml.wrapPage("Test", "<p>body</p>");
+
+    assertTrue(html.contains("@media (max-width: 720px)"));
+    assertTrue(html.contains(".tabs { display: grid"));
+    assertTrue(html.contains(".tab-filter-bar { display: grid"));
+    assertTrue(html.contains(".add-execution-form .segmented"));
+    assertTrue(html.contains("grid-template-columns: repeat(2, minmax(0, 1fr))"));
+    assertTrue(html.contains(".quick-log-presets"));
+    assertTrue(html.contains(".save-execution-btn"));
+    assertTrue(html.contains("position: sticky"));
   }
 
   @Test

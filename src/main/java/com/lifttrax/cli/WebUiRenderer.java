@@ -526,6 +526,22 @@ final class WebUiRenderer {
                     });
                     syncMetricInputs();
 
+                    function selectRadio(name, value) {
+                      const input = document.querySelector(`input[name='${name}'][value='${value}']`);
+                      if (!input) {
+                        return;
+                      }
+                      input.checked = true;
+                      input.dispatchEvent(new Event('change', {bubbles: true}));
+                    }
+
+                    function setInputValue(name, value) {
+                      const input = document.querySelector(`[name='${name}']`);
+                      if (input) {
+                        input.value = value;
+                      }
+                    }
+
                     function syncWeightMode() {
                       const selected = document.querySelector("input[name='weightMode']:checked");
                       const mode = selected ? selected.value : 'weight';
@@ -650,6 +666,33 @@ final class WebUiRenderer {
                     const accomModeSelect = document.querySelector("select[name='accomMode']");
                     if (accomModeSelect) {
                       accomModeSelect.addEventListener('change', syncAccomMode);
+                    }
+
+                    const maxEffortSingleBtn = document.querySelector('.js-max-effort-single');
+                    if (maxEffortSingleBtn) {
+                      maxEffortSingleBtn.addEventListener('click', () => {
+                        selectRadio('metricType', 'reps');
+                        setInputValue('metricValue', '1');
+                        setInputValue('setCount', '1');
+                        setInputValue('setCopies', '1');
+                      });
+                    }
+
+                    const bandsOnlyBtn = document.querySelector('.js-bands-only');
+                    if (bandsOnlyBtn) {
+                      bandsOnlyBtn.addEventListener('click', () => selectRadio('weightMode', 'bands'));
+                    }
+
+                    const barBandsBtn = document.querySelector('.js-bar-bands');
+                    if (barBandsBtn) {
+                      barBandsBtn.addEventListener('click', () => {
+                        selectRadio('weightMode', 'accom');
+                        const mode = document.querySelector("select[name='accomMode']");
+                        if (mode) {
+                          mode.value = 'bands';
+                          syncAccomMode();
+                        }
+                      });
                     }
 
                     const addSetBtn = document.querySelector('.js-add-set');
@@ -1626,7 +1669,12 @@ final class WebUiRenderer {
     String status = "";
     if (statusMessage != null && !statusMessage.isBlank()) {
       String cssClass = "error".equalsIgnoreCase(statusType) ? "status error" : "status success";
-      status = "<p class='" + cssClass + "'>" + WebHtml.escapeHtml(statusMessage) + "</p>";
+      status =
+          "<p class='"
+              + cssClass
+              + "' role='status' aria-live='polite'>"
+              + WebHtml.escapeHtml(statusMessage)
+              + "</p>";
     }
 
     WeightInputParser.WeightPrefill weightPrefill =
@@ -1695,6 +1743,12 @@ final class WebUiRenderer {
                   <div class='stacked-row'>
                     <button type='submit' formaction='/load-last-execution' formmethod='get' class='secondary compact-btn'>Load Last</button>
                   </div>
+                  <div class='quick-log-presets' aria-label='Quick logging presets'>
+                    <span class='quick-log-label'>Quick setup</span>
+                    <button type='button' class='secondary compact-btn js-max-effort-single'>1RM Single</button>
+                    <button type='button' class='secondary compact-btn js-bands-only'>Bands Only</button>
+                    <button type='button' class='secondary compact-btn js-bar-bands'>Bar + Bands</button>
+                  </div>
                   <input type='hidden' name='weight' class='js-weight-hidden' value='%s'/>
                   <input type='hidden' name='detailedSets' class='js-detailed-sets' value='[]'/>
                   <fieldset>
@@ -1759,12 +1813,15 @@ final class WebUiRenderer {
                       <label class='metric-lr is-hidden'>Left <input type='number' min='1' name='metricLeft' value='%s'/></label>
                       <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='%s'/></label>
                     </div>
-                    <div class='stacked-row'>
-                      <label>Copies <input type='number' min='1' name='setCopies' value='1'/></label>
-                      <button type='button' class='secondary js-add-set'>Add Individual Set</button>
-                      <button type='button' class='secondary js-clear-sets'>Clear Individual Sets</button>
-                    </div>
-                    <ul class='set-list js-set-list'></ul>
+                    <details class='individual-sets-details'>
+                      <summary>Individual sets</summary>
+                      <div class='stacked-row'>
+                        <label>Copies <input type='number' min='1' name='setCopies' value='1'/></label>
+                        <button type='button' class='secondary js-add-set'>Add Individual Set</button>
+                        <button type='button' class='secondary js-clear-sets'>Clear Individual Sets</button>
+                      </div>
+                      <ul class='set-list js-set-list'></ul>
+                    </details>
                   </fieldset>
                   <div class='stacked-row'>
                     <label>Date <input type='date' name='date' value='%s'/></label>
@@ -1774,7 +1831,7 @@ final class WebUiRenderer {
                   <label>Notes
                     <input type='text' name='notes' value='%s' placeholder='Optional notes'/>
                   </label>
-                  <button type='submit'>Save Execution</button>
+                  <button type='submit' class='save-execution-btn'>Save Execution</button>
                 </form>
                 """
         .formatted(
