@@ -10,15 +10,12 @@ public record PlannedWorkoutFile(
     PlannedWorkoutSource source,
     List<PlannedWorkoutWeek> weeks,
     List<CompletedWorkout> completedWorkouts) {
-  public static final int CURRENT_SCHEMA_VERSION = 1;
+  public static final int LATEST_SCHEMA_VERSION = PlannedWorkoutSchemaVersions.latest();
 
   public PlannedWorkoutFile {
-    if (schemaVersion != CURRENT_SCHEMA_VERSION) {
+    if (!PlannedWorkoutSchemaVersions.supports(schemaVersion)) {
       throw new IllegalArgumentException(
-          "Unsupported workout schemaVersion "
-              + schemaVersion
-              + "; expected "
-              + CURRENT_SCHEMA_VERSION);
+          PlannedWorkoutSchemaVersions.unsupportedVersionMessage(schemaVersion));
     }
     metadata = Objects.requireNonNull(metadata, "metadata is required");
     source = Objects.requireNonNull(source, "source is required");

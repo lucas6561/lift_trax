@@ -4,6 +4,9 @@ LiftTrax workout format v1 is the JSON contract for generated, planned training
 sessions. A workout file is the thing a lifter can import and view without
 rerunning the original wave generator or having the original program schema.
 
+This snapshot remains supported for older files. New exports use the latest
+snapshot documented in `docs/schema-versioning.md`.
+
 ## Files
 
 - Schema: `shared/workouts/schema/workout.schema.v1.json`

@@ -24,7 +24,7 @@ class PlannedWorkoutFileTest {
         PlannedWorkoutExporter.fromWave(
             "Conjugate Wave", "conjugate", "2026-05-29T00:00:00Z", wave);
 
-    assertEquals(1, workoutFile.schemaVersion());
+    assertEquals(PlannedWorkoutSchemaVersions.latest(), workoutFile.schemaVersion());
     assertEquals("Conjugate Wave Planned Workouts", workoutFile.metadata().name());
     assertEquals("wave-generation", workoutFile.source().kind());
     assertEquals(1, workoutFile.weeks().size());
@@ -117,24 +117,45 @@ class PlannedWorkoutFileTest {
             }
             """;
 
-    assertThrows(JsonProcessingException.class, () -> PlannedWorkoutJson.readString(invalid));
+    JsonProcessingException exception =
+        assertThrows(JsonProcessingException.class, () -> PlannedWorkoutJson.readString(invalid));
+
+    assertTrue(
+        exception
+            .getOriginalMessage()
+            .contains("Unsupported workout schemaVersion 99; supported versions: [1, 2]."));
   }
 
   @Test
-  void workoutSchemaAssetsAreValidJsonAndDeclareV1Shape() throws Exception {
-    Path schema = Path.of("shared", "workouts", "schema", "workout.schema.v1.json");
-    Path example = Path.of("shared", "workouts", "examples", "conjugate-wave-v1.json");
+  void plannedWorkoutJsonLoadsOlderAndLatestSchemaVersions() throws Exception {
+    for (int schemaVersion : PlannedWorkoutSchemaVersions.supported()) {
+      Path example =
+          Path.of("shared", "workouts", "examples", "conjugate-wave-v" + schemaVersion + ".json");
+      PlannedWorkoutFile workoutFile = PlannedWorkoutJson.readPath(example);
 
-    assertTrue(Files.isRegularFile(schema));
-    assertTrue(Files.isRegularFile(example));
-    assertFalse(JSON.readTree(schema.toFile()).isMissingNode());
+      assertEquals(schemaVersion, workoutFile.schemaVersion(), example.toString());
+    }
+  }
 
-    JsonNode root = JSON.readTree(example.toFile());
-    assertEquals(1, root.path("schemaVersion").asInt());
-    assertTrue(root.path("metadata").has("name"));
-    assertTrue(root.path("source").has("kind"));
-    assertTrue(root.path("weeks").isArray());
-    assertTrue(root.path("weeks").get(0).path("days").get(0).path("blocks").isArray());
-    assertTrue(root.path("completedWorkouts").isArray());
+  @Test
+  void workoutSchemaAssetsAreValidJsonAndDeclareSupportedShapes() throws Exception {
+    for (int schemaVersion : PlannedWorkoutSchemaVersions.supported()) {
+      Path schema =
+          Path.of("shared", "workouts", "schema", "workout.schema.v" + schemaVersion + ".json");
+      Path example =
+          Path.of("shared", "workouts", "examples", "conjugate-wave-v" + schemaVersion + ".json");
+
+      assertTrue(Files.isRegularFile(schema));
+      assertTrue(Files.isRegularFile(example));
+      assertFalse(JSON.readTree(schema.toFile()).isMissingNode());
+
+      JsonNode root = JSON.readTree(example.toFile());
+      assertEquals(schemaVersion, root.path("schemaVersion").asInt());
+      assertTrue(root.path("metadata").has("name"));
+      assertTrue(root.path("source").has("kind"));
+      assertTrue(root.path("weeks").isArray());
+      assertTrue(root.path("weeks").get(0).path("days").get(0).path("blocks").isArray());
+      assertTrue(root.path("completedWorkouts").isArray());
+    }
   }
 }

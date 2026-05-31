@@ -17,8 +17,11 @@ import java.util.Set;
 
 /** Validates LiftTrax program schema files before wave generation starts. */
 public final class ProgramSchemaValidator {
-  private static final int SUPPORTED_SCHEMA_VERSION = 1;
   private static final ObjectMapper JSON = new ObjectMapper();
+  private static final Map<Integer, ProgramSchemaRules> RULES_BY_VERSION =
+      Map.of(
+          1, ProgramSchemaValidator::validateCompatibleShape,
+          2, ProgramSchemaValidator::validateCompatibleShape);
 
   public ProgramSchemaValidationResult validate(Path programFile) {
     try (Reader reader = Files.newBufferedReader(programFile, StandardCharsets.UTF_8)) {
@@ -45,7 +48,25 @@ public final class ProgramSchemaValidator {
       return new ProgramSchemaValidationResult(errors);
     }
 
-    validateSchemaVersion(root, errors);
+    Integer schemaVersion = validateSchemaVersion(root, errors);
+    if (schemaVersion == null) {
+      return new ProgramSchemaValidationResult(errors);
+    }
+
+    ProgramSchemaRules rules = RULES_BY_VERSION.get(schemaVersion);
+    if (rules == null) {
+      addError(
+          errors,
+          "$.schemaVersion",
+          ProgramSchemaVersions.unsupportedVersionMessage(schemaVersion));
+      return new ProgramSchemaValidationResult(errors);
+    }
+    rules.validate(root, errors);
+    return new ProgramSchemaValidationResult(errors);
+  }
+
+  private static void validateCompatibleShape(
+      JsonNode root, List<ProgramSchemaValidationError> errors) {
     validateTopLevelSections(root, errors);
     int durationWeeks =
         requiredPositiveInt(
@@ -63,8 +84,6 @@ public final class ProgramSchemaValidator {
     validateBlockReferences(root, errors);
     validateProgressions(root, durationWeeks, errors);
     validateRangePairs(root, "$", errors);
-
-    return new ProgramSchemaValidationResult(errors);
   }
 
   private static ProgramSchemaValidationResult invalid(String path, String message) {
@@ -72,24 +91,23 @@ public final class ProgramSchemaValidator {
         List.of(new ProgramSchemaValidationError(path, message)));
   }
 
-  private static void validateSchemaVersion(
+  private static Integer validateSchemaVersion(
       JsonNode root, List<ProgramSchemaValidationError> errors) {
     JsonNode version = root.path("schemaVersion");
     if (version.isMissingNode()) {
       addError(errors, "$.schemaVersion", "Missing required schemaVersion.");
-      return;
+      return null;
     }
-    if (!version.canConvertToInt()) {
+    if (!version.isIntegralNumber() || !version.canConvertToInt()) {
       addError(errors, "$.schemaVersion", "schemaVersion must be an integer.");
-      return;
+      return null;
     }
     int value = version.asInt();
-    if (value != SUPPORTED_SCHEMA_VERSION) {
-      addError(
-          errors,
-          "$.schemaVersion",
-          "Unsupported schemaVersion " + value + "; expected " + SUPPORTED_SCHEMA_VERSION + ".");
+    if (!ProgramSchemaVersions.supports(value)) {
+      addError(errors, "$.schemaVersion", ProgramSchemaVersions.unsupportedVersionMessage(value));
+      return null;
     }
+    return value;
   }
 
   private static void validateTopLevelSections(
@@ -496,4 +514,9 @@ public final class ProgramSchemaValidator {
   }
 
   private record FieldReference(String path, String value) {}
+
+  @FunctionalInterface
+  private interface ProgramSchemaRules {
+    void validate(JsonNode root, List<ProgramSchemaValidationError> errors);
+  }
 }

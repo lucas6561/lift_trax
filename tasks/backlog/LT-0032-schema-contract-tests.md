@@ -6,7 +6,7 @@ track: quality
 priority: high
 effort: medium
 created: 2026-05-30
-updated: 2026-05-30
+updated: 2026-05-31
 owner: unassigned
 depends_on: [LT-0018, LT-0023]
 ---
@@ -37,3 +37,7 @@ Schema contract tests make sure valid examples keep passing, invalid examples ke
 ## Notes
 
 This should build on the existing program schema validation and workout file format work without merging the two contracts.
+
+On 2026-05-31, schema version catalogs, frozen v1/v2 snapshots, older-version
+loading tests, and latest-version workout export coverage were added. This card
+remains open for broader required-field and enum contract fixtures.

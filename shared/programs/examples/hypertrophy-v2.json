@@ -1,0 +1,933 @@
+{
+  "schemaVersion": 2,
+  "program": {
+    "name": "Hypertrophy Wave",
+    "description": "A schema representation of the current LiftTrax hypertrophy builder with alternating lower and upper primary lifts.",
+    "goal": "hypertrophy",
+    "author": "LiftTrax",
+    "createdBy": "app",
+    "tags": [
+      "hypertrophy",
+      "volume"
+    ],
+    "defaultUnits": "lb",
+    "durationWeeks": 2,
+    "daysPerWeek": 4
+  },
+  "exercisePools": {
+    "lowerPrimaryRotation": {
+      "description": "Alternates squat and deadlift as lower primary and secondary lifts.",
+      "selection": "ordered",
+      "query": {
+        "region": "LOWER",
+        "types": [
+          "SQUAT",
+          "DEADLIFT"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Back Squat",
+          "region": "LOWER",
+          "type": "SQUAT"
+        },
+        {
+          "name": "Conventional Deadlift",
+          "region": "LOWER",
+          "type": "DEADLIFT"
+        }
+      ]
+    },
+    "upperPrimaryRotation": {
+      "description": "Alternates bench press and overhead press as upper primary and secondary lifts.",
+      "selection": "ordered",
+      "query": {
+        "region": "UPPER",
+        "types": [
+          "BENCH_PRESS",
+          "OVERHEAD_PRESS"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Bench Press",
+          "region": "UPPER",
+          "type": "BENCH_PRESS"
+        },
+        {
+          "name": "Overhead Press",
+          "region": "UPPER",
+          "type": "OVERHEAD_PRESS"
+        }
+      ]
+    },
+    "lowerWarmup": {
+      "description": "Lower mobility warm-up.",
+      "selection": "firstAvailable",
+      "query": {
+        "region": "LOWER",
+        "types": [
+          "MOBILITY"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Leg Swings",
+          "region": "LOWER",
+          "type": "MOBILITY"
+        }
+      ]
+    },
+    "upperWarmup": {
+      "description": "Upper mobility warm-up.",
+      "selection": "firstAvailable",
+      "query": {
+        "region": "UPPER",
+        "types": [
+          "MOBILITY"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Shoulder CARs",
+          "region": "UPPER",
+          "type": "MOBILITY"
+        }
+      ]
+    },
+    "hamstrings": {
+      "description": "Hamstring accessory pool.",
+      "selection": "firstAvailable",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "HAMSTRING"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Hamstring Curl",
+          "region": "LOWER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "HAMSTRING"
+          ]
+        }
+      ]
+    },
+    "quads": {
+      "description": "Quad accessory pool.",
+      "selection": "firstAvailable",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "QUAD"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Leg Extension",
+          "region": "LOWER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "QUAD"
+          ]
+        }
+      ]
+    },
+    "core": {
+      "description": "Core accessory pool.",
+      "selection": "firstAvailable",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "CORE"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Plank",
+          "region": "LOWER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "CORE"
+          ]
+        }
+      ]
+    },
+    "chest": {
+      "description": "Chest accessory pool.",
+      "selection": "firstAvailable",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "CHEST"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "DB Press",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "CHEST"
+          ]
+        }
+      ]
+    },
+    "lats": {
+      "description": "Lat accessory pool.",
+      "selection": "firstAvailable",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "LAT"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Lat Pulldown",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "LAT"
+          ]
+        }
+      ]
+    },
+    "triceps": {
+      "description": "Tricep accessory pool.",
+      "selection": "firstAvailable",
+      "query": {
+        "types": [
+          "ACCESSORY"
+        ],
+        "muscles": [
+          "TRICEP"
+        ]
+      },
+      "exercises": [
+        {
+          "name": "Tricep Pushdown",
+          "region": "UPPER",
+          "type": "ACCESSORY",
+          "muscles": [
+            "TRICEP"
+          ]
+        }
+      ]
+    }
+  },
+  "progressionRules": {
+    "primaryHypertrophy": {
+      "type": "fixed",
+      "pattern": [
+        {
+          "percent": 70,
+          "rpe": 7.5
+        }
+      ]
+    },
+    "secondaryHypertrophy": {
+      "type": "fixed",
+      "pattern": [
+        {
+          "percent": 65,
+          "rpe": 7
+        }
+      ]
+    },
+    "accessoryHypertrophy": {
+      "type": "fixed",
+      "pattern": [
+        {
+          "rpe": 8
+        }
+      ]
+    }
+  },
+  "substitutionRules": {
+    "samePrimaryPattern": {
+      "description": "Main lift substitutions should stay in the same lower or upper primary pattern.",
+      "allowedPoolRefs": [
+        "lowerPrimaryRotation",
+        "upperPrimaryRotation"
+      ],
+      "allowCoachChoice": true
+    },
+    "sameAccessoryMuscle": {
+      "description": "Accessory substitutions should train the same listed muscle.",
+      "allowedPoolRefs": [
+        "hamstrings",
+        "quads",
+        "core",
+        "chest",
+        "lats",
+        "triceps"
+      ],
+      "allowCoachChoice": true
+    }
+  },
+  "dayTemplates": {
+    "lowerHypertrophyA": {
+      "name": "Lower Hypertrophy A",
+      "focus": "LOWER_HYPERTROPHY",
+      "blocks": [
+        {
+          "id": "lower-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerWarmup",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "primary-hypertrophy",
+          "name": "Primary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerPrimaryRotation",
+                "selection": "byWeekNumber"
+              },
+              "setScheme": {
+                "sets": 4,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                },
+                "percent": 70,
+                "rpe": 7.5
+              },
+              "progressionRuleRef": "primaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "secondary-hypertrophy",
+          "name": "Secondary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerPrimaryRotation",
+                "selection": "offsetByWeek",
+                "selectionOffset": 1
+              },
+              "setScheme": {
+                "sets": 3,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 10
+                },
+                "percent": 65,
+                "rpe": 7
+              },
+              "progressionRuleRef": "secondaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "hamstring-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "hamstrings",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "quad-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "quads",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "core-accessory",
+          "name": "Core",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "core",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 15
+                },
+                "rpe": 7
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "lowerHypertrophyB": {
+      "name": "Lower Hypertrophy B",
+      "focus": "LOWER_HYPERTROPHY",
+      "blocks": [
+        {
+          "id": "lower-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerWarmup",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "primary-hypertrophy",
+          "name": "Primary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerPrimaryRotation",
+                "selection": "offsetByWeek",
+                "selectionOffset": 1
+              },
+              "setScheme": {
+                "sets": 4,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                },
+                "percent": 70,
+                "rpe": 7.5
+              },
+              "progressionRuleRef": "primaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "secondary-hypertrophy",
+          "name": "Secondary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lowerPrimaryRotation",
+                "selection": "byWeekNumber"
+              },
+              "setScheme": {
+                "sets": 3,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 10
+                },
+                "percent": 65,
+                "rpe": 7
+              },
+              "progressionRuleRef": "secondaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "hamstring-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "hamstrings",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "quad-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "quads",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "core-accessory",
+          "name": "Core",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "core",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 15
+                },
+                "rpe": 7
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "upperHypertrophyA": {
+      "name": "Upper Hypertrophy A",
+      "focus": "UPPER_HYPERTROPHY",
+      "blocks": [
+        {
+          "id": "upper-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperWarmup",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "primary-hypertrophy",
+          "name": "Primary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperPrimaryRotation",
+                "selection": "byWeekNumber"
+              },
+              "setScheme": {
+                "sets": 4,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                },
+                "percent": 70,
+                "rpe": 7.5
+              },
+              "progressionRuleRef": "primaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "secondary-hypertrophy",
+          "name": "Secondary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperPrimaryRotation",
+                "selection": "offsetByWeek",
+                "selectionOffset": 1
+              },
+              "setScheme": {
+                "sets": 3,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 10
+                },
+                "percent": 65,
+                "rpe": 7
+              },
+              "progressionRuleRef": "secondaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "chest-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "chest",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "lat-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lats",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "tricep-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "triceps",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        }
+      ]
+    },
+    "upperHypertrophyB": {
+      "name": "Upper Hypertrophy B",
+      "focus": "UPPER_HYPERTROPHY",
+      "blocks": [
+        {
+          "id": "upper-warmup",
+          "name": "Warm-up",
+          "type": "warmup",
+          "rounds": 2,
+          "warmup": true,
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperWarmup",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "primary-hypertrophy",
+          "name": "Primary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperPrimaryRotation",
+                "selection": "offsetByWeek",
+                "selectionOffset": 1
+              },
+              "setScheme": {
+                "sets": 4,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 8
+                },
+                "percent": 70,
+                "rpe": 7.5
+              },
+              "progressionRuleRef": "primaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "secondary-hypertrophy",
+          "name": "Secondary Hypertrophy",
+          "type": "repeated",
+          "substitutionRuleRef": "samePrimaryPattern",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "upperPrimaryRotation",
+                "selection": "byWeekNumber"
+              },
+              "setScheme": {
+                "sets": 3,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 10
+                },
+                "percent": 65,
+                "rpe": 7
+              },
+              "progressionRuleRef": "secondaryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "chest-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "chest",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "lat-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "lats",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        },
+        {
+          "id": "tricep-accessory",
+          "name": "Accessory",
+          "type": "single",
+          "substitutionRuleRef": "sameAccessoryMuscle",
+          "slots": [
+            {
+              "target": {
+                "kind": "pool",
+                "poolRef": "triceps",
+                "selection": "firstAvailable"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 12
+                },
+                "rpe": 8
+              },
+              "progressionRuleRef": "accessoryHypertrophy"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerHypertrophyA"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperHypertrophyA"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerHypertrophyB"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperHypertrophyB"
+        }
+      ]
+    },
+    {
+      "weekNumber": 2,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "lowerHypertrophyB"
+        },
+        {
+          "dayOfWeek": "TUESDAY",
+          "templateRef": "upperHypertrophyB"
+        },
+        {
+          "dayOfWeek": "THURSDAY",
+          "templateRef": "lowerHypertrophyA"
+        },
+        {
+          "dayOfWeek": "FRIDAY",
+          "templateRef": "upperHypertrophyA"
+        }
+      ]
+    }
+  ]
+}

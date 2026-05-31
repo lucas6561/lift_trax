@@ -17,12 +17,20 @@ import org.junit.jupiter.api.Test;
 
 class ProgramSchemaAssetsTest {
   private static final ObjectMapper JSON = new ObjectMapper();
-  private static final Path SCHEMA =
-      Path.of("shared", "programs", "schema", "program.schema.v1.json");
+  private static final List<Path> SCHEMAS =
+      List.of(
+          Path.of("shared", "programs", "schema", "program.schema.v1.json"),
+          Path.of("shared", "programs", "schema", "program.schema.v2.json"));
   private static final List<Path> EXAMPLES =
       List.of(
           Path.of("shared", "programs", "examples", "conjugate-v1.json"),
-          Path.of("shared", "programs", "examples", "hypertrophy-v1.json"));
+          Path.of("shared", "programs", "examples", "hypertrophy-v1.json"),
+          Path.of("shared", "programs", "examples", "conjugate-v2.json"),
+          Path.of("shared", "programs", "examples", "hypertrophy-v2.json"));
+  private static final Path LATEST_CONJUGATE_EXAMPLE =
+      Path.of("shared", "programs", "examples", "conjugate-v2.json");
+  private static final Path LATEST_HYPERTROPHY_EXAMPLE =
+      Path.of("shared", "programs", "examples", "hypertrophy-v2.json");
 
   @Test
   void schemaAndExamplesAreValidJson() throws IOException {
@@ -33,11 +41,12 @@ class ProgramSchemaAssetsTest {
   }
 
   @Test
-  void examplesDeclareV1AndRequiredContractSections() throws IOException {
+  void examplesDeclareSupportedVersionsAndRequiredContractSections() throws IOException {
     for (Path path : EXAMPLES) {
       JsonNode root = read(path);
 
-      assertEquals(1, root.path("schemaVersion").asInt(), path.toString());
+      assertTrue(
+          ProgramSchemaVersions.supports(root.path("schemaVersion").asInt()), path.toString());
       assertPresent(root, "program", path);
       assertPresent(root, "exercisePools", path);
       assertPresent(root, "progressionRules", path);
@@ -66,7 +75,7 @@ class ProgramSchemaAssetsTest {
 
   @Test
   void examplesCoverCurrentBuilderSections() throws IOException {
-    JsonNode conjugate = read(EXAMPLES.get(0));
+    JsonNode conjugate = read(LATEST_CONJUGATE_EXAMPLE);
     assertTrue(hasTextValue(conjugate, "Max Effort Single"));
     assertTrue(hasTextValue(conjugate, "Backoff Sets"));
     assertTrue(hasTextValue(conjugate, "Supplemental Sets"));
@@ -74,7 +83,7 @@ class ProgramSchemaAssetsTest {
     assertTrue(hasTextValue(conjugate, "Accessory Circuit"));
     assertTrue(hasTextValue(conjugate, "Conditioning"));
 
-    JsonNode hypertrophy = read(EXAMPLES.get(1));
+    JsonNode hypertrophy = read(LATEST_HYPERTROPHY_EXAMPLE);
     assertTrue(hasTextValue(hypertrophy, "Primary Hypertrophy"));
     assertTrue(hasTextValue(hypertrophy, "Secondary Hypertrophy"));
     assertTrue(hasTextValue(hypertrophy, "Accessory"));
@@ -83,7 +92,7 @@ class ProgramSchemaAssetsTest {
 
   private static List<Path> allJsonAssets() {
     List<Path> paths = new ArrayList<>();
-    paths.add(SCHEMA);
+    paths.addAll(SCHEMAS);
     paths.addAll(EXAMPLES);
     return paths;
   }

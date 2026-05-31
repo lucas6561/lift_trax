@@ -40,17 +40,23 @@ See `JAVA_PROJECT.md` for detailed package and feature documentation.
 
 ## Program schema
 
-Program schema v1 lives in `shared/programs/schema/program.schema.v1.json`.
-Example conjugate and hypertrophy program files live in
-`shared/programs/examples/`. Authoring guidance is in
-`docs/program-schema-v1.md`.
+The latest program schema is v2 at
+`shared/programs/schema/program.schema.v2.json`. New program files should use
+v2. Frozen older snapshots remain under `shared/programs/schema/` so old files
+stay loadable. Example conjugate and hypertrophy program files live in
+`shared/programs/examples/`. The v1 shape guidance is in
+`docs/program-schema-v1.md`, and the compatibility policy is in
+`docs/schema-versioning.md`.
 
 ## Workout file format
 
-Generated workout format v1 lives in
-`shared/workouts/schema/workout.schema.v1.json`. Example planned workout files
-live in `shared/workouts/examples/`, and display/import guidance is in
-`docs/workout-file-format-v1.md`.
+The latest generated workout format is v2 at
+`shared/workouts/schema/workout.schema.v2.json`. New exports use v2
+automatically. Frozen older snapshots remain under `shared/workouts/schema/` so
+old workout files stay importable. Example planned workout files live in
+`shared/workouts/examples/`, display/import guidance is in
+`docs/workout-file-format-v1.md`, and the compatibility policy is in
+`docs/schema-versioning.md`.
 
 The web UI imports planned workout JSON from the Import Workout tab.
 

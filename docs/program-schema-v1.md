@@ -4,6 +4,9 @@ LiftTrax program schema v1 is the shared JSON contract for authored training
 programs. It is designed for coach-written files, AI-generated files, and future
 app-generated templates.
 
+This snapshot remains supported for older files. New files should use the
+latest snapshot documented in `docs/schema-versioning.md`.
+
 ## Files
 
 - Schema: `shared/programs/schema/program.schema.v1.json`

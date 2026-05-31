@@ -48,7 +48,7 @@ public final class PlannedWorkoutExporter {
       weeks.add(plannedWeek(index + 1, wave.get(index)));
     }
     return new PlannedWorkoutFile(
-        PlannedWorkoutFile.CURRENT_SCHEMA_VERSION, metadata, source, weeks, List.of());
+        PlannedWorkoutFile.LATEST_SCHEMA_VERSION, metadata, source, weeks, List.of());
   }
 
   private static PlannedWorkoutFile.PlannedWorkoutWeek plannedWeek(

@@ -7,8 +7,8 @@ This is the initial Java + Gradle port slice. It includes:
 - A CLI command that loads the existing `lifts.db` file and prints lifts and executions.
 
 - A Java conjugate wave builder port (`com.lifttrax.workout`) and markdown wave generator CLI (`com.lifttrax.cli.WaveCli`).
-- Program schema v1 assets in `shared/programs`, with authoring documentation in `docs/program-schema-v1.md`.
-- Planned workout file format v1 assets in `shared/workouts`, with import/export documentation in `docs/workout-file-format-v1.md`.
+- Versioned program schema assets in `shared/programs`, with authoring documentation in `docs/program-schema-v1.md`.
+- Versioned planned workout assets in `shared/workouts`, with import/export documentation in `docs/workout-file-format-v1.md`.
 
 ## Run
 
@@ -51,7 +51,7 @@ From the repository root:
 Routes:
 - `/` list/search lifts
 - `/lift?name=<lift name>` view lift details and execution history
-- `/planned-workout-preview` preview an imported workout format v1 file selected from the Import Workout tab
+- `/planned-workout-preview` preview a supported imported workout file selected from the Import Workout tab
 
 ## Add Execution weight input (simple explanation)
 
@@ -93,17 +93,20 @@ Tip: in most IDEs, opening a package and viewing its documentation shows the `pa
 
 ## Program schema assets
 
-Schema-driven program work starts with `shared/programs/schema/program.schema.v1.json`.
-Representative conjugate and hypertrophy files are in `shared/programs/examples/`.
-See `docs/program-schema-v1.md` for the authoring rules that coaches and AI tools
-should follow.
+Schema-driven program work starts with the latest snapshot,
+`shared/programs/schema/program.schema.v2.json`. Representative conjugate and
+hypertrophy files are in `shared/programs/examples/`. See
+`docs/program-schema-v1.md` for the payload-shape rules that coaches and AI
+tools should follow, and `docs/schema-versioning.md` for the compatibility
+policy.
 
 ## Planned workout assets
 
-Generated workouts use `shared/workouts/schema/workout.schema.v1.json`. The
-current wave generator can export this format through `WaveCli` by writing to a
-`.json` output file, and the web UI can preview imported workout JSON from the
-Import Workout tab.
+Generated workouts use the latest snapshot,
+`shared/workouts/schema/workout.schema.v2.json`. The current wave generator can
+export this format through `WaveCli` by writing to a `.json` output file, and
+the web UI can preview supported older and latest workout JSON from the Import
+Workout tab.
 
 ## Quality gate workflow
 

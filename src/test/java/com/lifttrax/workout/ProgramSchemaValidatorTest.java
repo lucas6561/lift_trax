@@ -12,7 +12,9 @@ class ProgramSchemaValidatorTest {
   private static final List<Path> VALID_EXAMPLES =
       List.of(
           Path.of("shared", "programs", "examples", "conjugate-v1.json"),
-          Path.of("shared", "programs", "examples", "hypertrophy-v1.json"));
+          Path.of("shared", "programs", "examples", "hypertrophy-v1.json"),
+          Path.of("shared", "programs", "examples", "conjugate-v2.json"),
+          Path.of("shared", "programs", "examples", "hypertrophy-v2.json"));
 
   @Test
   void validExamplesPassValidation() {
@@ -71,7 +73,10 @@ class ProgramSchemaValidatorTest {
                 "shared", "programs", "examples", "invalid", "unsupported-schema-version.json"));
 
     assertFalse(result.isValid());
-    assertErrorContains(result, "$.schemaVersion", "Unsupported schemaVersion 99; expected 1.");
+    assertErrorContains(
+        result,
+        "$.schemaVersion",
+        "Unsupported program schemaVersion 99; supported versions: [1, 2].");
   }
 
   @Test
