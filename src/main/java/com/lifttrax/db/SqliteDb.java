@@ -66,12 +66,18 @@ public class SqliteDb implements Database, AutoCloseable {
     }
     createBackupIfExists(dbPath);
     this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-    ensureBaseSchema();
+    SqlSchemaMigrator.migrate(connection);
     ensureLiftEnabledColumn();
     ensureExecutionSetsTable();
     backfillExecutionSetsFromLegacyJson();
-    ensureUserVersion();
-    logInfo("db.open path={} result=ok", dbPath);
+    logInfo(
+        "db.open path={} schemaVersion={} result=ok",
+        dbPath,
+        SqlSchemaMigrator.activeVersion(connection));
+  }
+
+  public int schemaVersion() throws Exception {
+    return SqlSchemaMigrator.activeVersion(connection);
   }
 
   @Override
@@ -393,43 +399,12 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
-  private void ensureBaseSchema() throws Exception {
-    String schemaSql = SqlSchemaVersion.schemaSql();
-    try (var statement = connection.createStatement()) {
-      for (String chunk : schemaSql.split(";")) {
-        String sql = chunk.trim();
-        if (!sql.isEmpty()) {
-          statement.execute(sql);
-        }
-      }
-    }
-  }
-
   private boolean tableExists(String tableName) throws Exception {
     String sql = "SELECT name FROM sqlite_master WHERE type='table' AND name = ?";
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, tableName);
       try (ResultSet rs = statement.executeQuery()) {
         return rs.next();
-      }
-    }
-  }
-
-  private void ensureUserVersion() throws Exception {
-    int expected = SqlSchemaVersion.current();
-    int current;
-    try (PreparedStatement statement = connection.prepareStatement("PRAGMA user_version");
-        ResultSet rs = statement.executeQuery()) {
-      if (rs.next()) {
-        current = rs.getInt(1);
-      } else {
-        current = 0;
-      }
-    }
-    if (current != expected) {
-      try (PreparedStatement statement =
-          connection.prepareStatement("PRAGMA user_version = " + expected)) {
-        statement.execute();
       }
     }
   }

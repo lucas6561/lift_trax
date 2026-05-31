@@ -33,3 +33,10 @@ CREATE TABLE IF NOT EXISTS execution_sets (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_sets_record_index
     ON execution_sets(record_id, set_index);
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version INTEGER NOT NULL UNIQUE,
+    name TEXT NOT NULL UNIQUE,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

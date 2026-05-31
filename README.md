@@ -61,6 +61,24 @@ JSON file instead, use a `.json` output name:
 java -cp build/libs/lift-trax-java-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 planned-workout.json
 ```
 
+## Database schema migrations
+
+SQLite migrations live in `shared/sql/migrations/`. When LiftTrax opens a
+database, it applies pending files in numeric filename order, records applied
+versions in the `schema_migrations` table, and reports the active version through
+SQLite's `PRAGMA user_version`.
+
+To add a migration:
+
+1. Add a file named `NNNN__short-description.sql` under
+   `shared/sql/migrations/`, using the next schema version.
+2. Add the filename to `shared/sql/migrations/index.txt`.
+3. Update `shared/sql/schema_version.txt` and the current schema snapshot in
+   `shared/sql/schema.sql`.
+4. Add or update a database test for the changed schema.
+
+Do not edit a migration after it has shipped. Add a new migration instead.
+
 ## Quality gate
 
 Before considering a change shippable, run the single project quality gate from
