@@ -341,6 +341,84 @@ class WebUiRendererTest {
     assertTrue(html.contains("Backoff Sets"));
     assertTrue(html.contains("2x 5 reps @ 80% RPE 8.0 CHAINS"));
     assertTrue(html.contains("Swap options: Front Squat"));
+    assertTrue(html.contains("action='/planned-workout-session'"));
+    assertTrue(html.contains("Start This Day"));
+  }
+
+  @Test
+  void plannedWorkoutPageRendersCompactAiGeneratedRepRangesWithoutNullReps() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        com.lifttrax.workout.PlannedWorkoutJson.readString(
+            """
+            {
+              "schemaVersion": 2,
+              "metadata": {"name": "AI Hypertrophy", "description": "", "totalWeeks": 1, "tags": []},
+              "source": {
+                "kind": "ai",
+                "generator": "ChatGPT",
+                "programName": "AI Hypertrophy",
+                "programSchemaVersion": 2,
+                "generatedAt": "2026-06-01T00:00:00Z"
+              },
+              "weeks": [
+                {
+                  "weekNumber": 1,
+                  "days": [
+                    {
+                      "dayOfWeek": "MONDAY",
+                      "title": "Lower Hypertrophy",
+                      "blocks": [
+                        {
+                          "order": 1,
+                          "title": "Main Lift",
+                          "blockType": "single",
+                          "warmup": false,
+                          "exercises": [
+                            {
+                              "name": "SSB Squat",
+                              "region": "LOWER",
+                              "type": "SQUAT",
+                              "muscles": ["QUAD"],
+                              "plannedSets": [
+                                {
+                                  "setNumber": 1,
+                                  "metricType": "reps",
+                                  "repsMin": 8,
+                                  "repsMax": 10,
+                                  "percent": 65,
+                                  "rpe": 8.0,
+                                  "deload": false
+                                },
+                                {
+                                  "setNumber": 2,
+                                  "metricType": "reps",
+                                  "repsMin": 8,
+                                  "repsMax": 10,
+                                  "percent": 65,
+                                  "rpe": 8.0,
+                                  "deload": false
+                                }
+                              ],
+                              "notes": "",
+                              "substitutionOptions": []
+                            }
+                          ],
+                          "notes": []
+                        }
+                      ],
+                      "notes": []
+                    }
+                  ]
+                }
+              ],
+              "completedWorkouts": []
+            }
+            """);
+
+    String html = PlannedWorkoutHtml.renderPage(workoutFile);
+
+    assertTrue(html.contains("2x 8-10 reps @ 65% RPE 8.0"));
+    assertFalse(html.contains("null reps"));
   }
 
   @Test

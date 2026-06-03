@@ -137,6 +137,24 @@ final class WebHtml {
                 .planned-exercise-list li { margin-bottom: 0.5rem; }
                 .planned-history { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; margin-top: 0.18rem; color: var(--pico-muted-color); }
                 .planned-notes { margin-bottom: 0.45rem; }
+                .planned-day .compact-actions { margin-top: 0.4rem; }
+                .planned-session-form { display: flex; flex-direction: column; gap: 0.65rem; }
+                .session-date { max-width: 15rem; }
+                .session-block { border: 1px solid var(--pico-muted-border-color); border-radius: 0.6rem; padding: 0.58rem; background: rgba(9, 16, 30, 0.7); }
+                .session-block.is-current { border-color: rgba(34, 197, 94, 0.58); }
+                .session-block-label { display: inline-block; margin-bottom: 0.22rem; color: #86efac; font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+                .session-exercise { border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.5rem; padding: 0.5rem; margin-top: 0.5rem; background: rgba(15, 23, 42, 0.72); }
+                .session-exercise > header { display: flex; justify-content: space-between; align-items: end; gap: 0.5rem; }
+                .session-exercise > header h3 { margin-bottom: 0.42rem; }
+                .session-exercise.is-skipped,
+                .session-set.is-skipped { opacity: 0.62; }
+                .session-set { border: 1px dashed var(--pico-muted-border-color); border-radius: 0.45rem; padding: 0.4rem; margin: 0.4rem 0; }
+                .session-set p { margin-bottom: 0.28rem; }
+                .session-set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 0.35rem; }
+                .session-set-grid label { min-width: 0; }
+                .session-set-grid input,
+                .session-set-grid select { width: 100%%; }
+                .save-workout-session-btn { position: sticky; bottom: 0.35rem; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
                 @media (max-width: 720px) {
                   .dashboard-hero { align-items: stretch; flex-direction: column; }
                   .dashboard-work-item,
@@ -170,6 +188,10 @@ final class WebHtml {
                   .quick-log-label { grid-column: 1 / -1; }
                   .quick-log-presets .compact-btn { width: 100%%; }
                   .save-execution-btn { position: sticky; bottom: 0.35rem; width: 100%%; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
+                  .session-exercise > header { align-items: stretch; flex-direction: column; }
+                  .session-exercise > header label { width: 100%%; }
+                  .session-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  .save-workout-session-btn { width: 100%%; }
                 }
                 .is-hidden { display: none; }
             """;

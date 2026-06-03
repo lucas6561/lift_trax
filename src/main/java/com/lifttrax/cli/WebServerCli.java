@@ -72,6 +72,10 @@ public final class WebServerCli {
     server.createContext(
         "/planned-workout-preview", exchange -> handlePlannedWorkoutPreview(exchange, db));
     server.createContext(
+        "/planned-workout-session", exchange -> handlePlannedWorkoutSession(exchange, db));
+    server.createContext(
+        "/save-planned-workout-session", exchange -> handleSavePlannedWorkoutSession(exchange, db));
+    server.createContext(
         "/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
     server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
     server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
@@ -491,6 +495,77 @@ public final class WebServerCli {
     }
 
     throw new IllegalArgumentException("Paste a workout file or enter a file path.");
+  }
+
+  private static void handlePlannedWorkoutSession(HttpExchange exchange, SqliteDb db)
+      throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(form);
+      int weekNumber = parsePositiveInt(form.getOrDefault("weekNumber", ""), "Week number");
+      String dayOfWeek = form.getOrDefault("dayOfWeek", "").trim();
+      List<Lift> lifts = new ArrayList<>(db.listLifts());
+      lifts.sort(Comparator.comparing(Lift::name));
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Train " + dayOfWeek,
+              PlannedWorkoutSessionHtml.renderPage(
+                  workoutFile, weekNumber, dayOfWeek, lifts, LocalDate.now())));
+    } catch (Exception e) {
+      sendPlannedWorkoutError(exchange, "Could not start workout", e);
+    }
+  }
+
+  private static void handleSavePlannedWorkoutSession(HttpExchange exchange, SqliteDb db)
+      throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(form);
+      int weekNumber = parsePositiveInt(form.getOrDefault("weekNumber", ""), "Week number");
+      String dayOfWeek = form.getOrDefault("dayOfWeek", "").trim();
+      LocalDate date = LocalDate.parse(form.getOrDefault("date", LocalDate.now().toString()));
+      PlannedWorkoutSessionService.SaveSummary summary =
+          PlannedWorkoutSessionService.save(
+              db,
+              workoutFile,
+              weekNumber,
+              dayOfWeek,
+              date,
+              form.getOrDefault("sessionResultsJson", "[]"));
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Workout Saved",
+              PlannedWorkoutSessionHtml.renderSavedPage(
+                  workoutFile, weekNumber, dayOfWeek, date, summary)));
+    } catch (Exception e) {
+      sendPlannedWorkoutError(exchange, "Could not save workout", e);
+    }
+  }
+
+  private static void sendPlannedWorkoutError(
+      HttpExchange exchange, String heading, Exception error) throws IOException {
+    sendHtml(
+        exchange,
+        WebHtml.wrapPage(
+            heading,
+            "<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>"
+                + "<h1>"
+                + WebHtml.escapeHtml(heading)
+                + "</h1><p class='status error'>"
+                + WebHtml.escapeHtml(error.getMessage())
+                + "</p><p class='muted'>Use your browser back button to keep editing the session.</p>"));
   }
 
   private static void handleUpdateLift(HttpExchange exchange, SqliteDb db) throws IOException {

@@ -58,7 +58,12 @@ old workout files stay importable. Example planned workout files live in
 `docs/workout-file-format-v1.md`, and the compatibility policy is in
 `docs/schema-versioning.md`.
 
-The web UI imports planned workout JSON from the Import Workout tab.
+The web UI imports planned workout JSON from the Import Workout tab. After
+previewing the file, choose `Start This Day` for the workout you want to train.
+The follow-along screen seeds the planned set counts, accepts completed reps,
+left/right reps, seconds, distance, weight, and RPE, and saves completed work
+into normal execution history. Workout-file swap choices are available when the
+matching lifts exist locally.
 
 Wave generation can still save markdown. To export a loadable planned workout
 JSON file instead, use a `.json` output name:

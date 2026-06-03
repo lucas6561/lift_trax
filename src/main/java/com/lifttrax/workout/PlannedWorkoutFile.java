@@ -1,6 +1,7 @@
 package com.lifttrax.workout;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /** Versioned planned-workout file that can be exported, imported, and displayed. */
@@ -126,6 +127,10 @@ public record PlannedWorkoutFile(
       boolean deload) {
     public PlannedSetTarget {
       metricType = requiredText(metricType, "plannedSet.metricType");
+      metricType = normalizeMetricType(metricType);
+      if ("reps".equals(metricType) && reps == null && repsMin != null && repsMax != null) {
+        metricType = "reps_range";
+      }
       if (setNumber != null && setNumber < 1) {
         throw new IllegalArgumentException("plannedSet.setNumber must be positive when present");
       }
@@ -176,6 +181,18 @@ public record PlannedWorkoutFile(
       throw new IllegalArgumentException(field + " is required");
     }
     return value.trim();
+  }
+
+  private static String normalizeMetricType(String value) {
+    String normalized = value.trim().replace('-', '_');
+    String lower = normalized.toLowerCase(Locale.ROOT);
+    return switch (lower) {
+      case "repslr", "reps_lr" -> "reps_lr";
+      case "repsrange", "reps_range" -> "reps_range";
+      case "timesecs", "time_seconds" -> "time_seconds";
+      case "distancefeet", "distance_feet" -> "distance_feet";
+      default -> lower;
+    };
   }
 
   private static String optionalText(String value) {

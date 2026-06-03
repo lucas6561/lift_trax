@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PlannedWorkoutFileTest {
@@ -59,6 +60,100 @@ class PlannedWorkoutFileTest {
     assertEquals(workoutFile, roundTrip);
     assertTrue(json.contains("\"schemaVersion\""));
     assertTrue(json.contains("\"completedWorkouts\""));
+  }
+
+  @Test
+  void plannedWorkoutJsonNormalizesCompactAiGeneratedSetTargets() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        PlannedWorkoutJson.readString(
+            """
+            {
+              "schemaVersion": 2,
+              "metadata": {
+                "name": "AI Hypertrophy",
+                "description": "",
+                "totalWeeks": 1,
+                "tags": []
+              },
+              "source": {
+                "kind": "ai",
+                "generator": "ChatGPT",
+                "programName": "AI Hypertrophy",
+                "programSchemaVersion": 2,
+                "generatedAt": "2026-06-01T00:00:00Z"
+              },
+              "weeks": [
+                {
+                  "weekNumber": 1,
+                  "days": [
+                    {
+                      "dayOfWeek": "MONDAY",
+                      "title": "Monday",
+                      "blocks": [
+                        {
+                          "order": 1,
+                          "title": "Warm-up",
+                          "blockType": "warmup",
+                          "warmup": true,
+                          "exercises": [
+                            {
+                              "name": "General Mobility",
+                              "region": "FULL_BODY",
+                              "type": "MOBILITY",
+                              "muscles": ["CORE"],
+                              "plannedSets": [
+                                {
+                                  "setNumber": 1,
+                                  "metricType": "timeSecs",
+                                  "seconds": 300,
+                                  "rpe": 5.0,
+                                  "deload": false
+                                }
+                              ],
+                              "notes": "",
+                              "substitutionOptions": []
+                            },
+                            {
+                              "name": "SSB Squat",
+                              "region": "LOWER",
+                              "type": "SQUAT",
+                              "muscles": ["QUAD"],
+                              "plannedSets": [
+                                {
+                                  "setNumber": 1,
+                                  "metricType": "reps",
+                                  "repsMin": 8,
+                                  "repsMax": 10,
+                                  "rpe": 8.0,
+                                  "deload": false
+                                }
+                              ],
+                              "notes": "",
+                              "substitutionOptions": []
+                            }
+                          ],
+                          "notes": []
+                        }
+                      ],
+                      "notes": []
+                    }
+                  ]
+                }
+              ],
+              "completedWorkouts": []
+            }
+            """);
+
+    List<PlannedWorkoutFile.PlannedSetTarget> sets =
+        workoutFile.weeks().get(0).days().get(0).blocks().get(0).exercises().stream()
+            .flatMap(exercise -> exercise.plannedSets().stream())
+            .toList();
+
+    assertEquals("time_seconds", sets.get(0).metricType());
+    assertEquals(300, sets.get(0).seconds());
+    assertEquals("reps_range", sets.get(1).metricType());
+    assertEquals(8, sets.get(1).repsMin());
+    assertEquals(10, sets.get(1).repsMax());
   }
 
   @Test

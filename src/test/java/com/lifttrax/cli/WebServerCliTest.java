@@ -250,6 +250,8 @@ class WebServerCliTest {
     assertTrue(html.contains(".quick-log-presets"));
     assertTrue(html.contains(".save-execution-btn"));
     assertTrue(html.contains("position: sticky"));
+    assertTrue(html.contains(".session-set-grid"));
+    assertTrue(html.contains(".save-workout-session-btn"));
   }
 
   @Test

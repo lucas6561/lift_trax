@@ -3,6 +3,7 @@ package com.lifttrax.cli;
 import com.lifttrax.db.Database;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutJson;
 import com.lifttrax.workout.WorkoutHistoryFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -125,7 +126,7 @@ final class PlannedWorkoutHtml {
         .append(WebHtml.escapeHtml(workoutFile.source().generatedAt()))
         .append("</p>");
     for (PlannedWorkoutFile.PlannedWorkoutWeek week : workoutFile.weeks()) {
-      appendPlannedWeek(html, week, db);
+      appendPlannedWeek(html, workoutFile, week, db);
     }
     if (!workoutFile.completedWorkouts().isEmpty()) {
       html.append("<h2>Completed Results</h2>");
@@ -137,7 +138,10 @@ final class PlannedWorkoutHtml {
   }
 
   private static void appendPlannedWeek(
-      StringBuilder html, PlannedWorkoutFile.PlannedWorkoutWeek week, Database db) {
+      StringBuilder html,
+      PlannedWorkoutFile workoutFile,
+      PlannedWorkoutFile.PlannedWorkoutWeek week,
+      Database db) {
     html.append("<section class='planned-week'><h2>Week ")
         .append(week.weekNumber())
         .append("</h2>");
@@ -148,9 +152,37 @@ final class PlannedWorkoutHtml {
       for (PlannedWorkoutFile.PlannedWorkoutBlock block : day.blocks()) {
         appendPlannedBlock(html, block, db);
       }
+      appendStartDayForm(html, workoutFile, week, day);
       html.append("</section>");
     }
     html.append("</section>");
+  }
+
+  private static void appendStartDayForm(
+      StringBuilder html,
+      PlannedWorkoutFile workoutFile,
+      PlannedWorkoutFile.PlannedWorkoutWeek week,
+      PlannedWorkoutFile.PlannedWorkoutDay day) {
+    html.append("<form method='post' action='/planned-workout-session' class='compact-actions'>")
+        .append("<input type='hidden' name='plannedWorkoutJson' value='")
+        .append(WebHtml.escapeHtml(writeWorkoutJson(workoutFile)))
+        .append("'/>")
+        .append("<input type='hidden' name='weekNumber' value='")
+        .append(week.weekNumber())
+        .append("'/>")
+        .append("<input type='hidden' name='dayOfWeek' value='")
+        .append(WebHtml.escapeHtml(day.dayOfWeek()))
+        .append("'/>")
+        .append("<button type='submit' class='compact-btn'>Start This Day</button>")
+        .append("</form>");
+  }
+
+  private static String writeWorkoutJson(PlannedWorkoutFile workoutFile) {
+    try {
+      return PlannedWorkoutJson.writeString(workoutFile);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Could not prepare imported workout for training.", e);
+    }
   }
 
   private static void appendPlannedBlock(
@@ -322,7 +354,7 @@ final class PlannedWorkoutHtml {
         && first.deload() == second.deload();
   }
 
-  private static String formatPlannedSet(PlannedWorkoutFile.PlannedSetTarget target) {
+  static String formatPlannedSet(PlannedWorkoutFile.PlannedSetTarget target) {
     List<String> parts = new ArrayList<>();
     parts.add(formatPlannedMetric(target));
     if (target.percent() != null) {
@@ -344,13 +376,26 @@ final class PlannedWorkoutHtml {
 
   private static String formatPlannedMetric(PlannedWorkoutFile.PlannedSetTarget target) {
     return switch (target.metricType()) {
-      case "reps" -> target.reps() + " reps";
+      case "reps" -> target.reps() == null ? formatRepRange(target) : target.reps() + " reps";
       case "reps_lr" -> target.repsLeft() + "L/" + target.repsRight() + "R reps";
-      case "reps_range" -> target.repsMin() + "-" + target.repsMax() + " reps";
+      case "reps_range" -> formatRepRange(target);
       case "time_seconds" -> target.seconds() + " sec";
       case "distance_feet" -> target.distanceFeet() + " ft";
       default -> "planned work";
     };
+  }
+
+  private static String formatRepRange(PlannedWorkoutFile.PlannedSetTarget target) {
+    if (target.repsMin() != null && target.repsMax() != null) {
+      return target.repsMin() + "-" + target.repsMax() + " reps";
+    }
+    if (target.repsMin() != null) {
+      return target.repsMin() + "+ reps";
+    }
+    if (target.repsMax() != null) {
+      return "up to " + target.repsMax() + " reps";
+    }
+    return "reps";
   }
 
   private static String joinList(List<String> values) {

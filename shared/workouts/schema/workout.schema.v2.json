@@ -80,6 +80,7 @@
       "properties": {
         "kind": {
           "enum": [
+            "ai",
             "wave-generation",
             "program-schema",
             "manual",
@@ -175,7 +176,6 @@
         "order",
         "title",
         "blockType",
-        "rounds",
         "warmup",
         "exercises",
         "notes"
@@ -285,19 +285,135 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "setNumber",
         "metricType",
-        "reps",
-        "repsLeft",
-        "repsRight",
-        "repsMin",
-        "repsMax",
-        "seconds",
-        "distanceFeet",
-        "percent",
-        "rpe",
-        "accommodatingResistance",
         "deload"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "metricType": {
+                "const": "reps"
+              }
+            },
+            "required": [
+              "metricType"
+            ]
+          },
+          "then": {
+            "required": [
+              "reps"
+            ],
+            "properties": {
+              "reps": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "metricType": {
+                "const": "reps_lr"
+              }
+            },
+            "required": [
+              "metricType"
+            ]
+          },
+          "then": {
+            "required": [
+              "repsLeft",
+              "repsRight"
+            ],
+            "properties": {
+              "repsLeft": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "repsRight": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "metricType": {
+                "const": "reps_range"
+              }
+            },
+            "required": [
+              "metricType"
+            ]
+          },
+          "then": {
+            "required": [
+              "repsMin",
+              "repsMax"
+            ],
+            "properties": {
+              "repsMin": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "repsMax": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "metricType": {
+                "const": "time_seconds"
+              }
+            },
+            "required": [
+              "metricType"
+            ]
+          },
+          "then": {
+            "required": [
+              "seconds"
+            ],
+            "properties": {
+              "seconds": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "metricType": {
+                "const": "distance_feet"
+              }
+            },
+            "required": [
+              "metricType"
+            ]
+          },
+          "then": {
+            "required": [
+              "distanceFeet"
+            ],
+            "properties": {
+              "distanceFeet": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
       ],
       "properties": {
         "setNumber": {

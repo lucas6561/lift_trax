@@ -52,6 +52,8 @@ Routes:
 - `/` list/search lifts
 - `/lift?name=<lift name>` view lift details and execution history
 - `/planned-workout-preview` preview a supported imported workout file selected from the Import Workout tab
+- `/planned-workout-session` open one imported workout day as a follow-along logging form
+- `/save-planned-workout-session` save completed follow-along work into normal execution history
 
 ## Add Execution weight input (simple explanation)
 
@@ -106,7 +108,9 @@ Generated workouts use the latest snapshot,
 `shared/workouts/schema/workout.schema.v2.json`. The current wave generator can
 export this format through `WaveCli` by writing to a `.json` output file, and
 the web UI can preview supported older and latest workout JSON from the Import
-Workout tab.
+Workout tab. Each previewed day can open as a follow-along workout, where
+planned counts seed editable result fields and completed exercises save through
+the normal execution-history path.
 
 ## Quality gate workflow
 
