@@ -490,6 +490,9 @@ class WebUiRendererTest {
     assertTrue(html.contains("@page { size: auto; margin: 0.45in; }"));
     assertTrue(html.contains("background: #fff"));
     assertTrue(html.contains("break-inside: avoid"));
+    assertTrue(html.contains("h2 { break-after: avoid-page"));
+    assertTrue(html.contains("h3 { break-after: avoid-page"));
+    assertFalse(html.contains(".print-day { break-inside: avoid-page"));
     assertTrue(html.contains("class='print-week'"));
     assertTrue(html.contains("class='print-target'"));
     assertFalse(html.contains("data-theme='dark'"));

@@ -25,15 +25,15 @@ final class PlannedWorkoutPrintHtml {
                 body { max-width: 8.5in; margin: 0 auto; color: #111827; background: #fff; font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.25; }
                 h1, h2, h3, h4, p { margin: 0; }
                 h1 { font-size: 20pt; }
-                h2 { margin-bottom: 0.12in; padding-bottom: 0.04in; border-bottom: 2px solid #111827; font-size: 15pt; }
-                h3 { margin-bottom: 0.08in; font-size: 12pt; }
+                h2 { break-after: avoid-page; margin-bottom: 0.12in; padding-bottom: 0.04in; border-bottom: 2px solid #111827; font-size: 15pt; }
+                h3 { break-after: avoid-page; margin-bottom: 0.08in; font-size: 12pt; }
                 h4 { font-size: 10pt; }
                 .print-actions { display: flex; gap: 0.1in; margin: 0.15in 0; }
                 .print-actions button, .print-actions a { border: 1px solid #374151; border-radius: 4px; padding: 0.07in 0.12in; color: #111827; background: #f3f4f6; font: inherit; text-decoration: none; cursor: pointer; }
                 .print-meta { margin: 0.08in 0 0.18in; color: #4b5563; }
                 .print-week { break-before: page; }
                 .print-week:first-of-type { break-before: auto; }
-                .print-day { break-inside: avoid-page; margin-bottom: 0.18in; }
+                .print-day { margin-bottom: 0.18in; }
                 .print-block { break-inside: avoid; border: 1px solid #9ca3af; border-radius: 5px; margin-bottom: 0.09in; padding: 0.08in; }
                 .print-block-header { display: flex; justify-content: space-between; gap: 0.12in; margin-bottom: 0.05in; border-bottom: 1px solid #d1d5db; padding-bottom: 0.04in; }
                 .print-block-meta, .print-detail { color: #4b5563; font-size: 8.5pt; }
