@@ -890,11 +890,12 @@ class WebServerCliTest {
 
       assertTrue(html.contains("Save As Markdown"));
       assertTrue(html.contains("Save As Workout JSON"));
-      assertTrue(html.contains("liftTraxSaveWaveMarkdown"));
-      assertTrue(html.contains("liftTraxSavePlannedWorkoutJson"));
-      assertTrue(html.contains("liftTraxWaveTimestamp"));
-      assertTrue(html.contains("wave-${liftTraxWaveTimestamp()}.md"));
-      assertTrue(html.contains("planned-workout-${liftTraxWaveTimestamp()}.json"));
+      assertTrue(html.contains("App Preview"));
+      assertTrue(html.contains("Print View"));
+      assertTrue(html.contains("formaction='/planned-workout-preview'"));
+      assertTrue(html.contains("formaction='/planned-workout-print'"));
+      assertTrue(html.contains("formaction='/planned-workout-markdown'"));
+      assertTrue(html.contains("formaction='/planned-workout-json'"));
       assertFalse(html.contains("Select Workout JSON"));
     } finally {
       Files.deleteIfExists(dbPath);
@@ -954,7 +955,15 @@ class WebServerCliTest {
       assertTrue(html.contains("Select Workout JSON"));
       assertTrue(html.contains("class='js-planned-workout-json'"));
       assertTrue(html.contains("FileReader"));
-      assertTrue(html.contains("Preview Workout"));
+      assertTrue(html.contains("App Preview"));
+      assertTrue(html.contains("Print View"));
+      assertTrue(html.contains("Save As Markdown"));
+      assertTrue(html.contains("Save As Workout JSON"));
+      assertTrue(html.contains("formaction='/planned-workout-preview'"));
+      assertTrue(html.contains("formaction='/planned-workout-print'"));
+      assertTrue(html.contains("formaction='/planned-workout-markdown'"));
+      assertTrue(html.contains("formaction='/planned-workout-json'"));
+      assertTrue(html.contains("outputButtons.forEach((button) => button.disabled = false)"));
       assertFalse(html.contains("Workout File Path"));
       assertFalse(html.contains("Paste File Contents"));
     } finally {

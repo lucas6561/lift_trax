@@ -343,6 +343,10 @@ class WebUiRendererTest {
     assertTrue(html.contains("Swap options: Front Squat"));
     assertTrue(html.contains("action='/planned-workout-session'"));
     assertTrue(html.contains("Start This Day"));
+    assertTrue(html.contains("App Preview"));
+    assertTrue(html.contains("Print View"));
+    assertTrue(html.contains("Save As Markdown"));
+    assertTrue(html.contains("Save As Workout JSON"));
   }
 
   @Test
@@ -471,6 +475,24 @@ class WebUiRendererTest {
       assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
       assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
     }
+  }
+
+  @Test
+  void plannedWorkoutPrintViewIsCompactAndPrintFriendly() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        com.lifttrax.workout.PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v2.json"));
+
+    String html = PlannedWorkoutPrintHtml.renderPage(workoutFile, null);
+
+    assertTrue(html.contains("onclick='window.print()'"));
+    assertTrue(html.contains("@media print"));
+    assertTrue(html.contains("@page { size: auto; margin: 0.45in; }"));
+    assertTrue(html.contains("background: #fff"));
+    assertTrue(html.contains("break-inside: avoid"));
+    assertTrue(html.contains("class='print-week'"));
+    assertTrue(html.contains("class='print-target'"));
+    assertFalse(html.contains("data-theme='dark'"));
   }
 
   private static LiftExecution execution(LocalDate date, boolean warmup) {

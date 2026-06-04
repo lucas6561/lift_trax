@@ -1,14 +1,10 @@
 package com.lifttrax.cli;
 
 import com.lifttrax.db.Database;
-import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutHistory;
 import com.lifttrax.workout.PlannedWorkoutJson;
-import com.lifttrax.workout.WorkoutHistoryFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import com.lifttrax.workout.PlannedWorkoutText;
 
 /** Renders imported planned workout files for the lightweight web UI. */
 final class PlannedWorkoutHtml {
@@ -16,7 +12,7 @@ final class PlannedWorkoutHtml {
 
   static String renderImportPanel() {
     return """
-              <form method='post' action='/planned-workout-preview' class='planned-import-form'>
+              <form method='post' class='planned-import-form'>
                 <div class='planned-import-layout'>
                   <div class='planned-file-zone'>
                     <input id='plannedWorkoutFile' class='planned-file-input' type='file' accept='application/json,.json'/>
@@ -29,7 +25,7 @@ final class PlannedWorkoutHtml {
                   <div class='planned-import-actions'>
                     <p class='js-planned-file-status muted'>Ready for a planned workout file.</p>
                     <input type='hidden' name='plannedWorkoutJson' class='js-planned-workout-json'/>
-                    <button type='submit' class='compact-btn js-planned-preview' disabled>Preview Workout</button>
+                    %s
                   </div>
                 </div>
               </form>
@@ -37,18 +33,18 @@ final class PlannedWorkoutHtml {
                 (function () {
                   const fileInput = document.querySelector('#plannedWorkoutFile');
                   const jsonInput = document.querySelector('.js-planned-workout-json');
-                  const previewButton = document.querySelector('.js-planned-preview');
+                  const outputButtons = Array.from(document.querySelectorAll('.js-planned-output'));
                   const fileName = document.querySelector('.js-planned-file-name');
                   const fileDetail = document.querySelector('.js-planned-file-detail');
                   const status = document.querySelector('.js-planned-file-status');
 
-                  if (!fileInput || !jsonInput || !previewButton || !fileName || !fileDetail || !status) {
+                  if (!fileInput || !jsonInput || outputButtons.length === 0 || !fileName || !fileDetail || !status) {
                     return;
                   }
 
                   function resetImport(message) {
                     jsonInput.value = '';
-                    previewButton.disabled = true;
+                    outputButtons.forEach((button) => button.disabled = true);
                     status.textContent = message;
                     status.classList.remove('success', 'error');
                     status.classList.add('muted');
@@ -75,7 +71,7 @@ final class PlannedWorkoutHtml {
                         const name = parsed && parsed.metadata && parsed.metadata.name ? parsed.metadata.name : file.name;
                         const weeks = Array.isArray(parsed.weeks) ? parsed.weeks.length : 0;
                         jsonInput.value = text;
-                        previewButton.disabled = false;
+                        outputButtons.forEach((button) => button.disabled = false);
                         status.textContent = weeks > 0 ? `${name} - ${weeks} week${weeks === 1 ? '' : 's'}` : name;
                         status.classList.remove('muted', 'error');
                         status.classList.add('success');
@@ -104,7 +100,8 @@ final class PlannedWorkoutHtml {
                   });
                 })();
               </script>
-              """;
+              """
+        .formatted(renderOutputButtons(true));
   }
 
   static String renderPage(PlannedWorkoutFile workoutFile) {
@@ -125,6 +122,7 @@ final class PlannedWorkoutHtml {
         .append(" <strong>Generated:</strong> ")
         .append(WebHtml.escapeHtml(workoutFile.source().generatedAt()))
         .append("</p>");
+    html.append(renderOutputActions(workoutFile));
     for (PlannedWorkoutFile.PlannedWorkoutWeek week : workoutFile.weeks()) {
       appendPlannedWeek(html, workoutFile, week, db);
     }
@@ -185,12 +183,34 @@ final class PlannedWorkoutHtml {
     }
   }
 
+  static String renderOutputActions(PlannedWorkoutFile workoutFile) {
+    return "<form method='post' class='planned-output-form'>"
+        + "<input type='hidden' name='plannedWorkoutJson' value='"
+        + WebHtml.escapeHtml(writeWorkoutJson(workoutFile))
+        + "'/>"
+        + renderOutputButtons(false)
+        + "</form>";
+  }
+
+  private static String renderOutputButtons(boolean disabled) {
+    String disabledAttribute = disabled ? " disabled" : "";
+    return """
+        <div class='stacked-row planned-output-buttons'>
+          <button type='submit' class='compact-btn js-planned-output' formaction='/planned-workout-preview'%s>App Preview</button>
+          <button type='submit' class='secondary compact-btn js-planned-output' formaction='/planned-workout-print' formtarget='_blank'%s>Print View</button>
+          <button type='submit' class='secondary compact-btn js-planned-output' formaction='/planned-workout-markdown'%s>Save As Markdown</button>
+          <button type='submit' class='secondary compact-btn js-planned-output' formaction='/planned-workout-json'%s>Save As Workout JSON</button>
+        </div>
+        """
+        .formatted(disabledAttribute, disabledAttribute, disabledAttribute, disabledAttribute);
+  }
+
   private static void appendPlannedBlock(
       StringBuilder html, PlannedWorkoutFile.PlannedWorkoutBlock block, Database db) {
     html.append("<article class='planned-block'><header><h4>")
         .append(WebHtml.escapeHtml(block.title()))
         .append("</h4><p class='muted'>")
-        .append(WebHtml.escapeHtml(formatBlockMeta(block)))
+        .append(WebHtml.escapeHtml(PlannedWorkoutText.blockMeta(block)))
         .append("</p></header>");
     if (!block.notes().isEmpty()) {
       html.append("<ul class='planned-notes'>");
@@ -212,12 +232,12 @@ final class PlannedWorkoutHtml {
       PlannedWorkoutFile.PlannedExercise exercise,
       Database db) {
     html.append("<li><strong>").append(WebHtml.escapeHtml(exercise.name())).append("</strong>");
-    String details = formatExerciseDetails(exercise);
+    String details = PlannedWorkoutText.exerciseDetails(exercise);
     if (!details.isBlank()) {
       html.append(" <span class='muted'>").append(WebHtml.escapeHtml(details)).append("</span>");
     }
     html.append("<div>")
-        .append(WebHtml.escapeHtml(formatPlannedSets(exercise.plannedSets())))
+        .append(WebHtml.escapeHtml(PlannedWorkoutText.plannedSets(exercise.plannedSets())))
         .append("</div>");
     if (!exercise.notes().isBlank()) {
       html.append("<div class='muted'>Notes: ")
@@ -227,7 +247,7 @@ final class PlannedWorkoutHtml {
     appendHistory(html, db, block, exercise);
     if (!exercise.substitutionOptions().isEmpty()) {
       html.append("<div class='muted'>Swap options: ")
-          .append(WebHtml.escapeHtml(joinList(exercise.substitutionOptions())))
+          .append(WebHtml.escapeHtml(String.join(", ", exercise.substitutionOptions())))
           .append("</div>");
     }
     html.append("</li>");
@@ -242,163 +262,25 @@ final class PlannedWorkoutHtml {
       return;
     }
 
-    try {
-      SetMetric metric = historyMetric(block, exercise);
-      boolean includeDeload =
-          exercise.plannedSets().stream().anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
-      String last =
-          WorkoutHistoryFormatter.lastExecutionSummary(
-              db, exercise.name(), block.warmup(), metric, includeDeload);
-      String max = WorkoutHistoryFormatter.bestOneRepMax(db, exercise.name());
-      if (last == null && max == null) {
-        return;
-      }
-      html.append("<div class='planned-history'>");
-      if (last != null) {
-        html.append("<span><strong>Last:</strong> ")
-            .append(WebHtml.escapeHtml(last))
-            .append("</span>");
-      }
-      if (max != null) {
-        html.append("<span><strong>Best 1RM:</strong> ")
-            .append(WebHtml.escapeHtml(max))
-            .append("</span>");
-      }
-      html.append("</div>");
-    } catch (Exception e) {
+    PlannedWorkoutHistory.Summary history = PlannedWorkoutHistory.lookup(db, block, exercise);
+    if (history.unavailable()) {
       html.append("<div class='planned-history muted'>History unavailable.</div>");
+      return;
     }
-  }
-
-  private static SetMetric historyMetric(
-      PlannedWorkoutFile.PlannedWorkoutBlock block, PlannedWorkoutFile.PlannedExercise exercise) {
-    if (block.rounds() != null || exercise.plannedSets().isEmpty()) {
-      return null;
+    if (history.isEmpty()) {
+      return;
     }
-    return metricFromTarget(exercise.plannedSets().get(0));
-  }
-
-  private static SetMetric metricFromTarget(PlannedWorkoutFile.PlannedSetTarget target) {
-    return switch (target.metricType()) {
-      case "reps" -> target.reps() == null ? null : new SetMetric.Reps(target.reps());
-      case "reps_lr" ->
-          target.repsLeft() == null || target.repsRight() == null
-              ? null
-              : new SetMetric.RepsLr(target.repsLeft(), target.repsRight());
-      case "time_seconds" ->
-          target.seconds() == null ? null : new SetMetric.TimeSecs(target.seconds());
-      case "distance_feet" ->
-          target.distanceFeet() == null ? null : new SetMetric.DistanceFeet(target.distanceFeet());
-      default -> null;
-    };
-  }
-
-  private static String formatBlockMeta(PlannedWorkoutFile.PlannedWorkoutBlock block) {
-    List<String> parts = new ArrayList<>();
-    parts.add(block.blockType().replace('_', ' '));
-    if (block.rounds() != null) {
-      parts.add(block.rounds() + " rounds");
+    html.append("<div class='planned-history'>");
+    if (history.last() != null) {
+      html.append("<span><strong>Last:</strong> ")
+          .append(WebHtml.escapeHtml(history.last()))
+          .append("</span>");
     }
-    if (block.warmup()) {
-      parts.add("warm-up");
+    if (history.bestOneRepMax() != null) {
+      html.append("<span><strong>Best 1RM:</strong> ")
+          .append(WebHtml.escapeHtml(history.bestOneRepMax()))
+          .append("</span>");
     }
-    return joinList(parts);
-  }
-
-  private static String formatExerciseDetails(PlannedWorkoutFile.PlannedExercise exercise) {
-    List<String> details = new ArrayList<>();
-    if (exercise.region() != null && !exercise.region().isBlank()) {
-      details.add(exercise.region());
-    }
-    if (exercise.type() != null && !exercise.type().isBlank()) {
-      details.add(exercise.type());
-    }
-    if (!exercise.muscles().isEmpty()) {
-      details.add(joinList(exercise.muscles()));
-    }
-    return joinList(details);
-  }
-
-  private static String formatPlannedSets(List<PlannedWorkoutFile.PlannedSetTarget> sets) {
-    if (sets.isEmpty()) {
-      return "No planned set targets.";
-    }
-    List<String> groups = new ArrayList<>();
-    int index = 0;
-    while (index < sets.size()) {
-      PlannedWorkoutFile.PlannedSetTarget target = sets.get(index);
-      int count = 1;
-      while (index + count < sets.size() && samePlannedTarget(target, sets.get(index + count))) {
-        count++;
-      }
-      String formatted = formatPlannedSet(target);
-      groups.add(count > 1 ? count + "x " + formatted : formatted);
-      index += count;
-    }
-    return joinList(groups);
-  }
-
-  private static boolean samePlannedTarget(
-      PlannedWorkoutFile.PlannedSetTarget first, PlannedWorkoutFile.PlannedSetTarget second) {
-    return Objects.equals(first.metricType(), second.metricType())
-        && Objects.equals(first.reps(), second.reps())
-        && Objects.equals(first.repsLeft(), second.repsLeft())
-        && Objects.equals(first.repsRight(), second.repsRight())
-        && Objects.equals(first.repsMin(), second.repsMin())
-        && Objects.equals(first.repsMax(), second.repsMax())
-        && Objects.equals(first.seconds(), second.seconds())
-        && Objects.equals(first.distanceFeet(), second.distanceFeet())
-        && Objects.equals(first.percent(), second.percent())
-        && Objects.equals(first.rpe(), second.rpe())
-        && Objects.equals(first.accommodatingResistance(), second.accommodatingResistance())
-        && first.deload() == second.deload();
-  }
-
-  static String formatPlannedSet(PlannedWorkoutFile.PlannedSetTarget target) {
-    List<String> parts = new ArrayList<>();
-    parts.add(formatPlannedMetric(target));
-    if (target.percent() != null) {
-      parts.add("@ " + target.percent() + "%");
-    }
-    if (target.rpe() != null) {
-      parts.add("RPE " + String.format(Locale.ROOT, "%.1f", target.rpe()));
-    }
-    if (target.accommodatingResistance() != null
-        && !target.accommodatingResistance().isBlank()
-        && !"STRAIGHT".equals(target.accommodatingResistance())) {
-      parts.add(target.accommodatingResistance());
-    }
-    if (target.deload()) {
-      parts.add("deload");
-    }
-    return String.join(" ", parts);
-  }
-
-  private static String formatPlannedMetric(PlannedWorkoutFile.PlannedSetTarget target) {
-    return switch (target.metricType()) {
-      case "reps" -> target.reps() == null ? formatRepRange(target) : target.reps() + " reps";
-      case "reps_lr" -> target.repsLeft() + "L/" + target.repsRight() + "R reps";
-      case "reps_range" -> formatRepRange(target);
-      case "time_seconds" -> target.seconds() + " sec";
-      case "distance_feet" -> target.distanceFeet() + " ft";
-      default -> "planned work";
-    };
-  }
-
-  private static String formatRepRange(PlannedWorkoutFile.PlannedSetTarget target) {
-    if (target.repsMin() != null && target.repsMax() != null) {
-      return target.repsMin() + "-" + target.repsMax() + " reps";
-    }
-    if (target.repsMin() != null) {
-      return target.repsMin() + "+ reps";
-    }
-    if (target.repsMax() != null) {
-      return "up to " + target.repsMax() + " reps";
-    }
-    return "reps";
-  }
-
-  private static String joinList(List<String> values) {
-    return String.join(", ", values);
+    html.append("</div>");
   }
 }

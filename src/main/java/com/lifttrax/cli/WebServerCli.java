@@ -12,6 +12,7 @@ import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutJson;
+import com.lifttrax.workout.PlannedWorkoutMarkdownWriter;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -71,6 +72,11 @@ public final class WebServerCli {
     server.createContext("/update-lift", exchange -> handleUpdateLift(exchange, db));
     server.createContext(
         "/planned-workout-preview", exchange -> handlePlannedWorkoutPreview(exchange, db));
+    server.createContext(
+        "/planned-workout-print", exchange -> handlePlannedWorkoutPrint(exchange, db));
+    server.createContext(
+        "/planned-workout-markdown", exchange -> handlePlannedWorkoutMarkdown(exchange, db));
+    server.createContext("/planned-workout-json", WebServerCli::handlePlannedWorkoutJson);
     server.createContext(
         "/planned-workout-session", exchange -> handlePlannedWorkoutSession(exchange, db));
     server.createContext(
@@ -495,6 +501,71 @@ public final class WebServerCli {
     }
 
     throw new IllegalArgumentException("Paste a workout file or enter a file path.");
+  }
+
+  private static void handlePlannedWorkoutPrint(HttpExchange exchange, SqliteDb db)
+      throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(parseForm(exchange.getRequestBody()));
+      sendHtml(exchange, PlannedWorkoutPrintHtml.renderPage(workoutFile, db));
+    } catch (Exception e) {
+      sendPlannedWorkoutError(exchange, "Could not create print view", e);
+    }
+  }
+
+  private static void handlePlannedWorkoutMarkdown(HttpExchange exchange, SqliteDb db)
+      throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(parseForm(exchange.getRequestBody()));
+      String markdown =
+          String.join("\n", PlannedWorkoutMarkdownWriter.createMarkdown(workoutFile, db));
+      sendDownload(
+          exchange,
+          "text/markdown; charset=utf-8",
+          downloadName(workoutFile, ".md"),
+          markdown + "\n");
+    } catch (Exception e) {
+      sendPlannedWorkoutError(exchange, "Could not create Markdown", e);
+    }
+  }
+
+  private static void handlePlannedWorkoutJson(HttpExchange exchange) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(parseForm(exchange.getRequestBody()));
+      sendDownload(
+          exchange,
+          "application/json; charset=utf-8",
+          downloadName(workoutFile, ".json"),
+          PlannedWorkoutJson.writeString(workoutFile));
+    } catch (Exception e) {
+      sendPlannedWorkoutError(exchange, "Could not save workout JSON", e);
+    }
+  }
+
+  private static String downloadName(PlannedWorkoutFile workoutFile, String extension) {
+    String slug =
+        workoutFile
+            .metadata()
+            .name()
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "-")
+            .replaceAll("(^-|-$)", "");
+    return (slug.isBlank() ? "planned-workout" : slug) + extension;
   }
 
   private static void handlePlannedWorkoutSession(HttpExchange exchange, SqliteDb db)
@@ -982,6 +1053,20 @@ public final class WebServerCli {
   private static void sendHtml(HttpExchange exchange, String html) throws IOException {
     byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, bytes.length);
+    try (OutputStream os = exchange.getResponseBody()) {
+      os.write(bytes);
+    }
+  }
+
+  private static void sendDownload(
+      HttpExchange exchange, String contentType, String fileName, String content)
+      throws IOException {
+    byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().add("Content-Type", contentType);
+    exchange
+        .getResponseHeaders()
+        .add("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
     exchange.sendResponseHeaders(200, bytes.length);
     try (OutputStream os = exchange.getResponseBody()) {
       os.write(bytes);

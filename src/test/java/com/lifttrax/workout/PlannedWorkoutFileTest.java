@@ -157,6 +157,23 @@ class PlannedWorkoutFileTest {
   }
 
   @Test
+  void plannedWorkoutMarkdownWorksForImportedWorkoutFiles() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v2.json"));
+
+    String markdown =
+        String.join("\n", PlannedWorkoutMarkdownWriter.createMarkdown(workoutFile, null));
+
+    assertTrue(markdown.contains("# Example Conjugate Planned Wave"));
+    assertTrue(markdown.contains("## Week 1"));
+    assertTrue(markdown.contains("### Monday"));
+    assertTrue(markdown.contains("#### Max Effort Single"));
+    assertTrue(markdown.contains("**Back Squat** - 1 reps"));
+    assertTrue(markdown.contains("Swap options: Safety Bar Squat, Front Squat"));
+  }
+
+  @Test
   void plannedWorkoutJsonRejectsUnsupportedSchemaVersion() {
     String invalid =
         """

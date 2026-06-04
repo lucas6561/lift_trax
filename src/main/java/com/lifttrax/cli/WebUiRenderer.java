@@ -18,8 +18,8 @@ import com.lifttrax.workout.LiftTrendSummary;
 import com.lifttrax.workout.MaxEffortLiftPools;
 import com.lifttrax.workout.MaxEffortPlan;
 import com.lifttrax.workout.PlannedWorkoutExporter;
-import com.lifttrax.workout.PlannedWorkoutJson;
-import com.lifttrax.workout.WaveMarkdownWriter;
+import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutMarkdownWriter;
 import com.lifttrax.workout.WebConfiguredDynamicLiftSource;
 import com.lifttrax.workout.WebConfiguredMaxEffortPlanSource;
 import com.lifttrax.workout.WorkoutBuilder;
@@ -1137,75 +1137,20 @@ final class WebUiRenderer {
                     new WebConfiguredDynamicLiftSource(waveInput));
           };
       var wave = builder.getWave(normalizedWeeks, db);
-      List<String> markdown = WaveMarkdownWriter.createMarkdown(wave, db);
+      PlannedWorkoutFile plannedWorkout =
+          PlannedWorkoutExporter.fromWave(waveProgramName(waveType), waveType, wave);
+      List<String> markdown = PlannedWorkoutMarkdownWriter.createMarkdown(plannedWorkout, db);
       String markdownText = String.join("\n", markdown);
-      String plannedWorkoutJson =
-          PlannedWorkoutJson.writeString(
-              PlannedWorkoutExporter.fromWave(waveProgramName(waveType), waveType, wave));
       return planner
           + """
                     <p>Configured weeks: <strong>%s</strong></p>
-                    <div class='stacked-row'>
-                      <button type='button' class='secondary' onclick='liftTraxSaveWaveMarkdown()'>Save As Markdown</button>
-                      <button type='button' class='secondary' onclick='liftTraxSavePlannedWorkoutJson()'>Save As Workout JSON</button>
-                    </div>
+                    %s
                     <pre class='query-output'>%s</pre>
-                    <script>
-                      function liftTraxWaveTimestamp() {
-                        const now = new Date();
-                        const yyyy = now.getUTCFullYear();
-                        const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-                        const dd = String(now.getUTCDate()).padStart(2, '0');
-                        const hh = String(now.getUTCHours()).padStart(2, '0');
-                        const min = String(now.getUTCMinutes()).padStart(2, '0');
-                        const ss = String(now.getUTCSeconds()).padStart(2, '0');
-                        return `${yyyy}${mm}${dd}-${hh}${min}${ss}`;
-                      }
-
-                      function liftTraxSaveWaveMarkdown() {
-                        const content = "%s";
-                        const fallback = `wave-${liftTraxWaveTimestamp()}.md`;
-                        const input = window.prompt("Save wave as", fallback);
-                        if (input === null) {
-                          return;
-                        }
-                        const fileName = input.trim() || fallback;
-                        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = fileName;
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove();
-                        URL.revokeObjectURL(url);
-                      }
-
-                      function liftTraxSavePlannedWorkoutJson() {
-                        const content = "%s";
-                        const fallback = `planned-workout-${liftTraxWaveTimestamp()}.json`;
-                        const input = window.prompt("Save workout as", fallback);
-                        if (input === null) {
-                          return;
-                        }
-                        const fileName = input.trim() || fallback;
-                        const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = fileName;
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove();
-                        URL.revokeObjectURL(url);
-                      }
-                    </script>
                     """
               .formatted(
                   normalizedWeeks,
-                  WebHtml.escapeHtml(markdownText),
-                  jsonEscape(markdownText),
-                  jsonEscape(plannedWorkoutJson));
+                  PlannedWorkoutHtml.renderOutputActions(plannedWorkout),
+                  WebHtml.escapeHtml(markdownText));
     } catch (Exception e) {
       return planner
           + """

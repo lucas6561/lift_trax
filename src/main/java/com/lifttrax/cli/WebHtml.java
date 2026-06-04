@@ -129,6 +129,8 @@ final class WebHtml {
                 .planned-import-actions p { margin-bottom: 0; }
                 .planned-import-actions .success { color: #86efac; }
                 .planned-import-actions .error { color: #fca5a5; }
+                .planned-output-form { margin: 0.45rem 0 0.65rem; }
+                .planned-output-buttons { align-items: stretch; }
                 .planned-week { margin-top: 0.75rem; }
                 .planned-day { border-top: 1px solid var(--pico-muted-border-color); padding-top: 0.5rem; margin-top: 0.55rem; }
                 .planned-block { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.5rem; margin-bottom: 0.5rem; background: rgba(9, 16, 30, 0.7); }

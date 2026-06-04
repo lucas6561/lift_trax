@@ -3,8 +3,8 @@ package com.lifttrax.cli;
 import com.lifttrax.models.Lift;
 import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutJson;
+import com.lifttrax.workout.PlannedWorkoutText;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -125,7 +125,7 @@ final class PlannedWorkoutSessionHtml {
         .append("</span><h2>")
         .append(WebHtml.escapeHtml(block.title()))
         .append("</h2><p class='muted'>")
-        .append(WebHtml.escapeHtml(formatBlockMeta(block)))
+        .append(WebHtml.escapeHtml(PlannedWorkoutText.blockMeta(block)))
         .append("</p></header>");
     appendNotes(html, block.notes());
     for (int exerciseIndex = 0; exerciseIndex < block.exercises().size(); exerciseIndex++) {
@@ -195,9 +195,7 @@ final class PlannedWorkoutSessionHtml {
         .append("</legend><p class='muted'>Target: ")
         .append(
             WebHtml.escapeHtml(
-                target == null
-                    ? "Enter completed work"
-                    : PlannedWorkoutHtml.formatPlannedSet(target)))
+                target == null ? "Enter completed work" : PlannedWorkoutText.plannedSet(target)))
         .append("</p><div class='session-set-grid'>")
         .append(
             "<label>Status <select class='js-session-set-state'><option value='complete'>Complete</option>")
@@ -235,18 +233,6 @@ final class PlannedWorkoutSessionHtml {
         + ">"
         + WebHtml.escapeHtml(label)
         + "</option>";
-  }
-
-  private static String formatBlockMeta(PlannedWorkoutFile.PlannedWorkoutBlock block) {
-    List<String> parts = new ArrayList<>();
-    parts.add(block.blockType().replace('_', ' '));
-    if (block.rounds() != null) {
-      parts.add(block.rounds() + " rounds");
-    }
-    if (block.warmup()) {
-      parts.add("warm-up");
-    }
-    return String.join(", ", parts);
   }
 
   private static void appendNotes(StringBuilder html, List<String> notes) {
