@@ -17,6 +17,7 @@ Define the contracts that separate program authoring, generated plans, workout o
 - `LT-0018`: Define the program schema v1.
 - `LT-0023`: Define the workout file format v1.
 - `LT-0005`: Add schema migration tracking.
+- `LT-0061`: Add schema version compatibility.
 
 ## Notes
 

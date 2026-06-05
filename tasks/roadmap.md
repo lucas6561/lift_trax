@@ -33,6 +33,7 @@ Key tasks:
 - `LT-0001`: Define the daily training dashboard.
 - `LT-0002`: Add execution editing and deletion.
 - `LT-0007`: Improve mobile workout logging flow.
+- `LT-0069`: Fix phone execution tab weight visibility.
 - `LT-0015`: Choose the web, mobile, and distribution architecture.
 - `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
@@ -46,6 +47,9 @@ Key tasks:
 - `LT-0003`: Design the workout plan model.
 - `LT-0018`: Define the program schema v1.
 - `LT-0019`: Build a schema validation layer.
+- `LT-0061`: Add schema version compatibility.
+- `LT-0070`: Add latest schema entrypoints.
+- `LT-0071`: Publish AI workout schema guide.
 - `LT-0020`: Create a generic schema-to-wave builder.
 - `LT-0021`: Convert existing conjugate and hypertrophy builders to schema output.
 - `LT-0022`: Design the coach program editor.
@@ -59,9 +63,13 @@ Key tasks:
 - `LT-0023`: Define the workout file format v1.
 - `LT-0024`: Load planned workouts into the app.
 - `LT-0025`: Build the follow-along workout session.
+- `LT-0048`: Show history in active workout.
+- `LT-0062`: Unify planned workout output formats.
+- `LT-0063`: Add planned workout visual regression checks.
 - `LT-0026`: Add exercise swap rules.
 - `LT-0027`: Persist planned versus completed workout data.
 - `LT-0030`: Add exercise equipment requirements.
+- `LT-0064`: Add active workout draft and resume.
 
 ## Roadmap tracks
 
