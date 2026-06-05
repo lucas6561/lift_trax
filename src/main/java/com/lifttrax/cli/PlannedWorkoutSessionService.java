@@ -95,20 +95,20 @@ final class PlannedWorkoutSessionService {
         continue;
       }
       String performedLift = requiredText(exerciseResult, "performedLift", "Performed lift");
-      if (!allowedLiftNames(planned.exercise()).contains(performedLift)) {
-        throw new IllegalArgumentException(
-            "Swap is not allowed for " + planned.exercise().name() + ": " + performedLift);
-      }
       db.getLift(performedLift);
+      boolean warmup = exerciseResult.path("warmup").asBoolean(planned.block().warmup());
       boolean deload =
-          planned.exercise().plannedSets().stream()
-              .anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
+          exerciseResult
+              .path("deload")
+              .asBoolean(
+                  planned.exercise().plannedSets().stream()
+                      .anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload));
       LiftExecution execution =
           new LiftExecution(
               null,
               date,
               parsedSets.completedSets(),
-              planned.block().warmup(),
+              warmup,
               deload,
               exerciseResult.path("notes").asText(""));
       pending.add(
@@ -126,7 +126,7 @@ final class PlannedWorkoutSessionService {
     return new SaveSummary(List.copyOf(logged), skippedExercises, skippedSets);
   }
 
-  static Set<String> allowedLiftNames(PlannedWorkoutFile.PlannedExercise exercise) {
+  static Set<String> recommendedLiftNames(PlannedWorkoutFile.PlannedExercise exercise) {
     Set<String> names = new java.util.LinkedHashSet<>();
     names.add(exercise.name());
     names.addAll(exercise.substitutionOptions());
@@ -162,7 +162,7 @@ final class PlannedWorkoutSessionService {
     List<ExecutionSet> sets = new ArrayList<>();
     int skippedSets = 0;
     for (JsonNode setResult : setsNode) {
-      String state = requiredState(setResult.path("state").asText(""));
+      String state = requiredState(setResult.path("state").asText(COMPLETE));
       if (SKIPPED.equals(state)) {
         skippedSets++;
         continue;

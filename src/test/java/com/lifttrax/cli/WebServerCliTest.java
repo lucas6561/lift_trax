@@ -890,8 +890,10 @@ class WebServerCliTest {
 
       assertTrue(html.contains("Save As Markdown"));
       assertTrue(html.contains("Save As Workout JSON"));
+      assertTrue(html.contains("Work Along"));
       assertTrue(html.contains("App Preview"));
       assertTrue(html.contains("Print View"));
+      assertTrue(html.contains("formaction='/planned-workout-work-along'"));
       assertTrue(html.contains("formaction='/planned-workout-preview'"));
       assertTrue(html.contains("formaction='/planned-workout-print'"));
       assertTrue(html.contains("formaction='/planned-workout-markdown'"));
@@ -959,6 +961,8 @@ class WebServerCliTest {
       assertTrue(html.contains("Print View"));
       assertTrue(html.contains("Save As Markdown"));
       assertTrue(html.contains("Save As Workout JSON"));
+      assertTrue(html.contains("Work Along"));
+      assertTrue(html.contains("formaction='/planned-workout-work-along'"));
       assertTrue(html.contains("formaction='/planned-workout-preview'"));
       assertTrue(html.contains("formaction='/planned-workout-print'"));
       assertTrue(html.contains("formaction='/planned-workout-markdown'"));

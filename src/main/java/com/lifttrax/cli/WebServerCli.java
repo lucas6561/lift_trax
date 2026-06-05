@@ -73,6 +73,8 @@ public final class WebServerCli {
     server.createContext(
         "/planned-workout-preview", exchange -> handlePlannedWorkoutPreview(exchange, db));
     server.createContext(
+        "/planned-workout-work-along", WebServerCli::handlePlannedWorkoutWorkAlong);
+    server.createContext(
         "/planned-workout-print", exchange -> handlePlannedWorkoutPrint(exchange, db));
     server.createContext(
         "/planned-workout-markdown", exchange -> handlePlannedWorkoutMarkdown(exchange, db));
@@ -503,6 +505,22 @@ public final class WebServerCli {
     throw new IllegalArgumentException("Paste a workout file or enter a file path.");
   }
 
+  private static void handlePlannedWorkoutWorkAlong(HttpExchange exchange) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(parseForm(exchange.getRequestBody()));
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage("Work Along", PlannedWorkoutHtml.renderWorkAlongPage(workoutFile)));
+    } catch (Exception e) {
+      sendPlannedWorkoutError(exchange, "Could not prepare workout", e);
+    }
+  }
+
   private static void handlePlannedWorkoutPrint(HttpExchange exchange, SqliteDb db)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
@@ -587,7 +605,7 @@ public final class WebServerCli {
           WebHtml.wrapPage(
               "Train " + dayOfWeek,
               PlannedWorkoutSessionHtml.renderPage(
-                  workoutFile, weekNumber, dayOfWeek, lifts, LocalDate.now())));
+                  workoutFile, weekNumber, dayOfWeek, lifts, LocalDate.now(), db)));
     } catch (Exception e) {
       sendPlannedWorkoutError(exchange, "Could not start workout", e);
     }
@@ -605,7 +623,8 @@ public final class WebServerCli {
       PlannedWorkoutFile workoutFile = loadPlannedWorkout(form);
       int weekNumber = parsePositiveInt(form.getOrDefault("weekNumber", ""), "Week number");
       String dayOfWeek = form.getOrDefault("dayOfWeek", "").trim();
-      LocalDate date = LocalDate.parse(form.getOrDefault("date", LocalDate.now().toString()));
+      LocalDate date =
+          LocalDate.parse(form.getOrDefault("sessionDate", LocalDate.now().toString()));
       PlannedWorkoutSessionService.SaveSummary summary =
           PlannedWorkoutSessionService.save(
               db,

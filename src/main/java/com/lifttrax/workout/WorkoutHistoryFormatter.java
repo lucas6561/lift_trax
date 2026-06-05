@@ -64,6 +64,47 @@ public final class WorkoutHistoryFormatter {
     return bestWeight;
   }
 
+  public static String percentageOfBestOneRepMax(Database db, String liftName, double percent)
+      throws Exception {
+    BestOneRepMax best = bestOneRepMaxValue(db, liftName);
+    if (best == null) {
+      return null;
+    }
+    return formatPercentage(best.weightLbs(), percent);
+  }
+
+  private static BestOneRepMax bestOneRepMaxValue(Database db, String liftName) throws Exception {
+    String bestWeight = null;
+    double bestWeightLbs = 0.0;
+    for (LiftExecution exec : db.getExecutions(liftName)) {
+      if (exec.warmup()) {
+        continue;
+      }
+      for (ExecutionSet set : exec.sets()) {
+        if (set.metric() instanceof SetMetric.Reps reps
+            && reps.reps() == 1
+            && set.weight() != null
+            && !"none".equalsIgnoreCase(set.weight())) {
+          double weightLbs = WeightText.toPounds(set.weight());
+          if (weightLbs > 0.0 && (bestWeight == null || weightLbs > bestWeightLbs)) {
+            bestWeight = set.weight();
+            bestWeightLbs = weightLbs;
+          }
+        }
+      }
+    }
+    return bestWeight == null ? null : new BestOneRepMax(bestWeightLbs);
+  }
+
+  private static String formatPercentage(double weightLbs, double percent) {
+    double multiplier = percent / 100.0;
+    return roundUpToFivePounds(weightLbs * multiplier) + " lb";
+  }
+
+  private static long roundUpToFivePounds(double value) {
+    return (long) Math.ceil(value / 5.0) * 5L;
+  }
+
   private static void prioritizeMetric(List<LiftExecution> executions, SetMetric target) {
     for (int i = 0; i < executions.size(); i++) {
       ExecutionSet first =
@@ -117,4 +158,6 @@ public final class WorkoutHistoryFormatter {
     }
     return null;
   }
+
+  private record BestOneRepMax(double weightLbs) {}
 }

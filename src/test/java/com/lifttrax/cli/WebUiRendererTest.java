@@ -341,12 +341,24 @@ class WebUiRendererTest {
     assertTrue(html.contains("Backoff Sets"));
     assertTrue(html.contains("2x 5 reps @ 80% RPE 8.0 CHAINS"));
     assertTrue(html.contains("Swap options: Front Squat"));
-    assertTrue(html.contains("action='/planned-workout-session'"));
-    assertTrue(html.contains("Start This Day"));
+    assertFalse(html.contains("action='/planned-workout-session'"));
+    assertFalse(html.contains("Start This Day"));
+    assertTrue(html.contains("Work Along"));
+    assertTrue(html.contains("formaction='/planned-workout-work-along'"));
     assertTrue(html.contains("App Preview"));
     assertTrue(html.contains("Print View"));
     assertTrue(html.contains("Save As Markdown"));
     assertTrue(html.contains("Save As Workout JSON"));
+
+    String workAlongHtml = PlannedWorkoutHtml.renderWorkAlongPage(workoutFile);
+    assertTrue(workAlongHtml.contains("<h1>Work Along</h1>"));
+    assertTrue(workAlongHtml.contains("Choose the week and training day you want to follow."));
+    assertTrue(workAlongHtml.contains("action='/planned-workout-session'"));
+    assertTrue(workAlongHtml.contains("name='weekNumber'"));
+    assertTrue(workAlongHtml.contains("class='js-workalong-day-choice'"));
+    assertTrue(workAlongHtml.contains("name='dayOfWeek' class='js-workalong-day'"));
+    assertTrue(workAlongHtml.contains("data-week='1' data-day='MONDAY'"));
+    assertTrue(workAlongHtml.contains("Start Workout"));
   }
 
   @Test

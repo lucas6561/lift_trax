@@ -83,13 +83,54 @@ class PlannedWorkoutSessionServiceTest {
   }
 
   @Test
-  void saveRejectsSwapThatWasNotDefinedByWorkoutFileBeforeWritingHistory() throws Exception {
+  void saveAllowsChangingToAnyLiftInTheLocalLibrary() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-follow-session-swap", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {
       db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
       db.addLift("Front Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
       db.addLift("Farmer Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "");
       db.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+
+      PlannedWorkoutSessionService.SaveSummary summary =
+          PlannedWorkoutSessionService.save(
+              db,
+              workoutFile(),
+              1,
+              "MONDAY",
+              LocalDate.parse("2026-05-31"),
+              """
+              [
+                {
+                  "exerciseKey":"1:0",
+                  "plannedLift":"Back Squat",
+                  "performedLift":"Bench Press",
+                  "state":"complete",
+                  "notes":"",
+                  "sets":[{"state":"complete","metricType":"reps","metricValue":"5","weight":"225 lb","rpe":""}]
+                },
+                {
+                  "exerciseKey":"2:0",
+                  "plannedLift":"Farmer Carry",
+                  "performedLift":"Farmer Carry",
+                  "state":"skipped",
+                  "notes":"",
+                  "sets":[]
+                }
+              ]
+              """);
+
+      assertTrue(db.getExecutions("Back Squat").isEmpty());
+      assertEquals(1, db.getExecutions("Bench Press").size());
+      assertEquals(1, summary.substitutionCount());
+    }
+  }
+
+  @Test
+  void saveRejectsChangedLiftThatIsNotInTheLocalLibrary() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-follow-session-unknown-swap", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLift("Farmer Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "");
 
       IllegalArgumentException error =
           assertThrows(
@@ -106,7 +147,7 @@ class PlannedWorkoutSessionServiceTest {
                         {
                           "exerciseKey":"1:0",
                           "plannedLift":"Back Squat",
-                          "performedLift":"Bench Press",
+                          "performedLift":"Imaginary Squat",
                           "state":"complete",
                           "notes":"",
                           "sets":[{"state":"complete","metricType":"reps","metricValue":"5","weight":"225 lb","rpe":""}]
@@ -122,9 +163,8 @@ class PlannedWorkoutSessionServiceTest {
                       ]
                       """));
 
-      assertTrue(error.getMessage().contains("Swap is not allowed"));
+      assertTrue(error.getMessage().contains("Lift not found: Imaginary Squat"));
       assertTrue(db.getExecutions("Back Squat").isEmpty());
-      assertTrue(db.getExecutions("Bench Press").isEmpty());
     }
   }
 

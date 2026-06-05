@@ -1,11 +1,18 @@
 package com.lifttrax.cli;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.lifttrax.db.SqliteDb;
+import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
+import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
+import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.PlannedWorkoutFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -26,24 +33,116 @@ class PlannedWorkoutSessionHtmlTest {
             LocalDate.parse("2026-05-31"));
 
     assertTrue(html.contains("Train Monday"));
-    assertTrue(html.contains("Current block"));
-    assertTrue(html.contains("Upcoming work"));
+    assertTrue(html.contains("aria-label='Workout block navigation'"));
+    assertTrue(html.contains("Block 1 of 2"));
+    assertTrue(html.contains("data-session-block-index='0'"));
+    assertTrue(html.contains("data-session-block-index='1'"));
+    assertTrue(html.contains("class='session-block is-hidden' data-session-block-index='1'"));
+    assertTrue(html.contains("js-session-next-block"));
+    assertTrue(html.contains("showBlock(currentBlockIndex + 1)"));
+    assertTrue(html.contains("class='save-workout-session-btn is-hidden'"));
     assertTrue(html.contains("action='/save-planned-workout-session'"));
-    assertTrue(html.contains("name='date' value='2026-05-31'"));
+    assertTrue(html.contains("name='sessionDate' value='2026-05-31'"));
     assertTrue(html.contains("data-planned-lift='Back Squat'"));
+    assertTrue(html.contains(">Change lift</button>"));
+    assertTrue(html.contains("<optgroup label='Planned and recommended'>"));
+    assertTrue(html.contains("<optgroup label='Other lifts in your library'>"));
+    assertTrue(
+        html.contains(
+            "Choose any lift from your library. Workout-approved alternatives are listed first."));
     assertTrue(html.contains("<option value='Front Squat'>Front Squat</option>"));
     assertTrue(
         html.contains(
             "<option value='Safety Bar Squat' disabled>Safety Bar Squat (not in local lifts)</option>"));
+    assertTrue(html.contains("Changed to: ${performedLift.value}"));
     assertTrue(html.contains("Target: 5 reps @ 80% RPE 8.0"));
-    assertTrue(html.contains("class='js-session-metric-value' value='5'"));
-    assertTrue(html.contains("<option value='distance' selected>Feet</option>"));
-    assertTrue(html.contains("value='100' required"));
+    assertTrue(html.contains("session-execution-widget js-session-execution-input"));
+    assertTrue(html.contains("name='metricValue' value='5'"));
+    assertTrue(html.contains("class='js-weight-hidden' value='80%'"));
+    assertTrue(html.contains("name='rpe' value='8.0'"));
+    assertTrue(html.contains("name='metricType' value='distance' checked"));
+    assertTrue(html.contains("name='metricValue' value='100'"));
     assertTrue(html.contains("value='skipped'>Skipped</option>"));
-    assertTrue(html.contains("class='js-session-weight'"));
-    assertTrue(html.contains("class='js-session-rpe'"));
-    assertTrue(html.contains("class='js-session-exercise-notes'"));
+    assertTrue(html.contains("class='js-weight-hidden'"));
+    assertTrue(html.contains("name='rpe'"));
+    assertTrue(html.contains("name='notes'"));
     assertTrue(html.contains("JSON.stringify(results)"));
+    assertFalse(html.contains("class='session-history'"));
+  }
+
+  @Test
+  void sessionPageSeedsPercentWeightFromBestOneRepMax() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-follow-session-seed", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.parse("2026-05-29"),
+              List.of(new ExecutionSet(new SetMetric.Reps(5), "275 lb", 8.0f)),
+              false,
+              false,
+              "smooth"));
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.parse("2026-05-30"),
+              List.of(new ExecutionSet(new SetMetric.Reps(1), "365 lb", null)),
+              false,
+              false,
+              ""));
+
+      String html =
+          PlannedWorkoutSessionHtml.renderPage(
+              workoutFile(),
+              1,
+              "MONDAY",
+              List.of(
+                  lift("Back Squat", LiftType.SQUAT),
+                  lift("Front Squat", LiftType.SQUAT),
+                  lift("Farmer Carry", LiftType.CONDITIONING)),
+              LocalDate.parse("2026-05-31"),
+              db);
+
+      assertTrue(html.contains("Target: 5 reps @ 80% RPE 8.0"));
+      assertTrue(html.contains("class='js-weight-hidden' value='295 lb'"));
+      assertTrue(html.contains("name='rpe' value='8.0'"));
+      assertTrue(html.contains("class='session-history' aria-label='Exercise history'"));
+      assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
+      assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
+    }
+  }
+
+  @Test
+  void sessionPageUsesRpeAsPercentWhenPercentIsMissing() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-follow-session-rpe-seed", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.parse("2026-05-30"),
+              List.of(new ExecutionSet(new SetMetric.Reps(1), "400.5 lb", null)),
+              false,
+              false,
+              ""));
+
+      String html =
+          PlannedWorkoutSessionHtml.renderPage(
+              rpeOnlyWorkoutFile(),
+              1,
+              "MONDAY",
+              List.of(lift("Back Squat", LiftType.SQUAT)),
+              LocalDate.parse("2026-05-31"),
+              db);
+
+      assertTrue(html.contains("Target: 5 reps RPE 6.5"));
+      assertTrue(html.contains("class='js-weight-hidden' value='265 lb'"));
+      assertTrue(html.contains("name='rpe' value='6.5'"));
+    }
   }
 
   @Test
@@ -121,6 +220,39 @@ class PlannedWorkoutSessionHtmlTest {
                                 null,
                                 false,
                                 List.of(farmerCarry),
+                                List.of())),
+                        List.of())))),
+        List.of());
+  }
+
+  private static PlannedWorkoutFile rpeOnlyWorkoutFile() {
+    PlannedWorkoutFile.PlannedSetTarget squat =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1, "reps", 5, null, null, null, null, null, null, null, 6.5f, "STRAIGHT", false);
+    PlannedWorkoutFile.PlannedExercise backSquat =
+        new PlannedWorkoutFile.PlannedExercise(
+            "Back Squat", "LOWER", "SQUAT", List.of("QUAD"), List.of(squat), "", List.of());
+    return new PlannedWorkoutFile(
+        2,
+        new PlannedWorkoutFile.PlannedWorkoutMetadata(
+            "Imported Wave", "Ready to train.", 1, List.of()),
+        new PlannedWorkoutFile.PlannedWorkoutSource(
+            "wave-generation", "conjugate", "Conjugate Wave", null, "2026-05-31T00:00:00Z"),
+        List.of(
+            new PlannedWorkoutFile.PlannedWorkoutWeek(
+                1,
+                List.of(
+                    new PlannedWorkoutFile.PlannedWorkoutDay(
+                        "MONDAY",
+                        "Monday",
+                        List.of(
+                            new PlannedWorkoutFile.PlannedWorkoutBlock(
+                                1,
+                                "Main Work",
+                                "supplemental",
+                                null,
+                                false,
+                                List.of(backSquat),
                                 List.of())),
                         List.of())))),
         List.of());
