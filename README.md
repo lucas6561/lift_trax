@@ -20,7 +20,8 @@ From the repository root:
 ./gradlew run --args='path/to/lifts.db'
 ```
 
-If no argument is provided, it defaults to repository-root `lifts.db` (auto-detected via `shared/sql/schema.sql`).
+If no argument is provided, it defaults to repository-root `data/lifts.db`
+(auto-detected via `shared/sql/schema.sql`).
 
 ## Web UI
 
@@ -119,3 +120,34 @@ From the repository root:
 ```
 
 This prints lift/exercise metadata (name, region, main lift type, muscles, notes) and skips execution history.
+
+## Database backups
+
+LiftTrax backups are plain SQLite `.db` files. By default, the app stores manual
+backups in a `backups` folder next to the database being backed up. For the
+default database path, that means `data/backups/`.
+
+Create a backup:
+
+```bash
+./gradlew backupDatabase --args='data/lifts.db'
+```
+
+To choose the exact backup file path:
+
+```bash
+./gradlew backupDatabase --args='data/lifts.db --output data/backups/lifts-manual.db'
+```
+
+Restore a backup:
+
+```bash
+./gradlew restoreDatabase --args='data/backups/lifts-manual.db data/lifts.db --confirm-overwrite'
+```
+
+Restore validates that the source file looks like a LiftTrax SQLite database
+before copying it. If the target database already exists, restore refuses to
+overwrite it unless `--confirm-overwrite` is present. When overwrite is
+confirmed, LiftTrax first saves the previous target database in the same
+`backups` folder with `pre-restore` in the file name, then replaces the target
+with the validated backup.

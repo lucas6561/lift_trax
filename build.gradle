@@ -161,6 +161,20 @@ tasks.register('runWeb', JavaExec) {
     mainClass = 'com.lifttrax.cli.WebServerCli'
 }
 
+tasks.register('backupDatabase', JavaExec) {
+    group = 'application'
+    description = 'Creates a plain SQLite backup for a LiftTrax database.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.lifttrax.cli.BackupDatabaseCli'
+}
+
+tasks.register('restoreDatabase', JavaExec) {
+    group = 'application'
+    description = 'Restores a validated LiftTrax database backup.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.lifttrax.cli.RestoreDatabaseCli'
+}
+
 
 tasks.named('pmdTest') {
     enabled = false
