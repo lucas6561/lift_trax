@@ -255,6 +255,21 @@ class WebServerCliTest {
   }
 
   @Test
+  void sharedPageStylesKeepExecutionRowsReadableOnPhoneViewports() {
+    String html = WebHtml.wrapPage("Test", "<p>body</p>");
+
+    assertTrue(html.contains("@media (max-width: 720px)"));
+    assertTrue(html.contains(".execution-list { display: grid"));
+    assertTrue(html.contains(".js-exec-view { align-items: flex-start !important"));
+    assertTrue(html.contains("white-space: normal !important"));
+    assertTrue(html.contains("text-overflow: clip !important"));
+    assertTrue(html.contains(".execution-edit-meta { display: grid !important"));
+    assertTrue(html.contains(".js-set-row { display: grid !important"));
+    assertTrue(html.contains(".js-set-weight,"));
+    assertTrue(html.contains("grid-column: 1 / -1"));
+  }
+
+  @Test
   void renderQueryContentRequiresSelection() {
     String html = WebUiRenderer.renderQueryContent(null, "");
     assertTrue(html.contains("Select a lift"));

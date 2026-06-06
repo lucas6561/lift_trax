@@ -1501,7 +1501,7 @@ final class WebUiRenderer {
         + "<input type='hidden' name='lastWeekEnd' value='"
         + WebHtml.escapeHtml(DATE_FORMAT.format(rangeEnd))
         + "'/>"
-        + "<div style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>"
+        + "<div class='execution-edit-meta' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>"
         + "<label>Date <input type='date' name='date' disabled value='"
         + WebHtml.escapeHtml(DATE_FORMAT.format(execution.date()))
         + "'/></label>"
@@ -2170,7 +2170,7 @@ final class WebUiRenderer {
               .append(WebHtml.escapeHtml(liftName))
               .append("'/>")
               .append(
-                  "<div style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>")
+                  "<div class='execution-edit-meta' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;'>")
               .append("<label>Date <input type='date' name='date' disabled value='")
               .append(WebHtml.escapeHtml(DATE_FORMAT.format(execution.date())))
               .append("'/></label>")

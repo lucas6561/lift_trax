@@ -197,6 +197,8 @@ class WebUiRendererTest {
       assertTrue(html.contains("name='liftQuery' value='Back Squat'"));
       assertTrue(html.contains("action='/update-execution'"));
       assertTrue(html.contains("action='/delete-execution'"));
+      assertTrue(html.contains("class='execution-text'"));
+      assertTrue(html.contains("class='execution-edit-meta'"));
     }
   }
 

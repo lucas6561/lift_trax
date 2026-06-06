@@ -103,6 +103,13 @@ final class WebHtml {
                 .execution-lift-group { margin-bottom: 0.3rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.14rem 0.4rem; }
                 .execution-lift-toggle { cursor: pointer; display: block; width: 100%%; padding: 0.22rem 0.16rem; user-select: none; }
                 .execution-lift-toggle::-webkit-details-marker { margin-right: 0.35rem; }
+                .execution-list { list-style: none; padding-left: 0; margin-left: 0; }
+                .execution-item { min-width: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.18); padding: 0.18rem 0; }
+                .js-exec-view,
+                .execution-edit-form,
+                .js-edit-sets,
+                .js-set-row { min-width: 0; }
+                .execution-text { min-width: 0; overflow-wrap: anywhere; }
                 .lift-trends { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.58rem; margin: 0.55rem 0; background: rgba(7, 13, 26, 0.54); }
                 .lift-trends-header { display: flex; justify-content: space-between; gap: 0.55rem; align-items: baseline; flex-wrap: wrap; }
                 .lift-trends-header h2,
@@ -207,6 +214,20 @@ final class WebHtml {
                   .quick-log-label { grid-column: 1 / -1; }
                   .quick-log-presets .compact-btn { width: 100%%; }
                   .save-execution-btn { position: sticky; bottom: 0.35rem; width: 100%%; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
+                  .execution-list { display: grid; gap: 0.38rem; }
+                  .execution-item { margin: 0 !important; padding: 0.42rem; border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.5rem; background: rgba(15, 23, 42, 0.72); }
+                  .js-exec-view { align-items: flex-start !important; flex-wrap: wrap !important; }
+                  .execution-text { flex: 1 1 100%% !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+                  .js-exec-edit,
+                  .js-exec-delete { flex: 0 0 auto; }
+                  .execution-edit-meta { display: grid !important; grid-template-columns: 1fr; gap: 0.38rem; overflow-x: visible !important; width: 100%%; }
+                  .execution-edit-meta label,
+                  .execution-edit-meta input { width: 100%%; min-width: 0; }
+                  .js-set-row { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem !important; align-items: end !important; overflow-x: visible !important; }
+                  .js-set-row select,
+                  .js-set-row input { width: 100%% !important; min-width: 0; }
+                  .js-set-weight,
+                  .js-remove-set { grid-column: 1 / -1; }
                   .session-exercise > header { align-items: stretch; flex-direction: column; }
                   .session-exercise > header label { width: 100%%; }
                   .session-block-nav { grid-template-columns: 1fr; }
