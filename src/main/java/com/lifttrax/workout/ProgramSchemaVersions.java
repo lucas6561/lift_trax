@@ -8,6 +8,8 @@ import java.util.Map;
  * ship.
  */
 public final class ProgramSchemaVersions {
+  private static final String LATEST_SCHEMA_RESOURCE_PATH =
+      "/programs/schema/program.schema.latest.json";
   private static final SchemaVersionCatalog CATALOG =
       new SchemaVersionCatalog(
           Map.of(
@@ -30,6 +32,10 @@ public final class ProgramSchemaVersions {
 
   public static String schemaResourcePath(int schemaVersion) {
     return CATALOG.schemaResourcePath(schemaVersion);
+  }
+
+  public static String latestSchemaResourcePath() {
+    return LATEST_SCHEMA_RESOURCE_PATH;
   }
 
   static String unsupportedVersionMessage(int schemaVersion) {

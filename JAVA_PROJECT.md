@@ -95,22 +95,22 @@ Tip: in most IDEs, opening a package and viewing its documentation shows the `pa
 
 ## Program schema assets
 
-Schema-driven program work starts with the latest snapshot,
-`shared/programs/schema/program.schema.v2.json`. Representative conjugate and
-hypertrophy files are in `shared/programs/examples/`. See
+Schema-driven program work starts with the stable latest schema entrypoint,
+`shared/programs/schema/program.schema.latest.json`. Representative conjugate
+and hypertrophy files are in `shared/programs/examples/`. See
 `docs/program-schema-v1.md` for the payload-shape rules that coaches and AI
 tools should follow, and `docs/schema-versioning.md` for the compatibility
 policy.
 
 ## Planned workout assets
 
-Generated workouts use the latest snapshot,
-`shared/workouts/schema/workout.schema.v2.json`. The current wave generator can
-export this format through `WaveCli` by writing to a `.json` output file, and
-the web UI can preview supported older and latest workout JSON from the Import
-Workout tab. Each previewed day can open as a follow-along workout, where
-planned counts seed editable result fields and completed exercises save through
-the normal execution-history path.
+Generated workouts use the stable latest schema entrypoint,
+`shared/workouts/schema/workout.schema.latest.json`. The current wave generator
+can export the latest supported format through `WaveCli` by writing to a
+`.json` output file, and the web UI can preview supported older and latest
+workout JSON from the Import Workout tab. Each previewed day can open as a
+follow-along workout, where planned counts seed editable result fields and
+completed exercises save through the normal execution-history path.
 
 ## Quality gate workflow
 

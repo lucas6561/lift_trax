@@ -40,22 +40,22 @@ See `JAVA_PROJECT.md` for detailed package and feature documentation.
 
 ## Program schema
 
-The latest program schema is v2 at
-`shared/programs/schema/program.schema.v2.json`. New program files should use
-v2. Frozen older snapshots remain under `shared/programs/schema/` so old files
-stay loadable. Example conjugate and hypertrophy program files live in
-`shared/programs/examples/`. The v1 shape guidance is in
-`docs/program-schema-v1.md`, and the compatibility policy is in
+The stable latest program schema is available at
+`shared/programs/schema/program.schema.latest.json`. New program files should
+use the latest supported version. Frozen numbered snapshots remain under
+`shared/programs/schema/` so old files stay loadable. Example conjugate and
+hypertrophy program files live in `shared/programs/examples/`. The v1 shape
+guidance is in `docs/program-schema-v1.md`, and the compatibility policy is in
 `docs/schema-versioning.md`.
 
 ## Workout file format
 
-The latest generated workout format is v2 at
-`shared/workouts/schema/workout.schema.v2.json`. New exports use v2
-automatically. Frozen older snapshots remain under `shared/workouts/schema/` so
-old workout files stay importable. Example planned workout files live in
-`shared/workouts/examples/`, display/import guidance is in
-`docs/workout-file-format-v1.md`, and the compatibility policy is in
+The stable latest generated workout format is available at
+`shared/workouts/schema/workout.schema.latest.json`. New exports use the latest
+supported version automatically. Frozen numbered snapshots remain under
+`shared/workouts/schema/` so old workout files stay importable. Example planned
+workout files live in `shared/workouts/examples/`, display/import guidance is
+in `docs/workout-file-format-v1.md`, and the compatibility policy is in
 `docs/schema-versioning.md`.
 
 The Workout Waves and Import Workout tabs share the same planned-workout output

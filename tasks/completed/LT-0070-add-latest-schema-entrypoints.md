@@ -1,13 +1,13 @@
 ---
 id: LT-0070
 title: Add latest schema entrypoints
-status: idea
+status: done
 track: training-logic
 priority: high
 effort: medium
 created: 2026-06-05
 updated: 2026-06-05
-owner: unassigned
+owner: Codex
 depends_on: [LT-0061]
 ---
 
@@ -38,20 +38,31 @@ the application.
 
 ## Acceptance criteria
 
-- [ ] The repo contains a stable latest planned-workout schema path suitable for
+- [x] The repo contains a stable latest planned-workout schema path suitable for
       raw GitHub links.
-- [ ] The repo contains a stable latest program schema path or documents why the
+- [x] The repo contains a stable latest program schema path or documents why the
       planned-workout schema is the only public AI-generation entrypoint for
       now.
-- [ ] Tests prove each stable latest path matches the latest registered schema
+- [x] Tests prove each stable latest path matches the latest registered schema
       version from the schema catalog.
-- [ ] `docs/schema-versioning.md` explains the difference between frozen
+- [x] `docs/schema-versioning.md` explains the difference between frozen
       numbered snapshots and stable latest entrypoints.
-- [ ] README uses the stable latest paths for public-facing schema guidance.
-- [ ] `qualityGate` passes.
+- [x] README uses the stable latest paths for public-facing schema guidance.
+- [x] `qualityGate` passes.
 
 ## Notes
 
 Prefer an approach that works reliably from GitHub raw URLs on Windows checkouts.
 If alias files are used, add a guard test so updating the latest catalog without
 updating the alias fails loudly.
+
+Completed with stable JSON alias files at
+`shared/programs/schema/program.schema.latest.json` and
+`shared/workouts/schema/workout.schema.latest.json`. `SchemaVersionsTest`
+compares each stable latest resource with the latest numbered schema registered
+in the Java catalog.
+
+Verification:
+
+- `./gradlew.bat test --tests com.lifttrax.workout.SchemaVersionsTest`
+- `./gradlew.bat qualityGate`

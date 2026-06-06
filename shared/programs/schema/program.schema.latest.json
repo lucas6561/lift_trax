@@ -1,0 +1,746 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifttrax.local/schemas/program.schema.v2.json",
+  "title": "LiftTrax Program Schema v2",
+  "description": "A versioned contract for coach-authored, AI-authored, and app-authored training programs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "program",
+    "exercisePools",
+    "weeks"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "program": {
+      "$ref": "#/$defs/programMetadata"
+    },
+    "exercisePools": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/exercisePool"
+      }
+    },
+    "progressionRules": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/progressionRule"
+      }
+    },
+    "substitutionRules": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/substitutionRule"
+      }
+    },
+    "dayTemplates": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/dayTemplate"
+      }
+    },
+    "weeks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/week"
+      }
+    }
+  },
+  "$defs": {
+    "programMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "goal",
+        "durationWeeks",
+        "daysPerWeek"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "goal": {
+          "enum": [
+            "strength",
+            "hypertrophy",
+            "conditioning",
+            "mixed",
+            "custom"
+          ]
+        },
+        "author": {
+          "type": "string"
+        },
+        "createdBy": {
+          "enum": [
+            "coach",
+            "ai",
+            "app",
+            "import"
+          ]
+        },
+        "source": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "defaultUnits": {
+          "enum": [
+            "lb",
+            "kg",
+            "mixed"
+          ]
+        },
+        "durationWeeks": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "daysPerWeek": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "exercisePool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description"
+      ],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "selection": {
+          "enum": [
+            "ordered",
+            "rotating",
+            "random",
+            "firstAvailable",
+            "coachChoice",
+            "all"
+          ]
+        },
+        "query": {
+          "$ref": "#/$defs/exerciseQuery"
+        },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/exercise"
+          }
+        },
+        "allowGeneratedExercises": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "exercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "region",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "region": {
+          "$ref": "#/$defs/liftRegion"
+        },
+        "type": {
+          "$ref": "#/$defs/liftType"
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/muscle"
+          },
+          "uniqueItems": true
+        },
+        "equipment": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "exerciseQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "region": {
+          "$ref": "#/$defs/liftRegion"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/liftType"
+          },
+          "uniqueItems": true
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/muscle"
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "progressionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "fixed",
+            "wave_percent",
+            "alternating",
+            "manual"
+          ]
+        },
+        "cycleWeeks": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pattern": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/progressionStep"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "progressionStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "week": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "weeks": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "uniqueItems": true
+        },
+        "percent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "percentMin": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "percentMax": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "rpe": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "accommodatingResistance": {
+          "$ref": "#/$defs/accommodatingResistance"
+        },
+        "setScheme": {
+          "$ref": "#/$defs/setScheme"
+        },
+        "instruction": {
+          "type": "string"
+        }
+      }
+    },
+    "substitutionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description"
+      ],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "allowedPoolRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "query": {
+          "$ref": "#/$defs/exerciseQuery"
+        },
+        "allowCoachChoice": {
+          "type": "boolean"
+        },
+        "avoidDuplicateTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "maxPerWorkout": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "dayTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "focus",
+        "blocks"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "focus": {
+          "$ref": "#/$defs/dayFocus"
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "week": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "weekNumber",
+        "days"
+      ],
+      "properties": {
+        "weekNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "deload": {
+          "type": "boolean"
+        },
+        "days": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/day"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "day": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dayOfWeek"
+      ],
+      "properties": {
+        "dayOfWeek": {
+          "$ref": "#/$defs/dayOfWeek"
+        },
+        "templateRef": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "focus": {
+          "$ref": "#/$defs/dayFocus"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "slots"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "single",
+            "repeated",
+            "circuit",
+            "warmup",
+            "conditioning"
+          ]
+        },
+        "intent": {
+          "type": "string"
+        },
+        "rounds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "warmup": {
+          "type": "boolean"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/slot"
+          }
+        },
+        "substitutionRuleRef": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "setScheme"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/target"
+        },
+        "setScheme": {
+          "$ref": "#/$defs/setScheme"
+        },
+        "progressionRuleRef": {
+          "type": "string"
+        },
+        "substitutionRuleRef": {
+          "type": "string"
+        },
+        "deload": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "exercise",
+            "pool",
+            "query",
+            "blockExercise"
+          ]
+        },
+        "exerciseName": {
+          "type": "string"
+        },
+        "poolRef": {
+          "type": "string"
+        },
+        "blockRef": {
+          "type": "string"
+        },
+        "selection": {
+          "enum": [
+            "fixed",
+            "firstAvailable",
+            "ordered",
+            "rotating",
+            "random",
+            "byWeekNumber",
+            "offsetByWeek",
+            "coachChoice"
+          ]
+        },
+        "selectionOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "query": {
+          "$ref": "#/$defs/exerciseQuery"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "setScheme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sets",
+        "metric"
+      ],
+      "properties": {
+        "sets": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "metric": {
+          "$ref": "#/$defs/setMetric"
+        },
+        "percent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "percentMin": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "percentMax": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "rpe": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "accommodatingResistance": {
+          "$ref": "#/$defs/accommodatingResistance"
+        },
+        "restSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tempo": {
+          "type": "string"
+        },
+        "deload": {
+          "type": "boolean"
+        },
+        "instruction": {
+          "type": "string"
+        }
+      }
+    },
+    "setMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "reps",
+            "repsLeftRight",
+            "repsRange",
+            "timeSecs",
+            "distanceFeet"
+          ]
+        },
+        "reps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "left": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "right": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "feet": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "liftRegion": {
+      "enum": [
+        "LOWER",
+        "UPPER"
+      ]
+    },
+    "liftType": {
+      "enum": [
+        "BENCH_PRESS",
+        "OVERHEAD_PRESS",
+        "SQUAT",
+        "DEADLIFT",
+        "CONDITIONING",
+        "ACCESSORY",
+        "MOBILITY"
+      ]
+    },
+    "muscle": {
+      "enum": [
+        "BICEP",
+        "TRICEP",
+        "NECK",
+        "LAT",
+        "QUAD",
+        "HAMSTRING",
+        "CALF",
+        "LOWER_BACK",
+        "CHEST",
+        "FOREARM",
+        "REAR_DELT",
+        "FRONT_DELT",
+        "SHOULDER",
+        "CORE",
+        "GLUTE",
+        "TRAP"
+      ]
+    },
+    "accommodatingResistance": {
+      "enum": [
+        "STRAIGHT",
+        "CHAINS",
+        "BANDS"
+      ]
+    },
+    "dayOfWeek": {
+      "enum": [
+        "MONDAY",
+        "TUESDAY",
+        "WEDNESDAY",
+        "THURSDAY",
+        "FRIDAY",
+        "SATURDAY",
+        "SUNDAY"
+      ]
+    },
+    "dayFocus": {
+      "enum": [
+        "LOWER_MAX_EFFORT",
+        "UPPER_MAX_EFFORT",
+        "LOWER_DYNAMIC_EFFORT",
+        "UPPER_DYNAMIC_EFFORT",
+        "LOWER_HYPERTROPHY",
+        "UPPER_HYPERTROPHY",
+        "FULL_BODY",
+        "RECOVERY",
+        "CUSTOM"
+      ]
+    }
+  }
+}
