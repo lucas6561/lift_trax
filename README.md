@@ -56,7 +56,8 @@ supported version automatically. Frozen numbered snapshots remain under
 `shared/workouts/schema/` so old workout files stay importable. Example planned
 workout files live in `shared/workouts/examples/`, display/import guidance is
 in `docs/workout-file-format-v1.md`, and the compatibility policy is in
-`docs/schema-versioning.md`.
+`docs/schema-versioning.md`. If you want another AI tool to create an importable
+workout JSON file, start with `docs/ai-workout-schema-guide.md`.
 
 The Workout Waves and Import Workout tabs share the same planned-workout output
 options: app preview, print view, Markdown download, and workout JSON download.
