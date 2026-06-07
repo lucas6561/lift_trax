@@ -17,3 +17,5 @@ Prepare LiftTrax for use beyond one local database on one machine.
 - `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
 - `LT-0006`: Define backup and restore flow.
+- `LT-0076`: Document execution and catalog database boundary.
+- `LT-0080`: Update backup and restore for split databases.

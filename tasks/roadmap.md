@@ -41,6 +41,8 @@ Key tasks:
 - `LT-0015`: Choose the web, mobile, and distribution architecture.
 - `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
+- `LT-0076`: Document execution and catalog database boundary.
+- `LT-0080`: Update backup and restore for split databases.
 
 ### 3. Schema-driven workout building
 
@@ -73,6 +75,9 @@ Key tasks:
 - `LT-0026`: Add exercise swap rules.
 - `LT-0027`: Persist planned versus completed workout data.
 - `LT-0030`: Add exercise equipment requirements.
+- `LT-0077`: Add exercise snapshots to execution history.
+- `LT-0078`: Add exercise catalog database foundation.
+- `LT-0079`: Move exercise catalog to catalog database.
 - `LT-0064`: Add active workout draft and resume.
 
 ## Roadmap tracks

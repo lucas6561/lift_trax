@@ -18,6 +18,10 @@ Define the contracts that separate program authoring, generated plans, workout o
 - `LT-0023`: Define the workout file format v1.
 - `LT-0005`: Add schema migration tracking.
 - `LT-0061`: Add schema version compatibility.
+- `LT-0076`: Document execution and catalog database boundary.
+- `LT-0077`: Add exercise snapshots to execution history.
+- `LT-0078`: Add exercise catalog database foundation.
+- `LT-0079`: Move exercise catalog to catalog database.
 
 ## Notes
 
