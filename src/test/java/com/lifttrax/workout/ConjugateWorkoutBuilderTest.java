@@ -119,6 +119,75 @@ class ConjugateWorkoutBuilderTest {
   }
 
   @Test
+  void dynamicEffortFollowsSixWeekPercentAndResistanceScheme() throws Exception {
+    FakeDb db = FakeDb.withSeedData();
+    db.add("Safety Bar Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of());
+    db.add("Box Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of());
+    db.add("Block Pull", LiftRegion.LOWER, LiftType.DEADLIFT, List.of());
+    db.add("Deficit Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of());
+    db.add("Close Grip Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+    db.add("Incline Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of());
+    db.add("Strict Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of());
+    db.add("Seated Overhead Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of());
+
+    DynamicLiftSource dynamicLiftSource =
+        ignored ->
+            new DynamicLifts(
+                new DynamicLift(db.getLift("Back Squat"), AccommodatingResistance.CHAINS),
+                new DynamicLift(db.getLift("Conventional Deadlift"), AccommodatingResistance.BANDS),
+                new DynamicLift(db.getLift("Bench Press"), AccommodatingResistance.CHAINS),
+                new DynamicLift(db.getLift("Overhead Press"), AccommodatingResistance.BANDS));
+    var wave =
+        new ConjugateWorkoutBuilder(new DefaultMaxEffortPlanSource(), dynamicLiftSource)
+            .getWave(6, db);
+
+    assertDynamicEffort(
+        wave.get(0).get(DayOfWeek.THURSDAY),
+        "Back Squat",
+        6,
+        3,
+        60,
+        AccommodatingResistance.STRAIGHT);
+    assertDynamicEffort(
+        wave.get(1).get(DayOfWeek.THURSDAY),
+        "Back Squat",
+        6,
+        3,
+        65,
+        AccommodatingResistance.STRAIGHT);
+    assertDynamicEffort(
+        wave.get(2).get(DayOfWeek.THURSDAY),
+        "Back Squat",
+        6,
+        3,
+        70,
+        AccommodatingResistance.STRAIGHT);
+    assertDynamicEffort(
+        wave.get(3).get(DayOfWeek.THURSDAY),
+        "Back Squat",
+        6,
+        3,
+        50,
+        AccommodatingResistance.CHAINS);
+    assertDynamicEffort(
+        wave.get(4).get(DayOfWeek.THURSDAY),
+        "Conventional Deadlift",
+        6,
+        2,
+        55,
+        AccommodatingResistance.BANDS);
+    assertDynamicEffort(
+        wave.get(5).get(DayOfWeek.FRIDAY), "Bench Press", 9, 3, 60, AccommodatingResistance.CHAINS);
+    assertDynamicEffort(
+        wave.get(5).get(DayOfWeek.FRIDAY),
+        "Overhead Press",
+        6,
+        2,
+        60,
+        AccommodatingResistance.BANDS);
+  }
+
+  @Test
   void hypertrophyBuilderBuildsWaveWithHypertrophySections() throws Exception {
     FakeDb db = FakeDb.withSeedData();
     var week = new HypertrophyWorkoutBuilder().getWave(1, db).get(0);
@@ -327,6 +396,37 @@ class ConjugateWorkoutBuilderTest {
     return new WorkoutLift(
         "Test Work",
         new WorkoutLiftKind.SingleKind(new SingleLift(lift, metric, null, null, null, false)));
+  }
+
+  private static void assertDynamicEffort(
+      Workout workout,
+      String liftName,
+      int sets,
+      int reps,
+      int percent,
+      AccommodatingResistance accommodatingResistance) {
+    List<SingleLift> matching =
+        workout.lifts().stream()
+            .filter(lift -> lift.name().equals("Dynamic Effort"))
+            .filter(lift -> lift.kind() instanceof WorkoutLiftKind.SingleKind)
+            .map(lift -> ((WorkoutLiftKind.SingleKind) lift.kind()).singleLift())
+            .filter(singleLift -> singleLift.lift().name().equals(liftName))
+            .toList();
+
+    assertEquals(sets, matching.size());
+    assertTrue(
+        matching.stream()
+            .allMatch(
+                singleLift ->
+                    singleLift.metric() instanceof SetMetric.Reps repMetric
+                        && repMetric.reps() == reps));
+    assertTrue(
+        matching.stream()
+            .allMatch(singleLift -> Integer.valueOf(percent).equals(singleLift.percent())));
+    assertTrue(
+        matching.stream()
+            .allMatch(
+                singleLift -> accommodatingResistance == singleLift.accommodatingResistance()));
   }
 
   private static String markdownFor(FakeDb db, List<WorkoutLift> planned) throws Exception {

@@ -21,6 +21,10 @@ Key tasks:
 
 - `LT-0011`: Raise coverage gate to 90 percent.
 - `LT-0012`: Add a single quality gate command.
+- `LT-0031`: Add mutation testing for core training logic.
+- `LT-0073`: Expand mutation testing to planned workout files.
+- `LT-0074`: Expand mutation testing to active workout logging.
+- `LT-0075`: Add mutation testing ratchet.
 - `LT-0013`: Document package boundaries and coding standards.
 - `LT-0014`: Add CI quality checks.
 

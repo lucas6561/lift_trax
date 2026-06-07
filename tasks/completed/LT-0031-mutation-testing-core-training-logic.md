@@ -1,12 +1,12 @@
 ---
 id: LT-0031
 title: Add mutation testing for core training logic
-status: idea
+status: done
 track: quality
 priority: medium
 effort: medium
 created: 2026-05-30
-updated: 2026-05-30
+updated: 2026-06-07
 owner: unassigned
 depends_on: [LT-0012]
 ---
@@ -28,12 +28,22 @@ A mutation-testing workflow checks high-value training logic and reports survivi
 
 ## Acceptance criteria
 
-- [ ] A mutation-testing tool is configured for the Java project.
-- [ ] The first target package or package set is documented.
-- [ ] Surviving mutations are reported in a repeatable local command.
-- [ ] At least one weak test is improved or a baseline is documented for future tightening.
-- [ ] `qualityGate` passes.
+- [x] A mutation-testing tool is configured for the Java project.
+- [x] The first target package or package set is documented.
+- [x] Surviving mutations are reported in a repeatable local command.
+- [x] At least one weak test is improved or a baseline is documented for future tightening.
+- [x] `qualityGate` passes.
 
 ## Notes
 
-Start with training logic where regressions would be expensive, such as wave generation, schema conversion, workout output, or progression calculations.
+Implemented with PIT via the Gradle `pitest` task. The initial mutation target is
+`com.lifttrax.workout.ConjugateWorkoutBuilder` and
+`com.lifttrax.workout.WaveMarkdownWriter`, documented in `README.md` and
+`JAVA_PROJECT.md`. Reports are written to `build/reports/pitest/` with
+timestamped report folders disabled.
+
+Verification completed 2026-06-07:
+
+- `./gradlew.bat test --tests com.lifttrax.workout.ConjugateWorkoutBuilderTest`
+- `./gradlew.bat pitest` - 108 mutations generated, 97 killed, 90% mutation score.
+- `./gradlew.bat qualityGate`

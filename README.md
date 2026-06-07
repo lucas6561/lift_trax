@@ -111,6 +111,22 @@ PMD scans production Java sources for correctness, security, best-practice,
 style, maintainability, concurrency, and selected file/string performance risks.
 Intentional rule exclusions are documented in `config/pmd/ruleset.xml`.
 
+## Mutation testing
+
+Core workout wave generation has a focused PIT mutation-test target. Run it
+locally from the repository root:
+
+```bash
+./gradlew pitest
+```
+
+The first target slice is `com.lifttrax.workout.ConjugateWorkoutBuilder` and
+`com.lifttrax.workout.WaveMarkdownWriter`, exercised by the workout test suite.
+PIT writes repeatable HTML and XML reports to `build/reports/pitest/`; surviving
+mutations in that report are the backlog for future assertion tightening. The
+initial thresholds are intentionally modest so mutation testing can land without
+requiring every workout package to be mutation-clean immediately.
+
 ## Dump lifts only (no executions)
 
 From the repository root:

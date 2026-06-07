@@ -137,3 +137,22 @@ Coverage is enforced at **90% instruction coverage** for the currently maintaine
 - `com.lifttrax.cli.WebHtml`
 
 This keeps the threshold focused on behavior-heavy code while the remaining Java port surfaces continue to evolve.
+
+## Mutation testing workflow
+
+PIT mutation testing is configured for a narrow first workout-planning slice:
+
+- `com.lifttrax.workout.ConjugateWorkoutBuilder`
+- `com.lifttrax.workout.WaveMarkdownWriter`
+
+Run the repeatable local command:
+
+```bash
+./gradlew pitest
+```
+
+Reports are written to `build/reports/pitest/` with stable paths because
+timestamped report folders are disabled. The HTML report is the easiest way to
+inspect surviving mutations; the XML report is available for later automation.
+The current threshold is modest by design and should be tightened as surviving
+mutations are either killed with stronger assertions or deliberately documented.

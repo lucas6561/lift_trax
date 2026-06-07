@@ -3,6 +3,7 @@ plugins {
     id 'jacoco'
     id 'pmd'
     id 'com.diffplug.spotless' version '6.25.0'
+    id 'info.solidsoft.pitest' version '1.19.0'
 }
 
 group = 'com.lifttrax'
@@ -80,6 +81,22 @@ tasks.withType(Pmd).configureEach {
         xml.required = true
         html.required = true
     }
+}
+
+pitest {
+    targetClasses = [
+        'com.lifttrax.workout.ConjugateWorkoutBuilder',
+        'com.lifttrax.workout.WaveMarkdownWriter'
+    ]
+    targetTests = ['com.lifttrax.workout.*Test']
+    pitestVersion = '1.22.1'
+    junit5PluginVersion = '1.2.3'
+    threads = 4
+    outputFormats = ['XML', 'HTML']
+    timestampedReports = false
+    mutationThreshold = 60
+    coverageThreshold = 80
+    jvmArgs = ['-Djava.awt.headless=true']
 }
 
 tasks.register('staticAnalysis') {
