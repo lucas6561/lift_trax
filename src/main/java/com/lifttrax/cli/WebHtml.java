@@ -86,6 +86,7 @@ final class WebHtml {
                   line-height: 1.1;
                   margin-bottom: 0;
                 }
+                .danger { color: #fca5a5; border-color: rgba(248, 113, 113, 0.55); }
                 .query-output { border: 1px solid var(--pico-muted-border-color); border-radius: 0.45rem; padding: 0.55rem; white-space: pre-wrap; }
                 .add-execution-form { display: flex; flex-direction: column; gap: 0.48rem; max-width: 900px; border: 1px solid var(--pico-muted-border-color); border-radius: 0.65rem; padding: 0.58rem; }
                 .add-execution-form fieldset { border: 1px solid var(--pico-muted-border-color); border-radius: 0.55rem; padding: 0.4rem; margin-bottom: 0.2rem; }

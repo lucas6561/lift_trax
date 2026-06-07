@@ -199,6 +199,18 @@ class WebUiRendererTest {
       assertTrue(html.contains("action='/delete-execution'"));
       assertTrue(html.contains("class='execution-text'"));
       assertTrue(html.contains("class='execution-edit-meta'"));
+      assertTrue(
+          html.contains(
+              "<button type='button' class='secondary compact-btn js-exec-edit'>Edit</button>"));
+      assertTrue(
+          html.contains(
+              "<button type='button' class='secondary danger compact-btn js-exec-delete'>Delete</button>"));
+      assertTrue(
+          html.contains(
+              "<button type='button' class='secondary compact-btn js-add-set'>Add Set</button>"));
+      assertTrue(
+          html.contains(
+              "<button type='button' class='secondary compact-btn js-exec-cancel'>Cancel</button>"));
     }
   }
 

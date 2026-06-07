@@ -56,13 +56,13 @@ final class ExecutionInputWidgetHtml {
                       <label><input type='radio' name='weightMode' value='custom' %s/> Custom</label>
                     </div>
                     <div class='stacked-row weight-weight'>
-                      <label>Weight <input type='number' step='0.5' min='0' name='weightValue' value='%s' placeholder='225'/></label>
+                      <label>Weight <input type='number' step='0.5' min='0' name='weightValue' data-focus-target='add-weight' value='%s' placeholder='225'/></label>
                       <label>Unit
                         <select name='weightUnit'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
                       </label>
                     </div>
                     <div class='stacked-row weight-lr is-hidden'>
-                      <label>Left <input type='number' step='0.5' min='0' name='weightLeft' value='%s' placeholder='40'/></label>
+                      <label>Left <input type='number' step='0.5' min='0' name='weightLeft' data-focus-target='add-weight' value='%s' placeholder='40'/></label>
                       <label>Right <input type='number' step='0.5' min='0' name='weightRight' value='%s' placeholder='40'/></label>
                       <label>Unit
                         <select name='weightUnitLr'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
@@ -73,7 +73,7 @@ final class ExecutionInputWidgetHtml {
                       <div class='segmented'>%s</div>
                     </div>
                     <div class='stacked-row weight-accom is-hidden'>
-                      <label>Bar <input type='number' step='0.5' min='0' name='accomBar' value='%s' placeholder='225'/></label>
+                      <label>Bar <input type='number' step='0.5' min='0' name='accomBar' data-focus-target='add-weight' value='%s' placeholder='225'/></label>
                       <label>Unit
                         <select name='accomUnit'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
                       </label>
@@ -87,7 +87,7 @@ final class ExecutionInputWidgetHtml {
                       </div>
                     </div>
                     <div class='stacked-row weight-custom is-hidden'>
-                      <label>Custom <input type='text' name='customWeight' value='%s' placeholder='225 lb+40c'/></label>
+                      <label>Custom <input type='text' name='customWeight' data-focus-target='add-weight' value='%s' placeholder='225 lb+40c'/></label>
                     </div>
                   </fieldset>
                   <div class='stacked-row'>

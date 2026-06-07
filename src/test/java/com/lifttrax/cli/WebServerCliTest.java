@@ -92,6 +92,18 @@ class WebServerCliTest {
   }
 
   @Test
+  void focusTargetAppendsToRedirectUrls() throws Exception {
+    Method method =
+        WebServerCli.class.getDeclaredMethod("appendFocusTarget", String.class, String.class);
+    method.setAccessible(true);
+
+    assertEquals(
+        "/?tab=add-execution&focus=add-weight",
+        method.invoke(null, "/?tab=add-execution", "add-weight"));
+    assertEquals("/done?focus=save-execution", method.invoke(null, "/done", "save-execution"));
+  }
+
+  @Test
   void formatSetsIncludesMetricWeightAndRpe() {
     String formatted =
         WebUiRenderer.formatSets(
@@ -232,6 +244,14 @@ class WebServerCliTest {
     assertTrue(html.contains("class='secondary compact-btn js-bar-bands'"));
     assertTrue(html.contains("class='individual-sets-details'"));
     assertTrue(html.contains("class='save-execution-btn'"));
+    assertTrue(html.contains("data-focus-target='add-lift'"));
+    assertTrue(html.contains("data-focus-target='add-weight'"));
+    assertTrue(html.contains("new URLSearchParams(window.location.search)"));
+    assertTrue(html.contains("function focusAfterNavigation()"));
+    assertTrue(html.contains("focusAfterNavigation();"));
+    assertTrue(html.contains("focusControl(addSetBtn);"));
+    assertTrue(
+        html.contains("focusControl(form.querySelector('.js-set-row:last-child .js-set-metric'))"));
     assertTrue(html.contains("setInputValue('metricValue', '1')"));
     assertTrue(html.contains("selectRadio('weightMode', 'bands')"));
     assertTrue(html.contains("bindExecutionActions(document);"));
@@ -325,6 +345,9 @@ class WebServerCliTest {
 
       assertTrue(html.contains("js-exec-edit"));
       assertTrue(html.contains("js-exec-delete"));
+      assertTrue(html.contains("type='button' class='secondary compact-btn js-exec-edit'"));
+      assertTrue(
+          html.contains("type='button' class='secondary danger compact-btn js-exec-delete'"));
       assertTrue(html.contains("name='tab' value='last-week'"));
       assertTrue(html.contains("name='lastWeekStart' value='2026-01-01'"));
       assertTrue(html.contains("name='lastWeekEnd' value='2026-01-07'"));
@@ -345,7 +368,7 @@ class WebServerCliTest {
 
     assertTrue(html.contains("name='weightMode' value='weight' checked"));
     assertTrue(html.contains("name='weightMode' value='custom'"));
-    assertTrue(html.contains("name='weightValue' value='185'"));
+    assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='185'"));
     assertTrue(html.contains("<option value='lb' selected>lb</option>"));
   }
 
@@ -371,7 +394,9 @@ class WebServerCliTest {
     String html = WebUiRenderer.renderAddExecutionForm(lifts, "", "", prefill);
 
     assertTrue(html.contains("name='weightMode' value='custom' checked"));
-    assertTrue(html.contains("name='customWeight' value='weird weight text'"));
+    assertTrue(
+        html.contains(
+            "name='customWeight' data-focus-target='add-weight' value='weird weight text'"));
   }
 
   @Test
@@ -393,7 +418,8 @@ class WebServerCliTest {
     String accomChainsHtml =
         WebUiRenderer.renderAddExecutionForm(lifts, "", "", accomChainsPrefill);
     assertTrue(accomChainsHtml.contains("name='weightMode' value='accom' checked"));
-    assertTrue(accomChainsHtml.contains("name='accomBar' value='225'"));
+    assertTrue(
+        accomChainsHtml.contains("name='accomBar' data-focus-target='add-weight' value='225'"));
     assertTrue(accomChainsHtml.contains("name='accomChain' value='40'"));
     assertTrue(accomChainsHtml.contains("<option value='chains' selected>Chains</option>"));
 

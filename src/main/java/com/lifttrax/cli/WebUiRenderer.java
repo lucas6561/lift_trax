@@ -308,6 +308,53 @@ final class WebUiRenderer {
                       });
                     });
 
+                    function visibleFocusable(control) {
+                      if (!control || control.disabled) {
+                        return false;
+                      }
+                      const rects = control.getClientRects();
+                      return rects.length > 0;
+                    }
+
+                    function firstFocusable(scope) {
+                      return Array.from(scope.querySelectorAll("input:not([type='hidden']), select, textarea, button, a[href]"))
+                        .find((control) => visibleFocusable(control));
+                    }
+
+                    function focusControl(control) {
+                      if (!control) {
+                        return;
+                      }
+                      control.focus({preventScroll: true});
+                      if (document.activeElement === control) {
+                        control.scrollIntoView({block: 'nearest'});
+                      }
+                    }
+
+                    function focusAfterNavigation() {
+                      const params = new URLSearchParams(window.location.search);
+                      const target = params.get('focus') || '';
+                      if (!target) {
+                        return;
+                      }
+                      const panel = document.querySelector('.tab-panel.is-active') || document;
+                      let control = null;
+                      if (target === 'add-weight') {
+                        control = Array.from(panel.querySelectorAll("[data-focus-target='add-weight']"))
+                          .find((item) => visibleFocusable(item));
+                        if (!control) {
+                          control = panel.querySelector("[name='setCount']");
+                        }
+                      } else if (target === 'add-lift') {
+                        control = panel.querySelector("[data-focus-target='add-lift']");
+                      } else if (target === 'save-execution') {
+                        control = panel.querySelector("[data-focus-target='save-execution']");
+                      } else if (target === 'execution-list') {
+                        control = panel.querySelector('.js-exec-edit') || firstFocusable(panel);
+                      }
+                      focusControl(control);
+                    }
+
                     const FILTER_STORAGE_PREFIX = 'lifttrax.filters.';
 
                     function syncWaveTypeVisibility() {
@@ -635,6 +682,7 @@ final class WebUiRenderer {
                         remove.addEventListener('click', () => {
                           detailedSets.splice(index, 1);
                           renderSetList();
+                          focusControl(addSetBtn || list);
                         });
                         li.appendChild(document.createTextNode(' '));
                         li.appendChild(remove);
@@ -692,6 +740,7 @@ final class WebUiRenderer {
                           detailedSets.push({...payload});
                         }
                         renderSetList();
+                        focusControl(addSetBtn);
                       });
                     }
                     const clearSetsBtn = document.querySelector('.js-clear-sets');
@@ -699,6 +748,7 @@ final class WebUiRenderer {
                       clearSetsBtn.addEventListener('click', () => {
                         detailedSets.splice(0, detailedSets.length);
                         renderSetList();
+                        focusControl(addSetBtn || clearSetsBtn);
                       });
                     }
 
@@ -846,7 +896,7 @@ final class WebUiRenderer {
                           <input type='number' class='js-set-right' placeholder='right' style='width:80px;' />
                           <input type='text' class='js-set-weight' placeholder='weight' style='width:130px;' />
                           <input type='number' step='0.1' class='js-set-rpe' placeholder='rpe' style='width:80px;' />
-                          <a href='#' class='js-remove-set'>Remove</a>
+                          <button type='button' class='secondary compact-btn js-remove-set'>Remove</button>
                         `;
                         const metric = row.querySelector('.js-set-metric');
                         const value = row.querySelector('.js-set-value');
@@ -905,6 +955,7 @@ final class WebUiRenderer {
                           const current = collectSetRows(form);
                           current.push({ metricType: 'reps', metricValue: '5', metricLeft: '', metricRight: '', weight: '', rpe: '' });
                           renderSetRows(form, current);
+                          focusControl(form.querySelector('.js-set-row:last-child .js-set-metric'));
                           return;
                         }
                         const remove = event.target.closest('.js-remove-set');
@@ -912,7 +963,9 @@ final class WebUiRenderer {
                           event.preventDefault();
                           const row = remove.closest('.js-set-row');
                           if (row) {
+                            const nextFocus = row.nextElementSibling || row.previousElementSibling;
                             row.remove();
+                            focusControl(nextFocus ? firstFocusable(nextFocus) : form.querySelector('.js-add-set'));
                           }
                         }
                       });
@@ -942,7 +995,9 @@ final class WebUiRenderer {
                         if (!item) {
                           return;
                         }
+                        const form = item.querySelector('.js-exec-form');
                         setExecutionEditing(item, true);
+                        focusControl(form ? firstFocusable(form) : null);
                       });
                     });
 
@@ -965,6 +1020,7 @@ final class WebUiRenderer {
                           form.reset();
                         }
                         setExecutionEditing(item, false);
+                        focusControl(item.querySelector('.js-exec-edit'));
                       });
                     });
 
@@ -1022,6 +1078,7 @@ final class WebUiRenderer {
 
                     syncWeightMode();
                     syncAccomMode();
+                    focusAfterNavigation();
                   })();
                 </script>
                 """
@@ -1470,8 +1527,8 @@ final class WebUiRenderer {
         + "<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>"
         + WebHtml.escapeHtml(lift.name() + " — " + formatExecutionSummary(execution))
         + "</span>"
-        + "<a href='#' class='js-exec-edit'>Edit</a>"
-        + "<a href='#' class='danger js-exec-delete'>Delete</a>"
+        + "<button type='button' class='secondary compact-btn js-exec-edit'>Edit</button>"
+        + "<button type='button' class='secondary danger compact-btn js-exec-delete'>Delete</button>"
         + "<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>"
         + "<input type='hidden' name='executionId' value='"
         + execution.id()
@@ -1518,10 +1575,10 @@ final class WebUiRenderer {
         + "<div class='js-edit-sets' style='display:flex;flex-direction:column;gap:6px;width:100%;'>"
         + renderSetEditorRows(execution.sets())
         + "</div>"
-        + "<a href='#' class='js-add-set'>Add Set</a>"
+        + "<button type='button' class='secondary compact-btn js-add-set'>Add Set</button>"
         + "<input type='hidden' name='detailedSets' class='js-detailed-sets' disabled value=''/>"
         + "<button type='submit'>Save</button>"
-        + "<a href='#' class='js-exec-cancel'>Cancel</a>"
+        + "<button type='button' class='secondary compact-btn js-exec-cancel'>Cancel</button>"
         + "</form>"
         + "</li>";
   }
@@ -1642,13 +1699,13 @@ final class WebUiRenderer {
                 </div>
                 <form method='post' action='/add-execution' class='add-execution-form'>
                   <label>Lift
-                    <select name='lift'>%s</select>
+                    <select name='lift' data-focus-target='add-lift'>%s</select>
                   </label>
                   <div class='stacked-row'>
                     <button type='submit' formaction='/load-last-execution' formmethod='get' class='secondary compact-btn'>Load Last</button>
                   </div>
                   %s
-                  <button type='submit' class='save-execution-btn'>Save Execution</button>
+                  <button type='submit' class='save-execution-btn' data-focus-target='save-execution'>Save Execution</button>
                 </form>
                 """
         .formatted(
@@ -2138,8 +2195,10 @@ final class WebUiRenderer {
           html.append(
               "<span class='status error'>Execution ID missing; cannot edit or delete.</span>");
         } else {
-          html.append("<a href='#' class='js-exec-edit'>Edit</a>");
-          html.append("<a href='#' class='danger js-exec-delete'>Delete</a>");
+          html.append(
+              "<button type='button' class='secondary compact-btn js-exec-edit'>Edit</button>");
+          html.append(
+              "<button type='button' class='secondary danger compact-btn js-exec-delete'>Delete</button>");
           html.append(
                   "<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>")
               .append("<input type='hidden' name='executionId' value='")
@@ -2189,11 +2248,13 @@ final class WebUiRenderer {
                   "<div class='js-edit-sets' style='display:flex;flex-direction:column;gap:6px;width:100%;'>")
               .append(renderSetEditorRows(execution.sets()))
               .append("</div>")
-              .append("<a href='#' class='js-add-set'>Add Set</a>")
+              .append(
+                  "<button type='button' class='secondary compact-btn js-add-set'>Add Set</button>")
               .append(
                   "<input type='hidden' name='detailedSets' class='js-detailed-sets' disabled value=''/>")
               .append("<button type='submit'>Save</button>")
-              .append("<a href='#' class='js-exec-cancel'>Cancel</a>")
+              .append(
+                  "<button type='button' class='secondary compact-btn js-exec-cancel'>Cancel</button>")
               .append("</form>");
         }
         html.append("</li>");
@@ -2248,7 +2309,8 @@ final class WebUiRenderer {
               "<input type='number' step='0.1' class='js-set-rpe' disabled placeholder='rpe' style='width:80px;' value='")
           .append(WebHtml.escapeHtml(formValues.rpe()))
           .append("'/>")
-          .append("<a href='#' class='js-remove-set'>Remove</a>")
+          .append(
+              "<button type='button' class='secondary compact-btn js-remove-set'>Remove</button>")
           .append("</div>");
     }
     return html.toString();

@@ -192,7 +192,10 @@ public final class WebServerCli {
       Map<String, String> form = parseForm(exchange.getRequestBody());
       String liftName = form.getOrDefault("lift", "").trim();
       if (liftName.isBlank()) {
-        redirect(exchange, "/?tab=add-execution&statusType=error&status=Lift%20is%20required");
+        redirect(
+            exchange,
+            appendFocusTarget(
+                "/?tab=add-execution&statusType=error&status=Lift%20is%20required", "add-lift"));
         return;
       }
 
@@ -230,12 +233,14 @@ public final class WebServerCli {
       redirectUrl.append("&prefillDate=").append(WebUiRenderer.urlEncode(date.toString()));
       redirectUrl.append("&prefillWarmup=").append(form.containsKey("warmup"));
       redirectUrl.append("&prefillDeload=").append(form.containsKey("deload"));
-      redirect(exchange, redirectUrl.toString());
+      redirect(exchange, appendFocusTarget(redirectUrl.toString(), "add-weight"));
     } catch (Exception e) {
       redirect(
           exchange,
-          "/?tab=add-execution&statusType=error&status="
-              + WebUiRenderer.urlEncode("Failed to save execution: " + e.getMessage()));
+          appendFocusTarget(
+              "/?tab=add-execution&statusType=error&status="
+                  + WebUiRenderer.urlEncode("Failed to save execution: " + e.getMessage()),
+              "add-weight"));
     }
   }
 
@@ -252,7 +257,9 @@ public final class WebServerCli {
       if (liftName.isBlank()) {
         redirect(
             exchange,
-            "/?tab=add-execution&statusType=error&status=Lift%20is%20required%20for%20Load%20Last");
+            appendFocusTarget(
+                "/?tab=add-execution&statusType=error&status=Lift%20is%20required%20for%20Load%20Last",
+                "add-lift"));
         return;
       }
       LocalDate selectedDate =
@@ -275,7 +282,10 @@ public final class WebServerCli {
         String criteria = "warmup=" + warmup + ", deload=" + deload;
         redirect(
             exchange,
-            buildLoadLastNoPriorRedirect(query, liftName, selectedDate, warmup, deload, criteria));
+            appendFocusTarget(
+                buildLoadLastNoPriorRedirect(
+                    query, liftName, selectedDate, warmup, deload, criteria),
+                "add-weight"));
         return;
       }
 
@@ -303,12 +313,14 @@ public final class WebServerCli {
         applyMetricPrefill(redirectUrl, first.metric());
       }
 
-      redirect(exchange, redirectUrl.toString());
+      redirect(exchange, appendFocusTarget(redirectUrl.toString(), "save-execution"));
     } catch (Exception e) {
       redirect(
           exchange,
-          "/?tab=add-execution&statusType=error&status="
-              + WebUiRenderer.urlEncode("Failed to load execution: " + e.getMessage()));
+          appendFocusTarget(
+              "/?tab=add-execution&statusType=error&status="
+                  + WebUiRenderer.urlEncode("Failed to load execution: " + e.getMessage()),
+              "add-weight"));
     }
   }
 
@@ -394,13 +406,15 @@ public final class WebServerCli {
           exchange,
           redirectBase
               + "&statusType=success&status="
-              + WebUiRenderer.urlEncode("Execution updated"));
+              + WebUiRenderer.urlEncode("Execution updated")
+              + "&focus=execution-list");
     } catch (Exception e) {
       redirect(
           exchange,
           redirectBase
               + "&statusType=error&status="
-              + WebUiRenderer.urlEncode("Failed to update execution: " + e.getMessage()));
+              + WebUiRenderer.urlEncode("Failed to update execution: " + e.getMessage())
+              + "&focus=execution-list");
     }
   }
 
@@ -420,13 +434,15 @@ public final class WebServerCli {
           exchange,
           redirectBase
               + "&statusType=success&status="
-              + WebUiRenderer.urlEncode("Execution deleted"));
+              + WebUiRenderer.urlEncode("Execution deleted")
+              + "&focus=execution-list");
     } catch (Exception e) {
       redirect(
           exchange,
           redirectBase
               + "&statusType=error&status="
-              + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage()));
+              + WebUiRenderer.urlEncode("Failed to delete execution: " + e.getMessage())
+              + "&focus=execution-list");
     }
   }
 
@@ -708,6 +724,13 @@ public final class WebServerCli {
       redirectBase.append("&lastWeekEnd=").append(WebUiRenderer.urlEncode(lastWeekEnd));
     }
     return redirectBase.toString();
+  }
+
+  private static String appendFocusTarget(String redirectUrl, String focusTarget) {
+    return redirectUrl
+        + (redirectUrl.contains("?") ? "&" : "?")
+        + "focus="
+        + WebUiRenderer.urlEncode(focusTarget);
   }
 
   private static void handleAddLift(HttpExchange exchange, SqliteDb db) throws IOException {
