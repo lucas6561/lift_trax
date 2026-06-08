@@ -117,9 +117,10 @@ Hosted web app path:
 6. `LT-0086`: Enforce user-scoped authorization.
 7. `LT-0087`: Build hosted persistence adapter.
 8. `LT-0088`: Import local database to hosted account.
-9. `LT-0089`: Define PWA and offline boundaries.
-10. `LT-0090`: Create hosted deployment pipeline.
-11. `LT-0091`: Add hosted backup and export controls.
+9. `LT-0092`: Port primary database to Postgres.
+10. `LT-0089`: Define PWA and offline boundaries.
+11. `LT-0090`: Create hosted deployment pipeline.
+12. `LT-0091`: Add hosted backup and export controls.
 
 ### Quality and maintainability
 

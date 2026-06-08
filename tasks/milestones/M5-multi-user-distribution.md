@@ -26,6 +26,7 @@ Prepare LiftTrax for use beyond one local database on one machine.
 - `LT-0086`: Enforce user-scoped authorization.
 - `LT-0087`: Build hosted persistence adapter.
 - `LT-0088`: Import local database to hosted account.
+- `LT-0092`: Port primary database to Postgres.
 - `LT-0089`: Define PWA and offline boundaries.
 - `LT-0090`: Create hosted deployment pipeline.
 - `LT-0091`: Add hosted backup and export controls.
@@ -40,6 +41,7 @@ Prepare LiftTrax for use beyond one local database on one machine.
 6. `LT-0086`: Enforce authorization on every hosted data path.
 7. `LT-0087`: Introduce the hosted persistence adapter for core logging.
 8. `LT-0088`: Migrate/import existing local databases into hosted accounts.
-9. `LT-0089`: Define PWA installability and offline boundaries.
-10. `LT-0090`: Create the repeatable hosted deployment pipeline.
-11. `LT-0091`: Add hosted backup and user export controls.
+9. `LT-0092`: Port primary persistence to Postgres.
+10. `LT-0089`: Define PWA installability and offline boundaries.
+11. `LT-0090`: Create the repeatable hosted deployment pipeline.
+12. `LT-0091`: Add hosted backup and user export controls.
