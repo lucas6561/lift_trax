@@ -1,12 +1,12 @@
 ---
 id: LT-0010
 title: Document architecture decisions
-status: ready
+status: done
 track: docs
 priority: medium
 effort: small
 created: 2026-05-27
-updated: 2026-05-27
+updated: 2026-06-07
 owner: unassigned
 depends_on: []
 ---
@@ -28,11 +28,15 @@ The repository has a lightweight architecture decision record folder for importa
 
 ## Acceptance criteria
 
-- [ ] An ADR template exists.
-- [ ] At least one current architecture decision is documented.
-- [ ] `JAVA_PROJECT.md` links to the decision records.
+- [x] An ADR template exists.
+- [x] At least one current architecture decision is documented.
+- [x] `JAVA_PROJECT.md` links to the decision records.
 
 ## Notes
 
-This can stay intentionally small. The goal is memory, not ceremony.
+Completed by adding `docs/adr/README.md`, `docs/adr/TEMPLATE.md`, and
+`docs/adr/0001-local-first-java-sqlite.md`. `JAVA_PROJECT.md` now links to the
+ADR folder and the first decision record.
 
+Verification: documentation link and task placement checks passed on
+2026-06-07.

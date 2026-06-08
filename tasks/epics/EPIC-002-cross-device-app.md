@@ -23,3 +23,8 @@ The app needs to work where training happens. A phone-friendly workout flow matt
 - `LT-0015`: Choose the web, mobile, and distribution architecture.
 - `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
+- `LT-0082`: Select hosted auth and data platform.
+- `LT-0084`: Add public web security baseline.
+- `LT-0085`: Implement account authentication.
+- `LT-0086`: Enforce user-scoped authorization.
+- `LT-0089`: Define PWA and offline boundaries.

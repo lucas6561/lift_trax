@@ -41,6 +41,11 @@ Key tasks:
 - `LT-0015`: Choose the web, mobile, and distribution architecture.
 - `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
+- `LT-0082`: Select hosted auth and data platform.
+- `LT-0084`: Add public web security baseline.
+- `LT-0085`: Implement account authentication.
+- `LT-0086`: Enforce user-scoped authorization.
+- `LT-0089`: Define PWA and offline boundaries.
 - `LT-0076`: Document execution and catalog database boundary.
 - `LT-0080`: Update backup and restore for split databases.
 
@@ -102,6 +107,20 @@ Improve the web UI so it feels dense, fast, and usable during an actual lifting 
 
 Prepare the application for multiple users, deployable releases, and eventual mobile app packaging without forcing that jump too early.
 
+Hosted web app path:
+
+1. `LT-0016`: Add user and ownership model design.
+2. `LT-0082`: Select hosted auth and data platform.
+3. `LT-0083`: Design hosted user data schema.
+4. `LT-0084`: Add public web security baseline.
+5. `LT-0085`: Implement account authentication.
+6. `LT-0086`: Enforce user-scoped authorization.
+7. `LT-0087`: Build hosted persistence adapter.
+8. `LT-0088`: Import local database to hosted account.
+9. `LT-0089`: Define PWA and offline boundaries.
+10. `LT-0090`: Create hosted deployment pipeline.
+11. `LT-0091`: Add hosted backup and export controls.
+
 ### Quality and maintainability
 
 Keep the codebase easy to change with strict checks, focused tests, package boundaries, architecture notes, and clear developer workflows.
@@ -123,3 +142,4 @@ See `tasks/milestones/` for the working sequence.
 3. Design the plan model, program schema v1, and workout file format v1 before changing persistence aggressively.
 4. Build a generic schema-to-wave path and convert existing specific builders to emit that schema.
 5. Load generated workouts into the app and support a follow-along session with data entry and exercise swaps.
+6. Move the platform track through the hosted web app path before exposing LiftTrax beyond local-network use.

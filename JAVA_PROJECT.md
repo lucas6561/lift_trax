@@ -10,6 +10,10 @@ This is the initial Java + Gradle port slice. It includes:
 - Versioned program schema assets in `shared/programs`, with authoring documentation in `docs/program-schema-v1.md`.
 - Versioned planned workout assets in `shared/workouts`, with import/export documentation in `docs/workout-file-format-v1.md`.
 
+Architecture decisions are captured as short ADRs in `docs/adr/`, starting with
+the local-first Java/SQLite baseline in
+`docs/adr/0001-local-first-java-sqlite.md`.
+
 ## Run
 
 From the repository root:
