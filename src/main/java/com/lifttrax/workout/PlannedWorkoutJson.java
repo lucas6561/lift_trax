@@ -19,7 +19,8 @@ public final class PlannedWorkoutJson {
   private static final Map<Integer, PlannedWorkoutReader> READERS =
       Map.of(
           1, PlannedWorkoutJson::readCompatibleShape,
-          2, PlannedWorkoutJson::readCompatibleShape);
+          2, PlannedWorkoutJson::readCompatibleShape,
+          3, PlannedWorkoutJson::readCompatibleShape);
 
   private PlannedWorkoutJson() {}
 

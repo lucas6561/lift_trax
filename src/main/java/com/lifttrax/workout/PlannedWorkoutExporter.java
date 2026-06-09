@@ -157,6 +157,15 @@ public final class PlannedWorkoutExporter {
 
   private static PlannedWorkoutFile.PlannedSetTarget plannedSet(
       SingleLift singleLift, Integer setNumber) {
+    return plannedSetTarget(singleLift, setNumber);
+  }
+
+  static PlannedWorkoutFile.PlannedSetTarget plannedSetForDescription(SingleLift singleLift) {
+    return plannedSetTarget(singleLift, 1);
+  }
+
+  private static PlannedWorkoutFile.PlannedSetTarget plannedSetTarget(
+      SingleLift singleLift, Integer setNumber) {
     SetMetric metric = singleLift.metric();
     String metricType = "none";
     Integer reps = null;

@@ -8,12 +8,12 @@ new versions ship. New files should always use the latest schema snapshot.
 | Contract | Latest version | Supported versions |
 | --- | --- | --- |
 | Program schema | `2` | `1`, `2` |
-| Planned workout format | `2` | `1`, `2` |
+| Planned workout format | `3` | `1`, `2`, `3` |
 
-Version `2` intentionally keeps the version `1` payload shape. It establishes
-the compatibility path before the next data-model change: loaders dispatch by
-`schemaVersion`, older schema snapshots remain packaged, and creators use the
-latest registered version automatically.
+Planned-workout version `3` keeps the version `2` payload shape but tightens
+new planned-set intensity authoring: a set can specify `percent` or `rpe`, but
+not both. Versions `1` and `2` remain loadable for already-generated workout
+files that may contain both fields.
 
 ## Numbered Snapshots and Latest Entrypoints
 

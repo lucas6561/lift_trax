@@ -73,8 +73,8 @@ public class HypertrophyWorkoutBuilder implements WorkoutBuilder {
                             false)),
                     2,
                     true))));
-    lifts.addAll(repeated("Primary Hypertrophy", primary, 4, 8, 70, 7.5f));
-    lifts.addAll(repeated("Secondary Hypertrophy", secondary, 3, 10, 65, 7.0f));
+    lifts.addAll(repeated("Primary Hypertrophy", primary, 4, 8, null, 7.5f));
+    lifts.addAll(repeated("Secondary Hypertrophy", secondary, 3, 10, null, 7.0f));
     lifts.add(single("Accessory", accessory(db, Muscle.HAMSTRING), 12, null, 8.0f));
     lifts.add(single("Accessory", accessory(db, Muscle.QUAD), 12, null, 8.0f));
     lifts.add(single("Core", accessory(db, Muscle.CORE), 15, null, 7.0f));
@@ -107,8 +107,8 @@ public class HypertrophyWorkoutBuilder implements WorkoutBuilder {
                             false)),
                     2,
                     true))));
-    lifts.addAll(repeated("Primary Hypertrophy", primary, 4, 8, 70, 7.5f));
-    lifts.addAll(repeated("Secondary Hypertrophy", secondary, 3, 10, 65, 7.0f));
+    lifts.addAll(repeated("Primary Hypertrophy", primary, 4, 8, null, 7.5f));
+    lifts.addAll(repeated("Secondary Hypertrophy", secondary, 3, 10, null, 7.0f));
     lifts.add(single("Accessory", accessory(db, Muscle.CHEST), 12, null, 8.0f));
     lifts.add(single("Accessory", accessory(db, Muscle.LAT), 12, null, 8.0f));
     lifts.add(single("Accessory", accessory(db, Muscle.TRICEP), 12, null, 8.0f));

@@ -117,6 +117,10 @@ final class PlannedWorkoutPrintHtml {
     PlannedWorkoutHistory.Summary history = PlannedWorkoutHistory.lookup(db, block, exercise);
     StringBuilder extra = new StringBuilder();
     appendExtra(extra, "Notes", exercise.notes());
+    appendExtra(
+        extra,
+        "Suggested",
+        PlannedWorkoutText.loadSuggestions(db, exercise.name(), exercise.plannedSets()));
     appendExtra(extra, "Last", history.last());
     appendExtra(extra, "Best 1RM", history.bestOneRepMax());
     appendExtra(extra, "Swap options", String.join(", ", exercise.substitutionOptions()));

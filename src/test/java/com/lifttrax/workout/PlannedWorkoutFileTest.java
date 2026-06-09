@@ -157,6 +157,172 @@ class PlannedWorkoutFileTest {
   }
 
   @Test
+  void plannedWorkoutJsonStillLoadsLegacySetsWithPercentAndRpe() throws Exception {
+    String legacy =
+        """
+            {
+              "schemaVersion": 2,
+              "metadata": {"name": "Legacy", "description": "", "totalWeeks": 1, "tags": []},
+              "source": {
+                "kind": "manual",
+                "generator": "test",
+                "programName": "Legacy",
+                "programSchemaVersion": null,
+                "generatedAt": "2026-06-08T00:00:00Z"
+              },
+              "weeks": [
+                {
+                  "weekNumber": 1,
+                  "days": [
+                    {
+                      "dayOfWeek": "MONDAY",
+                      "title": "Monday",
+                      "blocks": [
+                        {
+                          "order": 1,
+                          "title": "Main",
+                          "blockType": "single",
+                          "warmup": false,
+                          "exercises": [
+                            {
+                              "name": "Back Squat",
+                              "region": "LOWER",
+                              "type": "SQUAT",
+                              "muscles": [],
+                              "plannedSets": [
+                                {
+                                  "setNumber": 1,
+                                  "metricType": "reps",
+                                  "reps": 5,
+                                  "percent": 80,
+                                  "rpe": 8.0,
+                                  "deload": false
+                                }
+                              ],
+                              "notes": "",
+                              "substitutionOptions": []
+                            }
+                          ],
+                          "notes": []
+                        }
+                      ],
+                      "notes": []
+                    }
+                  ]
+                }
+              ],
+              "completedWorkouts": []
+            }
+            """;
+
+    PlannedWorkoutFile workoutFile = PlannedWorkoutJson.readString(legacy);
+    PlannedWorkoutFile.PlannedSetTarget target =
+        workoutFile
+            .weeks()
+            .get(0)
+            .days()
+            .get(0)
+            .blocks()
+            .get(0)
+            .exercises()
+            .get(0)
+            .plannedSets()
+            .get(0);
+
+    assertEquals(80, target.percent());
+    assertEquals(8.0f, target.rpe());
+  }
+
+  @Test
+  void plannedWorkoutJsonRejectsV3SetsWithPercentAndRpe() {
+    String invalid =
+        """
+            {
+              "schemaVersion": 3,
+              "metadata": {"name": "Invalid v3", "description": "", "totalWeeks": 1, "tags": []},
+              "source": {
+                "kind": "manual",
+                "generator": "test",
+                "programName": "Invalid v3",
+                "programSchemaVersion": null,
+                "generatedAt": "2026-06-08T00:00:00Z"
+              },
+              "weeks": [
+                {
+                  "weekNumber": 1,
+                  "days": [
+                    {
+                      "dayOfWeek": "MONDAY",
+                      "title": "Monday",
+                      "blocks": [
+                        {
+                          "order": 1,
+                          "title": "Main",
+                          "blockType": "single",
+                          "warmup": false,
+                          "exercises": [
+                            {
+                              "name": "Back Squat",
+                              "region": "LOWER",
+                              "type": "SQUAT",
+                              "muscles": [],
+                              "plannedSets": [
+                                {
+                                  "setNumber": 1,
+                                  "metricType": "reps",
+                                  "reps": 5,
+                                  "percent": 80,
+                                  "rpe": 8.0,
+                                  "deload": false
+                                }
+                              ],
+                              "notes": "",
+                              "substitutionOptions": []
+                            }
+                          ],
+                          "notes": []
+                        }
+                      ],
+                      "notes": []
+                    }
+                  ]
+                }
+              ],
+              "completedWorkouts": []
+            }
+            """;
+
+    JsonProcessingException exception =
+        assertThrows(JsonProcessingException.class, () -> PlannedWorkoutJson.readString(invalid));
+
+    assertTrue(
+        exception
+            .getOriginalMessage()
+            .contains("plannedSet cannot set both percent and rpe in schemaVersion 3"));
+  }
+
+  @Test
+  void generatedWorkoutFilesUseOnlyOneIntensityModePerSet() throws Exception {
+    ConjugateWorkoutBuilderTest.FakeDb db = ConjugateWorkoutBuilderTest.FakeDb.withSeedData();
+    PlannedWorkoutFile workoutFile =
+        PlannedWorkoutExporter.fromWave(
+            "Hypertrophy Wave",
+            "hypertrophy",
+            "2026-05-29T00:00:00Z",
+            new HypertrophyWorkoutBuilder().getWave(1, db));
+
+    List<PlannedWorkoutFile.PlannedSetTarget> sets =
+        workoutFile.weeks().stream()
+            .flatMap(week -> week.days().stream())
+            .flatMap(day -> day.blocks().stream())
+            .flatMap(block -> block.exercises().stream())
+            .flatMap(exercise -> exercise.plannedSets().stream())
+            .toList();
+
+    assertTrue(sets.stream().noneMatch(set -> set.percent() != null && set.rpe() != null));
+  }
+
+  @Test
   void plannedWorkoutMarkdownWorksForImportedWorkoutFiles() throws Exception {
     PlannedWorkoutFile workoutFile =
         PlannedWorkoutJson.readPath(
@@ -235,7 +401,7 @@ class PlannedWorkoutFileTest {
     assertTrue(
         exception
             .getOriginalMessage()
-            .contains("Unsupported workout schemaVersion 99; supported versions: [1, 2]."));
+            .contains("Unsupported workout schemaVersion 99; supported versions: [1, 2, 3]."));
   }
 
   @Test

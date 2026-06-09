@@ -11,6 +11,14 @@ final class ExecutionInputWidgetHtml {
       WebUiRenderer.AddExecutionPrefill prefillInput,
       List<ExecutionSetFormValues> initialSets,
       boolean showQuickPresets) {
+    return render(prefillInput, initialSets, showQuickPresets, false);
+  }
+
+  static String render(
+      WebUiRenderer.AddExecutionPrefill prefillInput,
+      List<ExecutionSetFormValues> initialSets,
+      boolean showQuickPresets,
+      boolean openIndividualSets) {
     WebUiRenderer.AddExecutionPrefill prefill =
         prefillInput == null ? WebUiRenderer.AddExecutionPrefill.empty() : prefillInput;
     List<ExecutionSetFormValues> safeInitialSets =
@@ -39,7 +47,7 @@ final class ExecutionInputWidgetHtml {
     String bandChecks = renderBandChecks("weightBandColors", weightPrefill.bands());
     String accomBandChecks = renderBandChecks("accomBandColors", weightPrefill.accomBands());
     String quickPresets = showQuickPresets ? quickPresets() : "";
-    String detailsOpen = safeInitialSets.isEmpty() ? "" : " open";
+    String detailsOpen = safeInitialSets.isEmpty() && !openIndividualSets ? "" : " open";
 
     return """
                   %s

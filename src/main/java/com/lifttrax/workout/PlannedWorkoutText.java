@@ -1,5 +1,6 @@
 package com.lifttrax.workout;
 
+import com.lifttrax.db.Database;
 import com.lifttrax.models.SetMetric;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +56,28 @@ public final class PlannedWorkoutText {
     return join(groups);
   }
 
+  public static String loadSuggestions(
+      Database db, String liftName, List<PlannedWorkoutFile.PlannedSetTarget> sets) {
+    if (db == null || sets.isEmpty()) {
+      return "";
+    }
+    List<String> groups = new ArrayList<>();
+    int index = 0;
+    while (index < sets.size()) {
+      PlannedWorkoutFile.PlannedSetTarget target = sets.get(index);
+      int count = 1;
+      while (index + count < sets.size() && samePlannedTarget(target, sets.get(index + count))) {
+        count++;
+      }
+      String suggested = suggestedWeight(db, liftName, target);
+      if (!suggested.isBlank()) {
+        groups.add(count > 1 ? count + "x " + suggested : suggested);
+      }
+      index += count;
+    }
+    return join(groups);
+  }
+
   public static String plannedSet(PlannedWorkoutFile.PlannedSetTarget target) {
     List<String> parts = new ArrayList<>();
     parts.add(plannedMetric(target));
@@ -73,6 +96,17 @@ public final class PlannedWorkoutText {
       parts.add("deload");
     }
     return String.join(" ", parts);
+  }
+
+  public static String suggestedWeight(
+      Database db, String liftName, PlannedWorkoutFile.PlannedSetTarget target) {
+    try {
+      String suggested = WorkoutHistoryFormatter.suggestedWeight(db, liftName, target);
+      return suggested == null ? "" : suggested;
+    } catch (Exception ignored) {
+      // Load guidance should disappear, not break workout rendering.
+      return "";
+    }
   }
 
   public static SetMetric historyMetric(

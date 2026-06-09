@@ -55,7 +55,9 @@ shows the same local history context used by generated waves: `Last:` and `Best
 
 From the preview, `Start This Day` opens the follow-along logging screen for one
 week and day. Planned set counts seed editable result fields for reps,
-left/right reps, time, and distance. Completed sets can add weights and RPE,
+left/right reps, time, and distance. Current generated planned sets use percent
+or RPE as the intensity target, not both; older imports with both remain
+readable for compatibility. Completed sets can add weights and RPE,
 planned work can be skipped, and exercises can use substitution options already
 declared in the workout file when those lifts exist locally. Saved work enters
 the regular execution history. Durable planned-versus-completed storage is a

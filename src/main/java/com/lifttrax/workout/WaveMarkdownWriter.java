@@ -60,7 +60,7 @@ public final class WaveMarkdownWriter {
         }
 
         SingleLift s = sk.singleLift();
-        lines.add(singleDesc(s, count));
+        lines.add(singleDesc(s, count, db));
         if (!s.lift().notes().isEmpty()) {
           lines.add("   - Notes: " + s.lift().notes());
         }
@@ -82,7 +82,9 @@ public final class WaveMarkdownWriter {
         for (int j = 0; j < circuit.circuitLifts().size(); j++) {
           SingleLift sl = circuit.circuitLifts().get(j);
           String desc =
-              circuit.warmup() ? "**" + sl.lift().name() + "**" : singleDesc(sl, circuit.rounds());
+              circuit.warmup()
+                  ? "**" + sl.lift().name() + "**"
+                  : singleDesc(sl, circuit.rounds(), db);
           lines.add("  " + (j + 1) + ". " + desc);
           if (!sl.lift().notes().isEmpty()) {
             lines.add("     - Notes: " + sl.lift().notes());
@@ -112,7 +114,7 @@ public final class WaveMarkdownWriter {
         && equal(a.accommodatingResistance(), b.accommodatingResistance());
   }
 
-  private static String singleDesc(SingleLift s, int count) {
+  private static String singleDesc(SingleLift s, int count, Database db) {
     List<String> parts = new ArrayList<>();
     parts.add("**" + s.lift().name() + "**");
     if (s.metric() != null) {
@@ -136,7 +138,17 @@ public final class WaveMarkdownWriter {
     } else if (s.accommodatingResistance() == AccommodatingResistance.BANDS) {
       parts.add("Bands");
     }
+    String suggestion = suggestedWeight(s, db);
+    if (!suggestion.isBlank()) {
+      parts.add("(suggested " + suggestion + ")");
+    }
     return String.join(" ", parts);
+  }
+
+  private static String suggestedWeight(SingleLift single, Database db) {
+    PlannedWorkoutFile.PlannedSetTarget target =
+        PlannedWorkoutExporter.plannedSetForDescription(single);
+    return PlannedWorkoutText.suggestedWeight(db, single.lift().name(), target);
   }
 
   private static String formatMetric(SetMetric metric) {

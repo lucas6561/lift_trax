@@ -18,7 +18,7 @@ public class DeloadWorkoutBuilder implements WorkoutBuilder {
     return new WorkoutLift(
         name,
         new WorkoutLiftKind.SingleKind(
-            new SingleLift(lift, new SetMetric.Reps(reps), 70, 6.0f, null, true)));
+            new SingleLift(lift, new SetMetric.Reps(reps), 70, null, null, true)));
   }
 
   private static WorkoutLift lightConditioning(Lift lift) {

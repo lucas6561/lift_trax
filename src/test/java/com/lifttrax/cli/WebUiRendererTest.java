@@ -308,10 +308,10 @@ class WebUiRendererTest {
   void plannedWorkoutPageRendersWeeksBlocksAndGroupedTargets() {
     PlannedWorkoutFile.PlannedSetTarget firstSet =
         new PlannedWorkoutFile.PlannedSetTarget(
-            1, "reps", 5, null, null, null, null, null, null, 80, 8.0f, "CHAINS", false);
+            1, "reps", 5, null, null, null, null, null, null, 80, null, "CHAINS", false);
     PlannedWorkoutFile.PlannedSetTarget secondSet =
         new PlannedWorkoutFile.PlannedSetTarget(
-            2, "reps", 5, null, null, null, null, null, null, 80, 8.0f, "CHAINS", false);
+            2, "reps", 5, null, null, null, null, null, null, 80, null, "CHAINS", false);
     PlannedWorkoutFile workoutFile =
         new PlannedWorkoutFile(
             1,
@@ -353,7 +353,7 @@ class WebUiRendererTest {
     assertTrue(html.contains("Week 1"));
     assertTrue(html.contains("Monday"));
     assertTrue(html.contains("Backoff Sets"));
-    assertTrue(html.contains("2x 5 reps @ 80% RPE 8.0 CHAINS"));
+    assertTrue(html.contains("2x 5 reps @ 80% CHAINS"));
     assertTrue(html.contains("Swap options: Front Squat"));
     assertFalse(html.contains("action='/planned-workout-session'"));
     assertFalse(html.contains("Start This Day"));
@@ -416,7 +416,6 @@ class WebUiRendererTest {
                                   "repsMin": 8,
                                   "repsMax": 10,
                                   "percent": 65,
-                                  "rpe": 8.0,
                                   "deload": false
                                 },
                                 {
@@ -425,7 +424,6 @@ class WebUiRendererTest {
                                   "repsMin": 8,
                                   "repsMax": 10,
                                   "percent": 65,
-                                  "rpe": 8.0,
                                   "deload": false
                                 }
                               ],
@@ -447,7 +445,7 @@ class WebUiRendererTest {
 
     String html = PlannedWorkoutHtml.renderPage(workoutFile);
 
-    assertTrue(html.contains("2x 8-10 reps @ 65% RPE 8.0"));
+    assertTrue(html.contains("2x 8-10 reps @ 65%"));
     assertFalse(html.contains("null reps"));
   }
 
@@ -477,7 +475,7 @@ class WebUiRendererTest {
 
       PlannedWorkoutFile.PlannedSetTarget setTarget =
           new PlannedWorkoutFile.PlannedSetTarget(
-              1, "reps", 5, null, null, null, null, null, null, 80, 8.0f, "STRAIGHT", false);
+              1, "reps", 5, null, null, null, null, null, null, 80, null, "STRAIGHT", false);
       PlannedWorkoutFile.PlannedExercise exercise =
           new PlannedWorkoutFile.PlannedExercise(
               "Back Squat", "LOWER", "SQUAT", List.of("QUAD"), List.of(setTarget), "", List.of());
@@ -500,6 +498,7 @@ class WebUiRendererTest {
 
       assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
       assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
+      assertTrue(html.contains("<strong>Suggested:</strong> 295 lb"));
     }
   }
 

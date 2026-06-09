@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 class PlannedWorkoutSessionHtmlTest {
 
   @Test
-  void sessionPageSeedsPlannedSetsAndAllowsWorkoutFileSwaps() {
+  void sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps() {
     String html =
         PlannedWorkoutSessionHtml.renderPage(
             workoutFile(),
@@ -55,18 +55,24 @@ class PlannedWorkoutSessionHtmlTest {
         html.contains(
             "<option value='Safety Bar Squat' disabled>Safety Bar Squat (not in local lifts)</option>"));
     assertTrue(html.contains("Changed to: ${performedLift.value}"));
-    assertTrue(html.contains("Target: 5 reps @ 80% RPE 8.0"));
+    assertTrue(html.contains("Target: 5 reps @ 80%"));
     assertTrue(html.contains("session-execution-widget js-session-execution-input"));
     assertTrue(html.contains("name='metricValue' value='5'"));
-    assertTrue(html.contains("class='js-weight-hidden' value='80%'"));
-    assertTrue(html.contains("name='rpe' value='8.0'"));
+    assertTrue(html.contains("class='js-weight-hidden' value=''"));
+    assertTrue(html.contains("name='rpe' value=''"));
+    assertTrue(html.contains("class='js-detailed-sets' value='[]'"));
+    assertTrue(html.contains("class='individual-sets-details' open"));
     assertTrue(html.contains("name='metricType' value='distance' checked"));
     assertTrue(html.contains("name='metricValue' value='100'"));
     assertTrue(html.contains("value='skipped'>Skipped</option>"));
     assertTrue(html.contains("class='js-weight-hidden'"));
     assertTrue(html.contains("name='rpe'"));
     assertTrue(html.contains("name='notes'"));
+    assertTrue(html.contains("addSetBtn.click();"));
+    assertTrue(html.contains("event.preventDefault();"));
     assertTrue(html.contains("JSON.stringify(results)"));
+    assertFalse(html.contains("name='notes' value='Stay fast.'"));
+    assertFalse(html.contains("name='rpe' value='8.0'"));
     assertFalse(html.contains("class='session-history'"));
   }
 
@@ -106,9 +112,10 @@ class PlannedWorkoutSessionHtmlTest {
               LocalDate.parse("2026-05-31"),
               db);
 
-      assertTrue(html.contains("Target: 5 reps @ 80% RPE 8.0"));
+      assertTrue(html.contains("Target: 5 reps @ 80%"));
+      assertTrue(html.contains("Suggested: 295 lb"));
       assertTrue(html.contains("class='js-weight-hidden' value='295 lb'"));
-      assertTrue(html.contains("name='rpe' value='8.0'"));
+      assertTrue(html.contains("name='rpe' value=''"));
       assertTrue(html.contains("class='session-history' aria-label='Exercise history'"));
       assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
       assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
@@ -116,7 +123,7 @@ class PlannedWorkoutSessionHtmlTest {
   }
 
   @Test
-  void sessionPageUsesRpeAsPercentWhenPercentIsMissing() throws Exception {
+  void sessionPageUsesRpeTableWithHistoricalFallbackWhenPercentIsMissing() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-follow-session-rpe-seed", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {
       db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
@@ -125,7 +132,7 @@ class PlannedWorkoutSessionHtmlTest {
           new LiftExecution(
               null,
               LocalDate.parse("2026-05-30"),
-              List.of(new ExecutionSet(new SetMetric.Reps(1), "400.5 lb", null)),
+              List.of(new ExecutionSet(new SetMetric.Reps(5), "275 lb", 8.0f)),
               false,
               false,
               ""));
@@ -140,8 +147,9 @@ class PlannedWorkoutSessionHtmlTest {
               db);
 
       assertTrue(html.contains("Target: 5 reps RPE 6.5"));
+      assertTrue(html.contains("Suggested: 265 lb"));
       assertTrue(html.contains("class='js-weight-hidden' value='265 lb'"));
-      assertTrue(html.contains("name='rpe' value='6.5'"));
+      assertTrue(html.contains("name='rpe' value=''"));
     }
   }
 
@@ -169,7 +177,7 @@ class PlannedWorkoutSessionHtmlTest {
   private static PlannedWorkoutFile workoutFile() {
     PlannedWorkoutFile.PlannedSetTarget squat =
         new PlannedWorkoutFile.PlannedSetTarget(
-            1, "reps", 5, null, null, null, null, null, null, 80, 8.0f, "STRAIGHT", false);
+            1, "reps", 5, null, null, null, null, null, null, 80, null, "STRAIGHT", false);
     PlannedWorkoutFile.PlannedSetTarget carry =
         new PlannedWorkoutFile.PlannedSetTarget(
             1, "distance_feet", null, null, null, null, null, null, 100, null, null, null, false);

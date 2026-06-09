@@ -22,6 +22,9 @@ public record PlannedWorkoutFile(
     source = Objects.requireNonNull(source, "source is required");
     weeks = copyRequired(weeks, "weeks");
     completedWorkouts = copyOptional(completedWorkouts);
+    if (schemaVersion >= 3) {
+      validateSingleIntensityMode(weeks);
+    }
   }
 
   public record PlannedWorkoutMetadata(
@@ -211,5 +214,22 @@ public record PlannedWorkoutFile(
       return List.of();
     }
     return List.copyOf(values);
+  }
+
+  static void validateSingleIntensityMode(List<PlannedWorkoutWeek> weeks) {
+    for (PlannedWorkoutWeek week : weeks) {
+      for (PlannedWorkoutDay day : week.days()) {
+        for (PlannedWorkoutBlock block : day.blocks()) {
+          for (PlannedExercise exercise : block.exercises()) {
+            for (PlannedSetTarget set : exercise.plannedSets()) {
+              if (set.percent() != null && set.rpe() != null) {
+                throw new IllegalArgumentException(
+                    "plannedSet cannot set both percent and rpe in schemaVersion 3");
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

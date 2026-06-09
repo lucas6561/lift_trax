@@ -6,11 +6,9 @@ import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutHistory;
 import com.lifttrax.workout.PlannedWorkoutJson;
 import com.lifttrax.workout.PlannedWorkoutText;
-import com.lifttrax.workout.WorkoutHistoryFormatter;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /** Renders a follow-along workout day seeded from an imported workout file. */
@@ -45,8 +43,7 @@ final class PlannedWorkoutSessionHtml {
         .append(" / Week ")
         .append(weekNumber)
         .append("</p>")
-        .append(
-            "<p>Enter what you actually completed. Planned values are prefilled from the workout and can be adjusted as you train.</p>");
+        .append("<p>Log completed sets as you train.</p>");
     appendNotes(html, day.notes());
     html.append(
             "<form method='post' action='/save-planned-workout-session' class='planned-session-form'>")
@@ -229,44 +226,43 @@ final class PlannedWorkoutSessionHtml {
     }
     appendHistory(html, db, block, exercise);
     List<PlannedWorkoutFile.PlannedSetTarget> plannedSets = exercise.plannedSets();
-    appendTargets(html, plannedSets);
-    List<ExecutionSetFormValues> initialSets = initialSetValues(plannedSets, exercise.name(), db);
+    appendTargets(html, plannedSets, exercise.name(), db);
+    MetricSeed seed = firstMetricSeed(plannedSets, exercise.name(), db);
     html.append(
             "<div class='add-execution-form session-execution-widget js-session-execution-input'>")
         .append(
             ExecutionInputWidgetHtml.render(
-                prefill(block, exercise, initialSets, plannedSets, date), initialSets, false))
+                prefill(block, exercise, seed, plannedSets, date), List.of(), false, true))
         .append("</div></article>");
   }
 
   private static WebUiRenderer.AddExecutionPrefill prefill(
       PlannedWorkoutFile.PlannedWorkoutBlock block,
       PlannedWorkoutFile.PlannedExercise exercise,
-      List<ExecutionSetFormValues> initialSets,
+      MetricSeed seed,
       List<PlannedWorkoutFile.PlannedSetTarget> plannedSets,
       LocalDate date) {
-    ExecutionSetFormValues first =
-        initialSets.isEmpty()
-            ? new ExecutionSetFormValues("reps", "5", "5", "5", "", "")
-            : initialSets.get(0);
     boolean deload = plannedSets.stream().anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
     return new WebUiRenderer.AddExecutionPrefill(
         exercise.name(),
-        first.weight(),
-        String.valueOf(Math.max(1, plannedSets.size())),
-        first.rpe(),
-        first.metricType(),
-        first.metricValue().isBlank() ? "5" : first.metricValue(),
-        first.metricLeft().isBlank() ? "5" : first.metricLeft(),
-        first.metricRight().isBlank() ? "5" : first.metricRight(),
+        seed.weight(),
+        "1",
+        "",
+        seed.metricType(),
+        seed.metricValue().isBlank() ? "5" : seed.metricValue(),
+        seed.metricLeft().isBlank() ? "5" : seed.metricLeft(),
+        seed.metricRight().isBlank() ? "5" : seed.metricRight(),
         date.toString(),
         block.warmup(),
         deload,
-        exercise.notes());
+        "");
   }
 
   private static void appendTargets(
-      StringBuilder html, List<PlannedWorkoutFile.PlannedSetTarget> plannedSets) {
+      StringBuilder html,
+      List<PlannedWorkoutFile.PlannedSetTarget> plannedSets,
+      String liftName,
+      Database db) {
     if (plannedSets.isEmpty()) {
       html.append("<p class='muted'>Target: Enter completed work</p>");
       return;
@@ -275,29 +271,27 @@ final class PlannedWorkoutSessionHtml {
     for (PlannedWorkoutFile.PlannedSetTarget target : plannedSets) {
       html.append("<li>Target: ")
           .append(WebHtml.escapeHtml(PlannedWorkoutText.plannedSet(target)))
+          .append(suggestionHtml(db, liftName, target))
           .append("</li>");
     }
     html.append("</ol></details>");
   }
 
-  private static List<ExecutionSetFormValues> initialSetValues(
+  private static MetricSeed firstMetricSeed(
       List<PlannedWorkoutFile.PlannedSetTarget> plannedSets, String liftName, Database db) {
     if (plannedSets.isEmpty()) {
-      return List.of();
+      return new MetricSeed("reps", "5", "5", "5", "");
     }
-    return plannedSets.stream().map(target -> formValues(target, liftName, db)).toList();
+    return MetricSeed.from(plannedSets.get(0), liftName, db);
   }
 
-  private static ExecutionSetFormValues formValues(
-      PlannedWorkoutFile.PlannedSetTarget target, String liftName, Database db) {
-    MetricSeed seed = MetricSeed.from(target, liftName, db);
-    return new ExecutionSetFormValues(
-        seed.metricType(),
-        seed.metricValue(),
-        seed.metricLeft(),
-        seed.metricRight(),
-        seed.weight(),
-        seed.rpe());
+  private static String suggestionHtml(
+      Database db, String liftName, PlannedWorkoutFile.PlannedSetTarget target) {
+    String suggested = PlannedWorkoutText.suggestedWeight(db, liftName, target);
+    if (suggested.isBlank()) {
+      return "";
+    }
+    return " <span class='muted'>Suggested: " + WebHtml.escapeHtml(suggested) + "</span>";
   }
 
   private static void appendHistory(
@@ -614,6 +608,19 @@ final class PlannedWorkoutSessionHtml {
                   renderSetList(widget);
                 });
               }
+              widget.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') {
+                  return;
+                }
+                const tag = event.target.tagName;
+                if (tag !== 'INPUT' && tag !== 'SELECT') {
+                  return;
+                }
+                event.preventDefault();
+                if (addSetBtn) {
+                  addSetBtn.click();
+                }
+              });
               const clearSetsBtn = widget.querySelector('.js-clear-sets');
               if (clearSetsBtn) {
                 clearSetsBtn.addEventListener('click', () => {
@@ -629,18 +636,7 @@ final class PlannedWorkoutSessionHtml {
 
             function collectExecutionSets(widget) {
               const detailedSets = widgetSets.get(widget) || [];
-              if (detailedSets.length > 0) {
-                return detailedSets.map((set) => ({...set, state: 'complete'}));
-              }
-              const setCountInput = widget.querySelector("input[name='setCount']");
-              const setCount = Math.max(1, parseInt((setCountInput && setCountInput.value) || '1', 10) || 1);
-              const payload = {
-                ...metricPayload(widget),
-                weight: computeWeight(widget),
-                rpe: (widget.querySelector("input[name='rpe']") || {}).value || '',
-                state: 'complete'
-              };
-              return Array.from({length: setCount}, () => ({...payload}));
+              return detailedSets.map((set) => ({...set, state: 'complete'}));
             }
 
             function toggleExercise(card) {
@@ -660,6 +656,15 @@ final class PlannedWorkoutSessionHtml {
             }
 
             form.querySelectorAll('.js-session-execution-input').forEach((widget) => bindExecutionWidget(widget));
+            form.addEventListener('keydown', (event) => {
+              if (event.key !== 'Enter') {
+                return;
+              }
+              const tag = event.target.tagName;
+              if (tag === 'INPUT' || tag === 'SELECT') {
+                event.preventDefault();
+              }
+            });
             previousBlock.addEventListener('click', () => showBlock(currentBlockIndex - 1));
             nextBlock.addEventListener('click', () => showBlock(currentBlockIndex + 1));
             form.querySelectorAll('.session-exercise').forEach((card) => {
@@ -708,75 +713,39 @@ final class PlannedWorkoutSessionHtml {
   }
 
   private record MetricSeed(
-      String metricType,
-      String metricValue,
-      String metricLeft,
-      String metricRight,
-      String weight,
-      String rpe) {
+      String metricType, String metricValue, String metricLeft, String metricRight, String weight) {
     static MetricSeed from(
         PlannedWorkoutFile.PlannedSetTarget target, String liftName, Database db) {
       if (target == null) {
-        return new MetricSeed("reps", "", "", "", "", "");
+        return new MetricSeed("reps", "", "", "", "");
       }
       String weight = suggestedWeight(target, liftName, db);
-      String rpe = target.rpe() == null ? "" : String.format(Locale.ROOT, "%.1f", target.rpe());
       return switch (target.metricType()) {
-        case "reps" -> new MetricSeed("reps", text(target.reps()), "", "", weight, rpe);
+        case "reps" -> new MetricSeed("reps", text(target.reps()), "", "", weight);
         case "reps_lr" ->
             new MetricSeed(
-                "reps-lr", "", text(target.repsLeft()), text(target.repsRight()), weight, rpe);
+                "reps-lr", "", text(target.repsLeft()), text(target.repsRight()), weight);
         case "reps_range" ->
             new MetricSeed(
                 "reps",
                 text(target.repsMax() == null ? target.repsMin() : target.repsMax()),
                 "",
                 "",
-                weight,
-                rpe);
-        case "time_seconds" -> new MetricSeed("time", text(target.seconds()), "", "", weight, rpe);
+                weight);
+        case "time_seconds" -> new MetricSeed("time", text(target.seconds()), "", "", weight);
         case "distance_feet" ->
-            new MetricSeed("distance", text(target.distanceFeet()), "", "", weight, rpe);
-        default -> new MetricSeed("reps", "", "", "", weight, rpe);
+            new MetricSeed("distance", text(target.distanceFeet()), "", "", weight);
+        default -> new MetricSeed("reps", "", "", "", weight);
       };
     }
 
     private static String text(Integer value) {
-      return value == null ? "" : String.format(Locale.ROOT, "%d", value);
+      return value == null ? "" : String.valueOf(value);
     }
 
     private static String suggestedWeight(
         PlannedWorkoutFile.PlannedSetTarget target, String liftName, Database db) {
-      Double percent = suggestedPercent(target);
-      if (percent == null) {
-        return "";
-      }
-      if (db != null) {
-        try {
-          String calculated =
-              WorkoutHistoryFormatter.percentageOfBestOneRepMax(db, liftName, percent);
-          if (calculated != null && !calculated.isBlank()) {
-            return calculated;
-          }
-        } catch (Exception ignored) {
-          // Keep rendering the workout even when history is unavailable.
-        }
-      }
-      return percentText(percent);
-    }
-
-    private static Double suggestedPercent(PlannedWorkoutFile.PlannedSetTarget target) {
-      if (target.percent() != null) {
-        return target.percent().doubleValue();
-      }
-      return target.rpe() == null ? null : target.rpe() * 10.0;
-    }
-
-    private static String percentText(double value) {
-      if (value == Math.rint(value)) {
-        return String.format(Locale.ROOT, "%.0f%%", value);
-      }
-      return String.format(Locale.ROOT, "%.1f%%", value);
+      return PlannedWorkoutText.suggestedWeight(db, liftName, target);
     }
   }
 }

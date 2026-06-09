@@ -306,6 +306,13 @@ final class PlannedWorkoutHtml {
     html.append("<div>")
         .append(WebHtml.escapeHtml(PlannedWorkoutText.plannedSets(exercise.plannedSets())))
         .append("</div>");
+    String suggestions =
+        PlannedWorkoutText.loadSuggestions(db, exercise.name(), exercise.plannedSets());
+    if (!suggestions.isBlank()) {
+      html.append("<div class='planned-load-suggestion muted'><strong>Suggested:</strong> ")
+          .append(WebHtml.escapeHtml(suggestions))
+          .append("</div>");
+    }
     if (!exercise.notes().isBlank()) {
       html.append("<div class='muted'>Notes: ")
           .append(WebHtml.escapeHtml(exercise.notes()))
