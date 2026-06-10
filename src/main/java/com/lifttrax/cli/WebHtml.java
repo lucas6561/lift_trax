@@ -27,14 +27,14 @@ final class WebHtml {
       """
                 :root {
                   --pico-font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                  --pico-font-size: 84%%;
+                  --pico-font-size: 84%;
                   --pico-line-height: 1.25;
                   --pico-form-element-spacing-vertical: 0.28rem;
                   --pico-form-element-spacing-horizontal: 0.45rem;
                   --pico-spacing: 0.65rem;
                 }
                 body {
-                  background: radial-gradient(circle at top, #0b1736, #0a1022 45%%, #070d1a);
+                  background: radial-gradient(circle at top, #0b1736, #0a1022 45%, #070d1a);
                   min-height: 100vh;
                 }
                 main.container {
@@ -98,14 +98,17 @@ final class WebHtml {
                 .segmented { display: flex; flex-wrap: wrap; gap: 0.4rem; }
                 .stacked-row { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
                 .add-actions { display: flex; justify-content: flex-end; margin-bottom: 0.35rem; }
-                .new-lift-details { width: min(820px, 100%%); }
+                .new-lift-details { width: min(820px, 100%); }
                 .new-lift-details > summary { cursor: pointer; color: var(--pico-primary); margin-bottom: 0.5rem; }
                 .new-lift-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.45rem; padding: 0.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.7rem; }
                 .execution-lift-group { margin-bottom: 0.3rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.14rem 0.4rem; }
-                .execution-lift-toggle { cursor: pointer; display: block; width: 100%%; padding: 0.22rem 0.16rem; user-select: none; }
+                .execution-lift-toggle { cursor: pointer; display: block; width: 100%; padding: 0.22rem 0.16rem; user-select: none; }
                 .execution-lift-toggle::-webkit-details-marker { margin-right: 0.35rem; }
                 .execution-list { list-style: none; padding-left: 0; margin-left: 0; }
                 .execution-item { min-width: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.18); padding: 0.18rem 0; }
+                .execution-row-actions { display: flex; gap: 0.35rem; align-items: center; flex: 0 0 auto; }
+                .execution-row-actions .compact-btn { min-inline-size: 4.4rem; min-height: 2rem; }
+                .execution-row-actions .danger { margin-left: 0.35rem; }
                 .js-exec-view,
                 .execution-edit-form,
                 .js-edit-sets,
@@ -157,7 +160,7 @@ final class WebHtml {
                 .session-block-summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .session-block-nav progress { margin: 0; }
                 .session-block-actions { display: flex; gap: 0.35rem; }
-                .session-block-actions button { margin: 0; white-space: nowrap; }
+                .session-block-actions button { min-height: 2.35rem; margin: 0; white-space: nowrap; }
                 .session-block { border: 1px solid var(--pico-muted-border-color); border-radius: 0.6rem; padding: 0.58rem; background: rgba(9, 16, 30, 0.7); }
                 .session-block.is-current { border-color: rgba(34, 197, 94, 0.58); }
                 .session-block-label { display: inline-block; margin-bottom: 0.22rem; color: #86efac; font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -179,7 +182,9 @@ final class WebHtml {
                 .session-set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 0.35rem; }
                 .session-set-grid label { min-width: 0; }
                 .session-set-grid input,
-                .session-set-grid select { width: 100%%; }
+                .session-set-grid select { width: 100%; }
+                .save-execution-btn,
+                .save-workout-session-btn { min-height: 2.75rem; }
                 .save-workout-session-btn { position: sticky; bottom: 0.35rem; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
                 @media (max-width: 720px) {
                   .dashboard-hero { align-items: stretch; flex-direction: column; }
@@ -187,55 +192,57 @@ final class WebHtml {
                   .dashboard-history-item { grid-template-columns: 1fr; align-items: start; }
                   .dashboard-primary-action,
                   .dashboard-work-item .compact-btn,
-                  .dashboard-history-item .compact-btn { width: 100%%; }
+                  .dashboard-history-item .compact-btn { width: 100%; }
                   .planned-import-layout { grid-template-columns: 1fr; }
                   .planned-import-actions { border-left: 0; border-top: 1px solid var(--pico-muted-border-color); padding-left: 0; padding-top: 0.65rem; }
                   .planned-workalong-grid { grid-template-columns: 1fr; }
                   main.container { padding-left: 0.4rem; padding-right: 0.4rem; }
                   .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-                  .tab { min-width: 0; width: 100%%; }
+                  .tab { min-width: 0; width: 100%; }
                   .tab-panel { padding: 0.45rem; }
                   .tab-filter-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
                   .tab-filter-bar label { min-width: 0; flex-direction: column; align-items: stretch; gap: 0.2rem; }
                   .tab-filter-bar label:first-child { grid-column: 1 / -1; }
                   .tab-filter-bar input,
-                  .tab-filter-bar select { min-width: 0; width: 100%%; }
-                  .js-clear-filters { align-self: end; width: 100%%; }
+                  .tab-filter-bar select { min-width: 0; width: 100%; }
+                  .js-clear-filters { align-self: end; width: 100%; }
                   .add-execution-form { min-width: 0; border: 0; padding: 0; }
                   .add-execution-form fieldset { min-width: 0; }
                   .add-execution-form .stacked-row { align-items: stretch; }
                   .add-execution-form .stacked-row > label { flex: 1 1 8rem; min-width: 0; }
                   .add-execution-form .stacked-row input,
-                  .add-execution-form .stacked-row select { width: 100%%; }
+                  .add-execution-form .stacked-row select { width: 100%; }
                   .add-execution-form .segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.32rem; }
                   .add-execution-form .segmented label { display: flex; gap: 0.35rem; align-items: center; min-width: 0; margin: 0; padding: 0.38rem; border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.42rem; background: rgba(15, 23, 42, 0.72); }
                   .add-execution-form .segmented input[type='radio'],
                   .add-execution-form .segmented input[type='checkbox'] { flex: 0 0 auto; width: auto; margin: 0; }
                   .quick-log-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
                   .quick-log-label { grid-column: 1 / -1; }
-                  .quick-log-presets .compact-btn { width: 100%%; }
-                  .save-execution-btn { position: sticky; bottom: 0.35rem; width: 100%%; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
+                  .quick-log-presets .compact-btn { width: 100%; }
+                  .save-execution-btn { position: sticky; bottom: 0.35rem; width: 100%; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
                   .execution-list { display: grid; gap: 0.38rem; }
                   .execution-item { margin: 0 !important; padding: 0.42rem; border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.5rem; background: rgba(15, 23, 42, 0.72); }
                   .js-exec-view { align-items: flex-start !important; flex-wrap: wrap !important; }
-                  .execution-text { flex: 1 1 100%% !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
-                  .js-exec-edit,
-                  .js-exec-delete { flex: 0 0 auto; }
-                  .execution-edit-meta { display: grid !important; grid-template-columns: 1fr; gap: 0.38rem; overflow-x: visible !important; width: 100%%; }
+                  .execution-text { flex: 1 1 100% !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+                  .execution-row-actions { flex: 1 1 100%; width: 100%; padding-top: 0.32rem; border-top: 1px solid rgba(148, 163, 184, 0.22); }
+                  .execution-row-actions .compact-btn { flex: 1 1 0; min-height: 2.45rem; }
+                  .execution-row-actions .danger { flex: 0 0 36%; margin-left: auto; }
+                  .execution-edit-meta { display: grid !important; grid-template-columns: 1fr; gap: 0.38rem; overflow-x: visible !important; width: 100%; }
                   .execution-edit-meta label,
-                  .execution-edit-meta input { width: 100%%; min-width: 0; }
+                  .execution-edit-meta input { width: 100%; min-width: 0; }
                   .js-set-row { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem !important; align-items: end !important; overflow-x: visible !important; }
                   .js-set-row select,
-                  .js-set-row input { width: 100%% !important; min-width: 0; }
+                  .js-set-row input { width: 100% !important; min-width: 0; }
                   .js-set-weight,
                   .js-remove-set { grid-column: 1 / -1; }
                   .session-exercise > header { align-items: stretch; flex-direction: column; }
-                  .session-exercise > header label { width: 100%%; }
-                  .session-block-nav { grid-template-columns: 1fr; }
+                  .session-exercise > header label { width: 100%; }
+                  .planned-session-form { padding-bottom: 4.4rem; }
+                  .session-block-nav { position: sticky; top: auto; bottom: 0.35rem; z-index: 4; grid-template-columns: 1fr; }
                   .session-block-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-                  .session-block-actions button { width: 100%%; }
+                  .session-block-actions button { width: 100%; }
                   .session-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-                  .save-workout-session-btn { width: 100%%; }
+                  .save-workout-session-btn { bottom: 4rem; width: 100%; }
                 }
                 .is-hidden { display: none; }
             """;

@@ -148,6 +148,7 @@ class WebUiRendererTest {
 
       assertTrue(html.contains("<h4>2026-04-13</h4>"));
       assertTrue(html.contains("<h4>2026-04-14</h4>"));
+      assertTrue(html.contains("class='execution-row-actions'"));
 
       int warmupIndex = html.indexOf("Push Ups —");
       int squatIndex = html.indexOf("Front Squat —");
@@ -199,6 +200,7 @@ class WebUiRendererTest {
       assertTrue(html.contains("action='/delete-execution'"));
       assertTrue(html.contains("class='execution-text'"));
       assertTrue(html.contains("class='execution-edit-meta'"));
+      assertTrue(html.contains("class='execution-row-actions'"));
       assertTrue(
           html.contains(
               "<button type='button' class='secondary compact-btn js-exec-edit'>Edit</button>"));

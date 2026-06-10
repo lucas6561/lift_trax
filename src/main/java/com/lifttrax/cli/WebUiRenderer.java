@@ -1527,8 +1527,10 @@ final class WebUiRenderer {
         + "<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>"
         + WebHtml.escapeHtml(lift.name() + " — " + formatExecutionSummary(execution))
         + "</span>"
+        + "<div class='execution-row-actions'>"
         + "<button type='button' class='secondary compact-btn js-exec-edit'>Edit</button>"
         + "<button type='button' class='secondary danger compact-btn js-exec-delete'>Delete</button>"
+        + "</div>"
         + "<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>"
         + "<input type='hidden' name='executionId' value='"
         + execution.id()
@@ -2195,10 +2197,12 @@ final class WebUiRenderer {
           html.append(
               "<span class='status error'>Execution ID missing; cannot edit or delete.</span>");
         } else {
+          html.append("<div class='execution-row-actions'>");
           html.append(
               "<button type='button' class='secondary compact-btn js-exec-edit'>Edit</button>");
           html.append(
               "<button type='button' class='secondary danger compact-btn js-exec-delete'>Delete</button>");
+          html.append("</div>");
           html.append(
                   "<form method='post' action='/delete-execution' class='query-form execution-delete-form js-exec-delete-form' style='display:none;'>")
               .append("<input type='hidden' name='executionId' value='")
