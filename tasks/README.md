@@ -14,9 +14,9 @@ tasks/
   milestones/
     M1-quality-baseline.md
   backlog/
-    LT-0002-execution-edit-delete.md
+    LT-0003-workout-plan-model.md
   completed/
-    LT-0001-daily-training-dashboard.md
+    LT-0002-execution-edit-delete.md
 ```
 
 ## How to use it

@@ -1,12 +1,12 @@
  ---
 id: LT-0002
 title: Add execution editing and deletion
-status: idea
+status: done
 track: product
 priority: high
 effort: medium
 created: 2026-05-27
-updated: 2026-05-27
+updated: 2026-06-11
 owner: unassigned
 depends_on: []
 ---
@@ -28,12 +28,15 @@ Users can edit and delete logged executions from the web UI, with database chang
 
 ## Acceptance criteria
 
-- [ ] Existing execution records can be edited from the web UI.
-- [ ] Existing execution records can be deleted with a confirmation step.
-- [ ] Database methods cover update and delete behavior.
-- [ ] Route and renderer tests cover success and failure paths.
+- [x] Existing execution records can be edited from the web UI.
+- [x] Existing execution records can be deleted with a confirmation step.
+- [x] Database methods cover update and delete behavior.
+- [x] Route and renderer tests cover success and failure paths.
 
 ## Notes
 
 Deletion should account for `execution_sets` rows linked by `record_id`.
 
+Completed with database coverage for execution update/delete persistence, route coverage for
+update/delete success and error redirects, existing renderer coverage for edit/delete controls, and
+full `qualityGate` verification.

@@ -12,8 +12,18 @@ import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpContext;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpPrincipal;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -1083,5 +1093,260 @@ class WebServerCliTest {
 
     assertEquals(second, found);
     assertTrue(missing == null);
+  }
+
+  @Test
+  void updateExecutionRouteUpdatesExistingExecutionAndRedirectsToList() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-update-exec", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 4, 20),
+              List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", 8.0f)),
+              false,
+              true,
+              "old"));
+      int executionId = db.getExecutions("Back Squat").get(0).id();
+      TestExchange exchange =
+          TestExchange.post(
+              "/update-execution",
+              form(
+                  "lift",
+                  "Back Squat",
+                  "executionId",
+                  String.valueOf(executionId),
+                  "tab",
+                  "executions",
+                  "date",
+                  "2026-04-21",
+                  "notes",
+                  "fixed",
+                  "warmup",
+                  "on",
+                  "detailedSets",
+                  """
+                      [{"metricType":"reps","metricValue":"3","weight":"245 lb","rpe":"8.5"}]
+                      """));
+
+      invokeHandler("handleUpdateExecution", exchange, db);
+
+      LiftExecution updated = db.getExecution("Back Squat", executionId);
+      assertEquals(303, exchange.status());
+      assertTrue(exchange.location().contains("status=Execution+updated"));
+      assertTrue(exchange.location().contains("focus=execution-list"));
+      assertEquals(LocalDate.of(2026, 4, 21), updated.date());
+      assertTrue(updated.warmup());
+      assertFalse(updated.deload());
+      assertEquals("fixed", updated.notes());
+      assertEquals(
+          List.of(new ExecutionSet(new SetMetric.Reps(3), "245 lb", 8.5f)), updated.sets());
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void updateExecutionRouteRedirectsWithErrorForMissingExecution() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-update-missing-exec", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      TestExchange exchange =
+          TestExchange.post(
+              "/update-execution",
+              form(
+                  "lift",
+                  "Back Squat",
+                  "executionId",
+                  "999",
+                  "tab",
+                  "executions",
+                  "date",
+                  "2026-04-21"));
+
+      invokeHandler("handleUpdateExecution", exchange, db);
+
+      assertEquals(303, exchange.status());
+      assertTrue(exchange.location().contains("statusType=error"));
+      assertTrue(exchange.location().contains("Execution+not+found+for+Back+Squat"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void deleteExecutionRouteDeletesExistingExecutionAndRedirectsToList() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-delete-exec", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+      db.addLiftExecution(
+          "Bench Press",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 4, 20),
+              List.of(new ExecutionSet(new SetMetric.Reps(5), "185 lb", null)),
+              false,
+              false,
+              ""));
+      int executionId = db.getExecutions("Bench Press").get(0).id();
+      TestExchange exchange =
+          TestExchange.post(
+              "/delete-execution",
+              form("executionId", String.valueOf(executionId), "tab", "executions"));
+
+      invokeHandler("handleDeleteExecution", exchange, db);
+
+      assertEquals(303, exchange.status());
+      assertTrue(exchange.location().contains("status=Execution+deleted"));
+      assertTrue(exchange.location().contains("focus=execution-list"));
+      assertTrue(db.getExecutions("Bench Press").isEmpty());
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void deleteExecutionRouteRedirectsWithErrorForInvalidId() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-delete-invalid-exec", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      TestExchange exchange =
+          TestExchange.post("/delete-execution", form("executionId", "", "tab", "executions"));
+
+      invokeHandler("handleDeleteExecution", exchange, db);
+
+      assertEquals(303, exchange.status());
+      assertTrue(exchange.location().contains("statusType=error"));
+      assertTrue(exchange.location().contains("Failed+to+delete+execution"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  private static void invokeHandler(String methodName, TestExchange exchange, SqliteDb db)
+      throws Exception {
+    Method method =
+        WebServerCli.class.getDeclaredMethod(methodName, HttpExchange.class, SqliteDb.class);
+    method.setAccessible(true);
+    method.invoke(null, exchange, db);
+  }
+
+  private static String form(String... pairs) {
+    StringBuilder body = new StringBuilder();
+    for (int i = 0; i < pairs.length; i += 2) {
+      if (body.length() > 0) {
+        body.append('&');
+      }
+      body.append(URLEncoder.encode(pairs[i], java.nio.charset.StandardCharsets.UTF_8));
+      body.append('=');
+      body.append(URLEncoder.encode(pairs[i + 1], java.nio.charset.StandardCharsets.UTF_8));
+    }
+    return body.toString();
+  }
+
+  private static final class TestExchange extends HttpExchange {
+    private final URI requestUri;
+    private final byte[] requestBytes;
+    private final Headers requestHeaders = new Headers();
+    private final Headers responseHeaders = new Headers();
+    private final ByteArrayOutputStream responseBody = new ByteArrayOutputStream();
+    private int status;
+
+    private TestExchange(String path, String body) {
+      requestUri = URI.create(path);
+      requestBytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    static TestExchange post(String path, String body) {
+      return new TestExchange(path, body);
+    }
+
+    int status() {
+      return status;
+    }
+
+    String location() {
+      return responseHeaders.getFirst("Location");
+    }
+
+    @Override
+    public Headers getRequestHeaders() {
+      return requestHeaders;
+    }
+
+    @Override
+    public Headers getResponseHeaders() {
+      return responseHeaders;
+    }
+
+    @Override
+    public URI getRequestURI() {
+      return requestUri;
+    }
+
+    @Override
+    public String getRequestMethod() {
+      return "POST";
+    }
+
+    @Override
+    public HttpContext getHttpContext() {
+      return null;
+    }
+
+    @Override
+    public void close() {}
+
+    @Override
+    public InputStream getRequestBody() {
+      return new ByteArrayInputStream(requestBytes);
+    }
+
+    @Override
+    public OutputStream getResponseBody() {
+      return responseBody;
+    }
+
+    @Override
+    public void sendResponseHeaders(int responseCode, long responseLength) {
+      status = responseCode;
+    }
+
+    @Override
+    public InetSocketAddress getRemoteAddress() {
+      return new InetSocketAddress(0);
+    }
+
+    @Override
+    public int getResponseCode() {
+      return status;
+    }
+
+    @Override
+    public InetSocketAddress getLocalAddress() {
+      return new InetSocketAddress(0);
+    }
+
+    @Override
+    public String getProtocol() {
+      return "HTTP/1.1";
+    }
+
+    @Override
+    public Object getAttribute(String name) {
+      return null;
+    }
+
+    @Override
+    public void setAttribute(String name, Object value) {}
+
+    @Override
+    public void setStreams(InputStream inputStream, OutputStream outputStream) {}
+
+    @Override
+    public HttpPrincipal getPrincipal() {
+      return null;
+    }
   }
 }
