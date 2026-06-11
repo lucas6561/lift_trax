@@ -83,6 +83,7 @@ Key tasks:
 - `LT-0077`: Add exercise snapshots to execution history.
 - `LT-0078`: Add exercise catalog database foundation.
 - `LT-0079`: Move exercise catalog to catalog database.
+- `LT-0093`: Import exercise catalog files.
 - `LT-0064`: Add active workout draft and resume.
 
 ## Roadmap tracks
