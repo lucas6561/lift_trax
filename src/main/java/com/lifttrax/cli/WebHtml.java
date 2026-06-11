@@ -92,6 +92,8 @@ final class WebHtml {
                 .add-execution-form fieldset { border: 1px solid var(--pico-muted-border-color); border-radius: 0.55rem; padding: 0.4rem; margin-bottom: 0.2rem; }
                 .quick-log-presets { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; padding: 0.4rem; border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 0.55rem; background: rgba(14, 116, 144, 0.12); }
                 .quick-log-label { margin-right: 0.1rem; font-weight: 700; color: #bae6fd; }
+                .set-entry-mode { border-color: rgba(34, 197, 94, 0.42); background: rgba(20, 83, 45, 0.14); }
+                .set-entry-mode-choice { margin-bottom: 0.4rem; }
                 .individual-sets-details { border: 1px dashed var(--pico-muted-border-color); border-radius: 0.45rem; padding: 0.35rem 0.45rem; }
                 .individual-sets-details > summary { cursor: pointer; color: var(--pico-primary); }
                 .individual-sets-details[open] > summary { margin-bottom: 0.42rem; }
@@ -173,6 +175,7 @@ final class WebHtml {
                 .session-swap-panel { border-left: 2px solid #38bdf8; margin-top: 0.4rem; padding: 0.25rem 0 0.1rem 0.55rem; }
                 .session-swap-panel label,
                 .session-swap-panel p { margin-bottom: 0.28rem; }
+                .session-lift-note { border-left: 3px solid #22c55e; padding: 0.32rem 0.5rem; margin: 0.35rem 0 0.45rem; background: rgba(20, 83, 45, 0.18); color: #dcfce7; overflow-wrap: anywhere; }
                 .session-history { display: flex; flex-wrap: wrap; gap: 0.32rem 0.75rem; border: 1px solid rgba(250, 204, 21, 0.36); border-radius: 0.45rem; padding: 0.36rem 0.46rem; margin: 0.35rem 0 0.45rem; background: rgba(113, 63, 18, 0.18); color: #fde68a; }
                 .session-history span { overflow-wrap: anywhere; }
                 .session-exercise.is-skipped,

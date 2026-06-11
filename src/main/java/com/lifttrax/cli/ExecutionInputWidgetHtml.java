@@ -47,7 +47,7 @@ final class ExecutionInputWidgetHtml {
     String bandChecks = renderBandChecks("weightBandColors", weightPrefill.bands());
     String accomBandChecks = renderBandChecks("accomBandColors", weightPrefill.accomBands());
     String quickPresets = showQuickPresets ? quickPresets() : "";
-    String detailsOpen = safeInitialSets.isEmpty() && !openIndividualSets ? "" : " open";
+    SetEntryModeState setEntryMode = SetEntryModeState.from(safeInitialSets, openIndividualSets);
 
     return """
                   %s
@@ -98,8 +98,17 @@ final class ExecutionInputWidgetHtml {
                       <label>Custom <input type='text' name='customWeight' data-focus-target='add-weight' value='%s' placeholder='225 lb+40c'/></label>
                     </div>
                   </fieldset>
+                  <fieldset class='set-entry-mode'>
+                    <legend>Set entry</legend>
+                    <div class='segmented set-entry-mode-choice'>
+                      <label><input type='radio' name='setEntryMode' value='multiple' %s/> Multiple matching sets</label>
+                      <label><input type='radio' name='setEntryMode' value='individual' %s/> Individual set log</label>
+                    </div>
+                    <div class='stacked-row entry-mode-multiple'>
+                      <label>Set Count <input type='number' min='1' name='setCount' value='%s'/></label>
+                    </div>
+                  </fieldset>
                   <div class='stacked-row'>
-                    <label>Set Count <input type='number' min='1' name='setCount' value='%s'/></label>
                     <label>RPE <input type='number' step='0.1' min='1' max='10' name='rpe' value='%s' placeholder='8.5'/></label>
                   </div>
                   <fieldset>
@@ -116,11 +125,11 @@ final class ExecutionInputWidgetHtml {
                       <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='%s'/></label>
                     </div>
                     <details class='individual-sets-details'%s>
-                      <summary>Individual sets</summary>
+                      <summary>Individual set log</summary>
                       <div class='stacked-row'>
                         <label>Copies <input type='number' min='1' name='setCopies' value='1'/></label>
-                        <button type='button' class='secondary js-add-set'>Add Individual Set</button>
-                        <button type='button' class='secondary js-clear-sets'>Clear Individual Sets</button>
+                        <button type='button' class='secondary js-add-set'>Add Set to Log</button>
+                        <button type='button' class='secondary js-clear-sets'>Clear Set Log</button>
                       </div>
                       <ul class='set-list js-set-list'>%s</ul>
                     </details>
@@ -160,6 +169,8 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(weightPrefill.accomChain()),
             accomBandChecks,
             WebHtml.escapeHtml(weightPrefill.customWeight()),
+            setEntryMode.multipleChecked(),
+            setEntryMode.individualChecked(),
             WebHtml.escapeHtml(prefill.setCount()),
             WebHtml.escapeHtml(prefill.rpe()),
             repsChecked,
@@ -169,7 +180,7 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(prefill.metricValue()),
             WebHtml.escapeHtml(prefill.metricLeft()),
             WebHtml.escapeHtml(prefill.metricRight()),
-            detailsOpen,
+            setEntryMode.detailsOpen(),
             renderInitialSetItems(safeInitialSets),
             WebHtml.escapeHtml(prefill.date()),
             prefill.warmup() ? "checked" : "",
@@ -260,5 +271,16 @@ final class ExecutionInputWidgetHtml {
         .replace("\"", "\\\"")
         .replace("\r", "\\r")
         .replace("\n", "\\n");
+  }
+
+  private record SetEntryModeState(
+      String multipleChecked, String individualChecked, String detailsOpen) {
+    static SetEntryModeState from(
+        List<ExecutionSetFormValues> initialSets, boolean openIndividualSets) {
+      if (!initialSets.isEmpty() || openIndividualSets) {
+        return new SetEntryModeState("", "checked", " open");
+      }
+      return new SetEntryModeState("checked", "", "");
+    }
   }
 }

@@ -7,8 +7,10 @@ import com.lifttrax.workout.PlannedWorkoutHistory;
 import com.lifttrax.workout.PlannedWorkoutJson;
 import com.lifttrax.workout.PlannedWorkoutText;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** Renders a follow-along workout day seeded from an imported workout file. */
@@ -64,8 +66,10 @@ final class PlannedWorkoutSessionHtml {
         .append("' required/></label>");
     appendBlockNavigation(html, day.blocks());
     Set<String> localLiftNames = new LinkedHashSet<>();
+    Map<String, String> localLiftNotes = new HashMap<>();
     for (Lift lift : localLifts) {
       localLiftNames.add(lift.name());
+      localLiftNotes.put(lift.name(), lift.notes() == null ? "" : lift.notes());
     }
     for (int blockIndex = 0; blockIndex < day.blocks().size(); blockIndex++) {
       appendBlock(
@@ -74,6 +78,7 @@ final class PlannedWorkoutSessionHtml {
           blockIndex,
           day.blocks().size(),
           localLiftNames,
+          localLiftNotes,
           date,
           db);
     }
@@ -160,6 +165,7 @@ final class PlannedWorkoutSessionHtml {
       int blockIndex,
       int blockCount,
       Set<String> localLiftNames,
+      Map<String, String> localLiftNotes,
       LocalDate date,
       Database db) {
     html.append("<section class='session-block")
@@ -179,7 +185,14 @@ final class PlannedWorkoutSessionHtml {
     for (int exerciseIndex = 0; exerciseIndex < block.exercises().size(); exerciseIndex++) {
       String key = block.order() + ":" + exerciseIndex;
       appendExercise(
-          html, key, block, block.exercises().get(exerciseIndex), localLiftNames, date, db);
+          html,
+          key,
+          block,
+          block.exercises().get(exerciseIndex),
+          localLiftNames,
+          localLiftNotes,
+          date,
+          db);
     }
     html.append("</section>");
   }
@@ -190,6 +203,7 @@ final class PlannedWorkoutSessionHtml {
       PlannedWorkoutFile.PlannedWorkoutBlock block,
       PlannedWorkoutFile.PlannedExercise exercise,
       Set<String> localLiftNames,
+      Map<String, String> localLiftNotes,
       LocalDate date,
       Database db) {
     html.append("<article class='session-exercise' data-exercise-key='")
@@ -208,17 +222,18 @@ final class PlannedWorkoutSessionHtml {
         .append("<label>Performed lift <select class='js-session-performed-lift' required>")
         .append("<optgroup label='Planned and recommended'>");
     Set<String> recommendedNames = PlannedWorkoutSessionService.recommendedLiftNames(exercise);
-    appendLiftOptions(html, recommendedNames, localLiftNames, true);
+    appendLiftOptions(html, recommendedNames, localLiftNames, localLiftNotes, true);
     html.append("</optgroup>");
     Set<String> otherLocalLiftNames = new LinkedHashSet<>(localLiftNames);
     otherLocalLiftNames.removeAll(recommendedNames);
     if (!otherLocalLiftNames.isEmpty()) {
       html.append("<optgroup label='Other lifts in your library'>");
-      appendLiftOptions(html, otherLocalLiftNames, localLiftNames, false);
+      appendLiftOptions(html, otherLocalLiftNames, localLiftNames, localLiftNotes, false);
       html.append("</optgroup>");
     }
     html.append(
         "</select></label><p class='muted'>Choose any lift from your library. Workout-approved alternatives are listed first.</p></div></div>");
+    appendLiftNote(html, localLiftNotes.getOrDefault(exercise.name(), ""));
     if (!exercise.notes().isBlank()) {
       html.append("<p class='muted'><strong>Plan note:</strong> ")
           .append(WebHtml.escapeHtml(exercise.notes()))
@@ -325,10 +340,17 @@ final class PlannedWorkoutSessionHtml {
   }
 
   private static void appendLiftOptions(
-      StringBuilder html, Set<String> names, Set<String> localLiftNames, boolean markUnavailable) {
+      StringBuilder html,
+      Set<String> names,
+      Set<String> localLiftNames,
+      Map<String, String> localLiftNotes,
+      boolean markUnavailable) {
     for (String name : names) {
+      String notes = localLiftNotes.getOrDefault(name, "");
       html.append("<option value='")
           .append(WebHtml.escapeHtml(name))
+          .append("' data-lift-note='")
+          .append(WebHtml.escapeHtml(notes))
           .append("'")
           .append(markUnavailable && !localLiftNames.contains(name) ? " disabled" : "")
           .append(">")
@@ -338,6 +360,14 @@ final class PlannedWorkoutSessionHtml {
       }
       html.append("</option>");
     }
+  }
+
+  private static void appendLiftNote(StringBuilder html, String note) {
+    html.append("<p class='session-lift-note")
+        .append(note.isBlank() ? " is-hidden" : "")
+        .append("'><strong>Lift note:</strong> <span>")
+        .append(WebHtml.escapeHtml(note))
+        .append("</span></p>");
   }
 
   private static void appendNotes(StringBuilder html, List<String> notes) {
@@ -510,6 +540,32 @@ final class PlannedWorkoutSessionHtml {
               return payload;
             }
 
+            function setEntryMode(widget) {
+              const selected = widget.querySelector("input[name='setEntryMode']:checked");
+              return selected ? selected.value : 'multiple';
+            }
+
+            function selectSetEntryMode(widget, mode) {
+              const input = widget.querySelector(`input[name='setEntryMode'][value='${mode}']`);
+              if (input) {
+                input.checked = true;
+              }
+              syncSetEntryMode(widget);
+            }
+
+            function syncSetEntryMode(widget) {
+              const individual = setEntryMode(widget) === 'individual';
+              const multipleControls = widget.querySelector('.entry-mode-multiple');
+              const details = widget.querySelector('.individual-sets-details');
+              if (multipleControls) {
+                multipleControls.classList.toggle('is-hidden', individual);
+              }
+              if (details) {
+                details.open = individual;
+                details.classList.toggle('is-hidden', !individual);
+              }
+            }
+
             function metricLabel(item) {
               if (item.metricType === 'reps-lr') {
                 return `${item.metricLeft || '?'}L/${item.metricRight || '?'}R reps`;
@@ -564,6 +620,9 @@ final class PlannedWorkoutSessionHtml {
               widget.querySelectorAll("input[name='weightMode']").forEach((item) => {
                 item.addEventListener('change', () => syncWeightMode(widget));
               });
+              widget.querySelectorAll("input[name='setEntryMode']").forEach((item) => {
+                item.addEventListener('change', () => syncSetEntryMode(widget));
+              });
               const accomMode = widget.querySelector("select[name='accomMode']");
               if (accomMode) {
                 accomMode.addEventListener('change', () => syncAccomMode(widget));
@@ -595,6 +654,7 @@ final class PlannedWorkoutSessionHtml {
               const addSetBtn = widget.querySelector('.js-add-set');
               if (addSetBtn) {
                 addSetBtn.addEventListener('click', () => {
+                  selectSetEntryMode(widget, 'individual');
                   const setCopiesInput = widget.querySelector("input[name='setCopies']");
                   const copies = Math.max(1, parseInt((setCopiesInput && setCopiesInput.value) || '1', 10) || 1);
                   const payload = {
@@ -631,12 +691,39 @@ final class PlannedWorkoutSessionHtml {
               syncMetricInputs(widget);
               syncWeightMode(widget);
               syncAccomMode(widget);
+              syncSetEntryMode(widget);
               renderSetList(widget);
             }
 
             function collectExecutionSets(widget) {
               const detailedSets = widgetSets.get(widget) || [];
-              return detailedSets.map((set) => ({...set, state: 'complete'}));
+              if (setEntryMode(widget) === 'individual') {
+                return detailedSets.map((set) => ({...set, state: 'complete'}));
+              }
+              const setCountInput = widget.querySelector("input[name='setCount']");
+              const setCount = Math.max(1, parseInt((setCountInput && setCountInput.value) || '1', 10) || 1);
+              const payload = {
+                ...metricPayload(widget),
+                weight: computeWeight(widget),
+                rpe: (widget.querySelector("input[name='rpe']") || {}).value || '',
+                state: 'complete'
+              };
+              return Array.from({length: setCount}, () => ({...payload}));
+            }
+
+            function updateLiftNote(card) {
+              const performedLift = card.querySelector('.js-session-performed-lift');
+              const note = card.querySelector('.session-lift-note');
+              if (!performedLift || !note) {
+                return;
+              }
+              const selected = performedLift.selectedOptions && performedLift.selectedOptions[0];
+              const text = selected ? (selected.dataset.liftNote || '') : '';
+              const noteText = note.querySelector('span');
+              if (noteText) {
+                noteText.textContent = text;
+              }
+              note.classList.toggle('is-hidden', !text.trim());
             }
 
             function toggleExercise(card) {
@@ -682,8 +769,10 @@ final class PlannedWorkoutSessionHtml {
                   const swapped = performedLift.value !== card.dataset.plannedLift;
                   card.classList.toggle('is-swapped', swapped);
                   swapToggle.textContent = swapped ? `Changed to: ${performedLift.value}` : 'Change lift';
+                  updateLiftNote(card);
                 });
               }
+              updateLiftNote(card);
               toggleExercise(card);
             });
 

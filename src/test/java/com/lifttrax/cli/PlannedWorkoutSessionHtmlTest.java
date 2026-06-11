@@ -27,8 +27,8 @@ class PlannedWorkoutSessionHtmlTest {
             1,
             "MONDAY",
             List.of(
-                lift("Back Squat", LiftType.SQUAT),
-                lift("Front Squat", LiftType.SQUAT),
+                lift("Back Squat", LiftType.SQUAT, "Brace hard and sit between the hips."),
+                lift("Front Squat", LiftType.SQUAT, "Keep elbows high."),
                 lift("Farmer Carry", LiftType.CONDITIONING)),
             LocalDate.parse("2026-05-31"));
 
@@ -50,10 +50,17 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(
         html.contains(
             "Choose any lift from your library. Workout-approved alternatives are listed first."));
-    assertTrue(html.contains("<option value='Front Squat'>Front Squat</option>"));
     assertTrue(
         html.contains(
-            "<option value='Safety Bar Squat' disabled>Safety Bar Squat (not in local lifts)</option>"));
+            "<option value='Front Squat' data-lift-note='Keep elbows high.'>Front Squat</option>"));
+    assertTrue(html.contains("data-lift-note='Brace hard and sit between the hips.'"));
+    assertTrue(
+        html.contains(
+            "<strong>Lift note:</strong> <span>Brace hard and sit between the hips.</span>"));
+    assertTrue(html.contains("selected.dataset.liftNote"));
+    assertTrue(
+        html.contains(
+            "<option value='Safety Bar Squat' data-lift-note='' disabled>Safety Bar Squat (not in local lifts)</option>"));
     assertTrue(html.contains("Changed to: ${performedLift.value}"));
     assertTrue(html.contains("Target: 5 reps @ 80%"));
     assertTrue(html.contains("session-execution-widget js-session-execution-input"));
@@ -61,6 +68,10 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("class='js-weight-hidden' value=''"));
     assertTrue(html.contains("name='rpe' value=''"));
     assertTrue(html.contains("class='js-detailed-sets' value='[]'"));
+    assertTrue(html.contains("name='setEntryMode' value='individual' checked"));
+    assertTrue(html.contains("Multiple matching sets"));
+    assertTrue(html.contains("Individual set log"));
+    assertTrue(html.contains("Add Set to Log"));
     assertTrue(html.contains("class='individual-sets-details' open"));
     assertTrue(html.contains("name='metricType' value='distance' checked"));
     assertTrue(html.contains("name='metricValue' value='100'"));
@@ -69,6 +80,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("name='rpe'"));
     assertTrue(html.contains("name='notes'"));
     assertTrue(html.contains("addSetBtn.click();"));
+    assertTrue(html.contains("Array.from({length: setCount}"));
     assertTrue(html.contains("event.preventDefault();"));
     assertTrue(html.contains("JSON.stringify(results)"));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));
@@ -268,5 +280,9 @@ class PlannedWorkoutSessionHtmlTest {
 
   private static Lift lift(String name, LiftType type) {
     return new Lift(name, LiftRegion.LOWER, type, List.of(), "");
+  }
+
+  private static Lift lift(String name, LiftType type, String notes) {
+    return new Lift(name, LiftRegion.LOWER, type, List.of(), notes);
   }
 }

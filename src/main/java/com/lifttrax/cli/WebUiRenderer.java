@@ -664,6 +664,31 @@ final class WebUiRenderer {
                       return payload;
                     }
 
+                    function selectedSetEntryMode() {
+                      return (document.querySelector("input[name='setEntryMode']:checked") || {}).value || 'multiple';
+                    }
+
+                    function setSetEntryMode(mode) {
+                      const input = document.querySelector(`input[name='setEntryMode'][value='${mode}']`);
+                      if (input) {
+                        input.checked = true;
+                      }
+                      syncSetEntryMode();
+                    }
+
+                    function syncSetEntryMode() {
+                      const individual = selectedSetEntryMode() === 'individual';
+                      const multipleControls = document.querySelector('.entry-mode-multiple');
+                      const details = document.querySelector('.individual-sets-details');
+                      if (multipleControls) {
+                        multipleControls.classList.toggle('is-hidden', individual);
+                      }
+                      if (details) {
+                        details.open = individual;
+                        details.classList.toggle('is-hidden', !individual);
+                      }
+                    }
+
                     function renderSetList() {
                       const list = document.querySelector('.js-set-list');
                       const hidden = document.querySelector('.js-detailed-sets');
@@ -698,6 +723,9 @@ final class WebUiRenderer {
                     if (accomModeSelect) {
                       accomModeSelect.addEventListener('change', syncAccomMode);
                     }
+                    document.querySelectorAll("input[name='setEntryMode']").forEach((item) => {
+                      item.addEventListener('change', syncSetEntryMode);
+                    });
 
                     const maxEffortSingleBtn = document.querySelector('.js-max-effort-single');
                     if (maxEffortSingleBtn) {
@@ -729,6 +757,7 @@ final class WebUiRenderer {
                     const addSetBtn = document.querySelector('.js-add-set');
                     if (addSetBtn) {
                       addSetBtn.addEventListener('click', () => {
+                        setSetEntryMode('individual');
                         const setCopiesInput = document.querySelector("input[name='setCopies']");
                         const copies = Math.max(1, parseInt((setCopiesInput && setCopiesInput.value) || '1', 10) || 1);
                         const payload = {
@@ -796,6 +825,10 @@ final class WebUiRenderer {
                         if (hiddenWeight) {
                           hiddenWeight.value = computeWeight();
                         }
+                        if (selectedSetEntryMode() === 'multiple') {
+                          detailedSets.splice(0, detailedSets.length);
+                          renderSetList();
+                        }
 
                         const submitter = document.activeElement;
                         const isLoadLast = submitter && submitter.getAttribute('formaction') === '/load-last-execution';
@@ -815,6 +848,7 @@ final class WebUiRenderer {
                         }
                       });
                     }
+                    syncSetEntryMode();
 
                     function syncNewLiftMuscles() {
                       const form = document.querySelector("form.new-lift-form");
