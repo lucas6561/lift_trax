@@ -102,6 +102,48 @@ class WebServerCliTest {
   }
 
   @Test
+  void addExecutionRouteSavesAllSubmittedIndividualSets() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-add-detailed-sets", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Front Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      TestExchange exchange =
+          TestExchange.post(
+              "/add-execution",
+              form(
+                  "lift",
+                  "Front Squat",
+                  "date",
+                  "2026-06-11",
+                  "detailedSets",
+                  """
+                      [
+                        {"metricType":"reps","metricValue":"10","weight":"195 lb","rpe":""},
+                        {"metricType":"reps","metricValue":"10","weight":"195 lb","rpe":""},
+                        {"metricType":"reps","metricValue":"10","weight":"195 lb","rpe":""},
+                        {"metricType":"reps","metricValue":"5","weight":"195 lb","rpe":""}
+                      ]
+                      """));
+
+      invokeHandler("handleAddExecution", exchange, db);
+
+      List<LiftExecution> executions = db.getExecutions("Front Squat");
+      assertEquals(303, exchange.status());
+      assertTrue(exchange.location().contains("status=Execution%20saved"));
+      assertEquals(1, executions.size());
+      assertEquals(LocalDate.of(2026, 6, 11), executions.get(0).date());
+      assertEquals(
+          List.of(
+              new ExecutionSet(new SetMetric.Reps(10), "195 lb", null),
+              new ExecutionSet(new SetMetric.Reps(10), "195 lb", null),
+              new ExecutionSet(new SetMetric.Reps(10), "195 lb", null),
+              new ExecutionSet(new SetMetric.Reps(5), "195 lb", null)),
+          executions.get(0).sets());
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
   void focusTargetAppendsToRedirectUrls() throws Exception {
     Method method =
         WebServerCli.class.getDeclaredMethod("appendFocusTarget", String.class, String.class);

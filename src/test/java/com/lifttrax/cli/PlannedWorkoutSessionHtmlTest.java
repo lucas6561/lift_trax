@@ -81,6 +81,10 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("name='notes'"));
     assertTrue(html.contains("addSetBtn.click();"));
     assertTrue(html.contains("Array.from({length: setCount}"));
+    assertTrue(html.contains("const widgetRadioState = new WeakMap();"));
+    assertTrue(html.contains("if (state[name])"));
+    assertTrue(html.contains("rememberRadioValue(widget, 'setEntryMode', mode);"));
+    assertTrue(html.contains("detailedSets.length > 0 || setEntryMode(widget) === 'individual'"));
     assertTrue(html.contains("event.preventDefault();"));
     assertTrue(html.contains("JSON.stringify(results)"));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));

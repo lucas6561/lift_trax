@@ -429,14 +429,29 @@ final class PlannedWorkoutSessionHtml {
             }
 
             const widgetSets = new WeakMap();
+            const widgetRadioState = new WeakMap();
 
             function radioValue(widget, name, fallback) {
+              const state = widgetRadioState.get(widget) || {};
+              if (state[name]) {
+                return state[name];
+              }
               const selected = widget.querySelector(`input[name='${name}']:checked`);
-              return selected ? selected.value : fallback;
+              if (selected) {
+                return selected.value;
+              }
+              return fallback;
+            }
+
+            function rememberRadioValue(widget, name, value) {
+              const state = widgetRadioState.get(widget) || {};
+              state[name] = value;
+              widgetRadioState.set(widget, state);
             }
 
             function selectRadio(widget, name, value) {
               const input = widget.querySelector(`input[name='${name}'][value='${value}']`);
+              rememberRadioValue(widget, name, value);
               if (!input) {
                 return;
               }
@@ -547,6 +562,7 @@ final class PlannedWorkoutSessionHtml {
 
             function selectSetEntryMode(widget, mode) {
               const input = widget.querySelector(`input[name='setEntryMode'][value='${mode}']`);
+              rememberRadioValue(widget, 'setEntryMode', mode);
               if (input) {
                 input.checked = true;
               }
@@ -614,14 +630,35 @@ final class PlannedWorkoutSessionHtml {
                 detailedSets = [];
               }
               widgetSets.set(widget, detailedSets);
+              ['metricType', 'weightMode', 'setEntryMode'].forEach((name) => {
+                const checked = widget.querySelector(`input[name='${name}']:checked`);
+                if (checked) {
+                  rememberRadioValue(widget, name, checked.value);
+                }
+              });
               widget.querySelectorAll("input[name='metricType']").forEach((item) => {
-                item.addEventListener('change', () => syncMetricInputs(widget));
+                item.addEventListener('change', () => {
+                  if (item.checked) {
+                    rememberRadioValue(widget, 'metricType', item.value);
+                  }
+                  syncMetricInputs(widget);
+                });
               });
               widget.querySelectorAll("input[name='weightMode']").forEach((item) => {
-                item.addEventListener('change', () => syncWeightMode(widget));
+                item.addEventListener('change', () => {
+                  if (item.checked) {
+                    rememberRadioValue(widget, 'weightMode', item.value);
+                  }
+                  syncWeightMode(widget);
+                });
               });
               widget.querySelectorAll("input[name='setEntryMode']").forEach((item) => {
-                item.addEventListener('change', () => syncSetEntryMode(widget));
+                item.addEventListener('change', () => {
+                  if (item.checked) {
+                    rememberRadioValue(widget, 'setEntryMode', item.value);
+                  }
+                  syncSetEntryMode(widget);
+                });
               });
               const accomMode = widget.querySelector("select[name='accomMode']");
               if (accomMode) {
@@ -697,7 +734,7 @@ final class PlannedWorkoutSessionHtml {
 
             function collectExecutionSets(widget) {
               const detailedSets = widgetSets.get(widget) || [];
-              if (setEntryMode(widget) === 'individual') {
+              if (detailedSets.length > 0 || setEntryMode(widget) === 'individual') {
                 return detailedSets.map((set) => ({...set, state: 'complete'}));
               }
               const setCountInput = widget.querySelector("input[name='setCount']");
