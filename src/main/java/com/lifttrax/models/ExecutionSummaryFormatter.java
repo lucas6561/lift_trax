@@ -13,22 +13,30 @@ public final class ExecutionSummaryFormatter {
       return notes.isBlank() ? "no sets recorded" : "no sets recorded - " + notes;
     }
     ExecutionSet first = execution.sets().get(0);
-    String rpe = first.rpe() == null ? "" : " RPE " + first.rpe();
-    String weight =
-        first.weight() == null
-                || first.weight().isBlank()
-                || "none".equalsIgnoreCase(first.weight())
-            ? ""
-            : " @ " + first.weight();
     String tags = formatTags(execution);
     String notesText = notes.isBlank() ? "" : " - " + notes;
+    if (allSetsMatch(execution.sets(), first)) {
+      return execution.sets().size() + " sets x " + formatSet(first) + tags + notesText;
+    }
     return execution.sets().size()
-        + " sets x "
-        + formatMetric(first.metric())
-        + weight
-        + rpe
+        + " sets: "
+        + String.join(
+            "; ", execution.sets().stream().map(ExecutionSummaryFormatter::formatSet).toList())
         + tags
         + notesText;
+  }
+
+  private static boolean allSetsMatch(List<ExecutionSet> sets, ExecutionSet first) {
+    return sets.stream().allMatch(first::equals);
+  }
+
+  private static String formatSet(ExecutionSet set) {
+    String rpe = set.rpe() == null ? "" : " RPE " + set.rpe();
+    String weight =
+        set.weight() == null || set.weight().isBlank() || "none".equalsIgnoreCase(set.weight())
+            ? ""
+            : " @ " + set.weight();
+    return formatMetric(set.metric()) + weight + rpe;
   }
 
   private static String formatTags(LiftExecution execution) {

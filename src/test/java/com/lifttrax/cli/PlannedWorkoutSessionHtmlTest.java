@@ -68,12 +68,17 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("class='js-weight-hidden' value=''"));
     assertTrue(html.contains("name='rpe' value=''"));
     assertTrue(html.contains("class='js-detailed-sets' value='[]'"));
-    assertTrue(html.contains("name='setEntryMode' value='individual' checked"));
+    assertTrue(html.contains("data-draft-key='lifttrax:planned-session:"));
+    assertTrue(
+        html.contains(
+            "name='setEntryMode-1-0' value='individual' checked data-control-name='setEntryMode'"));
     assertTrue(html.contains("Multiple matching sets"));
     assertTrue(html.contains("Individual set log"));
     assertTrue(html.contains("Add Set to Log"));
     assertTrue(html.contains("class='individual-sets-details' open"));
-    assertTrue(html.contains("name='metricType' value='distance' checked"));
+    assertTrue(
+        html.contains(
+            "name='metricType-2-0' value='distance' checked data-control-name='metricType'"));
     assertTrue(html.contains("name='metricValue' value='100'"));
     assertTrue(html.contains("value='skipped'>Skipped</option>"));
     assertTrue(html.contains("class='js-weight-hidden'"));
@@ -84,12 +89,41 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("const widgetRadioState = new WeakMap();"));
     assertTrue(html.contains("if (state[name])"));
     assertTrue(html.contains("rememberRadioValue(widget, 'setEntryMode', mode);"));
+    assertTrue(html.contains("localStorage.setItem(draftKey, JSON.stringify(draft));"));
+    assertTrue(html.contains("restoreDraft();"));
+    assertTrue(html.contains("currentBlockIndex"));
     assertTrue(html.contains("detailedSets.length > 0 || setEntryMode(widget) === 'individual'"));
     assertTrue(html.contains("event.preventDefault();"));
     assertTrue(html.contains("JSON.stringify(results)"));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));
     assertFalse(html.contains("name='rpe' value='8.0'"));
     assertFalse(html.contains("class='session-history'"));
+  }
+
+  @Test
+  void sessionPageUsesIndependentRadioGroupsForEachExerciseInABlock() {
+    String html =
+        PlannedWorkoutSessionHtml.renderPage(
+            circuitWorkoutFile(),
+            1,
+            "MONDAY",
+            List.of(
+                lift("Back Squat", LiftType.SQUAT),
+                lift("Overhead Press", LiftType.OVERHEAD_PRESS)),
+            LocalDate.parse("2026-05-31"));
+
+    assertTrue(
+        html.contains(
+            "name='setEntryMode-1-0' value='individual' checked data-control-name='setEntryMode'"));
+    assertTrue(
+        html.contains(
+            "name='setEntryMode-1-1' value='individual' checked data-control-name='setEntryMode'"));
+    assertTrue(
+        html.contains("name='metricType-1-0' value='reps' checked data-control-name='metricType'"));
+    assertTrue(
+        html.contains("name='metricType-1-1' value='reps' checked data-control-name='metricType'"));
+    assertTrue(html.contains("input[data-control-name='setEntryMode'][value='${mode}']"));
+    assertFalse(html.contains("input[name='setEntryMode']:checked"));
   }
 
   @Test
@@ -277,6 +311,51 @@ class PlannedWorkoutSessionHtmlTest {
                                 null,
                                 false,
                                 List.of(backSquat),
+                                List.of())),
+                        List.of())))),
+        List.of());
+  }
+
+  private static PlannedWorkoutFile circuitWorkoutFile() {
+    PlannedWorkoutFile.PlannedSetTarget squat =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1, "reps", 5, null, null, null, null, null, null, 80, null, "STRAIGHT", false);
+    PlannedWorkoutFile.PlannedSetTarget press =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1, "reps", 10, null, null, null, null, null, null, null, null, "STRAIGHT", false);
+    PlannedWorkoutFile.PlannedExercise backSquat =
+        new PlannedWorkoutFile.PlannedExercise(
+            "Back Squat", "LOWER", "SQUAT", List.of("QUAD"), List.of(squat), "", List.of());
+    PlannedWorkoutFile.PlannedExercise overheadPress =
+        new PlannedWorkoutFile.PlannedExercise(
+            "Overhead Press",
+            "UPPER",
+            "OVERHEAD_PRESS",
+            List.of("SHOULDER"),
+            List.of(press),
+            "",
+            List.of());
+    return new PlannedWorkoutFile(
+        2,
+        new PlannedWorkoutFile.PlannedWorkoutMetadata(
+            "Circuit Wave", "Ready to train.", 1, List.of()),
+        new PlannedWorkoutFile.PlannedWorkoutSource(
+            "wave-generation", "conjugate", "Conjugate Wave", null, "2026-05-31T00:00:00Z"),
+        List.of(
+            new PlannedWorkoutFile.PlannedWorkoutWeek(
+                1,
+                List.of(
+                    new PlannedWorkoutFile.PlannedWorkoutDay(
+                        "MONDAY",
+                        "Monday",
+                        List.of(
+                            new PlannedWorkoutFile.PlannedWorkoutBlock(
+                                1,
+                                "Circuit",
+                                "circuit",
+                                2,
+                                false,
+                                List.of(backSquat, overheadPress),
                                 List.of())),
                         List.of())))),
         List.of());

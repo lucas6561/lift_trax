@@ -48,7 +48,9 @@ final class PlannedWorkoutSessionHtml {
         .append("<p>Log completed sets as you train.</p>");
     appendNotes(html, day.notes());
     html.append(
-            "<form method='post' action='/save-planned-workout-session' class='planned-session-form'>")
+            "<form method='post' action='/save-planned-workout-session' class='planned-session-form' data-draft-key='")
+        .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek)))
+        .append("'>")
         .append("<input type='hidden' name='plannedWorkoutJson' value='")
         .append(WebHtml.escapeHtml(writeWorkoutJson(workoutFile)))
         .append("'/>")
@@ -135,7 +137,19 @@ final class PlannedWorkoutSessionHtml {
     html.append("<p><a class='compact-btn' href='/?tab=dashboard'>Back to Dashboard</a> ")
         .append(
             "<a class='compact-btn secondary' href='/?tab=import-workout'>Import Another Workout</a></p>");
+    html.append("<script>localStorage.removeItem('")
+        .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek)))
+        .append("');</script>");
     return html.toString();
+  }
+
+  private static String draftKey(PlannedWorkoutFile workoutFile, int weekNumber, String dayOfWeek) {
+    String sourceTime =
+        workoutFile.source().generatedAt() == null ? "" : workoutFile.source().generatedAt();
+    return "lifttrax:planned-session:"
+        + Integer.toHexString(
+            (workoutFile.metadata().name() + "|" + sourceTime + "|" + weekNumber + "|" + dayOfWeek)
+                .hashCode());
   }
 
   private static void appendBlockNavigation(
@@ -247,7 +261,7 @@ final class PlannedWorkoutSessionHtml {
             "<div class='add-execution-form session-execution-widget js-session-execution-input'>")
         .append(
             ExecutionInputWidgetHtml.render(
-                prefill(block, exercise, seed, plannedSets, date), List.of(), false, true))
+                prefill(block, exercise, seed, plannedSets, date), List.of(), false, true, key))
         .append("</div></article>");
   }
 
@@ -409,7 +423,9 @@ final class PlannedWorkoutSessionHtml {
             const blockPosition = form.querySelector('.js-session-block-position');
             const blockTitle = form.querySelector('.js-session-block-title');
             const blockProgress = form.querySelector('.js-session-block-progress');
+            const draftKey = form.dataset.draftKey || '';
             let currentBlockIndex = 0;
+            let restoringDraft = false;
 
             function showBlock(index) {
               currentBlockIndex = Math.max(0, Math.min(index, blocks.length - 1));
@@ -426,6 +442,7 @@ final class PlannedWorkoutSessionHtml {
               nextBlock.classList.toggle('is-hidden', currentBlockIndex === blocks.length - 1);
               saveWorkout.classList.toggle('is-hidden', currentBlockIndex !== blocks.length - 1);
               current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              persistDraft();
             }
 
             const widgetSets = new WeakMap();
@@ -436,7 +453,7 @@ final class PlannedWorkoutSessionHtml {
               if (state[name]) {
                 return state[name];
               }
-              const selected = widget.querySelector(`input[name='${name}']:checked`);
+              const selected = widget.querySelector(`input[data-control-name='${name}']:checked`);
               if (selected) {
                 return selected.value;
               }
@@ -450,7 +467,7 @@ final class PlannedWorkoutSessionHtml {
             }
 
             function selectRadio(widget, name, value) {
-              const input = widget.querySelector(`input[name='${name}'][value='${value}']`);
+              const input = widget.querySelector(`input[data-control-name='${name}'][value='${value}']`);
               rememberRadioValue(widget, name, value);
               if (!input) {
                 return;
@@ -464,6 +481,13 @@ final class PlannedWorkoutSessionHtml {
               if (input) {
                 input.value = value;
               }
+            }
+
+            function setCheckedValues(widget, name, values) {
+              const selected = Array.isArray(values) ? values : [];
+              widget.querySelectorAll(`input[name='${name}']`).forEach((item) => {
+                item.checked = selected.includes(item.value);
+              });
             }
 
             function syncMetricInputs(widget) {
@@ -556,12 +580,11 @@ final class PlannedWorkoutSessionHtml {
             }
 
             function setEntryMode(widget) {
-              const selected = widget.querySelector("input[name='setEntryMode']:checked");
-              return selected ? selected.value : 'multiple';
+              return radioValue(widget, 'setEntryMode', 'multiple');
             }
 
             function selectSetEntryMode(widget, mode) {
-              const input = widget.querySelector(`input[name='setEntryMode'][value='${mode}']`);
+              const input = widget.querySelector(`input[data-control-name='setEntryMode'][value='${mode}']`);
               rememberRadioValue(widget, 'setEntryMode', mode);
               if (input) {
                 input.checked = true;
@@ -620,6 +643,175 @@ final class PlannedWorkoutSessionHtml {
                 list.appendChild(li);
               });
               hidden.value = JSON.stringify(detailedSets);
+              persistDraft();
+            }
+
+            function widgetControlValue(widget, name) {
+              return (widget.querySelector(`[name='${name}']`) || {}).value || '';
+            }
+
+            function widgetCheckedValues(widget, name) {
+              return Array.from(widget.querySelectorAll(`input[name='${name}']:checked`)).map((item) => item.value);
+            }
+
+            function collectWidgetDraft(widget) {
+              return {
+                weightMode: radioValue(widget, 'weightMode', 'weight'),
+                setEntryMode: radioValue(widget, 'setEntryMode', 'multiple'),
+                metricType: radioValue(widget, 'metricType', 'reps'),
+                weightValue: widgetControlValue(widget, 'weightValue'),
+                weightUnit: widgetControlValue(widget, 'weightUnit'),
+                weightLeft: widgetControlValue(widget, 'weightLeft'),
+                weightRight: widgetControlValue(widget, 'weightRight'),
+                weightUnitLr: widgetControlValue(widget, 'weightUnitLr'),
+                weightBandColors: widgetCheckedValues(widget, 'weightBandColors'),
+                accomBar: widgetControlValue(widget, 'accomBar'),
+                accomUnit: widgetControlValue(widget, 'accomUnit'),
+                accomMode: widgetControlValue(widget, 'accomMode'),
+                accomChain: widgetControlValue(widget, 'accomChain'),
+                accomBandColors: widgetCheckedValues(widget, 'accomBandColors'),
+                customWeight: widgetControlValue(widget, 'customWeight'),
+                setCount: widgetControlValue(widget, 'setCount'),
+                rpe: widgetControlValue(widget, 'rpe'),
+                metricValue: widgetControlValue(widget, 'metricValue'),
+                metricLeft: widgetControlValue(widget, 'metricLeft'),
+                metricRight: widgetControlValue(widget, 'metricRight'),
+                setCopies: widgetControlValue(widget, 'setCopies'),
+                warmup: (widget.querySelector("input[name='warmup']") || {}).checked || false,
+                deload: (widget.querySelector("input[name='deload']") || {}).checked || false,
+                notes: widgetControlValue(widget, 'notes'),
+                detailedSets: widgetSets.get(widget) || []
+              };
+            }
+
+            function applyWidgetDraft(widget, draft) {
+              if (!draft || typeof draft !== 'object') {
+                return;
+              }
+              selectRadio(widget, 'weightMode', draft.weightMode || 'weight');
+              selectSetEntryMode(widget, draft.setEntryMode || 'multiple');
+              selectRadio(widget, 'metricType', draft.metricType || 'reps');
+              [
+                'weightValue',
+                'weightUnit',
+                'weightLeft',
+                'weightRight',
+                'weightUnitLr',
+                'accomBar',
+                'accomUnit',
+                'accomMode',
+                'accomChain',
+                'customWeight',
+                'setCount',
+                'rpe',
+                'metricValue',
+                'metricLeft',
+                'metricRight',
+                'setCopies',
+                'notes'
+              ].forEach((name) => {
+                if (Object.prototype.hasOwnProperty.call(draft, name)) {
+                  setInputValue(widget, name, draft[name] || '');
+                }
+              });
+              setCheckedValues(widget, 'weightBandColors', draft.weightBandColors);
+              setCheckedValues(widget, 'accomBandColors', draft.accomBandColors);
+              const warmup = widget.querySelector("input[name='warmup']");
+              if (warmup) {
+                warmup.checked = Boolean(draft.warmup);
+              }
+              const deload = widget.querySelector("input[name='deload']");
+              if (deload) {
+                deload.checked = Boolean(draft.deload);
+              }
+              const detailedSets = Array.isArray(draft.detailedSets) ? draft.detailedSets : [];
+              widgetSets.set(widget, detailedSets.map((item) => ({...item})));
+              syncMetricInputs(widget);
+              syncWeightMode(widget);
+              syncAccomMode(widget);
+              syncSetEntryMode(widget);
+              renderSetList(widget);
+            }
+
+            function collectExerciseDraft(card) {
+              const widget = card.querySelector('.js-session-execution-input');
+              return {
+                exerciseKey: card.dataset.exerciseKey,
+                state: card.querySelector('.js-session-exercise-state').value,
+                performedLift: card.querySelector('.js-session-performed-lift').value,
+                widget: collectWidgetDraft(widget)
+              };
+            }
+
+            function applyExerciseDraft(card, draft) {
+              if (!draft || typeof draft !== 'object') {
+                return;
+              }
+              const state = card.querySelector('.js-session-exercise-state');
+              if (state && draft.state) {
+                state.value = draft.state;
+              }
+              const performedLift = card.querySelector('.js-session-performed-lift');
+              if (performedLift && draft.performedLift) {
+                const hasOption = Array.from(performedLift.options).some((option) => option.value === draft.performedLift);
+                if (hasOption) {
+                  performedLift.value = draft.performedLift;
+                }
+              }
+              const widget = card.querySelector('.js-session-execution-input');
+              applyWidgetDraft(widget, draft.widget);
+              const swapToggle = card.querySelector('.js-session-swap-toggle');
+              if (performedLift && swapToggle) {
+                const swapped = performedLift.value !== card.dataset.plannedLift;
+                card.classList.toggle('is-swapped', swapped);
+                swapToggle.textContent = swapped ? `Changed to: ${performedLift.value}` : 'Change lift';
+              }
+              updateLiftNote(card);
+              toggleExercise(card);
+            }
+
+            function persistDraft() {
+              if (restoringDraft || !draftKey) {
+                return;
+              }
+              try {
+                const draft = {
+                  currentBlockIndex,
+                  sessionDate: (form.querySelector("input[name='sessionDate']") || {}).value || '',
+                  exercises: Array.from(form.querySelectorAll('.session-exercise')).map((card) => collectExerciseDraft(card))
+                };
+                localStorage.setItem(draftKey, JSON.stringify(draft));
+              } catch (error) {
+                // A blocked or full browser storage area should not interrupt training.
+              }
+            }
+
+            function restoreDraft() {
+              if (!draftKey) {
+                return;
+              }
+              let draft = null;
+              try {
+                draft = JSON.parse(localStorage.getItem(draftKey) || 'null');
+              } catch (error) {
+                draft = null;
+              }
+              if (!draft || typeof draft !== 'object') {
+                return;
+              }
+              restoringDraft = true;
+              const dateInput = form.querySelector("input[name='sessionDate']");
+              if (dateInput && typeof draft.sessionDate === 'string' && draft.sessionDate.trim()) {
+                dateInput.value = draft.sessionDate;
+              }
+              const byKey = new Map((draft.exercises || []).map((item) => [item.exerciseKey, item]));
+              form.querySelectorAll('.session-exercise').forEach((card) => {
+                applyExerciseDraft(card, byKey.get(card.dataset.exerciseKey));
+              });
+              if (Number.isInteger(draft.currentBlockIndex)) {
+                showBlock(draft.currentBlockIndex);
+              }
+              restoringDraft = false;
             }
 
             function bindExecutionWidget(widget) {
@@ -631,12 +823,12 @@ final class PlannedWorkoutSessionHtml {
               }
               widgetSets.set(widget, detailedSets);
               ['metricType', 'weightMode', 'setEntryMode'].forEach((name) => {
-                const checked = widget.querySelector(`input[name='${name}']:checked`);
+                const checked = widget.querySelector(`input[data-control-name='${name}']:checked`);
                 if (checked) {
                   rememberRadioValue(widget, name, checked.value);
                 }
               });
-              widget.querySelectorAll("input[name='metricType']").forEach((item) => {
+              widget.querySelectorAll("input[data-control-name='metricType']").forEach((item) => {
                 item.addEventListener('change', () => {
                   if (item.checked) {
                     rememberRadioValue(widget, 'metricType', item.value);
@@ -644,7 +836,7 @@ final class PlannedWorkoutSessionHtml {
                   syncMetricInputs(widget);
                 });
               });
-              widget.querySelectorAll("input[name='weightMode']").forEach((item) => {
+              widget.querySelectorAll("input[data-control-name='weightMode']").forEach((item) => {
                 item.addEventListener('change', () => {
                   if (item.checked) {
                     rememberRadioValue(widget, 'weightMode', item.value);
@@ -652,7 +844,7 @@ final class PlannedWorkoutSessionHtml {
                   syncWeightMode(widget);
                 });
               });
-              widget.querySelectorAll("input[name='setEntryMode']").forEach((item) => {
+              widget.querySelectorAll("input[data-control-name='setEntryMode']").forEach((item) => {
                 item.addEventListener('change', () => {
                   if (item.checked) {
                     rememberRadioValue(widget, 'setEntryMode', item.value);
@@ -780,6 +972,8 @@ final class PlannedWorkoutSessionHtml {
             }
 
             form.querySelectorAll('.js-session-execution-input').forEach((widget) => bindExecutionWidget(widget));
+            form.addEventListener('input', () => persistDraft());
+            form.addEventListener('change', () => persistDraft());
             form.addEventListener('keydown', (event) => {
               if (event.key !== 'Enter') {
                 return;
@@ -792,7 +986,10 @@ final class PlannedWorkoutSessionHtml {
             previousBlock.addEventListener('click', () => showBlock(currentBlockIndex - 1));
             nextBlock.addEventListener('click', () => showBlock(currentBlockIndex + 1));
             form.querySelectorAll('.session-exercise').forEach((card) => {
-              card.querySelector('.js-session-exercise-state').addEventListener('change', () => toggleExercise(card));
+              card.querySelector('.js-session-exercise-state').addEventListener('change', () => {
+                toggleExercise(card);
+                persistDraft();
+              });
               const swapToggle = card.querySelector('.js-session-swap-toggle');
               if (swapToggle) {
                 const swapPanel = card.querySelector('.session-swap-panel');
@@ -807,11 +1004,13 @@ final class PlannedWorkoutSessionHtml {
                   card.classList.toggle('is-swapped', swapped);
                   swapToggle.textContent = swapped ? `Changed to: ${performedLift.value}` : 'Change lift';
                   updateLiftNote(card);
+                  persistDraft();
                 });
               }
               updateLiftNote(card);
               toggleExercise(card);
             });
+            restoreDraft();
 
             form.addEventListener('submit', () => {
               const results = Array.from(form.querySelectorAll('.session-exercise')).map((card) => {

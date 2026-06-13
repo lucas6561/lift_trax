@@ -19,6 +19,15 @@ final class ExecutionInputWidgetHtml {
       List<ExecutionSetFormValues> initialSets,
       boolean showQuickPresets,
       boolean openIndividualSets) {
+    return render(prefillInput, initialSets, showQuickPresets, openIndividualSets, "");
+  }
+
+  static String render(
+      WebUiRenderer.AddExecutionPrefill prefillInput,
+      List<ExecutionSetFormValues> initialSets,
+      boolean showQuickPresets,
+      boolean openIndividualSets,
+      String radioNameSuffix) {
     WebUiRenderer.AddExecutionPrefill prefill =
         prefillInput == null ? WebUiRenderer.AddExecutionPrefill.empty() : prefillInput;
     List<ExecutionSetFormValues> safeInitialSets =
@@ -48,6 +57,9 @@ final class ExecutionInputWidgetHtml {
     String accomBandChecks = renderBandChecks("accomBandColors", weightPrefill.accomBands());
     String quickPresets = showQuickPresets ? quickPresets() : "";
     SetEntryModeState setEntryMode = SetEntryModeState.from(safeInitialSets, openIndividualSets);
+    String weightModeName = radioName("weightMode", radioNameSuffix);
+    String setEntryModeName = radioName("setEntryMode", radioNameSuffix);
+    String metricTypeName = radioName("metricType", radioNameSuffix);
 
     return """
                   %s
@@ -56,12 +68,12 @@ final class ExecutionInputWidgetHtml {
                   <fieldset>
                     <legend>Weight</legend>
                     <div class='segmented'>
-                      <label><input type='radio' name='weightMode' value='weight' %s/> Weight</label>
-                      <label><input type='radio' name='weightMode' value='lr' %s/> L/R Weight</label>
-                      <label><input type='radio' name='weightMode' value='bands' %s/> Bands</label>
-                      <label><input type='radio' name='weightMode' value='accom' %s/> Accommodating</label>
-                      <label><input type='radio' name='weightMode' value='none' %s/> None</label>
-                      <label><input type='radio' name='weightMode' value='custom' %s/> Custom</label>
+                      <label><input type='radio' name='%s' value='weight' %s data-control-name='weightMode'/> Weight</label>
+                      <label><input type='radio' name='%s' value='lr' %s data-control-name='weightMode'/> L/R Weight</label>
+                      <label><input type='radio' name='%s' value='bands' %s data-control-name='weightMode'/> Bands</label>
+                      <label><input type='radio' name='%s' value='accom' %s data-control-name='weightMode'/> Accommodating</label>
+                      <label><input type='radio' name='%s' value='none' %s data-control-name='weightMode'/> None</label>
+                      <label><input type='radio' name='%s' value='custom' %s data-control-name='weightMode'/> Custom</label>
                     </div>
                     <div class='stacked-row weight-weight'>
                       <label>Weight <input type='number' step='0.5' min='0' name='weightValue' data-focus-target='add-weight' value='%s' placeholder='225'/></label>
@@ -101,8 +113,8 @@ final class ExecutionInputWidgetHtml {
                   <fieldset class='set-entry-mode'>
                     <legend>Set entry</legend>
                     <div class='segmented set-entry-mode-choice'>
-                      <label><input type='radio' name='setEntryMode' value='multiple' %s/> Multiple matching sets</label>
-                      <label><input type='radio' name='setEntryMode' value='individual' %s/> Individual set log</label>
+                      <label><input type='radio' name='%s' value='multiple' %s data-control-name='setEntryMode'/> Multiple matching sets</label>
+                      <label><input type='radio' name='%s' value='individual' %s data-control-name='setEntryMode'/> Individual set log</label>
                     </div>
                     <div class='stacked-row entry-mode-multiple'>
                       <label>Set Count <input type='number' min='1' name='setCount' value='%s'/></label>
@@ -114,10 +126,10 @@ final class ExecutionInputWidgetHtml {
                   <fieldset>
                     <legend>Metric</legend>
                     <div class='segmented'>
-                      <label><input type='radio' name='metricType' value='reps' %s/> Reps</label>
-                      <label><input type='radio' name='metricType' value='reps-lr' %s/> L/R Reps</label>
-                      <label><input type='radio' name='metricType' value='time' %s/> Seconds</label>
-                      <label><input type='radio' name='metricType' value='distance' %s/> Feet</label>
+                      <label><input type='radio' name='%s' value='reps' %s data-control-name='metricType'/> Reps</label>
+                      <label><input type='radio' name='%s' value='reps-lr' %s data-control-name='metricType'/> L/R Reps</label>
+                      <label><input type='radio' name='%s' value='time' %s data-control-name='metricType'/> Seconds</label>
+                      <label><input type='radio' name='%s' value='distance' %s data-control-name='metricType'/> Feet</label>
                     </div>
                     <div class='stacked-row'>
                       <label class='metric-single'>Value <input type='number' min='1' name='metricValue' value='%s'/></label>
@@ -147,11 +159,17 @@ final class ExecutionInputWidgetHtml {
             quickPresets,
             WebHtml.escapeHtml(prefill.weight()),
             WebHtml.escapeHtml(executionSetValuesToJson(safeInitialSets)),
+            weightModeName,
             standardWeightChecked,
+            weightModeName,
             lrWeightChecked,
+            weightModeName,
             bandsWeightChecked,
+            weightModeName,
             accomWeightChecked,
+            weightModeName,
             noneWeightChecked,
+            weightModeName,
             customWeightChecked,
             WebHtml.escapeHtml(weightPrefill.weightValue()),
             weightUnitLbSelected,
@@ -169,13 +187,19 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(weightPrefill.accomChain()),
             accomBandChecks,
             WebHtml.escapeHtml(weightPrefill.customWeight()),
+            setEntryModeName,
             setEntryMode.multipleChecked(),
+            setEntryModeName,
             setEntryMode.individualChecked(),
             WebHtml.escapeHtml(prefill.setCount()),
             WebHtml.escapeHtml(prefill.rpe()),
+            metricTypeName,
             repsChecked,
+            metricTypeName,
             repsLrChecked,
+            metricTypeName,
             timeChecked,
+            metricTypeName,
             distanceChecked,
             WebHtml.escapeHtml(prefill.metricValue()),
             WebHtml.escapeHtml(prefill.metricLeft()),
@@ -186,6 +210,13 @@ final class ExecutionInputWidgetHtml {
             prefill.warmup() ? "checked" : "",
             prefill.deload() ? "checked" : "",
             WebHtml.escapeHtml(prefill.notes()));
+  }
+
+  private static String radioName(String baseName, String suffix) {
+    if (suffix == null || suffix.isBlank()) {
+      return baseName;
+    }
+    return baseName + "-" + suffix.replaceAll("[^A-Za-z0-9_-]", "-");
   }
 
   private static String quickPresets() {
