@@ -6,7 +6,7 @@ track: data
 priority: critical
 effort: large
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0016, LT-0083, LT-0085]
 ---
@@ -42,4 +42,6 @@ All hosted data access paths enforce user ownership or explicit sharing rules.
 
 ## Notes
 
-This is the safety step that makes multi-user storage possible.
+This is the safety step that makes multi-user storage possible. Java route and
+data-access checks remain required even if Supabase Row Level Security is added
+as defense in depth.

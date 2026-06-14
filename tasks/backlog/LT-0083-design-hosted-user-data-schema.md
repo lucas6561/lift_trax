@@ -6,7 +6,7 @@ track: data
 priority: high
 effort: medium
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0016, LT-0082]
 ---
@@ -45,4 +45,6 @@ SQLite schema into user-owned hosted records.
 ## Notes
 
 This should follow `LT-0016` so the schema implements the ownership model rather
-than inventing one implicitly.
+than inventing one implicitly. `docs/adr/0003-hosted-auth-data-platform.md`
+selects Supabase Auth and Supabase Postgres, so this design should use Postgres
+tables and constraints keyed to stable Supabase Auth user IDs.

@@ -6,7 +6,7 @@ track: data
 priority: high
 effort: large
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0083, LT-0086]
 ---
@@ -44,5 +44,6 @@ clear persistence boundary.
 
 ## Notes
 
-Keep the first slice focused on daily logging before moving every planning and
-workout-generation workflow.
+`docs/adr/0003-hosted-auth-data-platform.md` selects Supabase Postgres for the
+hosted store. Keep the first slice focused on daily logging before moving every
+planning and workout-generation workflow.

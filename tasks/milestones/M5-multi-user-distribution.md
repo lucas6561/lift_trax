@@ -39,9 +39,16 @@ Prepare LiftTrax for use beyond one local database on one machine.
 4. `LT-0084`: Harden routes before any public deployment.
 5. `LT-0085`: Add account authentication and session handling.
 6. `LT-0086`: Enforce authorization on every hosted data path.
-7. `LT-0087`: Introduce the hosted persistence adapter for core logging.
+7. `LT-0087`: Introduce the Supabase Postgres persistence adapter for core logging.
 8. `LT-0088`: Migrate/import existing local databases into hosted accounts.
 9. `LT-0092`: Port primary persistence to Postgres.
 10. `LT-0089`: Define PWA installability and offline boundaries.
 11. `LT-0090`: Create the repeatable hosted deployment pipeline.
 12. `LT-0091`: Add hosted backup and user export controls.
+
+Planning decisions now recorded:
+
+- `docs/user-ownership-model.md`: users, lifter profiles, coach relationships,
+  private-by-default ownership, and local import mapping.
+- `docs/adr/0003-hosted-auth-data-platform.md`: Supabase Auth, Supabase
+  Postgres, and Render for the first hosted Java beta.

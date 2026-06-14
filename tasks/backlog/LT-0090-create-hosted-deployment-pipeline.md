@@ -6,7 +6,7 @@ track: distribution
 priority: high
 effort: medium
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0082, LT-0084, LT-0085, LT-0086, LT-0087]
 ---
@@ -41,3 +41,6 @@ LiftTrax can deploy a protected hosted environment through a documented pipeline
 
 This should not ship before the public web security baseline, authentication,
 authorization, and hosted persistence adapter are in place.
+
+`docs/adr/0003-hosted-auth-data-platform.md` selects Render as the first
+deployment target for the Java web service.

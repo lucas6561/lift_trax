@@ -11,3 +11,4 @@ record and update the old record's status instead of rewriting history.
 
 - [0001: Keep LiftTrax local-first with Java and SQLite](0001-local-first-java-sqlite.md)
 - [0002: Move toward a hosted web app with managed platform services](0002-hosted-web-pwa-managed-platform.md)
+- [0003: Use Supabase and Render for the first hosted beta](0003-hosted-auth-data-platform.md)

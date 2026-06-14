@@ -6,7 +6,7 @@ track: data
 priority: high
 effort: large
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0082, LT-0083, LT-0087]
 ---
@@ -59,3 +59,6 @@ the main persistence model.
 `LT-0087` introduces the hosted persistence adapter as a smaller first slice.
 This task is the broader cutover once Postgres is confirmed by `LT-0082` and the
 hosted data shape from `LT-0083` is clear.
+
+`docs/adr/0003-hosted-auth-data-platform.md` confirms Supabase Postgres as the
+first hosted Postgres target.

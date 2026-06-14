@@ -6,7 +6,7 @@ track: platform
 priority: critical
 effort: large
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0082, LT-0084]
 ---
@@ -42,5 +42,6 @@ server-side identity context available to protected routes.
 
 ## Notes
 
-If the chosen platform supplies hosted auth middleware, this task should adapt to
-that provider instead of building custom password storage.
+`docs/adr/0003-hosted-auth-data-platform.md` selects Supabase Auth. Adapt this
+task to Supabase sign-in, callback, session, JWT, and local-development flows
+instead of building custom password storage.
