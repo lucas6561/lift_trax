@@ -45,3 +45,7 @@ server-side identity context available to protected routes.
 `docs/adr/0003-hosted-auth-data-platform.md` selects Supabase Auth. Adapt this
 task to Supabase sign-in, callback, session, JWT, and local-development flows
 instead of building custom password storage.
+
+Build on the route hardening in `docs/public-web-security-baseline.md`; auth
+cookies and session binding should tighten the pre-auth CSRF cookie expectations
+for hosted HTTPS.

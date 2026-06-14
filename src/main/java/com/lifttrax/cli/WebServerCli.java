@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -63,31 +64,74 @@ public final class WebServerCli {
     HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
     ExecutorService executor =
         Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
-    server.createContext("/", exchange -> handleIndex(exchange, db));
-    server.createContext("/lift", exchange -> handleLift(exchange, db));
-    server.createContext("/add-execution", exchange -> handleAddExecution(exchange, db));
-    server.createContext("/update-execution", exchange -> handleUpdateExecution(exchange, db));
-    server.createContext("/delete-execution", exchange -> handleDeleteExecution(exchange, db));
-    server.createContext("/delete-lift", exchange -> handleDeleteLift(exchange, db));
-    server.createContext("/update-lift", exchange -> handleUpdateLift(exchange, db));
-    server.createContext(
-        "/planned-workout-preview", exchange -> handlePlannedWorkoutPreview(exchange, db));
-    server.createContext(
-        "/planned-workout-work-along", WebServerCli::handlePlannedWorkoutWorkAlong);
-    server.createContext(
-        "/planned-workout-print", exchange -> handlePlannedWorkoutPrint(exchange, db));
-    server.createContext(
-        "/planned-workout-markdown", exchange -> handlePlannedWorkoutMarkdown(exchange, db));
-    server.createContext("/planned-workout-json", WebServerCli::handlePlannedWorkoutJson);
-    server.createContext(
-        "/planned-workout-session", exchange -> handlePlannedWorkoutSession(exchange, db));
-    server.createContext(
-        "/save-planned-workout-session", exchange -> handleSavePlannedWorkoutSession(exchange, db));
-    server.createContext(
-        "/executions-fragment", exchange -> handleExecutionsFragment(exchange, db));
-    server.createContext("/load-last-execution", exchange -> handleLoadLastExecution(exchange, db));
-    server.createContext("/add-lift", exchange -> handleAddLift(exchange, db));
-    server.createContext("/set-lift-enabled", exchange -> handleSetLiftEnabled(exchange, db));
+    WebRequestSecurity.register(server, "/", Set.of("GET"), exchange -> handleIndex(exchange, db));
+    WebRequestSecurity.register(
+        server, "/lift", Set.of("GET"), exchange -> handleLift(exchange, db));
+    WebRequestSecurity.register(
+        server, "/add-execution", Set.of("POST"), exchange -> handleAddExecution(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/update-execution",
+        Set.of("POST"),
+        exchange -> handleUpdateExecution(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/delete-execution",
+        Set.of("POST"),
+        exchange -> handleDeleteExecution(exchange, db));
+    WebRequestSecurity.register(
+        server, "/delete-lift", Set.of("POST"), exchange -> handleDeleteLift(exchange, db));
+    WebRequestSecurity.register(
+        server, "/update-lift", Set.of("POST"), exchange -> handleUpdateLift(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/planned-workout-preview",
+        Set.of("GET", "POST"),
+        exchange -> handlePlannedWorkoutPreview(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/planned-workout-work-along",
+        Set.of("POST"),
+        WebServerCli::handlePlannedWorkoutWorkAlong);
+    WebRequestSecurity.register(
+        server,
+        "/planned-workout-print",
+        Set.of("POST"),
+        exchange -> handlePlannedWorkoutPrint(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/planned-workout-markdown",
+        Set.of("POST"),
+        exchange -> handlePlannedWorkoutMarkdown(exchange, db));
+    WebRequestSecurity.register(
+        server, "/planned-workout-json", Set.of("POST"), WebServerCli::handlePlannedWorkoutJson);
+    WebRequestSecurity.register(
+        server,
+        "/planned-workout-session",
+        Set.of("POST"),
+        exchange -> handlePlannedWorkoutSession(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/save-planned-workout-session",
+        Set.of("POST"),
+        exchange -> handleSavePlannedWorkoutSession(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/executions-fragment",
+        Set.of("GET"),
+        exchange -> handleExecutionsFragment(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/load-last-execution",
+        Set.of("GET"),
+        exchange -> handleLoadLastExecution(exchange, db));
+    WebRequestSecurity.register(
+        server, "/add-lift", Set.of("POST"), exchange -> handleAddLift(exchange, db));
+    WebRequestSecurity.register(
+        server,
+        "/set-lift-enabled",
+        Set.of("POST"),
+        exchange -> handleSetLiftEnabled(exchange, db));
     server.setExecutor(executor);
     server.start();
     Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
@@ -1092,8 +1136,8 @@ public final class WebServerCli {
     return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8);
   }
 
-  private static void sendHtml(HttpExchange exchange, String html) throws IOException {
-    byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+  static void sendHtml(HttpExchange exchange, String html) throws IOException {
+    byte[] bytes = WebRequestSecurity.prepareHtml(exchange, html).getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
     exchange.sendResponseHeaders(200, bytes.length);
     try (OutputStream os = exchange.getResponseBody()) {

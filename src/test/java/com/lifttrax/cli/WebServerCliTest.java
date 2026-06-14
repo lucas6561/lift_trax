@@ -3,6 +3,7 @@ package com.lifttrax.cli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.lifttrax.db.SqliteDb;
 import com.lifttrax.models.ExecutionSet;
@@ -31,6 +32,7 @@ import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class WebServerCliTest {
@@ -53,6 +55,66 @@ class WebServerCliTest {
 
     assertEquals("Back Squat", parsed.get("name"));
     assertEquals("front squat", parsed.get("q"));
+  }
+
+  @Test
+  void securedRouteRejectsUnsafeMethodBeforeHandler() throws Exception {
+    TestExchange exchange = TestExchange.put("/add-execution", "");
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/add-execution", Set.of("POST"), ignored -> fail("handler should not run"));
+
+    assertEquals(405, exchange.status());
+    assertEquals("DENY", exchange.responseHeaders.getFirst("X-Frame-Options"));
+    assertEquals("nosniff", exchange.responseHeaders.getFirst("X-Content-Type-Options"));
+  }
+
+  @Test
+  void securedRouteRejectsMissingCsrfForPost() throws Exception {
+    TestExchange exchange = TestExchange.post("/add-execution", form("lift", "Back Squat"));
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/add-execution", Set.of("POST"), ignored -> fail("handler should not run"));
+
+    assertEquals(403, exchange.status());
+    assertTrue(exchange.responseBody().contains("Missing or invalid CSRF token"));
+    assertTrue(exchange.responseHeaders.getFirst("Set-Cookie").startsWith("lt_csrf="));
+  }
+
+  @Test
+  void securedRouteRejectsOversizedRequests() throws Exception {
+    TestExchange exchange =
+        TestExchange.post(
+            "/planned-workout-preview", "x".repeat(WebRequestSecurity.MAX_REQUEST_BYTES + 1));
+
+    WebRequestSecurity.handleSecured(
+        exchange,
+        "/planned-workout-preview",
+        Set.of("GET", "POST"),
+        ignored -> fail("handler should not run"));
+
+    assertEquals(413, exchange.status());
+    assertTrue(exchange.responseBody().contains("Request Entity Too Large"));
+  }
+
+  @Test
+  void securedHtmlResponseAddsHeadersCookieAndCsrfInputs() throws Exception {
+    TestExchange exchange = TestExchange.get("/");
+    String body = "<form method='post' action='/add-execution'><button>Save</button></form>";
+
+    WebRequestSecurity.handleSecured(
+        exchange,
+        "/",
+        Set.of("GET"),
+        secured -> WebServerCli.sendHtml(secured, WebHtml.wrapPage("Test", body)));
+
+    assertEquals(200, exchange.status());
+    assertTrue(exchange.responseHeaders.getFirst("Set-Cookie").startsWith("lt_csrf="));
+    assertEquals("DENY", exchange.responseHeaders.getFirst("X-Frame-Options"));
+    assertEquals("same-origin", exchange.responseHeaders.getFirst("Referrer-Policy"));
+    assertTrue(
+        exchange.responseHeaders.getFirst("Content-Security-Policy").contains("form-action"));
+    assertTrue(exchange.responseBody().contains("name='csrfToken'"));
   }
 
   @Test
@@ -1289,19 +1351,30 @@ class WebServerCliTest {
 
   private static final class TestExchange extends HttpExchange {
     private final URI requestUri;
+    private final String requestMethod;
     private final byte[] requestBytes;
     private final Headers requestHeaders = new Headers();
     private final Headers responseHeaders = new Headers();
     private final ByteArrayOutputStream responseBody = new ByteArrayOutputStream();
+    private final Map<String, Object> attributes = new java.util.HashMap<>();
     private int status;
 
-    private TestExchange(String path, String body) {
+    private TestExchange(String method, String path, String body) {
       requestUri = URI.create(path);
+      requestMethod = method;
       requestBytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
+    static TestExchange get(String path) {
+      return new TestExchange("GET", path, "");
+    }
+
     static TestExchange post(String path, String body) {
-      return new TestExchange(path, body);
+      return new TestExchange("POST", path, body);
+    }
+
+    static TestExchange put(String path, String body) {
+      return new TestExchange("PUT", path, body);
     }
 
     int status() {
@@ -1310,6 +1383,10 @@ class WebServerCliTest {
 
     String location() {
       return responseHeaders.getFirst("Location");
+    }
+
+    String responseBody() {
+      return responseBody.toString(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     @Override
@@ -1329,7 +1406,7 @@ class WebServerCliTest {
 
     @Override
     public String getRequestMethod() {
-      return "POST";
+      return requestMethod;
     }
 
     @Override
@@ -1377,11 +1454,13 @@ class WebServerCliTest {
 
     @Override
     public Object getAttribute(String name) {
-      return null;
+      return attributes.get(name);
     }
 
     @Override
-    public void setAttribute(String name, Object value) {}
+    public void setAttribute(String name, Object value) {
+      attributes.put(name, value);
+    }
 
     @Override
     public void setStreams(InputStream inputStream, OutputStream outputStream) {}

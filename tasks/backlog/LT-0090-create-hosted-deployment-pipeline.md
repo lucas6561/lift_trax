@@ -44,3 +44,6 @@ authorization, and hosted persistence adapter are in place.
 
 `docs/adr/0003-hosted-auth-data-platform.md` selects Render as the first
 deployment target for the Java web service.
+
+Use `docs/public-web-security-baseline.md` as the minimum security smoke-check
+surface before enabling any public hosted environment.

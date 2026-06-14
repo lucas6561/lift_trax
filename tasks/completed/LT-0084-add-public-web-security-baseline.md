@@ -1,12 +1,12 @@
 ---
 id: LT-0084
 title: Add public web security baseline
-status: idea
+status: done
 track: platform
 priority: critical
 effort: medium
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0015]
 ---
@@ -32,16 +32,22 @@ LiftTrax has a documented and tested baseline for public web request safety.
 
 ## Acceptance criteria
 
-- [ ] Mutating routes require CSRF protection or an explicitly documented safer
+- [x] Mutating routes require CSRF protection or an explicitly documented safer
       alternative.
-- [ ] Request size limits protect JSON and form endpoints that accept user data.
-- [ ] Security headers are applied to normal HTML responses.
-- [ ] Tests cover rejected unsafe methods, missing CSRF tokens, and oversized
+- [x] Request size limits protect JSON and form endpoints that accept user data.
+- [x] Security headers are applied to normal HTML responses.
+- [x] Tests cover rejected unsafe methods, missing CSRF tokens, and oversized
       requests.
-- [ ] Documentation states that the app still must not be publicly hosted until
+- [x] Documentation states that the app still must not be publicly hosted until
       authentication and authorization are complete.
 
 ## Notes
 
-This task is intentionally separate from authentication so the app has route
-hardening before account flows are added.
+Completed with `src/main/java/com/lifttrax/cli/WebRequestSecurity.java` and
+`docs/public-web-security-baseline.md`.
+
+The embedded web server now wraps registered routes with exact path checks,
+method allowlists, a one-megabyte request body limit, double-submit CSRF checks
+for mutating requests, and response security headers. This remains a pre-auth
+baseline; public hosting still waits for `LT-0085` authentication and `LT-0086`
+authorization.
