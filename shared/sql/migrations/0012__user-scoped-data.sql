@@ -1,4 +1,8 @@
-CREATE TABLE IF NOT EXISTS lifts (
+PRAGMA foreign_keys = OFF;
+
+ALTER TABLE lifts RENAME TO lifts_old;
+
+CREATE TABLE lifts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_user_id TEXT NOT NULL DEFAULT 'local-user',
     name TEXT NOT NULL,
@@ -10,7 +14,15 @@ CREATE TABLE IF NOT EXISTS lifts (
     UNIQUE(owner_user_id, name)
 );
 
-CREATE TABLE IF NOT EXISTS lift_records (
+INSERT INTO lifts (id, owner_user_id, name, region, main_lift, muscles, notes, enabled)
+SELECT id, 'local-user', name, region, main_lift, muscles, notes, enabled
+FROM lifts_old;
+
+DROP TABLE lifts_old;
+
+ALTER TABLE lift_records RENAME TO lift_records_old;
+
+CREATE TABLE lift_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_user_id TEXT NOT NULL DEFAULT 'local-user',
     lift_id INTEGER NOT NULL,
@@ -22,29 +34,23 @@ CREATE TABLE IF NOT EXISTS lift_records (
     FOREIGN KEY(lift_id) REFERENCES lifts(id)
 );
 
-CREATE TABLE IF NOT EXISTS execution_sets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    record_id INTEGER NOT NULL,
-    set_index INTEGER NOT NULL,
-    metric_kind TEXT NOT NULL,
-    metric_a INTEGER NOT NULL DEFAULT 0,
-    metric_b INTEGER,
-    weight TEXT NOT NULL DEFAULT 'none',
-    rpe REAL,
-    FOREIGN KEY(record_id) REFERENCES lift_records(id) ON DELETE CASCADE
-);
+INSERT INTO lift_records (id, owner_user_id, lift_id, date, sets, warmup, deload, notes)
+SELECT
+    lr.id,
+    COALESCE(l.owner_user_id, 'local-user'),
+    lr.lift_id,
+    lr.date,
+    lr.sets,
+    lr.warmup,
+    lr.deload,
+    lr.notes
+FROM lift_records_old lr
+LEFT JOIN lifts l ON l.id = lr.lift_id;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_sets_record_index
-    ON execution_sets(record_id, set_index);
+DROP TABLE lift_records_old;
 
 CREATE INDEX IF NOT EXISTS idx_lifts_owner_name ON lifts(owner_user_id, name);
-
 CREATE INDEX IF NOT EXISTS idx_lift_records_owner_lift_date
     ON lift_records(owner_user_id, lift_id, date DESC);
 
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    version INTEGER NOT NULL UNIQUE,
-    name TEXT NOT NULL UNIQUE,
-    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+PRAGMA foreign_keys = ON;

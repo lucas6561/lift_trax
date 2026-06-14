@@ -36,8 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Core SqliteDb component used by LiftTrax. */
-public class SqliteDb implements Database, AutoCloseable {
+public class SqliteDb implements TrainingDataStore, AutoCloseable {
   public static final int MAX_BACKUPS = 5;
+  public static final String LEGACY_OWNER_USER_ID = "local-user";
   private static final Logger LOGGER = LoggerFactory.getLogger(SqliteDb.class);
 
   public record LiftExecutionRow(Lift lift, LiftExecution execution) {}
@@ -66,6 +67,7 @@ public class SqliteDb implements Database, AutoCloseable {
     }
     createBackupIfExists(dbPath);
     this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+    ensureLiftEnabledColumn();
     SqlSchemaMigrator.migrate(connection);
     ensureLiftEnabledColumn();
     ensureExecutionSetsTable();
@@ -80,25 +82,46 @@ public class SqliteDb implements Database, AutoCloseable {
     return SqlSchemaMigrator.activeVersion(connection);
   }
 
+  public TrainingDataStore forUser(String ownerUserId) {
+    return new UserScopedDatabase(this, requireOwnerUserId(ownerUserId));
+  }
+
   @Override
   public List<Lift> listLifts() throws Exception {
-    String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts ORDER BY name";
-    try (PreparedStatement statement = connection.prepareStatement(sql);
-        ResultSet rs = statement.executeQuery()) {
-      List<Lift> lifts = new ArrayList<>();
-      while (rs.next()) {
-        lifts.add(mapLift(rs));
+    return listLiftsForUser(LEGACY_OWNER_USER_ID);
+  }
+
+  List<Lift> listLiftsForUser(String ownerUserId) throws Exception {
+    String sql =
+        "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE owner_user_id = ? ORDER BY name";
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      try (ResultSet rs = statement.executeQuery()) {
+        List<Lift> lifts = new ArrayList<>();
+        while (rs.next()) {
+          lifts.add(mapLift(rs));
+        }
+        logInfo("db.listLifts result=ok");
+        return lifts;
       }
-      logInfo("db.listLifts result=ok");
-      return lifts;
     }
   }
 
   @Override
   public Lift getLift(String name) throws Exception {
-    String sql = "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE name = ?";
+    return getLiftForUser(LEGACY_OWNER_USER_ID, name);
+  }
+
+  Lift getLiftForUser(String ownerUserId, String name) throws Exception {
+    String sql =
+        """
+                SELECT name, region, main_lift, muscles, notes
+                FROM lifts
+                WHERE owner_user_id = ? AND name = ?
+                """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, name);
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, name);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           logInfo("db.getLift name={} result=not_found", name);
@@ -117,16 +140,23 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public List<LiftExecution> getExecutions(String liftName) throws Exception {
+    return getExecutionsForUser(LEGACY_OWNER_USER_ID, liftName);
+  }
+
+  List<LiftExecution> getExecutionsForUser(String ownerUserId, String liftName) throws Exception {
     String sql =
         """
                 SELECT lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes
                 FROM lift_records lr
                 JOIN lifts l ON l.id = lr.lift_id
-                WHERE l.name = ?
+                WHERE lr.owner_user_id = ? AND l.owner_user_id = ? AND l.name = ?
                 ORDER BY lr.date DESC
                 """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, liftName);
+      String owner = requireOwnerUserId(ownerUserId);
+      statement.setString(1, owner);
+      statement.setString(2, owner);
+      statement.setString(3, liftName);
       try (ResultSet rs = statement.executeQuery()) {
         List<LiftExecution> executions = new ArrayList<>();
         while (rs.next()) {
@@ -146,8 +176,14 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
+  @Override
   public List<LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
       throws Exception {
+    return getExecutionsBetweenForUser(LEGACY_OWNER_USER_ID, start, end);
+  }
+
+  List<LiftExecutionRow> getExecutionsBetweenForUser(
+      String ownerUserId, LocalDate start, LocalDate end) throws Exception {
     String sql =
         """
                 SELECT
@@ -155,12 +191,15 @@ public class SqliteDb implements Database, AutoCloseable {
                     lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes AS record_notes
                 FROM lift_records lr
                 JOIN lifts l ON l.id = lr.lift_id
-                WHERE lr.date BETWEEN ? AND ?
+                WHERE lr.owner_user_id = ? AND l.owner_user_id = ? AND lr.date BETWEEN ? AND ?
                 ORDER BY lr.date ASC, l.name ASC, lr.id ASC
                 """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, start.toString());
-      statement.setString(2, end.toString());
+      String owner = requireOwnerUserId(ownerUserId);
+      statement.setString(1, owner);
+      statement.setString(2, owner);
+      statement.setString(3, start.toString());
+      statement.setString(4, end.toString());
       try (ResultSet rs = statement.executeQuery()) {
         List<LiftExecutionRow> rows = new ArrayList<>();
         while (rs.next()) {
@@ -188,8 +227,14 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
+  @Override
   public ExecutionHistorySummary executionHistorySummary(LocalDate start, LocalDate end)
       throws Exception {
+    return executionHistorySummaryForUser(LEGACY_OWNER_USER_ID, start, end);
+  }
+
+  ExecutionHistorySummary executionHistorySummaryForUser(
+      String ownerUserId, LocalDate start, LocalDate end) throws Exception {
     String sql =
         """
                 SELECT
@@ -199,10 +244,12 @@ public class SqliteDb implements Database, AutoCloseable {
                     MAX(CASE WHEN date < ? THEN date END) AS nearest_before,
                     MIN(CASE WHEN date > ? THEN date END) AS nearest_after
                 FROM lift_records
+                WHERE owner_user_id = ?
                 """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, start.toString());
       statement.setString(2, end.toString());
+      statement.setString(3, requireOwnerUserId(ownerUserId));
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           logInfo("db.executionHistorySummary start={} end={} result=empty", start, end);
@@ -221,21 +268,34 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
+  @Override
   public LiftExecution getLastExecution(String liftName, boolean warmup, boolean deload)
       throws Exception {
+    return getLastExecutionForUser(LEGACY_OWNER_USER_ID, liftName, warmup, deload);
+  }
+
+  LiftExecution getLastExecutionForUser(
+      String ownerUserId, String liftName, boolean warmup, boolean deload) throws Exception {
     String sql =
         """
                 SELECT lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes
                 FROM lift_records lr
                 JOIN lifts l ON l.id = lr.lift_id
-                WHERE l.name = ? AND lr.warmup = ? AND lr.deload = ?
+                WHERE lr.owner_user_id = ?
+                    AND l.owner_user_id = ?
+                    AND l.name = ?
+                    AND lr.warmup = ?
+                    AND lr.deload = ?
                 ORDER BY lr.date DESC, lr.id DESC
                 LIMIT 1
                 """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, liftName);
-      statement.setInt(2, warmup ? 1 : 0);
-      statement.setInt(3, deload ? 1 : 0);
+      String owner = requireOwnerUserId(ownerUserId);
+      statement.setString(1, owner);
+      statement.setString(2, owner);
+      statement.setString(3, liftName);
+      statement.setInt(4, warmup ? 1 : 0);
+      statement.setInt(5, deload ? 1 : 0);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           logInfo(
@@ -257,17 +317,26 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
+  @Override
   public LiftExecution getExecution(String liftName, int executionId) throws Exception {
+    return getExecutionForUser(LEGACY_OWNER_USER_ID, liftName, executionId);
+  }
+
+  LiftExecution getExecutionForUser(String ownerUserId, String liftName, int executionId)
+      throws Exception {
     String sql =
         """
                 SELECT lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes
                 FROM lift_records lr
                 JOIN lifts l ON l.id = lr.lift_id
-                WHERE l.name = ? AND lr.id = ?
+                WHERE lr.owner_user_id = ? AND l.owner_user_id = ? AND l.name = ? AND lr.id = ?
                 """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, liftName);
-      statement.setInt(2, executionId);
+      String owner = requireOwnerUserId(ownerUserId);
+      statement.setString(1, owner);
+      statement.setString(2, owner);
+      statement.setString(3, liftName);
+      statement.setInt(4, executionId);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           logInfo("db.getExecution lift={} id={} result=not_found", liftName, executionId);
@@ -280,26 +349,36 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
+  @Override
   public Map<String, LiftExecution> latestExecutionsByLift() throws Exception {
+    return latestExecutionsByLiftForUser(LEGACY_OWNER_USER_ID);
+  }
+
+  Map<String, LiftExecution> latestExecutionsByLiftForUser(String ownerUserId) throws Exception {
     String sql =
         """
                 SELECT l.name, lr.id, lr.date, lr.sets, lr.warmup, lr.deload, lr.notes
                 FROM lifts l
                 JOIN lift_records lr ON lr.lift_id = l.id
-                WHERE lr.id = (
+                WHERE l.owner_user_id = ? AND lr.owner_user_id = ? AND lr.id = (
                     SELECT lr2.id
                     FROM lift_records lr2
-                    WHERE lr2.lift_id = l.id
+                    WHERE lr2.owner_user_id = ? AND lr2.lift_id = l.id
                     ORDER BY lr2.date DESC, lr2.id DESC
                     LIMIT 1
                 )
                 ORDER BY l.name
                 """;
     Map<String, LiftExecution> latestByLift = new HashMap<>();
-    try (PreparedStatement statement = connection.prepareStatement(sql);
-        ResultSet rs = statement.executeQuery()) {
-      while (rs.next()) {
-        latestByLift.put(rs.getString("name"), mapExecution(rs));
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      String owner = requireOwnerUserId(ownerUserId);
+      statement.setString(1, owner);
+      statement.setString(2, owner);
+      statement.setString(3, owner);
+      try (ResultSet rs = statement.executeQuery()) {
+        while (rs.next()) {
+          latestByLift.put(rs.getString("name"), mapExecution(rs));
+        }
       }
     }
     logInfo("db.latestExecutionsByLift result=rows:{}", latestByLift.size());
@@ -319,6 +398,13 @@ public class SqliteDb implements Database, AutoCloseable {
 
   private static LocalDate parseNullableDate(String value) {
     return value == null || value.isBlank() ? null : LocalDate.parse(value);
+  }
+
+  private static String requireOwnerUserId(String ownerUserId) {
+    if (ownerUserId == null || ownerUserId.isBlank()) {
+      throw new IllegalArgumentException("Authenticated user is required.");
+    }
+    return ownerUserId;
   }
 
   private Lift mapLift(ResultSet rs) throws Exception {
@@ -620,10 +706,11 @@ public class SqliteDb implements Database, AutoCloseable {
     logInfo("db.close result=ok");
   }
 
-  private Integer findLiftId(String name) throws Exception {
-    String sql = "SELECT id FROM lifts WHERE name = ?";
+  private Integer findLiftIdForUser(String ownerUserId, String name) throws Exception {
+    String sql = "SELECT id FROM lifts WHERE owner_user_id = ? AND name = ?";
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, name);
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, name);
       try (ResultSet rs = statement.executeQuery()) {
         if (rs.next()) {
           return rs.getInt("id");
@@ -633,17 +720,18 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
-  private LiftExecution getLastExecution(int liftId) throws Exception {
+  private LiftExecution getLastExecutionForUser(String ownerUserId, int liftId) throws Exception {
     String sql =
         """
                 SELECT id, date, sets, warmup, deload, notes
                 FROM lift_records
-                WHERE lift_id = ?
+                WHERE owner_user_id = ? AND lift_id = ?
                 ORDER BY date DESC
                 LIMIT 1
                 """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, liftId);
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setInt(2, liftId);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           return null;
@@ -660,18 +748,20 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
-  private Map<Integer, String> collectBestByReps(int liftId) throws Exception {
+  private Map<Integer, String> collectBestByRepsForUser(String ownerUserId, int liftId)
+      throws Exception {
     String sql =
         """
                 SELECT es.metric_a AS reps, es.weight
                 FROM execution_sets es
                 JOIN lift_records lr ON lr.id = es.record_id
-                WHERE lr.lift_id = ? AND es.metric_kind = 'reps'
+                WHERE lr.owner_user_id = ? AND lr.lift_id = ? AND es.metric_kind = 'reps'
                 """;
     Map<Integer, String> bestByReps = new TreeMap<>();
     Map<Integer, Double> bestByRepsWeight = new HashMap<>();
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setInt(1, liftId);
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setInt(2, liftId);
       try (ResultSet rs = statement.executeQuery()) {
         while (rs.next()) {
           int repCount = rs.getInt("reps");
@@ -728,18 +818,33 @@ public class SqliteDb implements Database, AutoCloseable {
   public void addLift(
       String name, LiftRegion region, LiftType main, List<Muscle> muscles, String notes)
       throws Exception {
+    addLiftForUser(LEGACY_OWNER_USER_ID, name, region, main, muscles, notes);
+  }
+
+  void addLiftForUser(
+      String ownerUserId,
+      String name,
+      LiftRegion region,
+      LiftType main,
+      List<Muscle> muscles,
+      String notes)
+      throws Exception {
     String sql =
-        "INSERT INTO lifts (name, region, main_lift, muscles, notes) VALUES (?, ?, ?, ?, ?)";
+        """
+                INSERT INTO lifts (owner_user_id, name, region, main_lift, muscles, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """;
     String musclesValue =
         muscles == null || muscles.isEmpty()
             ? ""
             : muscles.stream().map(Enum::name).reduce((a, b) -> a + "," + b).orElse("");
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, name);
-      statement.setString(2, region.name());
-      statement.setString(3, main == null ? null : main.toDbValue());
-      statement.setString(4, musclesValue);
-      statement.setString(5, notes == null ? "" : notes);
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, name);
+      statement.setString(3, region.name());
+      statement.setString(4, main == null ? null : main.toDbValue());
+      statement.setString(5, musclesValue);
+      statement.setString(6, notes == null ? "" : notes);
       int rows = statement.executeUpdate();
       logInfo(
           "db.addLift name={} region={} main={} result=rows:{}",
@@ -752,22 +857,32 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public void addLiftExecution(String name, LiftExecution execution) throws Exception {
-    Integer liftId = findLiftId(name);
+    addLiftExecutionForUser(LEGACY_OWNER_USER_ID, name, execution);
+  }
+
+  void addLiftExecutionForUser(String ownerUserId, String name, LiftExecution execution)
+      throws Exception {
+    String owner = requireOwnerUserId(ownerUserId);
+    Integer liftId = findLiftIdForUser(owner, name);
     if (liftId == null) {
       logInfo("db.addLiftExecution lift={} result=not_found", name);
       throw new IllegalArgumentException("Lift not found: " + name);
     }
     String setsJson = objectMapper.writeValueAsString(execution.sets());
     String sql =
-        "INSERT INTO lift_records (lift_id, date, sets, warmup, deload, notes) VALUES (?, ?, ?, ?, ?, ?)";
+        """
+                INSERT INTO lift_records (owner_user_id, lift_id, date, sets, warmup, deload, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """;
     try (PreparedStatement statement =
         connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      statement.setInt(1, liftId);
-      statement.setString(2, execution.date().toString());
-      statement.setString(3, setsJson);
-      statement.setInt(4, execution.warmup() ? 1 : 0);
-      statement.setInt(5, execution.deload() ? 1 : 0);
-      statement.setString(6, execution.notes() == null ? "" : execution.notes());
+      statement.setString(1, owner);
+      statement.setInt(2, liftId);
+      statement.setString(3, execution.date().toString());
+      statement.setString(4, setsJson);
+      statement.setInt(5, execution.warmup() ? 1 : 0);
+      statement.setInt(6, execution.deload() ? 1 : 0);
+      statement.setString(7, execution.notes() == null ? "" : execution.notes());
       statement.executeUpdate();
       Integer recordId = null;
       try (ResultSet keys = statement.getGeneratedKeys()) {
@@ -794,8 +909,24 @@ public class SqliteDb implements Database, AutoCloseable {
       List<Muscle> muscles,
       String notes)
       throws Exception {
+    updateLiftForUser(LEGACY_OWNER_USER_ID, currentName, newName, region, main, muscles, notes);
+  }
+
+  void updateLiftForUser(
+      String ownerUserId,
+      String currentName,
+      String newName,
+      LiftRegion region,
+      LiftType main,
+      List<Muscle> muscles,
+      String notes)
+      throws Exception {
     String sql =
-        "UPDATE lifts SET name = ?, region = ?, main_lift = ?, muscles = ?, notes = ? WHERE name = ?";
+        """
+                UPDATE lifts
+                SET name = ?, region = ?, main_lift = ?, muscles = ?, notes = ?
+                WHERE owner_user_id = ? AND name = ?
+                """;
     String musclesValue =
         muscles == null || muscles.isEmpty()
             ? ""
@@ -806,8 +937,12 @@ public class SqliteDb implements Database, AutoCloseable {
       statement.setString(3, main == null ? null : main.toDbValue());
       statement.setString(4, musclesValue);
       statement.setString(5, notes == null ? "" : notes);
-      statement.setString(6, currentName);
+      statement.setString(6, requireOwnerUserId(ownerUserId));
+      statement.setString(7, currentName);
       int rows = statement.executeUpdate();
+      if (rows == 0) {
+        throw new IllegalArgumentException("Lift not found.");
+      }
       logInfo(
           "db.updateLift currentName={} newName={} region={} main={} result=rows:{}",
           currentName,
@@ -820,21 +955,29 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public void deleteLift(String name) throws Exception {
-    Integer liftId = findLiftId(name);
+    deleteLiftForUser(LEGACY_OWNER_USER_ID, name);
+  }
+
+  void deleteLiftForUser(String ownerUserId, String name) throws Exception {
+    String owner = requireOwnerUserId(ownerUserId);
+    Integer liftId = findLiftIdForUser(owner, name);
     if (liftId == null) {
       logInfo("db.deleteLift name={} result=not_found", name);
-      return;
+      throw new IllegalArgumentException("Lift not found.");
     }
     int recordsDeleted;
     try (PreparedStatement statement =
-        connection.prepareStatement("DELETE FROM lift_records WHERE lift_id = ?")) {
-      statement.setInt(1, liftId);
+        connection.prepareStatement(
+            "DELETE FROM lift_records WHERE owner_user_id = ? AND lift_id = ?")) {
+      statement.setString(1, owner);
+      statement.setInt(2, liftId);
       recordsDeleted = statement.executeUpdate();
     }
     int liftsDeleted;
     try (PreparedStatement statement =
-        connection.prepareStatement("DELETE FROM lifts WHERE id = ?")) {
-      statement.setInt(1, liftId);
+        connection.prepareStatement("DELETE FROM lifts WHERE owner_user_id = ? AND id = ?")) {
+      statement.setString(1, owner);
+      statement.setInt(2, liftId);
       liftsDeleted = statement.executeUpdate();
     }
     logInfo("db.deleteLift name={} result=lifts:{},records:{}", name, liftsDeleted, recordsDeleted);
@@ -842,20 +985,33 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public void setLiftEnabled(String name, boolean enabled) throws Exception {
-    String sql = "UPDATE lifts SET enabled = ? WHERE name = ?";
+    setLiftEnabledForUser(LEGACY_OWNER_USER_ID, name, enabled);
+  }
+
+  void setLiftEnabledForUser(String ownerUserId, String name, boolean enabled) throws Exception {
+    String sql = "UPDATE lifts SET enabled = ? WHERE owner_user_id = ? AND name = ?";
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setInt(1, enabled ? 1 : 0);
-      statement.setString(2, name);
+      statement.setString(2, requireOwnerUserId(ownerUserId));
+      statement.setString(3, name);
       int rows = statement.executeUpdate();
+      if (rows == 0) {
+        throw new IllegalArgumentException("Lift not found.");
+      }
       logInfo("db.setLiftEnabled name={} enabled={} result=rows:{}", name, enabled, rows);
     }
   }
 
   @Override
   public boolean isLiftEnabled(String name) throws Exception {
-    String sql = "SELECT enabled FROM lifts WHERE name = ?";
+    return isLiftEnabledForUser(LEGACY_OWNER_USER_ID, name);
+  }
+
+  boolean isLiftEnabledForUser(String ownerUserId, String name) throws Exception {
+    String sql = "SELECT enabled FROM lifts WHERE owner_user_id = ? AND name = ?";
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, name);
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, name);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           logInfo("db.isLiftEnabled name={} result=not_found", name);
@@ -868,13 +1024,20 @@ public class SqliteDb implements Database, AutoCloseable {
     }
   }
 
+  @Override
   public Map<String, Boolean> liftEnabledStatuses() throws Exception {
-    String sql = "SELECT name, enabled FROM lifts";
+    return liftEnabledStatusesForUser(LEGACY_OWNER_USER_ID);
+  }
+
+  Map<String, Boolean> liftEnabledStatusesForUser(String ownerUserId) throws Exception {
+    String sql = "SELECT name, enabled FROM lifts WHERE owner_user_id = ?";
     Map<String, Boolean> statuses = new HashMap<>();
-    try (PreparedStatement statement = connection.prepareStatement(sql);
-        ResultSet rs = statement.executeQuery()) {
-      while (rs.next()) {
-        statuses.put(rs.getString("name"), rs.getInt("enabled") != 0);
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      try (ResultSet rs = statement.executeQuery()) {
+        while (rs.next()) {
+          statuses.put(rs.getString("name"), rs.getInt("enabled") != 0);
+        }
       }
     }
     logInfo("db.liftEnabledStatuses result=rows:{}", statuses.size());
@@ -883,17 +1046,30 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public void updateLiftExecution(int execId, LiftExecution execution) throws Exception {
+    updateLiftExecutionForUser(LEGACY_OWNER_USER_ID, execId, execution);
+  }
+
+  void updateLiftExecutionForUser(String ownerUserId, int execId, LiftExecution execution)
+      throws Exception {
     String setsJson = objectMapper.writeValueAsString(execution.sets());
     String sql =
-        "UPDATE lift_records SET date = ?, sets = ?, warmup = ?, deload = ?, notes = ? WHERE id = ?";
+        """
+                UPDATE lift_records
+                SET date = ?, sets = ?, warmup = ?, deload = ?, notes = ?
+                WHERE owner_user_id = ? AND id = ?
+                """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, execution.date().toString());
       statement.setString(2, setsJson);
       statement.setInt(3, execution.warmup() ? 1 : 0);
       statement.setInt(4, execution.deload() ? 1 : 0);
       statement.setString(5, execution.notes() == null ? "" : execution.notes());
-      statement.setInt(6, execId);
+      statement.setString(6, requireOwnerUserId(ownerUserId));
+      statement.setInt(7, execId);
       int rows = statement.executeUpdate();
+      if (rows == 0) {
+        throw new IllegalArgumentException("Execution not found.");
+      }
       logInfo(
           "db.updateLiftExecution id={} date={} sets={} result=rows:{}",
           execId,
@@ -906,17 +1082,34 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public void deleteLiftExecution(int execId) throws Exception {
+    deleteLiftExecutionForUser(LEGACY_OWNER_USER_ID, execId);
+  }
+
+  void deleteLiftExecutionForUser(String ownerUserId, int execId) throws Exception {
+    String owner = requireOwnerUserId(ownerUserId);
     int setsDeleted;
     try (PreparedStatement statement =
-        connection.prepareStatement("DELETE FROM execution_sets WHERE record_id = ?")) {
-      statement.setInt(1, execId);
+        connection.prepareStatement(
+            """
+                    DELETE FROM execution_sets
+                    WHERE record_id IN (
+                        SELECT id FROM lift_records WHERE owner_user_id = ? AND id = ?
+                    )
+                    """)) {
+      statement.setString(1, owner);
+      statement.setInt(2, execId);
       setsDeleted = statement.executeUpdate();
     }
     int recordsDeleted;
     try (PreparedStatement statement =
-        connection.prepareStatement("DELETE FROM lift_records WHERE id = ?")) {
-      statement.setInt(1, execId);
+        connection.prepareStatement(
+            "DELETE FROM lift_records WHERE owner_user_id = ? AND id = ?")) {
+      statement.setString(1, owner);
+      statement.setInt(2, execId);
       recordsDeleted = statement.executeUpdate();
+    }
+    if (recordsDeleted == 0) {
+      throw new IllegalArgumentException("Execution not found.");
     }
     logInfo(
         "db.deleteLiftExecution id={} result=records:{},sets:{}",
@@ -927,13 +1120,18 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public LiftStats liftStats(String name) throws Exception {
-    Integer liftId = findLiftId(name);
+    return liftStatsForUser(LEGACY_OWNER_USER_ID, name);
+  }
+
+  LiftStats liftStatsForUser(String ownerUserId, String name) throws Exception {
+    String owner = requireOwnerUserId(ownerUserId);
+    Integer liftId = findLiftIdForUser(owner, name);
     if (liftId == null) {
       logInfo("db.liftStats name={} result=not_found", name);
       throw new IllegalArgumentException("Lift not found: " + name);
     }
-    LiftExecution last = getLastExecution(liftId);
-    Map<Integer, String> bestByReps = collectBestByReps(liftId);
+    LiftExecution last = getLastExecutionForUser(owner, liftId);
+    Map<Integer, String> bestByReps = collectBestByRepsForUser(owner, liftId);
     LiftStats stats = new LiftStats(last, bestByReps);
     logInfo("db.liftStats name={} result=ok last={}", name, last == null ? "none" : last.date());
     return stats;
@@ -941,10 +1139,20 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public List<Lift> liftsByType(LiftType liftType) throws Exception {
+    return liftsByTypeForUser(LEGACY_OWNER_USER_ID, liftType);
+  }
+
+  List<Lift> liftsByTypeForUser(String ownerUserId, LiftType liftType) throws Exception {
     String sql =
-        "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? AND enabled = 1 ORDER BY name";
+        """
+                SELECT name, region, main_lift, muscles, notes
+                FROM lifts
+                WHERE owner_user_id = ? AND main_lift = ? AND enabled = 1
+                ORDER BY name
+                """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, liftType.toDbValue());
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, liftType.toDbValue());
       try (ResultSet rs = statement.executeQuery()) {
         List<Lift> lifts = new ArrayList<>();
         while (rs.next()) {
@@ -958,11 +1166,21 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public List<Lift> getAccessoriesByMuscle(Muscle muscle) throws Exception {
+    return getAccessoriesByMuscleForUser(LEGACY_OWNER_USER_ID, muscle);
+  }
+
+  List<Lift> getAccessoriesByMuscleForUser(String ownerUserId, Muscle muscle) throws Exception {
     String sql =
-        "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE main_lift = ? AND enabled = 1 AND muscles LIKE ? ORDER BY name";
+        """
+                SELECT name, region, main_lift, muscles, notes
+                FROM lifts
+                WHERE owner_user_id = ? AND main_lift = ? AND enabled = 1 AND muscles LIKE ?
+                ORDER BY name
+                """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, LiftType.ACCESSORY.toDbValue());
-      statement.setString(2, "%" + muscle.name() + "%");
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, LiftType.ACCESSORY.toDbValue());
+      statement.setString(3, "%" + muscle.name() + "%");
       try (ResultSet rs = statement.executeQuery()) {
         List<Lift> lifts = new ArrayList<>();
         while (rs.next()) {
@@ -979,11 +1197,22 @@ public class SqliteDb implements Database, AutoCloseable {
 
   @Override
   public List<Lift> liftsByRegionAndType(LiftRegion region, LiftType liftType) throws Exception {
+    return liftsByRegionAndTypeForUser(LEGACY_OWNER_USER_ID, region, liftType);
+  }
+
+  List<Lift> liftsByRegionAndTypeForUser(String ownerUserId, LiftRegion region, LiftType liftType)
+      throws Exception {
     String sql =
-        "SELECT name, region, main_lift, muscles, notes FROM lifts WHERE region = ? AND main_lift = ? AND enabled = 1 ORDER BY name";
+        """
+                SELECT name, region, main_lift, muscles, notes
+                FROM lifts
+                WHERE owner_user_id = ? AND region = ? AND main_lift = ? AND enabled = 1
+                ORDER BY name
+                """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, region.name());
-      statement.setString(2, liftType.toDbValue());
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, region.name());
+      statement.setString(3, liftType.toDbValue());
       try (ResultSet rs = statement.executeQuery()) {
         List<Lift> lifts = new ArrayList<>();
         while (rs.next()) {

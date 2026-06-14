@@ -158,6 +158,36 @@ class WebServerCliTest {
   }
 
   @Test
+  void authenticatedIndexUsesCurrentUsersScopedData() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-web-user-scope", ".db");
+    WebAuth auth = fixedAuth(false);
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      TestExchange exchange = TestExchange.get("/");
+      addSessionCookie(exchange, auth, "other-user", "other@example.test", Duration.ofHours(1));
+
+      WebRequestSecurity.handleSecured(
+          exchange,
+          "/",
+          Set.of("GET"),
+          auth.protect(
+              secured -> {
+                try {
+                  invokeHandler("handleIndex", secured, db);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }));
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("Signed in as other@example.test"));
+      assertFalse(exchange.responseBody().contains("Back Squat"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
   void protectedRouteClearsExpiredSessionAndRedirects() throws Exception {
     WebAuth auth = fixedAuth(true);
     TestExchange exchange = TestExchange.get("/");
@@ -1441,7 +1471,7 @@ class WebServerCliTest {
     }
   }
 
-  private static void invokeHandler(String methodName, TestExchange exchange, SqliteDb db)
+  private static void invokeHandler(String methodName, HttpExchange exchange, SqliteDb db)
       throws Exception {
     Method method =
         WebServerCli.class.getDeclaredMethod(methodName, HttpExchange.class, SqliteDb.class);

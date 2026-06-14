@@ -25,6 +25,6 @@ class SqlSchemaVersionTest {
   void loadsSharedMigrationsInVersionOrder() {
     List<Integer> versions =
         SqlSchemaVersion.migrations().stream().map(SqlSchemaVersion.Migration::version).toList();
-    assertEquals(List.of(10, 11), versions);
+    assertEquals(List.of(10, 11, 12), versions);
   }
 }

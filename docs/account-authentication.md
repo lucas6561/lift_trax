@@ -7,6 +7,8 @@ Date: 2026-06-14
 LiftTrax now has a server-side authentication boundary for the hosted web path.
 This is the authentication step only: `LT-0086` still has to enforce
 user-scoped authorization before private hosted data can be considered safe.
+The first LT-0086 slice now scopes local web data by the signed session user;
+coach sharing and hosted Postgres enforcement remain follow-up work.
 
 ## Current behavior
 

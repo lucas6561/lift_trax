@@ -1,7 +1,7 @@
 ---
 id: LT-0086
 title: Enforce user-scoped authorization
-status: idea
+status: doing
 track: data
 priority: critical
 effort: large
@@ -49,3 +49,15 @@ as defense in depth.
 Build on `WebAuth.currentUser(exchange)` from `LT-0085` for the current stable
 user identifier, then apply owner or relationship predicates from
 `docs/hosted-user-data-schema.md`.
+
+2026-06-14 first implementation slice:
+
+- added local SQLite `owner_user_id` columns for lifts and lift records;
+- backfilled legacy local data to `local-user`;
+- added a scoped `TrainingDataStore` facade used by authenticated web routes;
+- allowed duplicate lift names across different owners;
+- added tests for cross-user lift visibility and execution read/update/delete
+  rejection.
+
+Remaining LT-0086 work includes persisted program/planned-workout ownership,
+coach/lifter relationship permissions, and hosted Postgres/RLS enforcement.

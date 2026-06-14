@@ -1,6 +1,6 @@
 package com.lifttrax.cli;
 
-import com.lifttrax.db.SqliteDb;
+import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.Lift;
@@ -69,7 +69,7 @@ final class WebUiRenderer {
 
   /** Produces the page body, rendering expensive tab bodies only when they are active. */
   static String renderIndexBody(
-      SqliteDb db,
+      TrainingDataStore db,
       List<Lift> lifts,
       String search,
       String queryLift,
@@ -1186,11 +1186,11 @@ final class WebUiRenderer {
     return Boolean.toString(tab.equals(activeTab));
   }
 
-  static String renderDailyDashboard(SqliteDb db, List<Lift> lifts, LocalDate today) {
+  static String renderDailyDashboard(TrainingDataStore db, List<Lift> lifts, LocalDate today) {
     return DailyDashboardRenderer.render(db, lifts, today);
   }
 
-  static String renderWaveContent(SqliteDb db, int weeks, Map<String, String> waveInput) {
+  static String renderWaveContent(TrainingDataStore db, int weeks, Map<String, String> waveInput) {
     int normalizedWeeks = Math.max(1, weeks);
     String planner = renderWavePlannerForm(db, normalizedWeeks, waveInput);
     boolean shouldGenerate = "true".equalsIgnoreCase(waveInput.getOrDefault("waveGenerate", ""));
@@ -1243,7 +1243,8 @@ final class WebUiRenderer {
     };
   }
 
-  private static String renderWavePlannerForm(SqliteDb db, int weeks, Map<String, String> values) {
+  private static String renderWavePlannerForm(
+      TrainingDataStore db, int weeks, Map<String, String> values) {
     StringBuilder html = new StringBuilder();
     html.append("<form method='get' action='/' class='query-form' style='display:block;'>");
     html.append("<input type='hidden' name='tab' value='waves'/>");
@@ -1460,7 +1461,7 @@ final class WebUiRenderer {
   }
 
   static String renderLastWeekContent(
-      SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate end) {
+      TrainingDataStore db, List<Lift> lifts, LocalDate start, LocalDate end) {
     LocalDate normalizedStart = start.isAfter(end) ? end : start;
     LocalDate normalizedEnd = end.isBefore(start) ? start : end;
     StringBuilder html = new StringBuilder();
@@ -1473,10 +1474,10 @@ final class WebUiRenderer {
     Map<LocalDate, List<LastWeekExecutionRow>> rowsByDate = new LinkedHashMap<>();
     Map<String, Lift> liftsByName =
         lifts.stream().collect(Collectors.toMap(Lift::name, lift -> lift, (left, right) -> left));
-    SqliteDb.ExecutionHistorySummary history;
+    com.lifttrax.db.SqliteDb.ExecutionHistorySummary history;
     try {
       history = db.executionHistorySummary(normalizedStart, normalizedEnd);
-      for (SqliteDb.LiftExecutionRow row :
+      for (com.lifttrax.db.SqliteDb.LiftExecutionRow row :
           db.getExecutionsBetween(normalizedStart, normalizedEnd)) {
         Lift lift = liftsByName.getOrDefault(row.lift().name(), row.lift());
         LiftExecution execution = row.execution();
@@ -1787,7 +1788,7 @@ final class WebUiRenderer {
         .formatted(options);
   }
 
-  static String renderQueryContent(SqliteDb db, String liftName) {
+  static String renderQueryContent(TrainingDataStore db, String liftName) {
     if (liftName == null || liftName.isBlank()) {
       return "<p>Select a lift and click <strong>Run Query</strong>.</p>";
     }
@@ -2047,7 +2048,8 @@ final class WebUiRenderer {
     return count == 1 ? singular : plural;
   }
 
-  static String renderExecutionList(SqliteDb db, List<Lift> lifts, String search, String label) {
+  static String renderExecutionList(
+      TrainingDataStore db, List<Lift> lifts, String search, String label) {
     StringBuilder html = new StringBuilder();
     html.append("<p>").append(WebHtml.escapeHtml(label)).append("</p>");
 
@@ -2200,7 +2202,7 @@ final class WebUiRenderer {
     return html.toString();
   }
 
-  static String renderExecutionRows(SqliteDb db, String liftName) {
+  static String renderExecutionRows(TrainingDataStore db, String liftName) {
     try {
       List<LiftExecution> executions = db.getExecutions(liftName);
       boolean liftEnabled = true;

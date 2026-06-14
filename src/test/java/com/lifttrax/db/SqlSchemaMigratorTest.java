@@ -22,7 +22,7 @@ class SqlSchemaMigratorTest {
       assertEquals(SqlSchemaVersion.current(), SqlSchemaMigrator.activeVersion(connection));
     }
 
-    assertEquals(List.of(10, 11), migrationVersions(dbPath));
+    assertEquals(List.of(10, 11, 12), migrationVersions(dbPath));
   }
 
   @Test
@@ -44,7 +44,7 @@ class SqlSchemaMigratorTest {
       assertEquals(SqlSchemaVersion.current(), db.schemaVersion());
     }
 
-    assertEquals(List.of(10, 11), migrationVersions(dbPath));
+    assertEquals(List.of(10, 11, 12), migrationVersions(dbPath));
     assertEquals("preserved", appliedAt(dbPath, 11));
   }
 
