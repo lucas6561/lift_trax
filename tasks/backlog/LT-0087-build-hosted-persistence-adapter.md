@@ -47,3 +47,7 @@ clear persistence boundary.
 `docs/adr/0003-hosted-auth-data-platform.md` selects Supabase Postgres for the
 hosted store. Keep the first slice focused on daily logging before moving every
 planning and workout-generation workflow.
+
+Use `docs/hosted-user-data-schema.md` for the first hosted table boundary. The
+initial adapter slice should cover `app_users`, `lifter_profiles`,
+`exercise_catalog_entries`, `executions`, and `execution_sets`.

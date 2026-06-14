@@ -62,3 +62,6 @@ hosted data shape from `LT-0083` is clear.
 
 `docs/adr/0003-hosted-auth-data-platform.md` confirms Supabase Postgres as the
 first hosted Postgres target.
+
+Use `docs/hosted-user-data-schema.md` as the planned primary schema shape once
+the smaller hosted adapter slice is proven.

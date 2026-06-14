@@ -6,7 +6,7 @@ track: data
 priority: high
 effort: medium
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0083, LT-0085, LT-0087]
 ---
@@ -43,3 +43,7 @@ into their hosted account without mixing data between users.
 
 This can build from the existing backup and restore validation concepts, but the
 hosted import path needs user ownership and rollback semantics.
+
+Use `docs/hosted-user-data-schema.md` for the local `lifts.db` to hosted account
+mapping, including the `local_imports` batch record and all-or-nothing import
+expectation.

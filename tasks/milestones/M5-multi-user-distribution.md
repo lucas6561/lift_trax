@@ -52,3 +52,5 @@ Planning decisions now recorded:
   private-by-default ownership, and local import mapping.
 - `docs/adr/0003-hosted-auth-data-platform.md`: Supabase Auth, Supabase
   Postgres, and Render for the first hosted Java beta.
+- `docs/hosted-user-data-schema.md`: hosted Postgres ownership, catalog,
+  execution, plan/session, and local import schema shape.

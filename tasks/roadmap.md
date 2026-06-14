@@ -128,6 +128,8 @@ rules for this path. `docs/adr/0003-hosted-auth-data-platform.md` selects
 Supabase Auth, Supabase Postgres, and a Render-hosted Java web service for the
 first hosted beta. The sequence still keeps security, authentication,
 authorization, and hosted persistence ahead of public exposure.
+`docs/hosted-user-data-schema.md` maps that direction into the first hosted
+Postgres schema shape.
 
 ### Quality and maintainability
 
