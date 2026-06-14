@@ -45,9 +45,8 @@ baseline uses a double-submit CSRF token:
 4. Requests without a valid token are rejected before the handler reads or
    mutates application data.
 
-This is a pre-auth baseline. `LT-0085` should revisit cookie flags and session
-binding once the hosted auth provider is wired in. Hosted HTTPS deployment
-should use secure cookies at the auth/session layer.
+`LT-0085` adds the signed `lt_session` cookie and configures the CSRF cookie to
+use `Secure` when hosted auth mode enables secure cookies.
 
 ## Response headers
 

@@ -45,3 +45,7 @@ All hosted data access paths enforce user ownership or explicit sharing rules.
 This is the safety step that makes multi-user storage possible. Java route and
 data-access checks remain required even if Supabase Row Level Security is added
 as defense in depth.
+
+Build on `WebAuth.currentUser(exchange)` from `LT-0085` for the current stable
+user identifier, then apply owner or relationship predicates from
+`docs/hosted-user-data-schema.md`.

@@ -64,74 +64,93 @@ public final class WebServerCli {
     HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
     ExecutorService executor =
         Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
-    WebRequestSecurity.register(server, "/", Set.of("GET"), exchange -> handleIndex(exchange, db));
+    WebAuth auth = WebAuth.fromEnvironment(port);
+    WebRequestSecurity.setSecureCookies(auth.secureCookies());
+    WebRequestSecurity.register(server, "/auth/login", Set.of("GET"), auth::handleLogin);
+    WebRequestSecurity.register(server, "/auth/dev-login", Set.of("POST"), auth::handleDevLogin);
+    WebRequestSecurity.register(server, "/auth/callback", Set.of("GET"), auth::handleCallback);
+    WebRequestSecurity.register(server, "/auth/logout", Set.of("POST"), auth::handleLogout);
     WebRequestSecurity.register(
-        server, "/lift", Set.of("GET"), exchange -> handleLift(exchange, db));
+        server, "/", Set.of("GET"), auth.protect(exchange -> handleIndex(exchange, db)));
     WebRequestSecurity.register(
-        server, "/add-execution", Set.of("POST"), exchange -> handleAddExecution(exchange, db));
+        server, "/lift", Set.of("GET"), auth.protect(exchange -> handleLift(exchange, db)));
+    WebRequestSecurity.register(
+        server,
+        "/add-execution",
+        Set.of("POST"),
+        auth.protect(exchange -> handleAddExecution(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/update-execution",
         Set.of("POST"),
-        exchange -> handleUpdateExecution(exchange, db));
+        auth.protect(exchange -> handleUpdateExecution(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/delete-execution",
         Set.of("POST"),
-        exchange -> handleDeleteExecution(exchange, db));
+        auth.protect(exchange -> handleDeleteExecution(exchange, db)));
     WebRequestSecurity.register(
-        server, "/delete-lift", Set.of("POST"), exchange -> handleDeleteLift(exchange, db));
+        server,
+        "/delete-lift",
+        Set.of("POST"),
+        auth.protect(exchange -> handleDeleteLift(exchange, db)));
     WebRequestSecurity.register(
-        server, "/update-lift", Set.of("POST"), exchange -> handleUpdateLift(exchange, db));
+        server,
+        "/update-lift",
+        Set.of("POST"),
+        auth.protect(exchange -> handleUpdateLift(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/planned-workout-preview",
         Set.of("GET", "POST"),
-        exchange -> handlePlannedWorkoutPreview(exchange, db));
+        auth.protect(exchange -> handlePlannedWorkoutPreview(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/planned-workout-work-along",
         Set.of("POST"),
-        WebServerCli::handlePlannedWorkoutWorkAlong);
+        auth.protect(WebServerCli::handlePlannedWorkoutWorkAlong));
     WebRequestSecurity.register(
         server,
         "/planned-workout-print",
         Set.of("POST"),
-        exchange -> handlePlannedWorkoutPrint(exchange, db));
+        auth.protect(exchange -> handlePlannedWorkoutPrint(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/planned-workout-markdown",
         Set.of("POST"),
-        exchange -> handlePlannedWorkoutMarkdown(exchange, db));
+        auth.protect(exchange -> handlePlannedWorkoutMarkdown(exchange, db)));
     WebRequestSecurity.register(
-        server, "/planned-workout-json", Set.of("POST"), WebServerCli::handlePlannedWorkoutJson);
+        server,
+        "/planned-workout-json",
+        Set.of("POST"),
+        auth.protect(WebServerCli::handlePlannedWorkoutJson));
     WebRequestSecurity.register(
         server,
         "/planned-workout-session",
         Set.of("POST"),
-        exchange -> handlePlannedWorkoutSession(exchange, db));
+        auth.protect(exchange -> handlePlannedWorkoutSession(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/save-planned-workout-session",
         Set.of("POST"),
-        exchange -> handleSavePlannedWorkoutSession(exchange, db));
+        auth.protect(exchange -> handleSavePlannedWorkoutSession(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/executions-fragment",
         Set.of("GET"),
-        exchange -> handleExecutionsFragment(exchange, db));
+        auth.protect(exchange -> handleExecutionsFragment(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/load-last-execution",
         Set.of("GET"),
-        exchange -> handleLoadLastExecution(exchange, db));
+        auth.protect(exchange -> handleLoadLastExecution(exchange, db)));
     WebRequestSecurity.register(
-        server, "/add-lift", Set.of("POST"), exchange -> handleAddLift(exchange, db));
+        server, "/add-lift", Set.of("POST"), auth.protect(exchange -> handleAddLift(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/set-lift-enabled",
         Set.of("POST"),
-        exchange -> handleSetLiftEnabled(exchange, db));
+        auth.protect(exchange -> handleSetLiftEnabled(exchange, db)));
     server.setExecutor(executor);
     server.start();
     Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
@@ -1137,7 +1156,9 @@ public final class WebServerCli {
   }
 
   static void sendHtml(HttpExchange exchange, String html) throws IOException {
-    byte[] bytes = WebRequestSecurity.prepareHtml(exchange, html).getBytes(StandardCharsets.UTF_8);
+    String decorated = WebAuth.decorateAuthenticatedHtml(exchange, html);
+    byte[] bytes =
+        WebRequestSecurity.prepareHtml(exchange, decorated).getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
     exchange.sendResponseHeaders(200, bytes.length);
     try (OutputStream os = exchange.getResponseBody()) {

@@ -32,6 +32,7 @@ final class WebRequestSecurity {
 
   private static final String CSRF_ATTRIBUTE = "lifttrax.csrfToken";
   private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+  private static boolean secureCookies;
   private static final Pattern POST_FORM_PATTERN =
       Pattern.compile("(?i)(<form\\b(?=[^>]*\\bmethod=['\"]post['\"])[^>]*>)");
 
@@ -39,6 +40,10 @@ final class WebRequestSecurity {
 
   static void register(HttpServer server, String path, Set<String> methods, HttpHandler handler) {
     server.createContext(path, exchange -> handleSecured(exchange, path, methods, handler));
+  }
+
+  static void setSecureCookies(boolean value) {
+    secureCookies = value;
   }
 
   static void handleSecured(
@@ -210,7 +215,11 @@ final class WebRequestSecurity {
       getResponseHeaders()
           .add(
               "Set-Cookie",
-              CSRF_COOKIE_NAME + "=" + csrfToken + "; Path=/; HttpOnly; SameSite=Lax");
+              CSRF_COOKIE_NAME
+                  + "="
+                  + csrfToken
+                  + "; Path=/; HttpOnly; SameSite=Lax"
+                  + (secureCookies ? "; Secure" : ""));
     }
 
     @Override

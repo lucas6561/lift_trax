@@ -1,7 +1,7 @@
 ---
 id: LT-0085
 title: Implement account authentication
-status: idea
+status: done
 track: platform
 priority: critical
 effort: large
@@ -32,12 +32,12 @@ server-side identity context available to protected routes.
 
 ## Acceptance criteria
 
-- [ ] Anonymous users cannot reach protected application routes.
-- [ ] Signed-in users have a stable user identifier available to server code.
-- [ ] Session cookies use secure, HTTP-only, and same-site settings appropriate
+- [x] Anonymous users cannot reach protected application routes.
+- [x] Signed-in users have a stable user identifier available to server code.
+- [x] Session cookies use secure, HTTP-only, and same-site settings appropriate
       to the environment.
-- [ ] Auth callback failure states are handled without exposing secrets.
-- [ ] Tests cover successful login context, anonymous access, logout, and expired
+- [x] Auth callback failure states are handled without exposing secrets.
+- [x] Tests cover successful login context, anonymous access, logout, and expired
       or invalid session behavior.
 
 ## Notes
@@ -49,3 +49,12 @@ instead of building custom password storage.
 Build on the route hardening in `docs/public-web-security-baseline.md`; auth
 cookies and session binding should tighten the pre-auth CSRF cookie expectations
 for hosted HTTPS.
+
+Completed with `src/main/java/com/lifttrax/cli/WebAuth.java` and
+`docs/account-authentication.md`.
+
+The embedded web server now has open auth routes, protected app routes, signed
+server-side session cookies, local-development sign-in, Supabase OAuth PKCE
+callback handling, generic callback failure pages, logout, and a
+`WebAuth.currentUser(exchange)` identity context for server handlers. This is
+authentication only; `LT-0086` still owns user-scoped authorization.

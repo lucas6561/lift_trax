@@ -51,6 +51,8 @@ final class WebHtml {
                 p, li { margin-bottom: 0.3rem; }
                 label { margin-bottom: 0.2rem; }
                 input, select, textarea, button { margin-bottom: 0.3rem; }
+                .auth-bar { display: flex; justify-content: flex-end; align-items: center; gap: 0.45rem; margin-bottom: 0.45rem; }
+                .auth-bar form { margin: 0; }
                 .tabs { display: flex; gap: 0.35rem; margin-bottom: 0.55rem; flex-wrap: wrap; }
                 .tab { border: 1px solid var(--pico-muted-border-color); background: var(--pico-card-sectioning-background-color); color: var(--pico-color); padding: 0.24rem 0.52rem; border-radius: 999px; font-size: 0.8rem; }
                 .tab.is-active { border-color: var(--pico-primary-border); color: var(--pico-primary-inverse); background: var(--pico-primary); }

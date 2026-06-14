@@ -29,7 +29,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -115,6 +119,115 @@ class WebServerCliTest {
     assertTrue(
         exchange.responseHeaders.getFirst("Content-Security-Policy").contains("form-action"));
     assertTrue(exchange.responseBody().contains("name='csrfToken'"));
+  }
+
+  @Test
+  void protectedRouteRedirectsAnonymousUsersToLogin() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange exchange = TestExchange.get("/lift?name=Bench+Press");
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/lift", Set.of("GET"), auth.protect(ignored -> fail("handler should not run")));
+
+    assertEquals(303, exchange.status());
+    assertTrue(exchange.location().startsWith("/auth/login?returnTo="));
+    assertTrue(exchange.location().contains("%2Flift%3Fname%3DBench%2BPress"));
+  }
+
+  @Test
+  void protectedRouteProvidesStableCurrentUser() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange exchange = TestExchange.get("/");
+    addSessionCookie(exchange, auth, "user-123", "dev@example.test", Duration.ofHours(1));
+
+    WebRequestSecurity.handleSecured(
+        exchange,
+        "/",
+        Set.of("GET"),
+        auth.protect(
+            secured -> {
+              WebAuth.User user = WebAuth.currentUser(secured).orElseThrow();
+              assertEquals("user-123", user.id());
+              assertEquals("dev@example.test", user.email());
+              WebServerCli.sendHtml(secured, WebHtml.wrapPage("Home", "<p>ok</p>"));
+            }));
+
+    assertEquals(200, exchange.status());
+    assertTrue(exchange.responseBody().contains("Signed in as dev@example.test"));
+    assertTrue(exchange.responseBody().contains("action='/auth/logout'"));
+  }
+
+  @Test
+  void protectedRouteClearsExpiredSessionAndRedirects() throws Exception {
+    WebAuth auth = fixedAuth(true);
+    TestExchange exchange = TestExchange.get("/");
+    addSessionCookie(exchange, auth, "user-123", "dev@example.test", Duration.ofSeconds(-1));
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/", Set.of("GET"), auth.protect(ignored -> fail("handler should not run")));
+
+    assertEquals(303, exchange.status());
+    assertEquals("/auth/login?returnTo=%2F", exchange.location());
+    assertTrue(
+        exchange.responseHeaders.get("Set-Cookie").stream()
+            .anyMatch(
+                cookie ->
+                    cookie.contains("lt_session=")
+                        && cookie.contains("Max-Age=0")
+                        && cookie.contains("Secure")));
+  }
+
+  @Test
+  void localDevelopmentLoginSetsSecureHttpOnlySameSiteSessionCookie() throws Exception {
+    WebAuth auth = fixedAuth(true);
+    TestExchange exchange =
+        TestExchange.post(
+            "/auth/dev-login",
+            form(
+                "userId",
+                "local-user",
+                "email",
+                "local@example.test",
+                "returnTo",
+                "/lift?name=Bench+Press"));
+
+    auth.handleDevLogin(exchange);
+
+    assertEquals(303, exchange.status());
+    assertEquals("/lift?name=Bench+Press", exchange.location());
+    String cookie = exchange.responseHeaders.getFirst("Set-Cookie");
+    assertTrue(cookie.startsWith("lt_session="));
+    assertTrue(cookie.contains("HttpOnly"));
+    assertTrue(cookie.contains("SameSite=Lax"));
+    assertTrue(cookie.contains("Secure"));
+  }
+
+  @Test
+  void logoutClearsSessionCookieAndRedirectsToLogin() throws Exception {
+    WebAuth auth = fixedAuth(true);
+    TestExchange exchange = TestExchange.post("/auth/logout", "");
+
+    auth.handleLogout(exchange);
+
+    assertEquals(303, exchange.status());
+    assertEquals("/auth/login", exchange.location());
+    String cookie = exchange.responseHeaders.getFirst("Set-Cookie");
+    assertTrue(cookie.startsWith("lt_session="));
+    assertTrue(cookie.contains("Max-Age=0"));
+    assertTrue(cookie.contains("Secure"));
+  }
+
+  @Test
+  void callbackFailureDoesNotExposeProviderDetails() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange exchange =
+        TestExchange.get("/auth/callback?error=access_denied&error_description=client-secret-leak");
+
+    auth.handleCallback(exchange);
+
+    assertEquals(400, exchange.status());
+    assertTrue(exchange.responseBody().contains("Authentication failed"));
+    assertFalse(exchange.responseBody().contains("client-secret-leak"));
   }
 
   @Test
@@ -1347,6 +1460,17 @@ class WebServerCliTest {
       body.append(URLEncoder.encode(pairs[i + 1], java.nio.charset.StandardCharsets.UTF_8));
     }
     return body.toString();
+  }
+
+  private static WebAuth fixedAuth(boolean secureCookies) {
+    return WebAuth.localDevelopment(
+        Clock.fixed(Instant.parse("2026-06-14T12:00:00Z"), ZoneOffset.UTC), secureCookies);
+  }
+
+  private static void addSessionCookie(
+      TestExchange exchange, WebAuth auth, String id, String email, Duration duration) {
+    String session = auth.sessionCookieValueForTest(new WebAuth.User(id, email), duration);
+    exchange.requestHeaders.add("Cookie", WebAuth.SESSION_COOKIE_NAME + "=" + session);
   }
 
   private static final class TestExchange extends HttpExchange {

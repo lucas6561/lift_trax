@@ -47,3 +47,7 @@ deployment target for the Java web service.
 
 Use `docs/public-web-security-baseline.md` as the minimum security smoke-check
 surface before enabling any public hosted environment.
+
+Deployment smoke checks should also verify anonymous redirect to `/auth/login`,
+Supabase callback configuration, secure `lt_session` cookie flags, and
+authenticated access to the root app route.
