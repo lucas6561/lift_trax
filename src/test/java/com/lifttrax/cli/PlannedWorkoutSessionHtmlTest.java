@@ -75,6 +75,12 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("Multiple matching sets"));
     assertTrue(html.contains("Individual set log"));
     assertTrue(html.contains("Add Set to Log"));
+    assertTrue(html.contains("class='set-log-status js-set-log-status'"));
+    assertTrue(html.contains("function updateSetLogStatus(widget, setCount)"));
+    assertTrue(html.contains("function addSetToWidget(widget)"));
+    assertTrue(html.contains("function clearWidgetSets(widget)"));
+    assertTrue(html.contains("event.stopImmediatePropagation();"));
+    assertTrue(html.contains("form.addEventListener('click', (event) => {"));
     assertTrue(html.contains("class='individual-sets-details' open"));
     assertTrue(
         html.contains(

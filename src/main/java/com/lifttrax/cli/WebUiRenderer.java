@@ -538,10 +538,13 @@ final class WebUiRenderer {
                       }
                     });
 
+                    const addExecutionForm = document.querySelector("form.add-execution-form");
+                    const addExecutionScope = addExecutionForm || document;
+
                     function syncMetricInputs() {
-                      const metricType = document.querySelector("input[name='metricType']:checked");
-                      const single = document.querySelector('.metric-single');
-                      const lr = document.querySelectorAll('.metric-lr');
+                      const metricType = addExecutionScope.querySelector("input[name='metricType']:checked");
+                      const single = addExecutionScope.querySelector('.metric-single');
+                      const lr = addExecutionScope.querySelectorAll('.metric-lr');
                       if (!metricType || !single || lr.length === 0) {
                         return;
                       }
@@ -551,13 +554,13 @@ final class WebUiRenderer {
                       lr.forEach((item) => item.classList.toggle('is-hidden', !isLr));
                     }
 
-                    document.querySelectorAll("input[name='metricType']").forEach((item) => {
+                    addExecutionScope.querySelectorAll("input[name='metricType']").forEach((item) => {
                       item.addEventListener('change', syncMetricInputs);
                     });
                     syncMetricInputs();
 
                     function selectRadio(name, value) {
-                      const input = document.querySelector(`input[name='${name}'][value='${value}']`);
+                      const input = addExecutionScope.querySelector(`input[name='${name}'][value='${value}']`);
                       if (!input) {
                         return;
                       }
@@ -566,31 +569,31 @@ final class WebUiRenderer {
                     }
 
                     function setInputValue(name, value) {
-                      const input = document.querySelector(`[name='${name}']`);
+                      const input = addExecutionScope.querySelector(`[name='${name}']`);
                       if (input) {
                         input.value = value;
                       }
                     }
 
                     function syncWeightMode() {
-                      const selected = document.querySelector("input[name='weightMode']:checked");
+                      const selected = addExecutionScope.querySelector("input[name='weightMode']:checked");
                       const mode = selected ? selected.value : 'weight';
-                      document.querySelectorAll('.weight-weight, .weight-lr, .weight-bands, .weight-accom, .weight-custom').forEach((group) => {
+                      addExecutionScope.querySelectorAll('.weight-weight, .weight-lr, .weight-bands, .weight-accom, .weight-custom').forEach((group) => {
                         group.classList.add('is-hidden');
                       });
-                      const active = document.querySelector(`.weight-${mode}`);
+                      const active = addExecutionScope.querySelector(`.weight-${mode}`);
                       if (active) {
                         active.classList.remove('is-hidden');
                       }
                     }
 
                     function syncAccomMode() {
-                      const accomMode = document.querySelector("select[name='accomMode']");
+                      const accomMode = addExecutionScope.querySelector("select[name='accomMode']");
                       if (!accomMode) {
                         return;
                       }
-                      const chains = document.querySelector('.accom-chains');
-                      const bands = document.querySelector('.accom-bands');
+                      const chains = addExecutionScope.querySelector('.accom-chains');
+                      const bands = addExecutionScope.querySelector('.accom-bands');
                       const useBands = accomMode.value === 'bands';
                       if (chains) {
                         chains.classList.toggle('is-hidden', useBands);
@@ -601,39 +604,39 @@ final class WebUiRenderer {
                     }
 
                     function computeWeight() {
-                      const selectedBandValues = (name) => Array.from(document.querySelectorAll(`input[name='${name}']:checked`)).map((item) => item.value);
-                      const mode = (document.querySelector("input[name='weightMode']:checked") || {}).value || 'weight';
+                      const selectedBandValues = (name) => Array.from(addExecutionScope.querySelectorAll(`input[name='${name}']:checked`)).map((item) => item.value);
+                      const mode = (addExecutionScope.querySelector("input[name='weightMode']:checked") || {}).value || 'weight';
                       if (mode === 'none') {
                         return 'none';
                       }
                       if (mode === 'custom') {
-                        return (document.querySelector("input[name='customWeight']") || {}).value || '';
+                        return (addExecutionScope.querySelector("input[name='customWeight']") || {}).value || '';
                       }
                       if (mode === 'lr') {
-                        const l = (document.querySelector("input[name='weightLeft']") || {}).value || '';
-                        const r = (document.querySelector("input[name='weightRight']") || {}).value || '';
-                        const unit = (document.querySelector("select[name='weightUnitLr']") || {}).value || 'lb';
+                        const l = (addExecutionScope.querySelector("input[name='weightLeft']") || {}).value || '';
+                        const r = (addExecutionScope.querySelector("input[name='weightRight']") || {}).value || '';
+                        const unit = (addExecutionScope.querySelector("select[name='weightUnitLr']") || {}).value || 'lb';
                         return `${l}${unit}|${r}${unit}`;
                       }
                       if (mode === 'bands') {
                         return selectedBandValues('weightBandColors').join('+');
                       }
                       if (mode === 'accom') {
-                        const bar = (document.querySelector("input[name='accomBar']") || {}).value || '';
-                        const unit = (document.querySelector("select[name='accomUnit']") || {}).value || 'lb';
-                        const accomMode = (document.querySelector("select[name='accomMode']") || {}).value || 'chains';
+                        const bar = (addExecutionScope.querySelector("input[name='accomBar']") || {}).value || '';
+                        const unit = (addExecutionScope.querySelector("select[name='accomUnit']") || {}).value || 'lb';
+                        const accomMode = (addExecutionScope.querySelector("select[name='accomMode']") || {}).value || 'chains';
                         if (accomMode === 'bands') {
                           const bands = selectedBandValues('accomBandColors').join('+');
                           return `${bar} ${unit}+${bands}`;
                         }
-                        const chain = (document.querySelector("input[name='accomChain']") || {}).value || '';
+                        const chain = (addExecutionScope.querySelector("input[name='accomChain']") || {}).value || '';
                         return `${bar} ${unit}+${chain}c`;
                       }
-                      const value = (document.querySelector("input[name='weightValue']") || {}).value || '';
-                      const unit = (document.querySelector("select[name='weightUnit']") || {}).value || 'lb';
+                      const value = (addExecutionScope.querySelector("input[name='weightValue']") || {}).value || '';
+                      const unit = (addExecutionScope.querySelector("select[name='weightUnit']") || {}).value || 'lb';
                       const computed = `${value} ${unit}`.trim();
                       if (!computed || computed === 'lb' || computed === 'kg') {
-                        return (document.querySelector("input[name='customWeight']") || {}).value || '';
+                        return (addExecutionScope.querySelector("input[name='customWeight']") || {}).value || '';
                       }
                       return computed;
                     }
@@ -653,23 +656,23 @@ final class WebUiRenderer {
                     }
 
                     function metricPayload() {
-                      const type = (document.querySelector("input[name='metricType']:checked") || {}).value || 'reps';
+                      const type = (addExecutionScope.querySelector("input[name='metricType']:checked") || {}).value || 'reps';
                       const payload = {metricType: type};
                       if (type === 'reps-lr') {
-                        payload.metricLeft = (document.querySelector("input[name='metricLeft']") || {}).value || '';
-                        payload.metricRight = (document.querySelector("input[name='metricRight']") || {}).value || '';
+                        payload.metricLeft = (addExecutionScope.querySelector("input[name='metricLeft']") || {}).value || '';
+                        payload.metricRight = (addExecutionScope.querySelector("input[name='metricRight']") || {}).value || '';
                       } else {
-                        payload.metricValue = (document.querySelector("input[name='metricValue']") || {}).value || '';
+                        payload.metricValue = (addExecutionScope.querySelector("input[name='metricValue']") || {}).value || '';
                       }
                       return payload;
                     }
 
                     function selectedSetEntryMode() {
-                      return (document.querySelector("input[name='setEntryMode']:checked") || {}).value || 'multiple';
+                      return (addExecutionScope.querySelector("input[name='setEntryMode']:checked") || {}).value || 'multiple';
                     }
 
                     function setSetEntryMode(mode) {
-                      const input = document.querySelector(`input[name='setEntryMode'][value='${mode}']`);
+                      const input = addExecutionScope.querySelector(`input[name='setEntryMode'][value='${mode}']`);
                       if (input) {
                         input.checked = true;
                       }
@@ -678,8 +681,8 @@ final class WebUiRenderer {
 
                     function syncSetEntryMode() {
                       const individual = selectedSetEntryMode() === 'individual';
-                      const multipleControls = document.querySelector('.entry-mode-multiple');
-                      const details = document.querySelector('.individual-sets-details');
+                      const multipleControls = addExecutionScope.querySelector('.entry-mode-multiple');
+                      const details = addExecutionScope.querySelector('.individual-sets-details');
                       if (multipleControls) {
                         multipleControls.classList.toggle('is-hidden', individual);
                       }
@@ -689,9 +692,21 @@ final class WebUiRenderer {
                       }
                     }
 
+                    function updateSetLogStatus() {
+                      const status = addExecutionScope.querySelector('.js-set-log-status');
+                      if (!status) {
+                        return;
+                      }
+                      if (detailedSets.length === 0) {
+                        status.textContent = 'No sets in log';
+                        return;
+                      }
+                      status.textContent = detailedSets.length === 1 ? '1 set in log' : `${detailedSets.length} sets in log`;
+                    }
+
                     function renderSetList() {
-                      const list = document.querySelector('.js-set-list');
-                      const hidden = document.querySelector('.js-detailed-sets');
+                      const list = addExecutionScope.querySelector('.js-set-list');
+                      const hidden = addExecutionScope.querySelector('.js-detailed-sets');
                       if (!list || !hidden) {
                         return;
                       }
@@ -714,20 +729,22 @@ final class WebUiRenderer {
                         list.appendChild(li);
                       });
                       hidden.value = JSON.stringify(detailedSets);
+                      updateSetLogStatus();
+                      saveAddExecutionDraft(addExecutionForm);
                     }
 
-                    document.querySelectorAll("input[name='weightMode']").forEach((item) => {
+                    addExecutionScope.querySelectorAll("input[name='weightMode']").forEach((item) => {
                       item.addEventListener('change', syncWeightMode);
                     });
-                    const accomModeSelect = document.querySelector("select[name='accomMode']");
+                    const accomModeSelect = addExecutionScope.querySelector("select[name='accomMode']");
                     if (accomModeSelect) {
                       accomModeSelect.addEventListener('change', syncAccomMode);
                     }
-                    document.querySelectorAll("input[name='setEntryMode']").forEach((item) => {
+                    addExecutionScope.querySelectorAll("input[name='setEntryMode']").forEach((item) => {
                       item.addEventListener('change', syncSetEntryMode);
                     });
 
-                    const maxEffortSingleBtn = document.querySelector('.js-max-effort-single');
+                    const maxEffortSingleBtn = addExecutionScope.querySelector('.js-max-effort-single');
                     if (maxEffortSingleBtn) {
                       maxEffortSingleBtn.addEventListener('click', () => {
                         selectRadio('metricType', 'reps');
@@ -737,16 +754,16 @@ final class WebUiRenderer {
                       });
                     }
 
-                    const bandsOnlyBtn = document.querySelector('.js-bands-only');
+                    const bandsOnlyBtn = addExecutionScope.querySelector('.js-bands-only');
                     if (bandsOnlyBtn) {
                       bandsOnlyBtn.addEventListener('click', () => selectRadio('weightMode', 'bands'));
                     }
 
-                    const barBandsBtn = document.querySelector('.js-bar-bands');
+                    const barBandsBtn = addExecutionScope.querySelector('.js-bar-bands');
                     if (barBandsBtn) {
                       barBandsBtn.addEventListener('click', () => {
                         selectRadio('weightMode', 'accom');
-                        const mode = document.querySelector("select[name='accomMode']");
+                        const mode = addExecutionScope.querySelector("select[name='accomMode']");
                         if (mode) {
                           mode.value = 'bands';
                           syncAccomMode();
@@ -754,16 +771,17 @@ final class WebUiRenderer {
                       });
                     }
 
-                    const addSetBtn = document.querySelector('.js-add-set');
+                    const addSetBtn = addExecutionScope.querySelector('.js-add-set');
                     if (addSetBtn) {
-                      addSetBtn.addEventListener('click', () => {
+                      addSetBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
                         setSetEntryMode('individual');
-                        const setCopiesInput = document.querySelector("input[name='setCopies']");
+                        const setCopiesInput = addExecutionScope.querySelector("input[name='setCopies']");
                         const copies = Math.max(1, parseInt((setCopiesInput && setCopiesInput.value) || '1', 10) || 1);
                         const payload = {
                           ...metricPayload(),
                           weight: computeWeight(),
-                          rpe: (document.querySelector("input[name='rpe']") || {}).value || ''
+                          rpe: (addExecutionScope.querySelector("input[name='rpe']") || {}).value || ''
                         };
                         for (let i = 0; i < copies; i++) {
                           detailedSets.push({...payload});
@@ -772,9 +790,10 @@ final class WebUiRenderer {
                         focusControl(addSetBtn);
                       });
                     }
-                    const clearSetsBtn = document.querySelector('.js-clear-sets');
+                    const clearSetsBtn = addExecutionScope.querySelector('.js-clear-sets');
                     if (clearSetsBtn) {
-                      clearSetsBtn.addEventListener('click', () => {
+                      clearSetsBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
                         detailedSets.splice(0, detailedSets.length);
                         renderSetList();
                         focusControl(addSetBtn || clearSetsBtn);
@@ -782,43 +801,159 @@ final class WebUiRenderer {
                     }
 
                     const ADD_EXECUTION_DRAFT_KEY = 'lifttrax.addExecutionDraft.v1';
+                    let restoringAddExecutionDraft = false;
+
+                    function addExecutionParams() {
+                      return new URLSearchParams(window.location.search);
+                    }
+
+                    function shouldClearAddExecutionDraft() {
+                      const params = addExecutionParams();
+                      return params.get('tab') === 'add-execution'
+                        && params.get('statusType') === 'success'
+                        && params.get('status') === 'Execution saved';
+                    }
+
+                    function hasServerAddExecutionPrefill() {
+                      return Array.from(addExecutionParams().keys()).some((key) => key.startsWith('prefill'));
+                    }
+
+                    function addExecutionControlValue(form, name) {
+                      return (form.querySelector(`[name='${name}']`) || {}).value || '';
+                    }
+
+                    function addExecutionCheckedValues(form, name) {
+                      return Array.from(form.querySelectorAll(`input[name='${name}']:checked`)).map((item) => item.value);
+                    }
+
+                    function setCheckedValues(form, name, values) {
+                      const selected = Array.isArray(values) ? new Set(values) : new Set();
+                      form.querySelectorAll(`input[name='${name}']`).forEach((input) => {
+                        input.checked = selected.has(input.value);
+                      });
+                    }
+
+                    function collectAddExecutionDraft(form) {
+                      return {
+                        lift: addExecutionControlValue(form, 'lift'),
+                        weightMode: (form.querySelector("input[name='weightMode']:checked") || {}).value || 'weight',
+                        setEntryMode: selectedSetEntryMode(),
+                        metricType: (form.querySelector("input[name='metricType']:checked") || {}).value || 'reps',
+                        weightValue: addExecutionControlValue(form, 'weightValue'),
+                        weightUnit: addExecutionControlValue(form, 'weightUnit'),
+                        weightLeft: addExecutionControlValue(form, 'weightLeft'),
+                        weightRight: addExecutionControlValue(form, 'weightRight'),
+                        weightUnitLr: addExecutionControlValue(form, 'weightUnitLr'),
+                        weightBandColors: addExecutionCheckedValues(form, 'weightBandColors'),
+                        accomBar: addExecutionControlValue(form, 'accomBar'),
+                        accomUnit: addExecutionControlValue(form, 'accomUnit'),
+                        accomMode: addExecutionControlValue(form, 'accomMode'),
+                        accomChain: addExecutionControlValue(form, 'accomChain'),
+                        accomBandColors: addExecutionCheckedValues(form, 'accomBandColors'),
+                        customWeight: addExecutionControlValue(form, 'customWeight'),
+                        setCount: addExecutionControlValue(form, 'setCount'),
+                        rpe: addExecutionControlValue(form, 'rpe'),
+                        metricValue: addExecutionControlValue(form, 'metricValue'),
+                        metricLeft: addExecutionControlValue(form, 'metricLeft'),
+                        metricRight: addExecutionControlValue(form, 'metricRight'),
+                        setCopies: addExecutionControlValue(form, 'setCopies'),
+                        date: addExecutionControlValue(form, 'date'),
+                        warmup: (form.querySelector("input[name='warmup']") || {}).checked || false,
+                        deload: (form.querySelector("input[name='deload']") || {}).checked || false,
+                        notes: addExecutionControlValue(form, 'notes'),
+                        detailedSets: detailedSets.map((item) => ({...item}))
+                      };
+                    }
+
+                    function applyAddExecutionDraft(form, draft) {
+                      if (!draft || typeof draft !== 'object') {
+                        return;
+                      }
+                      restoringAddExecutionDraft = true;
+                      [
+                        'lift',
+                        'weightValue',
+                        'weightUnit',
+                        'weightLeft',
+                        'weightRight',
+                        'weightUnitLr',
+                        'accomBar',
+                        'accomUnit',
+                        'accomMode',
+                        'accomChain',
+                        'customWeight',
+                        'setCount',
+                        'rpe',
+                        'metricValue',
+                        'metricLeft',
+                        'metricRight',
+                        'setCopies',
+                        'date',
+                        'notes'
+                      ].forEach((name) => {
+                        if (Object.prototype.hasOwnProperty.call(draft, name)) {
+                          setInputValue(name, draft[name] || '');
+                        }
+                      });
+                      setCheckedValues(form, 'weightBandColors', draft.weightBandColors);
+                      setCheckedValues(form, 'accomBandColors', draft.accomBandColors);
+                      const warmup = form.querySelector("input[name='warmup']");
+                      if (warmup) {
+                        warmup.checked = Boolean(draft.warmup);
+                      }
+                      const deload = form.querySelector("input[name='deload']");
+                      if (deload) {
+                        deload.checked = Boolean(draft.deload);
+                      }
+                      selectRadio('weightMode', draft.weightMode || 'weight');
+                      setSetEntryMode(draft.setEntryMode || 'multiple');
+                      selectRadio('metricType', draft.metricType || 'reps');
+                      detailedSets.splice(
+                        0,
+                        detailedSets.length,
+                        ...(Array.isArray(draft.detailedSets) ? draft.detailedSets.map((item) => ({...item})) : []));
+                      syncMetricInputs();
+                      syncWeightMode();
+                      syncAccomMode();
+                      syncSetEntryMode();
+                      renderSetList();
+                      restoringAddExecutionDraft = false;
+                    }
 
                     function loadAddExecutionDraft(form) {
                       try {
+                        if (shouldClearAddExecutionDraft()) {
+                          localStorage.removeItem(ADD_EXECUTION_DRAFT_KEY);
+                          return;
+                        }
+                        if (hasServerAddExecutionPrefill()) {
+                          return;
+                        }
                         const raw = localStorage.getItem(ADD_EXECUTION_DRAFT_KEY);
                         if (!raw) {
                           return;
                         }
-                        const draft = JSON.parse(raw);
-                        const dateInput = form.querySelector("input[name='date']");
-                        if (dateInput && typeof draft.date === 'string' && draft.date.trim()) {
-                          dateInput.value = draft.date;
-                        }
+                        applyAddExecutionDraft(form, JSON.parse(raw));
                       } catch (error) {
                         // Ignore malformed or unavailable storage.
                       }
                     }
 
                     function saveAddExecutionDraft(form) {
+                      if (!form || restoringAddExecutionDraft) {
+                        return;
+                      }
                       try {
-                        const dateInput = form.querySelector("input[name='date']");
-                        const draft = {
-                          date: dateInput ? (dateInput.value || '') : ''
-                        };
-                        localStorage.setItem(ADD_EXECUTION_DRAFT_KEY, JSON.stringify(draft));
+                        localStorage.setItem(ADD_EXECUTION_DRAFT_KEY, JSON.stringify(collectAddExecutionDraft(form)));
                       } catch (error) {
                         // Ignore storage issues and continue.
                       }
                     }
 
-                    const addExecutionForm = document.querySelector("form.add-execution-form");
                     if (addExecutionForm) {
                       loadAddExecutionDraft(addExecutionForm);
-                      const dateInput = addExecutionForm.querySelector("input[name='date']");
-                      if (dateInput) {
-                        dateInput.addEventListener('change', () => saveAddExecutionDraft(addExecutionForm));
-                        dateInput.addEventListener('input', () => saveAddExecutionDraft(addExecutionForm));
-                      }
+                      addExecutionForm.addEventListener('change', () => saveAddExecutionDraft(addExecutionForm));
+                      addExecutionForm.addEventListener('input', () => saveAddExecutionDraft(addExecutionForm));
                       addExecutionForm.addEventListener('submit', () => {
                         saveAddExecutionDraft(addExecutionForm);
                         const hiddenWeight = addExecutionForm.querySelector('.js-weight-hidden');
@@ -1743,12 +1878,194 @@ final class WebUiRenderer {
                   %s
                   <button type='submit' class='save-execution-btn' data-focus-target='save-execution'>Save Execution</button>
                 </form>
+                %s
                 """
         .formatted(
             status,
             muscleOptions,
             options,
-            ExecutionInputWidgetHtml.render(prefill, List.of(), true));
+            ExecutionInputWidgetHtml.render(prefill, List.of(), true),
+            addExecutionSetLogFallbackScript());
+  }
+
+  private static String addExecutionSetLogFallbackScript() {
+    return """
+                <script>
+                  (function () {
+                    const form = document.querySelector("form.add-execution-form");
+                    if (!form) {
+                      return;
+                    }
+
+                    const detailedSets = [];
+                    try {
+                      const hidden = form.querySelector('.js-detailed-sets');
+                      const initialSets = JSON.parse((hidden && hidden.value) || '[]');
+                      if (Array.isArray(initialSets)) {
+                        detailedSets.push(...initialSets);
+                      }
+                    } catch (error) {
+                      detailedSets.splice(0, detailedSets.length);
+                    }
+
+                    function checkedValue(name, fallback) {
+                      const checked = form.querySelector(`input[name='${name}']:checked`);
+                      return checked ? checked.value : fallback;
+                    }
+
+                    function fieldValue(name) {
+                      return (form.querySelector(`[name='${name}']`) || {}).value || '';
+                    }
+
+                    function checkedValues(name) {
+                      return Array.from(form.querySelectorAll(`input[name='${name}']:checked`)).map((item) => item.value);
+                    }
+
+                    function computeWeight() {
+                      const mode = checkedValue('weightMode', 'weight');
+                      if (mode === 'none') {
+                        return 'none';
+                      }
+                      if (mode === 'custom') {
+                        return fieldValue('customWeight');
+                      }
+                      if (mode === 'lr') {
+                        return `${fieldValue('weightLeft')}${fieldValue('weightUnitLr') || 'lb'}|${fieldValue('weightRight')}${fieldValue('weightUnitLr') || 'lb'}`;
+                      }
+                      if (mode === 'bands') {
+                        return checkedValues('weightBandColors').join('+');
+                      }
+                      if (mode === 'accom') {
+                        const bar = fieldValue('accomBar');
+                        const unit = fieldValue('accomUnit') || 'lb';
+                        if ((fieldValue('accomMode') || 'chains') === 'bands') {
+                          return `${bar} ${unit}+${checkedValues('accomBandColors').join('+')}`;
+                        }
+                        return `${bar} ${unit}+${fieldValue('accomChain')}c`;
+                      }
+                      const value = fieldValue('weightValue');
+                      const unit = fieldValue('weightUnit') || 'lb';
+                      return value ? `${value} ${unit}` : '';
+                    }
+
+                    function metricPayload() {
+                      const metricType = checkedValue('metricType', 'reps');
+                      if (metricType === 'reps-lr') {
+                        return {
+                          metricType,
+                          metricLeft: fieldValue('metricLeft'),
+                          metricRight: fieldValue('metricRight')
+                        };
+                      }
+                      return {
+                        metricType,
+                        metricValue: fieldValue('metricValue')
+                      };
+                    }
+
+                    function metricLabel(item) {
+                      if (item.metricType === 'reps-lr') {
+                        return `${item.metricLeft || '?'}L/${item.metricRight || '?'}R reps`;
+                      }
+                      if (item.metricType === 'time') {
+                        return `${item.metricValue || '?'} sec`;
+                      }
+                      if (item.metricType === 'distance') {
+                        return `${item.metricValue || '?'} ft`;
+                      }
+                      return `${item.metricValue || '?'} reps`;
+                    }
+
+                    function updateStatus() {
+                      const status = form.querySelector('.js-set-log-status');
+                      if (!status) {
+                        return;
+                      }
+                      if (detailedSets.length === 0) {
+                        status.textContent = 'No sets in log';
+                        return;
+                      }
+                      status.textContent = detailedSets.length === 1 ? '1 set in log' : `${detailedSets.length} sets in log`;
+                    }
+
+                    function renderSetList() {
+                      const list = form.querySelector('.js-set-list');
+                      const hidden = form.querySelector('.js-detailed-sets');
+                      if (!list || !hidden) {
+                        return;
+                      }
+                      list.innerHTML = '';
+                      detailedSets.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        const rpeText = item.rpe ? `, rpe ${item.rpe}` : '';
+                        li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}`;
+                        const remove = document.createElement('button');
+                        remove.type = 'button';
+                        remove.className = 'secondary';
+                        remove.textContent = 'Remove';
+                        remove.addEventListener('click', (event) => {
+                          event.preventDefault();
+                          detailedSets.splice(index, 1);
+                          renderSetList();
+                        });
+                        li.appendChild(document.createTextNode(' '));
+                        li.appendChild(remove);
+                        list.appendChild(li);
+                      });
+                      hidden.value = JSON.stringify(detailedSets);
+                      updateStatus();
+                    }
+
+                    function selectIndividualMode() {
+                      const input = form.querySelector("input[name='setEntryMode'][value='individual']");
+                      const details = form.querySelector('.individual-sets-details');
+                      const multipleControls = form.querySelector('.entry-mode-multiple');
+                      if (input) {
+                        input.checked = true;
+                      }
+                      if (details) {
+                        details.open = true;
+                        details.classList.remove('is-hidden');
+                      }
+                      if (multipleControls) {
+                        multipleControls.classList.add('is-hidden');
+                      }
+                    }
+
+                    function addCurrentSet() {
+                      selectIndividualMode();
+                      const copies = Math.max(1, parseInt(fieldValue('setCopies') || '1', 10) || 1);
+                      const payload = {
+                        ...metricPayload(),
+                        weight: computeWeight(),
+                        rpe: fieldValue('rpe')
+                      };
+                      for (let i = 0; i < copies; i++) {
+                        detailedSets.push({...payload});
+                      }
+                      renderSetList();
+                    }
+
+                    form.addEventListener('click', (event) => {
+                      const addButton = event.target.closest('.js-add-set');
+                      if (addButton) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        addCurrentSet();
+                        return;
+                      }
+
+                      const clearButton = event.target.closest('.js-clear-sets');
+                      if (clearButton) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        detailedSets.splice(0, detailedSets.length);
+                        renderSetList();
+                      }
+                    }, true);
+                  })();
+                </script>
+                """;
   }
 
   static String renderQueryControls(List<Lift> lifts, String selectedLift) {
