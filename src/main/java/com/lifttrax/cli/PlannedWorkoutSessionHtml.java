@@ -261,7 +261,7 @@ final class PlannedWorkoutSessionHtml {
             "<div class='add-execution-form session-execution-widget js-session-execution-input'>")
         .append(
             ExecutionInputWidgetHtml.render(
-                prefill(block, exercise, seed, plannedSets, date), List.of(), false, true, key))
+                prefill(block, exercise, seed, plannedSets, date), List.of(), false, false, key))
         .append("</div></article>");
   }
 
@@ -275,7 +275,7 @@ final class PlannedWorkoutSessionHtml {
     return new WebUiRenderer.AddExecutionPrefill(
         exercise.name(),
         seed.weight(),
-        "1",
+        suggestedSetCount(block, plannedSets),
         "",
         seed.metricType(),
         seed.metricValue().isBlank() ? "5" : seed.metricValue(),
@@ -285,6 +285,15 @@ final class PlannedWorkoutSessionHtml {
         block.warmup(),
         deload,
         "");
+  }
+
+  private static String suggestedSetCount(
+      PlannedWorkoutFile.PlannedWorkoutBlock block,
+      List<PlannedWorkoutFile.PlannedSetTarget> plannedSets) {
+    if (block.rounds() != null) {
+      return String.valueOf(block.rounds());
+    }
+    return String.valueOf(Math.max(1, plannedSets.size()));
   }
 
   private static void appendTargets(
