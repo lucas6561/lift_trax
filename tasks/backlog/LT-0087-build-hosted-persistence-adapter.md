@@ -1,13 +1,13 @@
 ---
 id: LT-0087
 title: Build hosted persistence adapter
-status: idea
+status: doing
 track: data
 priority: high
 effort: large
 created: 2026-06-08
-updated: 2026-06-14
-owner: unassigned
+updated: 2026-06-15
+owner: codex
 depends_on: [LT-0083, LT-0086]
 ---
 
@@ -51,3 +51,13 @@ planning and workout-generation workflow.
 Use `docs/hosted-user-data-schema.md` for the first hosted table boundary. The
 initial adapter slice should cover `app_users`, `lifter_profiles`,
 `exercise_catalog_entries`, `executions`, and `execution_sets`.
+
+2026-06-15 hosted batch note:
+
+- `docs/hosted-deployment-pipeline.md` now names the hosted JDBC secret surface
+  that this adapter must consume;
+- the implementation needs to reconcile the current Java web model's integer
+  execution IDs with the hosted schema's UUID execution IDs before the adapter
+  can safely back update/delete routes;
+- use a local Postgres-compatible test substitute for the first core
+  lift/execution workflow tests.

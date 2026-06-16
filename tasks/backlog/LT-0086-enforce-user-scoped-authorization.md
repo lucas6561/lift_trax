@@ -6,8 +6,8 @@ track: data
 priority: critical
 effort: large
 created: 2026-06-08
-updated: 2026-06-14
-owner: unassigned
+updated: 2026-06-15
+owner: codex
 depends_on: [LT-0016, LT-0083, LT-0085]
 ---
 
@@ -61,3 +61,12 @@ user identifier, then apply owner or relationship predicates from
 
 Remaining LT-0086 work includes persisted program/planned-workout ownership,
 coach/lifter relationship permissions, and hosted Postgres/RLS enforcement.
+
+2026-06-15 hosted batch note:
+
+- keep this card open while the hosted persistence adapter is introduced;
+- the next authorization slice should cover planned workout/session persistence
+  and the coach/lifter relationship predicates from
+  `docs/hosted-user-data-schema.md`;
+- `LT-0087`, `LT-0088`, and `LT-0090` must not be treated as public-hosting
+  ready until this remaining scope is covered.

@@ -1,13 +1,13 @@
 ---
 id: LT-0089
 title: Define PWA and offline boundaries
-status: idea
+status: done
 track: interface
 priority: medium
 effort: medium
 created: 2026-06-08
-updated: 2026-06-08
-owner: unassigned
+updated: 2026-06-15
+owner: codex
 depends_on: [LT-0015, LT-0085, LT-0087]
 ---
 
@@ -32,15 +32,27 @@ caching from any future offline write/sync behavior.
 
 ## Acceptance criteria
 
-- [ ] The plan states which screens can be cached safely.
-- [ ] Authenticated user data is not cached in a way that leaks between users or
+- [x] The plan states which screens can be cached safely.
+- [x] Authenticated user data is not cached in a way that leaks between users or
       devices.
-- [ ] Offline writes are either explicitly deferred or scoped to a draft model
+- [x] Offline writes are either explicitly deferred or scoped to a draft model
       with conflict handling.
-- [ ] Follow-up implementation tasks are created for PWA installability and any
+- [x] Follow-up implementation tasks are created for PWA installability and any
       offline draft behavior.
-- [ ] The decision is reflected in distribution documentation.
+- [x] The decision is reflected in distribution documentation.
 
 ## Notes
 
 Phone usability remains required even before PWA installability ships.
+
+Completed with `docs/pwa-offline-boundaries.md`.
+
+The first PWA slice is installability only: manifest, icons, static user-neutral
+asset caching, and a generic offline fallback. Authenticated pages, history
+fragments, execution data, and auth responses remain network-only. Offline
+writes are deferred until a separate user-scoped draft model exists.
+
+Follow-up implementation tasks:
+
+1. `LT-0094`: Add PWA installability shell.
+2. `LT-0095`: Add offline workout-session drafts.

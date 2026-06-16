@@ -1,12 +1,12 @@
 ---
 id: LT-0090
 title: Create hosted deployment pipeline
-status: idea
+status: blocked
 track: distribution
 priority: high
 effort: medium
 created: 2026-06-08
-updated: 2026-06-14
+updated: 2026-06-15
 owner: unassigned
 depends_on: [LT-0082, LT-0084, LT-0085, LT-0086, LT-0087]
 ---
@@ -51,3 +51,10 @@ surface before enabling any public hosted environment.
 Deployment smoke checks should also verify anonymous redirect to `/auth/login`,
 Supabase callback configuration, secure `lt_session` cookie flags, and
 authenticated access to the root app route.
+
+2026-06-15 hosted batch note:
+
+- `docs/hosted-deployment-pipeline.md` records the Render/Supabase environment
+  shape, secret list, migration order, smoke checks, and rollback expectations;
+- blocked until `LT-0086` and `LT-0087` complete enough hosted authorization and
+  persistence behavior to make the core logging smoke check meaningful.

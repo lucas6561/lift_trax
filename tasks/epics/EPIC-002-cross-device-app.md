@@ -28,3 +28,5 @@ The app needs to work where training happens. A phone-friendly workout flow matt
 - `LT-0085`: Implement account authentication.
 - `LT-0086`: Enforce user-scoped authorization.
 - `LT-0089`: Define PWA and offline boundaries.
+- `LT-0094`: Add PWA installability shell.
+- `LT-0095`: Add offline workout-session drafts.

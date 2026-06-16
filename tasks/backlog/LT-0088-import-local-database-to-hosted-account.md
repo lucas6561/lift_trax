@@ -1,12 +1,12 @@
 ---
 id: LT-0088
 title: Import local database to hosted account
-status: idea
+status: blocked
 track: data
 priority: high
 effort: medium
 created: 2026-06-08
-updated: 2026-06-14
+updated: 2026-06-15
 owner: unassigned
 depends_on: [LT-0083, LT-0085, LT-0087]
 ---
@@ -47,3 +47,12 @@ hosted import path needs user ownership and rollback semantics.
 Use `docs/hosted-user-data-schema.md` for the local `lifts.db` to hosted account
 mapping, including the `local_imports` batch record and all-or-nothing import
 expectation.
+
+2026-06-15 hosted batch note:
+
+- blocked until `LT-0087` can write core catalog, execution, and execution-set
+  records through the hosted adapter;
+- duplicate detection should use `local_imports.source_fingerprint` plus source
+  local record IDs, as described in `docs/hosted-user-data-schema.md`;
+- import preview must stay user-scoped and avoid exposing another account's
+  existing hosted records.
