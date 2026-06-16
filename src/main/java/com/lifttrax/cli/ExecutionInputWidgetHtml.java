@@ -142,6 +142,7 @@ final class ExecutionInputWidgetHtml {
                         <label>Copies <input type='number' min='1' name='setCopies' value='1'/></label>
                         <button type='button' class='secondary js-add-set'>Add Set to Log</button>
                         <button type='button' class='secondary js-clear-sets'>Clear Set Log</button>
+                        <output class='set-log-status js-set-log-status' aria-live='polite'>%s</output>
                       </div>
                       <ul class='set-list js-set-list'>%s</ul>
                     </details>
@@ -205,6 +206,7 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(prefill.metricLeft()),
             WebHtml.escapeHtml(prefill.metricRight()),
             setEntryMode.detailsOpen(),
+            setLogStatus(safeInitialSets.size()),
             renderInitialSetItems(safeInitialSets),
             WebHtml.escapeHtml(prefill.date()),
             prefill.warmup() ? "checked" : "",
@@ -254,6 +256,13 @@ final class ExecutionInputWidgetHtml {
           .append(" <button type='button' class='secondary'>Remove</button></li>");
     }
     return html.toString();
+  }
+
+  private static String setLogStatus(int setCount) {
+    if (setCount == 0) {
+      return "No sets in log";
+    }
+    return setCount == 1 ? "1 set in log" : setCount + " sets in log";
   }
 
   private static String executionSetValuesToJson(List<ExecutionSetFormValues> sets) {

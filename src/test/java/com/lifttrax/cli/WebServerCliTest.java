@@ -500,12 +500,30 @@ class WebServerCliTest {
     assertTrue(html.contains("class='secondary compact-btn js-bands-only'"));
     assertTrue(html.contains("class='secondary compact-btn js-bar-bands'"));
     assertTrue(html.contains("class='individual-sets-details'"));
+    assertTrue(html.contains("class='set-log-status js-set-log-status'"));
+    assertTrue(html.contains("No sets in log"));
     assertTrue(html.contains("class='save-execution-btn'"));
     assertTrue(html.contains("data-focus-target='add-lift'"));
     assertTrue(html.contains("data-focus-target='add-weight'"));
     assertTrue(html.contains("new URLSearchParams(window.location.search)"));
     assertTrue(html.contains("function focusAfterNavigation()"));
     assertTrue(html.contains("focusAfterNavigation();"));
+    assertTrue(html.contains("const addExecutionScope = addExecutionForm || document;"));
+    assertTrue(html.contains("addExecutionScope.querySelector('.js-add-set')"));
+    assertTrue(
+        html.contains("addExecutionScope.querySelector(\"input[name='metricType']:checked\")"));
+    assertTrue(html.contains("function collectAddExecutionDraft(form)"));
+    assertTrue(html.contains("function applyAddExecutionDraft(form, draft)"));
+    assertTrue(html.contains("function updateSetLogStatus()"));
+    assertTrue(html.contains("status.textContent = 'No sets in log';"));
+    assertTrue(html.contains("function addCurrentSet()"));
+    assertTrue(html.contains("event.stopImmediatePropagation();"));
+    assertTrue(html.contains("form.addEventListener('click', (event) => {"));
+    assertTrue(html.contains("detailedSets.map((item) => ({...item}))"));
+    assertTrue(html.contains("localStorage.removeItem(ADD_EXECUTION_DRAFT_KEY)"));
+    assertTrue(
+        html.contains(
+            "addExecutionForm.addEventListener('input', () => saveAddExecutionDraft(addExecutionForm))"));
     assertTrue(html.contains("focusControl(addSetBtn);"));
     assertTrue(
         html.contains("focusControl(form.querySelector('.js-set-row:last-child .js-set-metric'))"));

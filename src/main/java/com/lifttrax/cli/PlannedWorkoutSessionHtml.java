@@ -618,8 +618,25 @@ final class PlannedWorkoutSessionHtml {
               return `${item.metricValue || '?'} reps`;
             }
 
+            function widgetDetailedSets(widget) {
+              let detailedSets = widgetSets.get(widget);
+              if (detailedSets) {
+                return detailedSets;
+              }
+              try {
+                detailedSets = JSON.parse((widget.querySelector('.js-detailed-sets') || {}).value || '[]');
+              } catch (error) {
+                detailedSets = [];
+              }
+              if (!Array.isArray(detailedSets)) {
+                detailedSets = [];
+              }
+              widgetSets.set(widget, detailedSets);
+              return detailedSets;
+            }
+
             function renderSetList(widget) {
-              const detailedSets = widgetSets.get(widget) || [];
+              const detailedSets = widgetDetailedSets(widget);
               const list = widget.querySelector('.js-set-list');
               const hidden = widget.querySelector('.js-detailed-sets');
               if (!list || !hidden) {
@@ -643,7 +660,20 @@ final class PlannedWorkoutSessionHtml {
                 list.appendChild(li);
               });
               hidden.value = JSON.stringify(detailedSets);
+              updateSetLogStatus(widget, detailedSets.length);
               persistDraft();
+            }
+
+            function updateSetLogStatus(widget, setCount) {
+              const status = widget.querySelector('.js-set-log-status');
+              if (!status) {
+                return;
+              }
+              if (setCount === 0) {
+                status.textContent = 'No sets in log';
+                return;
+              }
+              status.textContent = setCount === 1 ? '1 set in log' : `${setCount} sets in log`;
             }
 
             function widgetControlValue(widget, name) {
@@ -680,8 +710,30 @@ final class PlannedWorkoutSessionHtml {
                 warmup: (widget.querySelector("input[name='warmup']") || {}).checked || false,
                 deload: (widget.querySelector("input[name='deload']") || {}).checked || false,
                 notes: widgetControlValue(widget, 'notes'),
-                detailedSets: widgetSets.get(widget) || []
+                detailedSets: widgetDetailedSets(widget)
               };
+            }
+
+            function addSetToWidget(widget) {
+              selectSetEntryMode(widget, 'individual');
+              const detailedSets = widgetDetailedSets(widget);
+              const setCopiesInput = widget.querySelector("input[name='setCopies']");
+              const copies = Math.max(1, parseInt((setCopiesInput && setCopiesInput.value) || '1', 10) || 1);
+              const payload = {
+                ...metricPayload(widget),
+                weight: computeWeight(widget),
+                rpe: (widget.querySelector("input[name='rpe']") || {}).value || ''
+              };
+              for (let i = 0; i < copies; i++) {
+                detailedSets.push({...payload});
+              }
+              renderSetList(widget);
+            }
+
+            function clearWidgetSets(widget) {
+              const detailedSets = widgetDetailedSets(widget);
+              detailedSets.splice(0, detailedSets.length);
+              renderSetList(widget);
             }
 
             function applyWidgetDraft(widget, draft) {
@@ -882,19 +934,9 @@ final class PlannedWorkoutSessionHtml {
               }
               const addSetBtn = widget.querySelector('.js-add-set');
               if (addSetBtn) {
-                addSetBtn.addEventListener('click', () => {
-                  selectSetEntryMode(widget, 'individual');
-                  const setCopiesInput = widget.querySelector("input[name='setCopies']");
-                  const copies = Math.max(1, parseInt((setCopiesInput && setCopiesInput.value) || '1', 10) || 1);
-                  const payload = {
-                    ...metricPayload(widget),
-                    weight: computeWeight(widget),
-                    rpe: (widget.querySelector("input[name='rpe']") || {}).value || ''
-                  };
-                  for (let i = 0; i < copies; i++) {
-                    detailedSets.push({...payload});
-                  }
-                  renderSetList(widget);
+                addSetBtn.addEventListener('click', (event) => {
+                  event.preventDefault();
+                  addSetToWidget(widget);
                 });
               }
               widget.addEventListener('keydown', (event) => {
@@ -912,9 +954,9 @@ final class PlannedWorkoutSessionHtml {
               });
               const clearSetsBtn = widget.querySelector('.js-clear-sets');
               if (clearSetsBtn) {
-                clearSetsBtn.addEventListener('click', () => {
-                  detailedSets.splice(0, detailedSets.length);
-                  renderSetList(widget);
+                clearSetsBtn.addEventListener('click', (event) => {
+                  event.preventDefault();
+                  clearWidgetSets(widget);
                 });
               }
               syncMetricInputs(widget);
@@ -925,7 +967,7 @@ final class PlannedWorkoutSessionHtml {
             }
 
             function collectExecutionSets(widget) {
-              const detailedSets = widgetSets.get(widget) || [];
+              const detailedSets = widgetDetailedSets(widget);
               if (detailedSets.length > 0 || setEntryMode(widget) === 'individual') {
                 return detailedSets.map((set) => ({...set, state: 'complete'}));
               }
@@ -972,6 +1014,24 @@ final class PlannedWorkoutSessionHtml {
             }
 
             form.querySelectorAll('.js-session-execution-input').forEach((widget) => bindExecutionWidget(widget));
+            form.addEventListener('click', (event) => {
+              const addSet = event.target.closest('.js-add-set');
+              const clearSets = event.target.closest('.js-clear-sets');
+              if (!addSet && !clearSets) {
+                return;
+              }
+              const widget = event.target.closest('.js-session-execution-input');
+              if (!widget) {
+                return;
+              }
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              if (addSet) {
+                addSetToWidget(widget);
+                return;
+              }
+              clearWidgetSets(widget);
+            }, true);
             form.addEventListener('input', () => persistDraft());
             form.addEventListener('change', () => persistDraft());
             form.addEventListener('keydown', (event) => {
