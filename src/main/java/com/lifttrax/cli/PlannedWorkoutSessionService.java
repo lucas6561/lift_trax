@@ -59,11 +59,26 @@ final class PlannedWorkoutSessionService {
       LocalDate date,
       String resultsJson)
       throws Exception {
+    return saveSubmittedResults(db, workoutFile, weekNumber, dayOfWeek, date, resultsJson, true);
+  }
+
+  static SaveSummary saveSubmittedResults(
+      Database db,
+      PlannedWorkoutFile workoutFile,
+      int weekNumber,
+      String dayOfWeek,
+      LocalDate date,
+      String resultsJson,
+      boolean requireEveryPlannedExercise)
+      throws Exception {
     PlannedWorkoutFile.PlannedWorkoutDay day = findDay(workoutFile, weekNumber, dayOfWeek);
     Map<String, PlannedExerciseItem> plannedByKey = plannedByKey(day);
     JsonNode submitted = readSubmittedResults(resultsJson);
-    if (submitted.size() != plannedByKey.size()) {
+    if (requireEveryPlannedExercise && submitted.size() != plannedByKey.size()) {
       throw new IllegalArgumentException("Submit a result for every planned exercise.");
+    }
+    if (!requireEveryPlannedExercise && submitted.size() == 0) {
+      return new SaveSummary(List.of(), 0, 0);
     }
 
     List<PendingExecution> pending = new ArrayList<>();
@@ -118,12 +133,29 @@ final class PlannedWorkoutSessionService {
 
     List<LoggedExercise> logged = new ArrayList<>();
     for (PendingExecution item : pending) {
+      if (hasMatchingExecution(db, item.performedLift(), item.execution())) {
+        continue;
+      }
       db.addLiftExecution(item.performedLift(), item.execution());
       logged.add(
           new LoggedExercise(
               item.performedLift(), item.execution().sets().size(), item.substitution()));
     }
     return new SaveSummary(List.copyOf(logged), skippedExercises, skippedSets);
+  }
+
+  private static boolean hasMatchingExecution(Database db, String liftName, LiftExecution execution)
+      throws Exception {
+    for (LiftExecution existing : db.getExecutions(liftName)) {
+      if (existing.date().equals(execution.date())
+          && existing.warmup() == execution.warmup()
+          && existing.deload() == execution.deload()
+          && text(existing.notes()).equals(text(execution.notes()))
+          && existing.sets().equals(execution.sets())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static Set<String> recommendedLiftNames(PlannedWorkoutFile.PlannedExercise exercise) {
@@ -231,6 +263,10 @@ final class PlannedWorkoutSessionService {
       throw new IllegalArgumentException(label + " is required.");
     }
     return value;
+  }
+
+  private static String text(String value) {
+    return value == null ? "" : value;
   }
 
   record PlannedExerciseItem(

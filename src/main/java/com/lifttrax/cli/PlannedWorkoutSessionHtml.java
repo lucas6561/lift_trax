@@ -63,6 +63,12 @@ final class PlannedWorkoutSessionHtml {
         .append(
             "<input type='hidden' name='sessionResultsJson' class='js-session-results' value='[]'/>")
         .append(
+            "<input type='hidden' name='savedSessionLoggedCount' class='js-session-saved-logged-count' value='0'/>")
+        .append(
+            "<input type='hidden' name='savedSessionSkippedExercises' class='js-session-saved-skipped-exercises' value='0'/>")
+        .append(
+            "<input type='hidden' name='savedSessionSkippedSets' class='js-session-saved-skipped-sets' value='0'/>")
+        .append(
             "<label class='session-date'>Training date <input type='date' name='sessionDate' value='")
         .append(WebHtml.escapeHtml(date.toString()))
         .append("' required/></label>");
@@ -98,18 +104,36 @@ final class PlannedWorkoutSessionHtml {
       String dayOfWeek,
       LocalDate date,
       PlannedWorkoutSessionService.SaveSummary summary) {
+    return renderSavedPage(workoutFile, weekNumber, dayOfWeek, date, summary, 0, 0, 0);
+  }
+
+  static String renderSavedPage(
+      PlannedWorkoutFile workoutFile,
+      int weekNumber,
+      String dayOfWeek,
+      LocalDate date,
+      PlannedWorkoutSessionService.SaveSummary summary,
+      int previouslyLoggedCount,
+      int previouslySkippedExercises,
+      int previouslySkippedSets) {
     PlannedWorkoutFile.PlannedWorkoutDay day =
         PlannedWorkoutSessionService.findDay(workoutFile, weekNumber, dayOfWeek);
+    int totalLogged = previouslyLoggedCount + summary.loggedExecutionCount();
+    int totalSkippedExercises = previouslySkippedExercises + summary.skippedExercises();
+    int totalSkippedSets = previouslySkippedSets + summary.skippedSets();
     StringBuilder html = new StringBuilder();
     html.append("<h1>Workout Saved</h1>")
         .append("<p class='status success'>")
-        .append(summary.loggedExecutionCount())
-        .append(summary.loggedExecutionCount() == 1 ? " execution" : " executions")
+        .append(totalLogged)
+        .append(totalLogged == 1 ? " execution" : " executions")
         .append(" logged for ")
         .append(WebHtml.escapeHtml(day.title()))
         .append(" on ")
         .append(WebHtml.escapeHtml(date.toString()))
         .append(".</p>");
+    if (previouslyLoggedCount > 0) {
+      html.append("<p class='muted'>Earlier block saves are included in this total.</p>");
+    }
     if (!summary.loggedExercises().isEmpty()) {
       html.append("<ul class='session-save-list'>");
       for (PlannedWorkoutSessionService.LoggedExercise exercise : summary.loggedExercises()) {
@@ -125,13 +149,13 @@ final class PlannedWorkoutSessionHtml {
       }
       html.append("</ul>");
     }
-    if (summary.skippedExercises() > 0 || summary.skippedSets() > 0) {
+    if (totalSkippedExercises > 0 || totalSkippedSets > 0) {
       html.append("<p class='muted'>Skipped ")
-          .append(summary.skippedExercises())
-          .append(summary.skippedExercises() == 1 ? " exercise" : " exercises")
+          .append(totalSkippedExercises)
+          .append(totalSkippedExercises == 1 ? " exercise" : " exercises")
           .append(" and ")
-          .append(summary.skippedSets())
-          .append(summary.skippedSets() == 1 ? " set" : " sets")
+          .append(totalSkippedSets)
+          .append(totalSkippedSets == 1 ? " set" : " sets")
           .append(".</p>");
     }
     html.append("<p><a class='compact-btn' href='/?tab=dashboard'>Back to Dashboard</a> ")
@@ -165,12 +189,13 @@ final class PlannedWorkoutSessionHtml {
         .append(WebHtml.escapeHtml(blocks.get(0).title()))
         .append("</span></div><progress class='js-session-block-progress' value='1' max='")
         .append(blocks.size())
-        .append("'></progress><div class='session-block-actions'>")
+        .append(
+            "'></progress><span class='muted js-session-block-save-status'></span><div class='session-block-actions'>")
         .append(
             "<button type='button' class='secondary js-session-previous-block' disabled>Previous block</button>")
         .append("<button type='button' class='js-session-next-block")
         .append(blocks.size() == 1 ? " is-hidden" : "")
-        .append("'>Next block</button></div></nav>");
+        .append("'>Save &amp; Next block</button></div></nav>");
   }
 
   private static void appendBlock(
@@ -432,9 +457,46 @@ final class PlannedWorkoutSessionHtml {
             const blockPosition = form.querySelector('.js-session-block-position');
             const blockTitle = form.querySelector('.js-session-block-title');
             const blockProgress = form.querySelector('.js-session-block-progress');
+            const blockSaveStatus = form.querySelector('.js-session-block-save-status');
             const draftKey = form.dataset.draftKey || '';
             let currentBlockIndex = 0;
             let restoringDraft = false;
+            const savedBlockIndexes = new Set();
+
+            function setBlockSaveStatus(message, isError) {
+              if (!blockSaveStatus) {
+                return;
+              }
+              blockSaveStatus.textContent = message || '';
+              blockSaveStatus.classList.toggle('error', Boolean(isError));
+            }
+
+            function setBlockLocked(block, locked) {
+              block.dataset.sessionBlockSaved = locked ? 'true' : 'false';
+              block.querySelectorAll('input, select, button').forEach((control) => {
+                control.disabled = locked;
+              });
+            }
+
+            function incrementHiddenValue(selector, amount) {
+              const input = form.querySelector(selector);
+              if (!input) {
+                return;
+              }
+              const current = Math.max(0, parseInt(input.value || '0', 10) || 0);
+              input.value = String(current + Math.max(0, Number(amount || 0)));
+            }
+
+            function hiddenValue(selector) {
+              return (form.querySelector(selector) || {}).value || '0';
+            }
+
+            function setHiddenValue(selector, value) {
+              const input = form.querySelector(selector);
+              if (input) {
+                input.value = String(Math.max(0, parseInt(value || '0', 10) || 0));
+              }
+            }
 
             function showBlock(index) {
               currentBlockIndex = Math.max(0, Math.min(index, blocks.length - 1));
@@ -450,6 +512,9 @@ final class PlannedWorkoutSessionHtml {
               previousBlock.disabled = currentBlockIndex === 0;
               nextBlock.classList.toggle('is-hidden', currentBlockIndex === blocks.length - 1);
               saveWorkout.classList.toggle('is-hidden', currentBlockIndex !== blocks.length - 1);
+              setBlockSaveStatus(
+                  savedBlockIndexes.has(currentBlockIndex) ? 'Block saved to history.' : '',
+                  false);
               current.scrollIntoView({ behavior: 'smooth', block: 'start' });
               persistDraft();
             }
@@ -804,6 +869,28 @@ final class PlannedWorkoutSessionHtml {
               };
             }
 
+            function collectExerciseResult(card) {
+              const widget = card.querySelector('.js-session-execution-input');
+              const hiddenWeight = widget.querySelector('.js-weight-hidden');
+              if (hiddenWeight) {
+                hiddenWeight.value = computeWeight(widget);
+              }
+              return {
+                exerciseKey: card.dataset.exerciseKey,
+                plannedLift: card.dataset.plannedLift,
+                performedLift: card.querySelector('.js-session-performed-lift').value,
+                state: card.querySelector('.js-session-exercise-state').value,
+                warmup: (widget.querySelector("input[name='warmup']") || {}).checked || false,
+                deload: (widget.querySelector("input[name='deload']") || {}).checked || false,
+                notes: (widget.querySelector("input[name='notes']") || {}).value || '',
+                sets: collectExecutionSets(widget)
+              };
+            }
+
+            function collectBlockResults(block) {
+              return Array.from(block.querySelectorAll('.session-exercise')).map((card) => collectExerciseResult(card));
+            }
+
             function applyExerciseDraft(card, draft) {
               if (!draft || typeof draft !== 'object') {
                 return;
@@ -838,6 +925,10 @@ final class PlannedWorkoutSessionHtml {
               try {
                 const draft = {
                   currentBlockIndex,
+                  savedBlockIndexes: Array.from(savedBlockIndexes),
+                  savedSessionLoggedCount: hiddenValue('.js-session-saved-logged-count'),
+                  savedSessionSkippedExercises: hiddenValue('.js-session-saved-skipped-exercises'),
+                  savedSessionSkippedSets: hiddenValue('.js-session-saved-skipped-sets'),
                   sessionDate: (form.querySelector("input[name='sessionDate']") || {}).value || '',
                   exercises: Array.from(form.querySelectorAll('.session-exercise')).map((card) => collectExerciseDraft(card))
                 };
@@ -872,6 +963,18 @@ final class PlannedWorkoutSessionHtml {
               if (Number.isInteger(draft.currentBlockIndex)) {
                 showBlock(draft.currentBlockIndex);
               }
+              (Array.isArray(draft.savedBlockIndexes) ? draft.savedBlockIndexes : []).forEach((index) => {
+                if (Number.isInteger(index) && index >= 0 && index < blocks.length) {
+                  savedBlockIndexes.add(index);
+                  setBlockLocked(blocks[index], true);
+                }
+              });
+              setHiddenValue('.js-session-saved-logged-count', draft.savedSessionLoggedCount);
+              setHiddenValue('.js-session-saved-skipped-exercises', draft.savedSessionSkippedExercises);
+              setHiddenValue('.js-session-saved-skipped-sets', draft.savedSessionSkippedSets);
+              setBlockSaveStatus(
+                  savedBlockIndexes.has(currentBlockIndex) ? 'Block saved to history.' : '',
+                  false);
               restoringDraft = false;
             }
 
@@ -1052,8 +1155,54 @@ final class PlannedWorkoutSessionHtml {
                 event.preventDefault();
               }
             });
+            async function saveBlock(index) {
+              if (savedBlockIndexes.has(index)) {
+                return true;
+              }
+              const block = blocks[index];
+              const params = new URLSearchParams(new FormData(form));
+              params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)));
+              nextBlock.disabled = true;
+              setBlockSaveStatus('Saving block...', false);
+              try {
+                const response = await fetch('/save-planned-workout-block', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                  body: params
+                });
+                let payload = {};
+                try {
+                  payload = await response.json();
+                } catch (error) {
+                  payload = {};
+                }
+                if (!response.ok) {
+                  throw new Error(payload.error || 'Could not save block.');
+                }
+                savedBlockIndexes.add(index);
+                setBlockLocked(block, true);
+                incrementHiddenValue('.js-session-saved-logged-count', payload.loggedExecutionCount);
+                incrementHiddenValue('.js-session-saved-skipped-exercises', payload.skippedExercises);
+                incrementHiddenValue('.js-session-saved-skipped-sets', payload.skippedSets);
+                persistDraft();
+                const logged = Number(payload.loggedExecutionCount || 0);
+                setBlockSaveStatus(logged === 1 ? 'Saved 1 execution.' : `Saved ${logged} executions.`, false);
+                return true;
+              } catch (error) {
+                setBlockSaveStatus(error.message || 'Could not save block.', true);
+                return false;
+              } finally {
+                nextBlock.disabled = false;
+              }
+            }
+
             previousBlock.addEventListener('click', () => showBlock(currentBlockIndex - 1));
-            nextBlock.addEventListener('click', () => showBlock(currentBlockIndex + 1));
+            nextBlock.addEventListener('click', async () => {
+              const saved = await saveBlock(currentBlockIndex);
+              if (saved) {
+                showBlock(currentBlockIndex + 1);
+              }
+            });
             form.querySelectorAll('.session-exercise').forEach((card) => {
               card.querySelector('.js-session-exercise-state').addEventListener('change', () => {
                 toggleExercise(card);
@@ -1082,22 +1231,8 @@ final class PlannedWorkoutSessionHtml {
             restoreDraft();
 
             form.addEventListener('submit', () => {
-              const results = Array.from(form.querySelectorAll('.session-exercise')).map((card) => {
-                const widget = card.querySelector('.js-session-execution-input');
-                const hiddenWeight = widget.querySelector('.js-weight-hidden');
-                if (hiddenWeight) {
-                  hiddenWeight.value = computeWeight(widget);
-                }
-                return {
-                  exerciseKey: card.dataset.exerciseKey,
-                  plannedLift: card.dataset.plannedLift,
-                  performedLift: card.querySelector('.js-session-performed-lift').value,
-                  state: card.querySelector('.js-session-exercise-state').value,
-                  warmup: (widget.querySelector("input[name='warmup']") || {}).checked || false,
-                  deload: (widget.querySelector("input[name='deload']") || {}).checked || false,
-                  notes: (widget.querySelector("input[name='notes']") || {}).value || '',
-                  sets: collectExecutionSets(widget)
-                };
+              const results = blocks.flatMap((block, index) => {
+                return savedBlockIndexes.has(index) ? [] : collectBlockResults(block);
               });
               form.querySelector('.js-session-results').value = JSON.stringify(results);
             });
