@@ -39,6 +39,8 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("data-session-block-index='1'"));
     assertTrue(html.contains("class='session-block is-hidden' data-session-block-index='1'"));
     assertTrue(html.contains("js-session-next-block"));
+    assertTrue(html.contains("js-session-skip-block"));
+    assertTrue(html.contains(">Skip block</button>"));
     assertTrue(html.contains("Save &amp; Next block"));
     assertTrue(html.contains("js-session-block-save-status"));
     assertTrue(html.contains("showBlock(currentBlockIndex + 1)"));
@@ -108,6 +110,10 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("event.preventDefault();"));
     assertTrue(html.contains("JSON.stringify(results)"));
     assertTrue(html.contains("const savedBlockIndexes = new Set();"));
+    assertTrue(html.contains("const skippedBlockIndexes = new Set();"));
+    assertTrue(html.contains("skippedBlockIndexes: Array.from(skippedBlockIndexes)"));
+    assertTrue(html.contains("skippedBlockIndexes.add(index);"));
+    assertTrue(html.contains("function skipCurrentBlock()"));
     assertTrue(html.contains("fetch('/save-planned-workout-block'"));
     assertTrue(
         html.contains(
@@ -116,7 +122,7 @@ class PlannedWorkoutSessionHtmlTest {
         html.contains("savedSessionLoggedCount: hiddenValue('.js-session-saved-logged-count')"));
     assertTrue(html.contains("setHiddenValue('.js-session-saved-logged-count'"));
     assertTrue(html.contains("incrementHiddenValue('.js-session-saved-logged-count'"));
-    assertTrue(html.contains("savedBlockIndexes.has(index) ? [] : collectBlockResults(block)"));
+    assertTrue(html.contains("blockHandled(index) ? [] : collectBlockResults(block)"));
     assertTrue(html.contains("setBlockLocked(block, true);"));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));
     assertFalse(html.contains("name='rpe' value='8.0'"));

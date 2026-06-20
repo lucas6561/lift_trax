@@ -193,6 +193,7 @@ final class PlannedWorkoutSessionHtml {
             "'></progress><span class='muted js-session-block-save-status'></span><div class='session-block-actions'>")
         .append(
             "<button type='button' class='secondary js-session-previous-block' disabled>Previous block</button>")
+        .append("<button type='button' class='secondary js-session-skip-block'>Skip block</button>")
         .append("<button type='button' class='js-session-next-block")
         .append(blocks.size() == 1 ? " is-hidden" : "")
         .append("'>Save &amp; Next block</button></div></nav>");
@@ -453,6 +454,7 @@ final class PlannedWorkoutSessionHtml {
             }
             const previousBlock = form.querySelector('.js-session-previous-block');
             const nextBlock = form.querySelector('.js-session-next-block');
+            const skipBlock = form.querySelector('.js-session-skip-block');
             const saveWorkout = form.querySelector('.save-workout-session-btn');
             const blockPosition = form.querySelector('.js-session-block-position');
             const blockTitle = form.querySelector('.js-session-block-title');
@@ -462,6 +464,7 @@ final class PlannedWorkoutSessionHtml {
             let currentBlockIndex = 0;
             let restoringDraft = false;
             const savedBlockIndexes = new Set();
+            const skippedBlockIndexes = new Set();
 
             function setBlockSaveStatus(message, isError) {
               if (!blockSaveStatus) {
@@ -476,6 +479,20 @@ final class PlannedWorkoutSessionHtml {
               block.querySelectorAll('input, select, button').forEach((control) => {
                 control.disabled = locked;
               });
+            }
+
+            function blockHandled(index) {
+              return savedBlockIndexes.has(index) || skippedBlockIndexes.has(index);
+            }
+
+            function blockStatus(index) {
+              if (skippedBlockIndexes.has(index)) {
+                return 'Block skipped.';
+              }
+              if (savedBlockIndexes.has(index)) {
+                return 'Block saved to history.';
+              }
+              return '';
             }
 
             function incrementHiddenValue(selector, amount) {
@@ -511,10 +528,9 @@ final class PlannedWorkoutSessionHtml {
               blockProgress.value = currentBlockIndex + 1;
               previousBlock.disabled = currentBlockIndex === 0;
               nextBlock.classList.toggle('is-hidden', currentBlockIndex === blocks.length - 1);
+              skipBlock.disabled = blockHandled(currentBlockIndex);
               saveWorkout.classList.toggle('is-hidden', currentBlockIndex !== blocks.length - 1);
-              setBlockSaveStatus(
-                  savedBlockIndexes.has(currentBlockIndex) ? 'Block saved to history.' : '',
-                  false);
+              setBlockSaveStatus(blockStatus(currentBlockIndex), false);
               current.scrollIntoView({ behavior: 'smooth', block: 'start' });
               persistDraft();
             }
@@ -926,6 +942,7 @@ final class PlannedWorkoutSessionHtml {
                 const draft = {
                   currentBlockIndex,
                   savedBlockIndexes: Array.from(savedBlockIndexes),
+                  skippedBlockIndexes: Array.from(skippedBlockIndexes),
                   savedSessionLoggedCount: hiddenValue('.js-session-saved-logged-count'),
                   savedSessionSkippedExercises: hiddenValue('.js-session-saved-skipped-exercises'),
                   savedSessionSkippedSets: hiddenValue('.js-session-saved-skipped-sets'),
@@ -969,12 +986,17 @@ final class PlannedWorkoutSessionHtml {
                   setBlockLocked(blocks[index], true);
                 }
               });
+              (Array.isArray(draft.skippedBlockIndexes) ? draft.skippedBlockIndexes : []).forEach((index) => {
+                if (Number.isInteger(index) && index >= 0 && index < blocks.length) {
+                  skippedBlockIndexes.add(index);
+                  setBlockLocked(blocks[index], true);
+                }
+              });
               setHiddenValue('.js-session-saved-logged-count', draft.savedSessionLoggedCount);
               setHiddenValue('.js-session-saved-skipped-exercises', draft.savedSessionSkippedExercises);
               setHiddenValue('.js-session-saved-skipped-sets', draft.savedSessionSkippedSets);
-              setBlockSaveStatus(
-                  savedBlockIndexes.has(currentBlockIndex) ? 'Block saved to history.' : '',
-                  false);
+              skipBlock.disabled = blockHandled(currentBlockIndex);
+              setBlockSaveStatus(blockStatus(currentBlockIndex), false);
               restoringDraft = false;
             }
 
@@ -1156,7 +1178,7 @@ final class PlannedWorkoutSessionHtml {
               }
             });
             async function saveBlock(index) {
-              if (savedBlockIndexes.has(index)) {
+              if (blockHandled(index)) {
                 return true;
               }
               const block = blocks[index];
@@ -1196,7 +1218,29 @@ final class PlannedWorkoutSessionHtml {
               }
             }
 
+            function skipCurrentBlock() {
+              const index = currentBlockIndex;
+              if (savedBlockIndexes.has(index)) {
+                setBlockSaveStatus('Block already saved to history.', false);
+                return;
+              }
+              if (skippedBlockIndexes.has(index)) {
+                setBlockSaveStatus('Block skipped.', false);
+                return;
+              }
+              const block = blocks[index];
+              skippedBlockIndexes.add(index);
+              setBlockLocked(block, true);
+              setBlockSaveStatus('Block skipped.', false);
+              skipBlock.disabled = true;
+              persistDraft();
+              if (index < blocks.length - 1) {
+                showBlock(index + 1);
+              }
+            }
+
             previousBlock.addEventListener('click', () => showBlock(currentBlockIndex - 1));
+            skipBlock.addEventListener('click', skipCurrentBlock);
             nextBlock.addEventListener('click', async () => {
               const saved = await saveBlock(currentBlockIndex);
               if (saved) {
@@ -1232,7 +1276,7 @@ final class PlannedWorkoutSessionHtml {
 
             form.addEventListener('submit', () => {
               const results = blocks.flatMap((block, index) => {
-                return savedBlockIndexes.has(index) ? [] : collectBlockResults(block);
+                return blockHandled(index) ? [] : collectBlockResults(block);
               });
               form.querySelector('.js-session-results').value = JSON.stringify(results);
             });
