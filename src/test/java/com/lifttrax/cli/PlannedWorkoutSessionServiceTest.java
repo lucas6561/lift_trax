@@ -126,6 +126,40 @@ class PlannedWorkoutSessionServiceTest {
   }
 
   @Test
+  void partialSaveWritesSubmittedBlockOnlyAndSkipsExactDuplicateSubmissions() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-follow-session-partial", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLift("Farmer Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "");
+      String blockResults =
+          """
+          [
+            {
+              "exerciseKey":"1:0",
+              "plannedLift":"Back Squat",
+              "performedLift":"Back Squat",
+              "state":"complete",
+              "notes":"first block done",
+              "sets":[{"state":"complete","metricType":"reps","metricValue":"5","weight":"225 lb","rpe":""}]
+            }
+          ]
+          """;
+
+      PlannedWorkoutSessionService.SaveSummary first =
+          PlannedWorkoutSessionService.saveSubmittedResults(
+              db, workoutFile(), 1, "MONDAY", LocalDate.parse("2026-05-31"), blockResults, false);
+      PlannedWorkoutSessionService.SaveSummary duplicate =
+          PlannedWorkoutSessionService.saveSubmittedResults(
+              db, workoutFile(), 1, "MONDAY", LocalDate.parse("2026-05-31"), blockResults, false);
+
+      assertEquals(1, first.loggedExecutionCount());
+      assertEquals(0, duplicate.loggedExecutionCount());
+      assertEquals(1, db.getExecutions("Back Squat").size());
+      assertTrue(db.getExecutions("Farmer Carry").isEmpty());
+    }
+  }
+
+  @Test
   void saveRejectsChangedLiftThatIsNotInTheLocalLibrary() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-follow-session-unknown-swap", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {

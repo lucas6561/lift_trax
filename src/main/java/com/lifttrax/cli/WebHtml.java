@@ -254,7 +254,7 @@ final class WebHtml {
                   .session-exercise > header label { width: 100%; }
                   .planned-session-form { padding-bottom: 4.4rem; }
                   .session-block-nav { position: sticky; top: auto; bottom: 0.35rem; z-index: 4; grid-template-columns: 1fr; }
-                  .session-block-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  .session-block-actions { display: grid; grid-template-columns: 1fr; }
                   .session-block-actions button { width: 100%; }
                   .session-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                   .save-workout-session-btn { bottom: 4rem; width: 100%; }

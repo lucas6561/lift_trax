@@ -146,6 +146,11 @@ public final class WebServerCli {
         auth.protect(exchange -> handleSavePlannedWorkoutSession(exchange, db)));
     WebRequestSecurity.register(
         server,
+        "/save-planned-workout-block",
+        Set.of("POST"),
+        auth.protect(exchange -> handleSavePlannedWorkoutBlock(exchange, db)));
+    WebRequestSecurity.register(
+        server,
         "/executions-fragment",
         Set.of("GET"),
         auth.protect(exchange -> handleExecutionsFragment(exchange, db)));
@@ -823,22 +828,75 @@ public final class WebServerCli {
       String dayOfWeek = form.getOrDefault("dayOfWeek", "").trim();
       LocalDate date =
           LocalDate.parse(form.getOrDefault("sessionDate", LocalDate.now().toString()));
+      int previouslyLoggedCount =
+          parseNonNegativeInt(form.getOrDefault("savedSessionLoggedCount", "0"));
+      int previouslySkippedExercises =
+          parseNonNegativeInt(form.getOrDefault("savedSessionSkippedExercises", "0"));
+      int previouslySkippedSets =
+          parseNonNegativeInt(form.getOrDefault("savedSessionSkippedSets", "0"));
       PlannedWorkoutSessionService.SaveSummary summary =
-          PlannedWorkoutSessionService.save(
+          PlannedWorkoutSessionService.saveSubmittedResults(
               db,
               workoutFile,
               weekNumber,
               dayOfWeek,
               date,
-              form.getOrDefault("sessionResultsJson", "[]"));
+              form.getOrDefault("sessionResultsJson", "[]"),
+              false);
       sendHtml(
           exchange,
           WebHtml.wrapPage(
               "Workout Saved",
               PlannedWorkoutSessionHtml.renderSavedPage(
-                  workoutFile, weekNumber, dayOfWeek, date, summary)));
+                  workoutFile,
+                  weekNumber,
+                  dayOfWeek,
+                  date,
+                  summary,
+                  previouslyLoggedCount,
+                  previouslySkippedExercises,
+                  previouslySkippedSets)));
     } catch (Exception e) {
       sendPlannedWorkoutError(exchange, "Could not save workout", e);
+    }
+  }
+
+  private static void handleSavePlannedWorkoutBlock(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      sendText(exchange, 405, "Method Not Allowed");
+      return;
+    }
+
+    try {
+      TrainingDataStore db = databaseFor(exchange, rootDb);
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      PlannedWorkoutFile workoutFile = loadPlannedWorkout(form);
+      int weekNumber = parsePositiveInt(form.getOrDefault("weekNumber", ""), "Week number");
+      String dayOfWeek = form.getOrDefault("dayOfWeek", "").trim();
+      LocalDate date =
+          LocalDate.parse(form.getOrDefault("sessionDate", LocalDate.now().toString()));
+      PlannedWorkoutSessionService.SaveSummary summary =
+          PlannedWorkoutSessionService.saveSubmittedResults(
+              db,
+              workoutFile,
+              weekNumber,
+              dayOfWeek,
+              date,
+              form.getOrDefault("sessionResultsJson", "[]"),
+              false);
+      sendJson(
+          exchange,
+          200,
+          Map.of(
+              "loggedExecutionCount",
+              summary.loggedExecutionCount(),
+              "skippedExercises",
+              summary.skippedExercises(),
+              "skippedSets",
+              summary.skippedSets()));
+    } catch (Exception e) {
+      sendJson(exchange, 400, Map.of("error", e.getMessage()));
     }
   }
 
@@ -1111,6 +1169,18 @@ public final class WebServerCli {
     return parsed;
   }
 
+  private static int parseNonNegativeInt(String value) {
+    try {
+      int parsed = Integer.parseInt(value.trim());
+      if (parsed >= 0) {
+        return parsed;
+      }
+    } catch (RuntimeException ignored) {
+      // Client-maintained summary counters should not block the durable save.
+    }
+    return 0;
+  }
+
   private static Float parseOptionalFloat(String value) {
     if (value == null || value.isBlank()) {
       return null;
@@ -1302,6 +1372,16 @@ public final class WebServerCli {
         .getResponseHeaders()
         .add("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
     exchange.sendResponseHeaders(200, bytes.length);
+    try (OutputStream os = exchange.getResponseBody()) {
+      os.write(bytes);
+    }
+  }
+
+  private static void sendJson(HttpExchange exchange, int status, Object payload)
+      throws IOException {
+    byte[] bytes = OBJECT_MAPPER.writeValueAsBytes(payload);
+    exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+    exchange.sendResponseHeaders(status, bytes.length);
     try (OutputStream os = exchange.getResponseBody()) {
       os.write(bytes);
     }

@@ -39,9 +39,16 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("data-session-block-index='1'"));
     assertTrue(html.contains("class='session-block is-hidden' data-session-block-index='1'"));
     assertTrue(html.contains("js-session-next-block"));
+    assertTrue(html.contains("js-session-skip-block"));
+    assertTrue(html.contains(">Skip block</button>"));
+    assertTrue(html.contains("Save &amp; Next block"));
+    assertTrue(html.contains("js-session-block-save-status"));
     assertTrue(html.contains("showBlock(currentBlockIndex + 1)"));
     assertTrue(html.contains("class='save-workout-session-btn is-hidden'"));
     assertTrue(html.contains("action='/save-planned-workout-session'"));
+    assertTrue(html.contains("name='savedSessionLoggedCount'"));
+    assertTrue(html.contains("name='savedSessionSkippedExercises'"));
+    assertTrue(html.contains("name='savedSessionSkippedSets'"));
     assertTrue(html.contains("name='sessionDate' value='2026-05-31'"));
     assertTrue(html.contains("data-planned-lift='Back Squat'"));
     assertTrue(html.contains(">Change lift</button>"));
@@ -66,12 +73,13 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("session-execution-widget js-session-execution-input"));
     assertTrue(html.contains("name='metricValue' value='5'"));
     assertTrue(html.contains("class='js-weight-hidden' value=''"));
+    assertTrue(html.contains("name='setCount' value='2'"));
     assertTrue(html.contains("name='rpe' value=''"));
     assertTrue(html.contains("class='js-detailed-sets' value='[]'"));
     assertTrue(html.contains("data-draft-key='lifttrax:planned-session:"));
     assertTrue(
         html.contains(
-            "name='setEntryMode-1-0' value='individual' checked data-control-name='setEntryMode'"));
+            "name='setEntryMode-1-0' value='multiple' checked data-control-name='setEntryMode'"));
     assertTrue(html.contains("Multiple matching sets"));
     assertTrue(html.contains("Individual set log"));
     assertTrue(html.contains("Add Set to Log"));
@@ -81,7 +89,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("function clearWidgetSets(widget)"));
     assertTrue(html.contains("event.stopImmediatePropagation();"));
     assertTrue(html.contains("form.addEventListener('click', (event) => {"));
-    assertTrue(html.contains("class='individual-sets-details' open"));
+    assertTrue(html.contains("class='individual-sets-details'"));
     assertTrue(
         html.contains(
             "name='metricType-2-0' value='distance' checked data-control-name='metricType'"));
@@ -101,6 +109,21 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("detailedSets.length > 0 || setEntryMode(widget) === 'individual'"));
     assertTrue(html.contains("event.preventDefault();"));
     assertTrue(html.contains("JSON.stringify(results)"));
+    assertTrue(html.contains("const savedBlockIndexes = new Set();"));
+    assertTrue(html.contains("const skippedBlockIndexes = new Set();"));
+    assertTrue(html.contains("skippedBlockIndexes: Array.from(skippedBlockIndexes)"));
+    assertTrue(html.contains("skippedBlockIndexes.add(index);"));
+    assertTrue(html.contains("function skipCurrentBlock()"));
+    assertTrue(html.contains("fetch('/save-planned-workout-block'"));
+    assertTrue(
+        html.contains(
+            "params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)))"));
+    assertTrue(
+        html.contains("savedSessionLoggedCount: hiddenValue('.js-session-saved-logged-count')"));
+    assertTrue(html.contains("setHiddenValue('.js-session-saved-logged-count'"));
+    assertTrue(html.contains("incrementHiddenValue('.js-session-saved-logged-count'"));
+    assertTrue(html.contains("blockHandled(index) ? [] : collectBlockResults(block)"));
+    assertTrue(html.contains("setBlockLocked(block, true);"));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));
     assertFalse(html.contains("name='rpe' value='8.0'"));
     assertFalse(html.contains("class='session-history'"));
@@ -120,10 +143,11 @@ class PlannedWorkoutSessionHtmlTest {
 
     assertTrue(
         html.contains(
-            "name='setEntryMode-1-0' value='individual' checked data-control-name='setEntryMode'"));
+            "name='setEntryMode-1-0' value='multiple' checked data-control-name='setEntryMode'"));
     assertTrue(
         html.contains(
-            "name='setEntryMode-1-1' value='individual' checked data-control-name='setEntryMode'"));
+            "name='setEntryMode-1-1' value='multiple' checked data-control-name='setEntryMode'"));
+    assertTrue(html.contains("name='setCount' value='2'"));
     assertTrue(
         html.contains("name='metricType-1-0' value='reps' checked data-control-name='metricType'"));
     assertTrue(
@@ -171,6 +195,7 @@ class PlannedWorkoutSessionHtmlTest {
       assertTrue(html.contains("Target: 5 reps @ 80%"));
       assertTrue(html.contains("Suggested: 295 lb"));
       assertTrue(html.contains("class='js-weight-hidden' value='295 lb'"));
+      assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='295'"));
       assertTrue(html.contains("name='rpe' value=''"));
       assertTrue(html.contains("class='session-history' aria-label='Exercise history'"));
       assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
@@ -205,6 +230,7 @@ class PlannedWorkoutSessionHtmlTest {
       assertTrue(html.contains("Target: 5 reps RPE 6.5"));
       assertTrue(html.contains("Suggested: 265 lb"));
       assertTrue(html.contains("class='js-weight-hidden' value='265 lb'"));
+      assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='265'"));
       assertTrue(html.contains("name='rpe' value=''"));
     }
   }
@@ -230,10 +256,34 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("Back to Dashboard"));
   }
 
+  @Test
+  void savedPageIncludesEarlierBlockSaveTotals() {
+    String html =
+        PlannedWorkoutSessionHtml.renderSavedPage(
+            workoutFile(),
+            1,
+            "MONDAY",
+            LocalDate.parse("2026-05-31"),
+            new PlannedWorkoutSessionService.SaveSummary(
+                List.of(new PlannedWorkoutSessionService.LoggedExercise("Farmer Carry", 1, false)),
+                0,
+                1),
+            2,
+            1,
+            0);
+
+    assertTrue(html.contains("3 executions logged for Monday on 2026-05-31"));
+    assertTrue(html.contains("Earlier block saves are included in this total."));
+    assertTrue(html.contains("Skipped 1 exercise and 1 set"));
+  }
+
   private static PlannedWorkoutFile workoutFile() {
     PlannedWorkoutFile.PlannedSetTarget squat =
         new PlannedWorkoutFile.PlannedSetTarget(
             1, "reps", 5, null, null, null, null, null, null, 80, null, "STRAIGHT", false);
+    PlannedWorkoutFile.PlannedSetTarget squatBackoff =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            2, "reps", 5, null, null, null, null, null, null, 80, null, "STRAIGHT", false);
     PlannedWorkoutFile.PlannedSetTarget carry =
         new PlannedWorkoutFile.PlannedSetTarget(
             1, "distance_feet", null, null, null, null, null, null, 100, null, null, null, false);
@@ -243,7 +293,7 @@ class PlannedWorkoutSessionHtmlTest {
             "LOWER",
             "SQUAT",
             List.of("QUAD"),
-            List.of(squat),
+            List.of(squat, squatBackoff),
             "Stay fast.",
             List.of("Front Squat", "Safety Bar Squat"));
     PlannedWorkoutFile.PlannedExercise farmerCarry =
