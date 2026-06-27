@@ -8,9 +8,9 @@ LiftTrax now has a local authorization bridge for the hosted path. The web UI
 does not read or write the raw SQLite database directly; authenticated requests
 use a user-scoped database view derived from the signed session user.
 
-This is the first enforceable LT-0086 slice. It protects local lift and
-execution rows by owner while the hosted Postgres adapter, relationship tables,
-and Supabase Row Level Security work remain pending.
+This is the enforceable LT-0086 slice. It protects local lift and execution rows
+by owner, and the hosted adapter applies the same request-scoped ownership
+boundary to core hosted lift/catalog and execution records.
 
 ## Local owner model
 
@@ -44,13 +44,15 @@ database methods.
 
 ## Current limits
 
-The local SQLite bridge does not implement the full hosted sharing model yet:
+The first hosted account slice does not implement every future sharing feature
+yet:
 
-- coach/lifter relationship permissions are still design-only;
-- persisted programs and planned workouts are not yet owner-scoped tables;
-- Supabase Postgres Row Level Security remains a defense-in-depth follow-up;
-- the hosted persistence adapter still needs to map this authorization model to
-  Postgres.
+- coach/lifter relationship permissions are still design-only until the coach
+  assignment workflow introduces shared records;
+- persisted programs and planned workouts are not yet hosted tables;
+- Supabase Postgres Row Level Security remains a defense-in-depth follow-up for
+  the deployment/database migration work.
 
-Those pieces remain part of LT-0086/LT-0087/LT-0092 before public hosting is
-safe.
+Those pieces remain follow-up scope for the broader hosted roadmap, but private
+core logging data is now scoped by the signed-in account in both SQLite bridge
+mode and hosted adapter mode.

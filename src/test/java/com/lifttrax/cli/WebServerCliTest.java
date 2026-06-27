@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.lifttrax.db.SqliteDb;
+import com.lifttrax.db.TrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
@@ -119,6 +120,41 @@ class WebServerCliTest {
     assertTrue(
         exchange.responseHeaders.getFirst("Content-Security-Policy").contains("form-action"));
     assertTrue(exchange.responseBody().contains("name='csrfToken'"));
+  }
+
+  @Test
+  void manifestExposesInstallabilityMetadata() throws Exception {
+    TestExchange exchange = TestExchange.get("/manifest.webmanifest");
+
+    invokeStaticHandler("handleManifest", exchange);
+
+    assertEquals(200, exchange.status());
+    assertEquals(
+        "application/manifest+json; charset=utf-8",
+        exchange.responseHeaders.getFirst("Content-Type"));
+    assertTrue(exchange.responseBody().contains("\"name\": \"LiftTrax\""));
+    assertTrue(exchange.responseBody().contains("\"start_url\": \"/\""));
+    assertTrue(exchange.responseBody().contains("\"display\": \"standalone\""));
+    assertTrue(exchange.responseBody().contains("\"src\": \"/pwa-icon.svg\""));
+  }
+
+  @Test
+  void serviceWorkerOnlyCachesUserNeutralAssets() throws Exception {
+    TestExchange exchange = TestExchange.get("/service-worker.js");
+
+    invokeStaticHandler("handleServiceWorker", exchange);
+
+    assertEquals(200, exchange.status());
+    assertEquals(
+        "text/javascript; charset=utf-8", exchange.responseHeaders.getFirst("Content-Type"));
+    assertTrue(exchange.responseBody().contains("STATIC_ASSETS"));
+    assertTrue(exchange.responseBody().contains("'/manifest.webmanifest'"));
+    assertTrue(exchange.responseBody().contains("'/offline.html'"));
+    assertTrue(exchange.responseBody().contains("'/pwa-icon.svg'"));
+    assertTrue(exchange.responseBody().contains("event.request.mode === 'navigate'"));
+    assertFalse(exchange.responseBody().contains("'/executions-fragment'"));
+    assertFalse(exchange.responseBody().contains("'/load-last-execution'"));
+    assertFalse(exchange.responseBody().contains("'/'"));
   }
 
   @Test
@@ -1492,9 +1528,17 @@ class WebServerCliTest {
   private static void invokeHandler(String methodName, HttpExchange exchange, SqliteDb db)
       throws Exception {
     Method method =
-        WebServerCli.class.getDeclaredMethod(methodName, HttpExchange.class, SqliteDb.class);
+        WebServerCli.class.getDeclaredMethod(
+            methodName, HttpExchange.class, TrainingDataStoreProvider.class);
     method.setAccessible(true);
     method.invoke(null, exchange, db);
+  }
+
+  private static void invokeStaticHandler(String methodName, HttpExchange exchange)
+      throws Exception {
+    Method method = WebServerCli.class.getDeclaredMethod(methodName, HttpExchange.class);
+    method.setAccessible(true);
+    method.invoke(null, exchange);
   }
 
   private static String form(String... pairs) {

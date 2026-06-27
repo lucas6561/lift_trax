@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.db.SqliteDb;
 import com.lifttrax.db.TrainingDataStore;
+import com.lifttrax.db.TrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
@@ -47,7 +48,7 @@ public final class WebServerCli {
     String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
     int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
 
-    SqliteDb db = new SqliteDb(dbPath);
+    TrainingDataStoreProvider db = TrainingDataStoreProvider.fromEnvironment(dbPath);
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
@@ -67,6 +68,14 @@ public final class WebServerCli {
         Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
     WebAuth auth = WebAuth.fromEnvironment(port);
     WebRequestSecurity.setSecureCookies(auth.secureCookies());
+    WebRequestSecurity.register(
+        server, "/manifest.webmanifest", Set.of("GET"), WebServerCli::handleManifest);
+    WebRequestSecurity.register(
+        server, "/service-worker.js", Set.of("GET"), WebServerCli::handleServiceWorker);
+    WebRequestSecurity.register(
+        server, "/offline.html", Set.of("GET"), WebServerCli::handleOffline);
+    WebRequestSecurity.register(
+        server, "/pwa-icon.svg", Set.of("GET"), WebServerCli::handlePwaIcon);
     WebRequestSecurity.register(server, "/auth/login", Set.of("GET"), auth::handleLogin);
     WebRequestSecurity.register(server, "/auth/dev-login", Set.of("POST"), auth::handleDevLogin);
     WebRequestSecurity.register(server, "/auth/callback", Set.of("GET"), auth::handleCallback);
@@ -168,13 +177,100 @@ public final class WebServerCli {
     return String.join(".", "0", "0", "0", "0");
   }
 
-  private static TrainingDataStore databaseFor(HttpExchange exchange, SqliteDb db) {
+  private static void handleManifest(HttpExchange exchange) throws IOException {
+    sendContent(
+        exchange,
+        "application/manifest+json; charset=utf-8",
+        """
+            {
+              "name": "LiftTrax",
+              "short_name": "LiftTrax",
+              "start_url": "/",
+              "scope": "/",
+              "display": "standalone",
+              "theme_color": "#0f766e",
+              "background_color": "#070d1a",
+              "icons": [
+                {
+                  "src": "/pwa-icon.svg",
+                  "sizes": "any",
+                  "type": "image/svg+xml",
+                  "purpose": "any maskable"
+                }
+              ]
+            }
+            """);
+  }
+
+  private static void handleServiceWorker(HttpExchange exchange) throws IOException {
+    sendContent(
+        exchange,
+        "text/javascript; charset=utf-8",
+        """
+            const CACHE_NAME = 'lifttrax-static-v1';
+            const STATIC_ASSETS = [
+              '/manifest.webmanifest',
+              '/offline.html',
+              '/pwa-icon.svg'
+            ];
+
+            self.addEventListener('install', (event) => {
+              event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
+              self.skipWaiting();
+            });
+
+            self.addEventListener('activate', (event) => {
+              event.waitUntil(self.clients.claim());
+            });
+
+            self.addEventListener('fetch', (event) => {
+              if (event.request.method !== 'GET') {
+                return;
+              }
+              const url = new URL(event.request.url);
+              if (STATIC_ASSETS.includes(url.pathname)) {
+                event.respondWith(
+                  caches.match(event.request).then((cached) => cached || fetch(event.request))
+                );
+                return;
+              }
+              if (event.request.mode === 'navigate') {
+                event.respondWith(fetch(event.request).catch(() => caches.match('/offline.html')));
+              }
+            });
+            """);
+  }
+
+  private static void handleOffline(HttpExchange exchange) throws IOException {
+    sendHtml(
+        exchange,
+        WebHtml.wrapPage(
+            "LiftTrax Offline",
+            "<h1>LiftTrax</h1><p>The app is offline. Reconnect to view or save training data.</p>"));
+  }
+
+  private static void handlePwaIcon(HttpExchange exchange) throws IOException {
+    sendContent(
+        exchange,
+        "image/svg+xml; charset=utf-8",
+        """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+              <rect width="512" height="512" rx="96" fill="#070d1a"/>
+              <path d="M96 292h320v56H96zM128 204h256v56H128z" fill="#14b8a6"/>
+              <path d="M176 140h56v232h-56zM280 140h56v232h-56z" fill="#facc15"/>
+            </svg>
+            """);
+  }
+
+  private static TrainingDataStore databaseFor(HttpExchange exchange, TrainingDataStoreProvider db)
+      throws Exception {
     String userId =
         WebAuth.currentUser(exchange).map(WebAuth.User::id).orElse(SqliteDb.LEGACY_OWNER_USER_ID);
     return db.forUser(userId);
   }
 
-  private static void handleIndex(HttpExchange exchange, SqliteDb rootDb) throws IOException {
+  private static void handleIndex(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -253,7 +349,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleAddExecution(HttpExchange exchange, SqliteDb rootDb)
+  private static void handleAddExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -317,8 +413,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleLoadLastExecution(HttpExchange exchange, SqliteDb rootDb)
-      throws IOException {
+  private static void handleLoadLastExecution(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -398,8 +494,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleExecutionsFragment(HttpExchange exchange, SqliteDb rootDb)
-      throws IOException {
+  private static void handleExecutionsFragment(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -424,7 +520,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleUpdateExecution(HttpExchange exchange, SqliteDb rootDb)
+  private static void handleUpdateExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -495,7 +591,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleDeleteExecution(HttpExchange exchange, SqliteDb rootDb)
+  private static void handleDeleteExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -525,7 +621,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleDeleteLift(HttpExchange exchange, SqliteDb rootDb) throws IOException {
+  private static void handleDeleteLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -556,8 +653,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handlePlannedWorkoutPreview(HttpExchange exchange, SqliteDb rootDb)
-      throws IOException {
+  private static void handlePlannedWorkoutPreview(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     String method = exchange.getRequestMethod();
     if (!"POST".equalsIgnoreCase(method) && !"GET".equalsIgnoreCase(method)) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -618,8 +715,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handlePlannedWorkoutPrint(HttpExchange exchange, SqliteDb rootDb)
-      throws IOException {
+  private static void handlePlannedWorkoutPrint(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -634,8 +731,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handlePlannedWorkoutMarkdown(HttpExchange exchange, SqliteDb rootDb)
-      throws IOException {
+  private static void handlePlannedWorkoutMarkdown(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -685,8 +782,8 @@ public final class WebServerCli {
     return (slug.isBlank() ? "planned-workout" : slug) + extension;
   }
 
-  private static void handlePlannedWorkoutSession(HttpExchange exchange, SqliteDb rootDb)
-      throws IOException {
+  private static void handlePlannedWorkoutSession(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -711,8 +808,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleSavePlannedWorkoutSession(HttpExchange exchange, SqliteDb rootDb)
-      throws IOException {
+  private static void handleSavePlannedWorkoutSession(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -759,7 +856,8 @@ public final class WebServerCli {
                 + "</p><p class='muted'>Use your browser back button to keep editing the session.</p>"));
   }
 
-  private static void handleUpdateLift(HttpExchange exchange, SqliteDb rootDb) throws IOException {
+  private static void handleUpdateLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -819,7 +917,8 @@ public final class WebServerCli {
         + WebUiRenderer.urlEncode(focusTarget);
   }
 
-  private static void handleAddLift(HttpExchange exchange, SqliteDb rootDb) throws IOException {
+  private static void handleAddLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -855,7 +954,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleSetLiftEnabled(HttpExchange exchange, SqliteDb rootDb)
+  private static void handleSetLiftEnabled(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -1087,7 +1186,8 @@ public final class WebServerCli {
     return parseQuery(URI.create("/?" + form));
   }
 
-  private static void handleLift(HttpExchange exchange, SqliteDb rootDb) throws IOException {
+  private static void handleLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -1214,8 +1314,18 @@ public final class WebServerCli {
   }
 
   private static void sendText(HttpExchange exchange, int status, String text) throws IOException {
+    sendContent(exchange, status, "text/plain; charset=utf-8", text);
+  }
+
+  private static void sendContent(HttpExchange exchange, String contentType, String text)
+      throws IOException {
+    sendContent(exchange, 200, contentType, text);
+  }
+
+  private static void sendContent(
+      HttpExchange exchange, int status, String contentType, String text) throws IOException {
     byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-    exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
+    exchange.getResponseHeaders().add("Content-Type", contentType);
     exchange.sendResponseHeaders(status, bytes.length);
     try (OutputStream os = exchange.getResponseBody()) {
       os.write(bytes);

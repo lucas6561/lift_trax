@@ -9,7 +9,10 @@ final class WebHtml {
             <head>
               <meta charset='utf-8'/>
               <meta name='viewport' content='width=device-width, initial-scale=1'/>
+              <meta name='theme-color' content='#0f766e'/>
               <title>%s</title>
+              <link rel='manifest' href='/manifest.webmanifest'/>
+              <link rel='icon' href='/pwa-icon.svg' type='image/svg+xml'/>
               <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css'/>
               <style>
             %s
@@ -19,6 +22,13 @@ final class WebHtml {
             <main class='container'>
             %s
             </main>
+            <script>
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+              });
+            }
+            </script>
             </body>
             </html>
             """;

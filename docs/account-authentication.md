@@ -5,10 +5,9 @@ Date: 2026-06-14
 ## Purpose
 
 LiftTrax now has a server-side authentication boundary for the hosted web path.
-This is the authentication step only: `LT-0086` still has to enforce
-user-scoped authorization before private hosted data can be considered safe.
-The first LT-0086 slice now scopes local web data by the signed session user;
-coach sharing and hosted Postgres enforcement remain follow-up work.
+This began as the authentication step only. The hosted branch now also includes
+the `LT-0086` user-scoped authorization slice and the `LT-0087` hosted
+JDBC/Postgres adapter for core lift and execution workflows.
 
 ## Current behavior
 
@@ -92,10 +91,10 @@ Relevant official docs checked on 2026-06-14:
 
 ## Remaining hosted blockers
 
-Public hosting is still blocked until:
+Public hosting still needs:
 
-- `LT-0086` scopes every hosted data path by user ownership or sharing rules;
-- `LT-0087` introduces the hosted Supabase Postgres persistence adapter;
 - `LT-0090` creates the protected deployment pipeline and smoke checks;
+- `LT-0088` imports existing local databases into a hosted account;
+- `LT-0091` adds hosted backup/export controls;
 - token refresh and provider logout/revocation expectations are revisited for
   the production hosted session policy.

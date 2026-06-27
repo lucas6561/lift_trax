@@ -58,6 +58,8 @@ Planning decisions now recorded:
   Postgres, and Render for the first hosted Java beta.
 - `docs/hosted-user-data-schema.md`: hosted Postgres ownership, catalog,
   execution, plan/session, and local import schema shape.
+- `docs/hosted-persistence-adapter.md`: hosted JDBC/Postgres configuration,
+  table boundary, request-scoped store behavior, and focused verification path.
 - `docs/pwa-offline-boundaries.md`: installability-only first PWA slice,
   network-only authenticated data, and deferred offline writes.
 - `docs/hosted-deployment-pipeline.md`: Render/Supabase environment, secret,

@@ -52,6 +52,10 @@ The first installability slice should add:
 - a service worker registered only for static assets and offline fallback;
 - no offline mutation queue.
 
+`LT-0094` implements this shell with manifest, service-worker, offline fallback,
+and icon routes. The service worker allowlist intentionally excludes
+authenticated pages, history fragments, and mutation routes.
+
 ## Follow-Up Tasks
 
 - `LT-0094`: Add PWA installability shell.

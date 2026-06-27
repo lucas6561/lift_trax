@@ -131,10 +131,11 @@ Supabase Auth, Supabase Postgres, and a Render-hosted Java web service for the
 first hosted beta. The sequence still keeps security, authentication,
 authorization, and hosted persistence ahead of public exposure.
 `docs/hosted-user-data-schema.md` maps that direction into the first hosted
-Postgres schema shape. `docs/pwa-offline-boundaries.md` keeps first-pass PWA
-work limited to installability and user-neutral caching, while
-`docs/hosted-deployment-pipeline.md` records the Render/Supabase deployment
-shape that remains blocked until hosted authorization and persistence are ready.
+Postgres schema shape, and `docs/hosted-persistence-adapter.md` documents the
+first hosted JDBC/Postgres adapter for core logging. `docs/pwa-offline-boundaries.md`
+keeps first-pass PWA work limited to installability and user-neutral caching,
+while `docs/hosted-deployment-pipeline.md` records the Render/Supabase
+deployment shape for the now-ready deployment pipeline task.
 
 ### Quality and maintainability
 

@@ -3,9 +3,9 @@
 The first hosted LiftTrax beta should deploy the existing Java web service to
 Render while Supabase owns authentication and durable Postgres data.
 
-Public exposure remains blocked until user-scoped authorization and the hosted
-persistence adapter are complete. This document records the target pipeline so
-implementation can wire CI and Render without rediscovering the release shape.
+Public exposure remains blocked until the deployment pipeline, import path, and
+backup/export expectations are complete. User-scoped authorization and the core
+hosted persistence adapter are now available for deployment smoke checks.
 
 ## Environments
 
@@ -39,6 +39,16 @@ build\install\lift-trax\bin\lift-trax runWeb
 If Render invokes Gradle directly, the service should still run the same
 quality gate before producing the deployable distribution.
 
+GitHub Actions workflow:
+
+```text
+.github/workflows/hosted-deploy.yml
+```
+
+The workflow runs `./gradlew qualityGate installDist`, can trigger a Render
+deploy hook, and then runs `scripts/hosted-smoke.ps1` against the configured
+hosted base URL.
+
 ## Secrets
 
 Configure these outside source control:
@@ -50,10 +60,20 @@ Configure these outside source control:
 - `LIFTTRAX_AUTH_PROVIDER`
 - `LIFTTRAX_AUTH_REDIRECT_URI`
 - `LIFTTRAX_AUTH_SECURE_COOKIES=true`
-- hosted Postgres JDBC URL, username, and password once `LT-0087` lands.
+- `LIFTTRAX_DATA_STORE=hosted-postgres`
+- `LIFTTRAX_HOSTED_JDBC_URL`
+- `LIFTTRAX_HOSTED_JDBC_USER`
+- `LIFTTRAX_HOSTED_JDBC_PASSWORD`
 
 Render and Supabase dashboards should be the source of truth for hosted secrets.
 No `.env` file with production values should be committed.
+
+GitHub environment configuration:
+
+- secret `RENDER_DEPLOY_HOOK_URL`
+- variable `LIFTTRAX_HOSTED_BASE_URL`
+- optional secret `LIFTTRAX_HOSTED_SMOKE_SESSION_COOKIE` for authenticated core
+  logging smoke checks.
 
 ## Migration Order
 
@@ -79,6 +99,11 @@ Minimum hosted smoke checks:
 - authenticated core logging can create a lift execution through the hosted
   persistence adapter;
 - authenticated history and lift detail pages show only the current user's data.
+
+`scripts/hosted-smoke.ps1` always verifies the anonymous redirect and invalid
+callback failure behavior. When `LIFTTRAX_HOSTED_SMOKE_SESSION_COOKIE` is
+available, it also creates a smoke lift and logs one execution through the
+hosted app.
 
 ## Rollback
 

@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Core SqliteDb component used by LiftTrax. */
-public class SqliteDb implements TrainingDataStore, AutoCloseable {
+public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
   public static final int MAX_BACKUPS = 5;
   public static final String LEGACY_OWNER_USER_ID = "local-user";
   private static final Logger LOGGER = LoggerFactory.getLogger(SqliteDb.class);
@@ -82,6 +82,7 @@ public class SqliteDb implements TrainingDataStore, AutoCloseable {
     return SqlSchemaMigrator.activeVersion(connection);
   }
 
+  @Override
   public TrainingDataStore forUser(String ownerUserId) {
     return new UserScopedDatabase(this, requireOwnerUserId(ownerUserId));
   }
