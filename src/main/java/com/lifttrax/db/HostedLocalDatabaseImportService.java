@@ -44,8 +44,7 @@ public final class HostedLocalDatabaseImportService {
   public static ImportResult importDatabase(Path sourceDatabase, TrainingDataStore targetStore)
       throws Exception {
     if (!(targetStore instanceof HostedPostgresTrainingDataStore hostedStore)) {
-      throw new IllegalArgumentException(
-          "Hosted import requires LIFTTRAX_DATA_STORE=hosted-postgres.");
+      throw new IllegalArgumentException("Hosted import requires the hosted Postgres data store.");
     }
     ImportPreview preview = preview(sourceDatabase);
     try (Connection target =

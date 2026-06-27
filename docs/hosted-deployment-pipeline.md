@@ -33,7 +33,7 @@ Build command:
 Start command:
 
 ```powershell
-build\install\lift-trax\bin\lift-trax runWeb
+.\gradlew.bat runHostedWeb --args="data/lifts.db 8080"
 ```
 
 If Render invokes Gradle directly, the service should still run the same
@@ -60,7 +60,6 @@ Configure these outside source control:
 - `LIFTTRAX_AUTH_PROVIDER`
 - `LIFTTRAX_AUTH_REDIRECT_URI`
 - `LIFTTRAX_AUTH_SECURE_COOKIES=true`
-- `LIFTTRAX_DATA_STORE=hosted-postgres`
 - `LIFTTRAX_HOSTED_JDBC_URL`
 - `LIFTTRAX_HOSTED_JDBC_USER`
 - `LIFTTRAX_HOSTED_JDBC_PASSWORD`

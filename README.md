@@ -25,6 +25,8 @@ If no argument is provided, it defaults to repository-root `data/lifts.db`
 
 ## Web UI
 
+Local SQLite mode:
+
 From the repository root:
 
 ```bash
@@ -34,6 +36,16 @@ From the repository root:
 - Arg 1: SQLite database path (defaults to repository-root `lifts.db`)
 - Arg 2: port (defaults to `8080`)
 - Server bind address: `0.0.0.0`
+
+Hosted Postgres mode:
+
+```bash
+./gradlew runHostedWeb --args='path/to/lifts.db 8080'
+```
+
+`runHostedWeb` selects the hosted Postgres data store. The database path
+argument is still accepted by the server, but hosted mode uses the configured
+Postgres connection instead of the SQLite file.
 
 ## Java project notes
 

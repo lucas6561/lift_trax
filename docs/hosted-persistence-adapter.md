@@ -22,25 +22,30 @@ once.
 
 ## Configuration
 
-SQLite remains the default:
+SQLite remains the default local web command:
 
-```text
-LIFTTRAX_DATA_STORE=sqlite
+```powershell
+.\gradlew.bat runWeb --args="data/lifts.db 8080"
 ```
 
-Hosted mode is enabled with:
+Hosted mode uses a separate web command:
+
+```powershell
+.\gradlew.bat runHostedWeb --args="data/lifts.db 8080"
+```
+
+`runHostedWeb` sets `lifttrax.dataStore=hosted-postgres` for that process.
+The remaining hosted connection settings still come from secrets:
 
 ```text
-LIFTTRAX_DATA_STORE=hosted-postgres
 LIFTTRAX_HOSTED_JDBC_URL=jdbc:postgresql://<host>:5432/<database>
 LIFTTRAX_HOSTED_JDBC_USER=<database user>
 LIFTTRAX_HOSTED_JDBC_PASSWORD=<database password>
 ```
 
-The same values can be supplied as system properties:
+The same hosted connection values can be supplied as system properties:
 
 ```text
-lifttrax.dataStore
 lifttrax.hosted.jdbcUrl
 lifttrax.hosted.jdbcUser
 lifttrax.hosted.jdbcPassword
