@@ -1,12 +1,12 @@
 ---
 id: LT-0083
 title: Design hosted user data schema
-status: idea
+status: done
 track: data
 priority: high
 effort: medium
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-14
 owner: unassigned
 depends_on: [LT-0016, LT-0082]
 ---
@@ -33,16 +33,24 @@ SQLite schema into user-owned hosted records.
 
 ## Acceptance criteria
 
-- [ ] The hosted schema identifies the owner or visibility rules for each major
+- [x] The hosted schema identifies the owner or visibility rules for each major
       record type.
-- [ ] The design explains how existing local `lifts.db` data maps into one
+- [x] The design explains how existing local `lifts.db` data maps into one
       hosted account.
-- [ ] The design names records that can be shared between coach and lifter.
-- [ ] The design coordinates with the execution/catalog database boundary.
-- [ ] Follow-up migration and persistence implementation tasks are created or
+- [x] The design names records that can be shared between coach and lifter.
+- [x] The design coordinates with the execution/catalog database boundary.
+- [x] Follow-up migration and persistence implementation tasks are created or
       updated.
 
 ## Notes
 
 This should follow `LT-0016` so the schema implements the ownership model rather
-than inventing one implicitly.
+than inventing one implicitly. `docs/adr/0003-hosted-auth-data-platform.md`
+selects Supabase Auth and Supabase Postgres, so this design should use Postgres
+tables and constraints keyed to stable Supabase Auth user IDs.
+
+Completed with `docs/hosted-user-data-schema.md`. The schema design maps local
+`lifts.db` into a signed-in user's default lifter profile, defines Postgres
+tables for users, lifter profiles, coach relationships, catalog entries,
+executions, planned workouts, sessions, and local import batches, and keeps
+execution snapshots independent from mutable catalog rows.

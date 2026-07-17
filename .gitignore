@@ -8,3 +8,4 @@ rust/wave.md
 .gradle/
 build/
 .idea
+config/lifttrax-hosted.properties

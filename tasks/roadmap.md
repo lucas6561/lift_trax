@@ -116,12 +116,26 @@ Hosted web app path:
 4. `LT-0084`: Add public web security baseline.
 5. `LT-0085`: Implement account authentication.
 6. `LT-0086`: Enforce user-scoped authorization.
-7. `LT-0087`: Build hosted persistence adapter.
+7. `LT-0087`: Build hosted persistence adapter for Supabase Postgres.
 8. `LT-0088`: Import local database to hosted account.
 9. `LT-0092`: Port primary database to Postgres.
 10. `LT-0089`: Define PWA and offline boundaries.
 11. `LT-0090`: Create hosted deployment pipeline.
 12. `LT-0091`: Add hosted backup and export controls.
+13. `LT-0094`: Add PWA installability shell.
+14. `LT-0095`: Add offline workout-session drafts.
+
+`docs/user-ownership-model.md` defines the user, lifter, coach, and ownership
+rules for this path. `docs/adr/0003-hosted-auth-data-platform.md` selects
+Supabase Auth, Supabase Postgres, and a Render-hosted Java web service for the
+first hosted beta. The sequence still keeps security, authentication,
+authorization, and hosted persistence ahead of public exposure.
+`docs/hosted-user-data-schema.md` maps that direction into the first hosted
+Postgres schema shape, and `docs/hosted-persistence-adapter.md` documents the
+first hosted JDBC/Postgres adapter for core logging. `docs/pwa-offline-boundaries.md`
+keeps first-pass PWA work limited to installability and user-neutral caching,
+while `docs/hosted-deployment-pipeline.md` records the Render/Supabase
+deployment shape for the now-ready deployment pipeline task.
 
 ### Quality and maintainability
 

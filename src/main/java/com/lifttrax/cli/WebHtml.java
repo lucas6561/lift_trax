@@ -9,7 +9,10 @@ final class WebHtml {
             <head>
               <meta charset='utf-8'/>
               <meta name='viewport' content='width=device-width, initial-scale=1'/>
+              <meta name='theme-color' content='#0f766e'/>
               <title>%s</title>
+              <link rel='manifest' href='/manifest.webmanifest'/>
+              <link rel='icon' href='/pwa-icon.svg' type='image/svg+xml'/>
               <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css'/>
               <style>
             %s
@@ -19,6 +22,13 @@ final class WebHtml {
             <main class='container'>
             %s
             </main>
+            <script>
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+              });
+            }
+            </script>
             </body>
             </html>
             """;
@@ -51,6 +61,8 @@ final class WebHtml {
                 p, li { margin-bottom: 0.3rem; }
                 label { margin-bottom: 0.2rem; }
                 input, select, textarea, button { margin-bottom: 0.3rem; }
+                .auth-bar { display: flex; justify-content: flex-end; align-items: center; gap: 0.45rem; margin-bottom: 0.45rem; }
+                .auth-bar form { margin: 0; }
                 .tabs { display: flex; gap: 0.35rem; margin-bottom: 0.55rem; flex-wrap: wrap; }
                 .tab { border: 1px solid var(--pico-muted-border-color); background: var(--pico-card-sectioning-background-color); color: var(--pico-color); padding: 0.24rem 0.52rem; border-radius: 999px; font-size: 0.8rem; }
                 .tab.is-active { border-color: var(--pico-primary-border); color: var(--pico-primary-inverse); background: var(--pico-primary); }

@@ -1,6 +1,7 @@
 package com.lifttrax.cli;
 
 import com.lifttrax.db.SqliteDb;
+import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
@@ -16,7 +17,7 @@ import java.util.stream.Collectors;
 final class DailyDashboardRenderer {
   private DailyDashboardRenderer() {}
 
-  static String render(SqliteDb db, List<Lift> lifts, LocalDate today) {
+  static String render(TrainingDataStore db, List<Lift> lifts, LocalDate today) {
     DashboardData dashboardData = loadDashboardData(db, lifts, today.minusDays(13), today);
     StringBuilder html = new StringBuilder();
     html.append("<div class='daily-dashboard'>")
@@ -43,7 +44,7 @@ final class DailyDashboardRenderer {
   }
 
   private static DashboardData loadDashboardData(
-      SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate today) {
+      TrainingDataStore db, List<Lift> lifts, LocalDate start, LocalDate today) {
     Map<String, Boolean> enabledStatuses = loadEnabledStatuses(db);
     Map<String, LiftExecution> latestExecutions = loadLatestExecutions(db);
     try {
@@ -56,7 +57,7 @@ final class DailyDashboardRenderer {
     }
   }
 
-  private static Map<String, Boolean> loadEnabledStatuses(SqliteDb db) {
+  private static Map<String, Boolean> loadEnabledStatuses(TrainingDataStore db) {
     try {
       return db.liftEnabledStatuses();
     } catch (Exception ignored) {
@@ -64,7 +65,7 @@ final class DailyDashboardRenderer {
     }
   }
 
-  private static Map<String, LiftExecution> loadLatestExecutions(SqliteDb db) {
+  private static Map<String, LiftExecution> loadLatestExecutions(TrainingDataStore db) {
     try {
       return db.latestExecutionsByLift();
     } catch (Exception ignored) {
@@ -194,7 +195,7 @@ final class DailyDashboardRenderer {
   }
 
   private static List<RecentExecution> recentExecutions(
-      SqliteDb db, List<Lift> lifts, LocalDate start, LocalDate end) throws Exception {
+      TrainingDataStore db, List<Lift> lifts, LocalDate start, LocalDate end) throws Exception {
     Map<String, Lift> liftsByName =
         lifts.stream().collect(Collectors.toMap(Lift::name, lift -> lift, (left, right) -> left));
     List<RecentExecution> recent = new ArrayList<>();

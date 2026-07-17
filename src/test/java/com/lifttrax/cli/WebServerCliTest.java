@@ -3,8 +3,10 @@ package com.lifttrax.cli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.lifttrax.db.SqliteDb;
+import com.lifttrax.db.TrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
@@ -28,9 +30,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class WebServerCliTest {
@@ -53,6 +60,240 @@ class WebServerCliTest {
 
     assertEquals("Back Squat", parsed.get("name"));
     assertEquals("front squat", parsed.get("q"));
+  }
+
+  @Test
+  void securedRouteRejectsUnsafeMethodBeforeHandler() throws Exception {
+    TestExchange exchange = TestExchange.put("/add-execution", "");
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/add-execution", Set.of("POST"), ignored -> fail("handler should not run"));
+
+    assertEquals(405, exchange.status());
+    assertEquals("DENY", exchange.responseHeaders.getFirst("X-Frame-Options"));
+    assertEquals("nosniff", exchange.responseHeaders.getFirst("X-Content-Type-Options"));
+  }
+
+  @Test
+  void securedRouteRejectsMissingCsrfForPost() throws Exception {
+    TestExchange exchange = TestExchange.post("/add-execution", form("lift", "Back Squat"));
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/add-execution", Set.of("POST"), ignored -> fail("handler should not run"));
+
+    assertEquals(403, exchange.status());
+    assertTrue(exchange.responseBody().contains("Missing or invalid CSRF token"));
+    assertTrue(exchange.responseHeaders.getFirst("Set-Cookie").startsWith("lt_csrf="));
+  }
+
+  @Test
+  void securedRouteRejectsOversizedRequests() throws Exception {
+    TestExchange exchange =
+        TestExchange.post(
+            "/planned-workout-preview", "x".repeat(WebRequestSecurity.MAX_REQUEST_BYTES + 1));
+
+    WebRequestSecurity.handleSecured(
+        exchange,
+        "/planned-workout-preview",
+        Set.of("GET", "POST"),
+        ignored -> fail("handler should not run"));
+
+    assertEquals(413, exchange.status());
+    assertTrue(exchange.responseBody().contains("Request Entity Too Large"));
+  }
+
+  @Test
+  void securedHtmlResponseAddsHeadersCookieAndCsrfInputs() throws Exception {
+    TestExchange exchange = TestExchange.get("/");
+    String body = "<form method='post' action='/add-execution'><button>Save</button></form>";
+
+    WebRequestSecurity.handleSecured(
+        exchange,
+        "/",
+        Set.of("GET"),
+        secured -> WebServerCli.sendHtml(secured, WebHtml.wrapPage("Test", body)));
+
+    assertEquals(200, exchange.status());
+    assertTrue(exchange.responseHeaders.getFirst("Set-Cookie").startsWith("lt_csrf="));
+    assertEquals("DENY", exchange.responseHeaders.getFirst("X-Frame-Options"));
+    assertEquals("same-origin", exchange.responseHeaders.getFirst("Referrer-Policy"));
+    assertTrue(
+        exchange.responseHeaders.getFirst("Content-Security-Policy").contains("form-action"));
+    assertTrue(exchange.responseBody().contains("name='csrfToken'"));
+  }
+
+  @Test
+  void manifestExposesInstallabilityMetadata() throws Exception {
+    TestExchange exchange = TestExchange.get("/manifest.webmanifest");
+
+    invokeStaticHandler("handleManifest", exchange);
+
+    assertEquals(200, exchange.status());
+    assertEquals(
+        "application/manifest+json; charset=utf-8",
+        exchange.responseHeaders.getFirst("Content-Type"));
+    assertTrue(exchange.responseBody().contains("\"name\": \"LiftTrax\""));
+    assertTrue(exchange.responseBody().contains("\"start_url\": \"/\""));
+    assertTrue(exchange.responseBody().contains("\"display\": \"standalone\""));
+    assertTrue(exchange.responseBody().contains("\"src\": \"/pwa-icon.svg\""));
+  }
+
+  @Test
+  void serviceWorkerOnlyCachesUserNeutralAssets() throws Exception {
+    TestExchange exchange = TestExchange.get("/service-worker.js");
+
+    invokeStaticHandler("handleServiceWorker", exchange);
+
+    assertEquals(200, exchange.status());
+    assertEquals(
+        "text/javascript; charset=utf-8", exchange.responseHeaders.getFirst("Content-Type"));
+    assertTrue(exchange.responseBody().contains("STATIC_ASSETS"));
+    assertTrue(exchange.responseBody().contains("'/manifest.webmanifest'"));
+    assertTrue(exchange.responseBody().contains("'/offline.html'"));
+    assertTrue(exchange.responseBody().contains("'/pwa-icon.svg'"));
+    assertTrue(exchange.responseBody().contains("event.request.mode === 'navigate'"));
+    assertFalse(exchange.responseBody().contains("'/executions-fragment'"));
+    assertFalse(exchange.responseBody().contains("'/load-last-execution'"));
+    assertFalse(exchange.responseBody().contains("'/'"));
+  }
+
+  @Test
+  void protectedRouteRedirectsAnonymousUsersToLogin() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange exchange = TestExchange.get("/lift?name=Bench+Press");
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/lift", Set.of("GET"), auth.protect(ignored -> fail("handler should not run")));
+
+    assertEquals(303, exchange.status());
+    assertTrue(exchange.location().startsWith("/auth/login?returnTo="));
+    assertTrue(exchange.location().contains("%2Flift%3Fname%3DBench%2BPress"));
+  }
+
+  @Test
+  void protectedRouteProvidesStableCurrentUser() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange exchange = TestExchange.get("/");
+    addSessionCookie(exchange, auth, "user-123", "dev@example.test", Duration.ofHours(1));
+
+    WebRequestSecurity.handleSecured(
+        exchange,
+        "/",
+        Set.of("GET"),
+        auth.protect(
+            secured -> {
+              WebAuth.User user = WebAuth.currentUser(secured).orElseThrow();
+              assertEquals("user-123", user.id());
+              assertEquals("dev@example.test", user.email());
+              WebServerCli.sendHtml(secured, WebHtml.wrapPage("Home", "<p>ok</p>"));
+            }));
+
+    assertEquals(200, exchange.status());
+    assertTrue(exchange.responseBody().contains("Signed in as dev@example.test"));
+    assertTrue(exchange.responseBody().contains("action='/auth/logout'"));
+  }
+
+  @Test
+  void authenticatedIndexUsesCurrentUsersScopedData() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-web-user-scope", ".db");
+    WebAuth auth = fixedAuth(false);
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      TestExchange exchange = TestExchange.get("/");
+      addSessionCookie(exchange, auth, "other-user", "other@example.test", Duration.ofHours(1));
+
+      WebRequestSecurity.handleSecured(
+          exchange,
+          "/",
+          Set.of("GET"),
+          auth.protect(
+              secured -> {
+                try {
+                  invokeHandler("handleIndex", secured, db);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }));
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("Signed in as other@example.test"));
+      assertFalse(exchange.responseBody().contains("Back Squat"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void protectedRouteClearsExpiredSessionAndRedirects() throws Exception {
+    WebAuth auth = fixedAuth(true);
+    TestExchange exchange = TestExchange.get("/");
+    addSessionCookie(exchange, auth, "user-123", "dev@example.test", Duration.ofSeconds(-1));
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/", Set.of("GET"), auth.protect(ignored -> fail("handler should not run")));
+
+    assertEquals(303, exchange.status());
+    assertEquals("/auth/login?returnTo=%2F", exchange.location());
+    assertTrue(
+        exchange.responseHeaders.get("Set-Cookie").stream()
+            .anyMatch(
+                cookie ->
+                    cookie.contains("lt_session=")
+                        && cookie.contains("Max-Age=0")
+                        && cookie.contains("Secure")));
+  }
+
+  @Test
+  void localDevelopmentLoginSetsSecureHttpOnlySameSiteSessionCookie() throws Exception {
+    WebAuth auth = fixedAuth(true);
+    TestExchange exchange =
+        TestExchange.post(
+            "/auth/dev-login",
+            form(
+                "userId",
+                "local-user",
+                "email",
+                "local@example.test",
+                "returnTo",
+                "/lift?name=Bench+Press"));
+
+    auth.handleDevLogin(exchange);
+
+    assertEquals(303, exchange.status());
+    assertEquals("/lift?name=Bench+Press", exchange.location());
+    String cookie = exchange.responseHeaders.getFirst("Set-Cookie");
+    assertTrue(cookie.startsWith("lt_session="));
+    assertTrue(cookie.contains("HttpOnly"));
+    assertTrue(cookie.contains("SameSite=Lax"));
+    assertTrue(cookie.contains("Secure"));
+  }
+
+  @Test
+  void logoutClearsSessionCookieAndRedirectsToLogin() throws Exception {
+    WebAuth auth = fixedAuth(true);
+    TestExchange exchange = TestExchange.post("/auth/logout", "");
+
+    auth.handleLogout(exchange);
+
+    assertEquals(303, exchange.status());
+    assertEquals("/auth/login", exchange.location());
+    String cookie = exchange.responseHeaders.getFirst("Set-Cookie");
+    assertTrue(cookie.startsWith("lt_session="));
+    assertTrue(cookie.contains("Max-Age=0"));
+    assertTrue(cookie.contains("Secure"));
+  }
+
+  @Test
+  void callbackFailureDoesNotExposeProviderDetails() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange exchange =
+        TestExchange.get("/auth/callback?error=access_denied&error_description=client-secret-leak");
+
+    auth.handleCallback(exchange);
+
+    assertEquals(400, exchange.status());
+    assertTrue(exchange.responseBody().contains("Authentication failed"));
+    assertFalse(exchange.responseBody().contains("client-secret-leak"));
   }
 
   @Test
@@ -1284,12 +1525,20 @@ class WebServerCliTest {
     }
   }
 
-  private static void invokeHandler(String methodName, TestExchange exchange, SqliteDb db)
+  private static void invokeHandler(String methodName, HttpExchange exchange, SqliteDb db)
       throws Exception {
     Method method =
-        WebServerCli.class.getDeclaredMethod(methodName, HttpExchange.class, SqliteDb.class);
+        WebServerCli.class.getDeclaredMethod(
+            methodName, HttpExchange.class, TrainingDataStoreProvider.class);
     method.setAccessible(true);
     method.invoke(null, exchange, db);
+  }
+
+  private static void invokeStaticHandler(String methodName, HttpExchange exchange)
+      throws Exception {
+    Method method = WebServerCli.class.getDeclaredMethod(methodName, HttpExchange.class);
+    method.setAccessible(true);
+    method.invoke(null, exchange);
   }
 
   private static String form(String... pairs) {
@@ -1305,21 +1554,43 @@ class WebServerCliTest {
     return body.toString();
   }
 
+  private static WebAuth fixedAuth(boolean secureCookies) {
+    return WebAuth.localDevelopment(
+        Clock.fixed(Instant.parse("2026-06-14T12:00:00Z"), ZoneOffset.UTC), secureCookies);
+  }
+
+  private static void addSessionCookie(
+      TestExchange exchange, WebAuth auth, String id, String email, Duration duration) {
+    String session = auth.sessionCookieValueForTest(new WebAuth.User(id, email), duration);
+    exchange.requestHeaders.add("Cookie", WebAuth.SESSION_COOKIE_NAME + "=" + session);
+  }
+
   private static final class TestExchange extends HttpExchange {
     private final URI requestUri;
+    private final String requestMethod;
     private final byte[] requestBytes;
     private final Headers requestHeaders = new Headers();
     private final Headers responseHeaders = new Headers();
     private final ByteArrayOutputStream responseBody = new ByteArrayOutputStream();
+    private final Map<String, Object> attributes = new java.util.HashMap<>();
     private int status;
 
-    private TestExchange(String path, String body) {
+    private TestExchange(String method, String path, String body) {
       requestUri = URI.create(path);
+      requestMethod = method;
       requestBytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
+    static TestExchange get(String path) {
+      return new TestExchange("GET", path, "");
+    }
+
     static TestExchange post(String path, String body) {
-      return new TestExchange(path, body);
+      return new TestExchange("POST", path, body);
+    }
+
+    static TestExchange put(String path, String body) {
+      return new TestExchange("PUT", path, body);
     }
 
     int status() {
@@ -1328,6 +1599,10 @@ class WebServerCliTest {
 
     String location() {
       return responseHeaders.getFirst("Location");
+    }
+
+    String responseBody() {
+      return responseBody.toString(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     @Override
@@ -1347,7 +1622,7 @@ class WebServerCliTest {
 
     @Override
     public String getRequestMethod() {
-      return "POST";
+      return requestMethod;
     }
 
     @Override
@@ -1395,11 +1670,13 @@ class WebServerCliTest {
 
     @Override
     public Object getAttribute(String name) {
-      return null;
+      return attributes.get(name);
     }
 
     @Override
-    public void setAttribute(String name, Object value) {}
+    public void setAttribute(String name, Object value) {
+      attributes.put(name, value);
+    }
 
     @Override
     public void setStreams(InputStream inputStream, OutputStream outputStream) {}

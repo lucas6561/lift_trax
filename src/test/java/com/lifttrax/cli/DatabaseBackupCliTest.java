@@ -58,6 +58,24 @@ class DatabaseBackupCliTest {
     assertTrue(output.contains("Previous database saved as:"));
   }
 
+  @Test
+  void hostedImportCliPreviewReportsValidatedSource() throws Exception {
+    Path tempDir = Files.createTempDirectory("lifttrax-import-hosted-cli");
+    Path sourcePath = tempDir.resolve("source.db");
+    try (SqliteDb db = new SqliteDb(sourcePath.toString())) {
+      db.addLift("Rows", LiftRegion.UPPER, LiftType.ACCESSORY, List.of(), "");
+    }
+
+    String output =
+        captureOutput(
+            () -> ImportHostedDatabaseCli.main(new String[] {sourcePath.toString(), "--preview"}));
+
+    assertTrue(output.contains("Import source:"));
+    assertTrue(output.contains("Schema version:"));
+    assertTrue(output.contains("Lifts: 1"));
+    assertTrue(output.contains("Fingerprint:"));
+  }
+
   private static String captureOutput(ThrowingRunnable action) throws Exception {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     PrintStream originalOut = System.out;

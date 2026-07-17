@@ -30,6 +30,8 @@ Prepare LiftTrax for use beyond one local database on one machine.
 - `LT-0089`: Define PWA and offline boundaries.
 - `LT-0090`: Create hosted deployment pipeline.
 - `LT-0091`: Add hosted backup and export controls.
+- `LT-0094`: Add PWA installability shell.
+- `LT-0095`: Add offline workout-session drafts.
 
 ## Hosted web app sequence
 
@@ -39,9 +41,26 @@ Prepare LiftTrax for use beyond one local database on one machine.
 4. `LT-0084`: Harden routes before any public deployment.
 5. `LT-0085`: Add account authentication and session handling.
 6. `LT-0086`: Enforce authorization on every hosted data path.
-7. `LT-0087`: Introduce the hosted persistence adapter for core logging.
+7. `LT-0087`: Introduce the Supabase Postgres persistence adapter for core logging.
 8. `LT-0088`: Migrate/import existing local databases into hosted accounts.
 9. `LT-0092`: Port primary persistence to Postgres.
 10. `LT-0089`: Define PWA installability and offline boundaries.
 11. `LT-0090`: Create the repeatable hosted deployment pipeline.
 12. `LT-0091`: Add hosted backup and user export controls.
+13. `LT-0094`: Add the installable PWA shell without offline writes.
+14. `LT-0095`: Add user-scoped offline workout-session drafts.
+
+Planning decisions now recorded:
+
+- `docs/user-ownership-model.md`: users, lifter profiles, coach relationships,
+  private-by-default ownership, and local import mapping.
+- `docs/adr/0003-hosted-auth-data-platform.md`: Supabase Auth, Supabase
+  Postgres, and Render for the first hosted Java beta.
+- `docs/hosted-user-data-schema.md`: hosted Postgres ownership, catalog,
+  execution, plan/session, and local import schema shape.
+- `docs/hosted-persistence-adapter.md`: hosted JDBC/Postgres configuration,
+  table boundary, request-scoped store behavior, and focused verification path.
+- `docs/pwa-offline-boundaries.md`: installability-only first PWA slice,
+  network-only authenticated data, and deferred offline writes.
+- `docs/hosted-deployment-pipeline.md`: Render/Supabase environment, secret,
+  migration, smoke-check, and rollback expectations.

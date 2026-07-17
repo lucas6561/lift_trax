@@ -1,12 +1,12 @@
 ---
 id: LT-0091
 title: Add hosted backup and export controls
-status: idea
+status: ready
 track: data
 priority: high
 effort: medium
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-26
 owner: unassigned
 depends_on: [LT-0086, LT-0087, LT-0090]
 ---
@@ -41,3 +41,12 @@ for account-owned training data.
 ## Notes
 
 This is the hosted counterpart to the existing local backup and restore story.
+
+2026-06-26 readiness note:
+
+- `LT-0090` now provides the hosted pipeline and smoke-check shape.
+- `LT-0088` now records import provenance and user-scoped hosted rows, which
+  gives export isolation tests a concrete hosted data surface.
+- The next implementation should start with account-scoped export JSON for the
+  hosted adapter, then document provider backup/restore operations separately
+  from user-initiated exports.

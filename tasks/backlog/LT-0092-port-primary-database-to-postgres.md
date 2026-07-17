@@ -1,12 +1,12 @@
 ---
 id: LT-0092
 title: Port primary database to Postgres
-status: idea
+status: ready
 track: data
 priority: high
 effort: large
 created: 2026-06-08
-updated: 2026-06-08
+updated: 2026-06-26
 owner: unassigned
 depends_on: [LT-0082, LT-0083, LT-0087]
 ---
@@ -59,3 +59,18 @@ the main persistence model.
 `LT-0087` introduces the hosted persistence adapter as a smaller first slice.
 This task is the broader cutover once Postgres is confirmed by `LT-0082` and the
 hosted data shape from `LT-0083` is clear.
+
+`docs/adr/0003-hosted-auth-data-platform.md` confirms Supabase Postgres as the
+first hosted Postgres target.
+
+Use `docs/hosted-user-data-schema.md` as the planned primary schema shape once
+the smaller hosted adapter slice is proven.
+
+2026-06-26 readiness note:
+
+- `LT-0087` proves the first hosted adapter boundary for app users, lifter
+  profiles, catalog entries, executions, and execution sets.
+- `LT-0088` proves local SQLite import into hosted account-owned records.
+- The next implementation should expand the hosted provider from core web
+  logging into the remaining primary persistence surfaces instead of replacing
+  SQLite in one risky rewrite.
