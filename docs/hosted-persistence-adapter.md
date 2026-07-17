@@ -34,21 +34,26 @@ Hosted mode uses a separate web command:
 .\gradlew.bat runHostedWeb --args="data/lifts.db 8080"
 ```
 
-`runHostedWeb` sets `lifttrax.dataStore=hosted-postgres` for that process.
-The remaining hosted connection settings still come from secrets:
+`runHostedWeb` reads `config/lifttrax-hosted.properties`, where
+`lifttrax.dataStore=hosted-postgres` selects the hosted adapter. That file is
+ignored by Git; copy `config/lifttrax-hosted.example.properties` and fill in:
 
 ```text
-LIFTTRAX_HOSTED_JDBC_URL=jdbc:postgresql://<host>:5432/<database>
-LIFTTRAX_HOSTED_JDBC_USER=<database user>
-LIFTTRAX_HOSTED_JDBC_PASSWORD=<database password>
+lifttrax.hosted.jdbcUrl=jdbc:postgresql://<host>:5432/<database>
+lifttrax.hosted.jdbcUser=<database user>
+lifttrax.hosted.jdbcPassword=<database password>
 ```
 
-The same hosted connection values can be supplied as system properties:
+The same hosted connection values can still be supplied as system properties or
+environment variables for deployment:
 
 ```text
 lifttrax.hosted.jdbcUrl
 lifttrax.hosted.jdbcUser
 lifttrax.hosted.jdbcPassword
+LIFTTRAX_HOSTED_JDBC_URL
+LIFTTRAX_HOSTED_JDBC_USER
+LIFTTRAX_HOSTED_JDBC_PASSWORD
 ```
 
 No hosted credentials should be committed.

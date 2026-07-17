@@ -43,9 +43,12 @@ Hosted Postgres mode:
 ./gradlew runHostedWeb --args='path/to/lifts.db 8080'
 ```
 
-`runHostedWeb` selects the hosted Postgres data store. The database path
-argument is still accepted by the server, but hosted mode uses the configured
-Postgres connection instead of the SQLite file.
+`runHostedWeb` reads `config/lifttrax-hosted.properties`, which is ignored by
+Git so local database credentials do not get committed. Start from
+`config/lifttrax-hosted.example.properties`, fill in the hosted JDBC settings,
+then run the command above. The database path argument is still accepted by the
+server, but hosted mode uses the configured Postgres connection instead of the
+SQLite file.
 
 ## Java project notes
 

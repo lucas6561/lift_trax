@@ -2,6 +2,7 @@ package com.lifttrax.cli;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lifttrax.config.LiftTraxConfig;
 import com.lifttrax.db.SqliteDb;
 import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.db.TrainingDataStoreProvider;
@@ -59,8 +60,8 @@ public final class WebServerCli {
                   }
                 }));
 
-    String bindAddress = System.getProperty("lifttrax.web.bind");
-    if (bindAddress == null || bindAddress.isBlank()) {
+    String bindAddress = LiftTraxConfig.setting("lifttrax.web.bind", "LIFTTRAX_WEB_BIND", "");
+    if (bindAddress.isBlank()) {
       bindAddress = defaultBindAddress();
     }
     HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);

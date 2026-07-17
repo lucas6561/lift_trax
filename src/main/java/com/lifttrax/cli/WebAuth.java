@@ -2,6 +2,7 @@ package com.lifttrax.cli;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lifttrax.config.LiftTraxConfig;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
@@ -45,18 +46,18 @@ final class WebAuth {
   }
 
   static WebAuth fromEnvironment(int port) {
-    String mode = setting("lifttrax.auth.mode", "LIFTTRAX_AUTH_MODE", "local");
+    String mode = LiftTraxConfig.setting("lifttrax.auth.mode", "LIFTTRAX_AUTH_MODE", "local");
     boolean supabaseMode = "supabase".equalsIgnoreCase(mode);
     String sessionSecret =
-        setting(
+        LiftTraxConfig.setting(
             "lifttrax.auth.sessionSecret",
             "LIFTTRAX_AUTH_SESSION_SECRET",
             supabaseMode ? "" : "lifttrax-local-development-session-secret");
     if (sessionSecret.isBlank()) {
-      throw new IllegalStateException("Hosted auth requires LIFTTRAX_AUTH_SESSION_SECRET.");
+      throw new IllegalStateException("Hosted auth requires lifttrax.auth.sessionSecret.");
     }
     String redirectUri =
-        setting(
+        LiftTraxConfig.setting(
             "lifttrax.auth.redirectUri",
             "LIFTTRAX_AUTH_REDIRECT_URI",
             "http://localhost:" + port + "/auth/callback");
@@ -65,13 +66,13 @@ final class WebAuth {
             supabaseMode ? AuthMode.SUPABASE : AuthMode.LOCAL,
             sessionSecret,
             Boolean.parseBoolean(
-                setting(
+                LiftTraxConfig.setting(
                     "lifttrax.auth.secureCookies",
                     "LIFTTRAX_AUTH_SECURE_COOKIES",
                     String.valueOf(supabaseMode))),
-            setting("lifttrax.supabase.url", "LIFTTRAX_SUPABASE_URL", ""),
-            setting("lifttrax.supabase.anonKey", "LIFTTRAX_SUPABASE_ANON_KEY", ""),
-            setting("lifttrax.auth.provider", "LIFTTRAX_AUTH_PROVIDER", "github"),
+            LiftTraxConfig.setting("lifttrax.supabase.url", "LIFTTRAX_SUPABASE_URL", ""),
+            LiftTraxConfig.setting("lifttrax.supabase.anonKey", "LIFTTRAX_SUPABASE_ANON_KEY", ""),
+            LiftTraxConfig.setting("lifttrax.auth.provider", "LIFTTRAX_AUTH_PROVIDER", "github"),
             redirectUri,
             Clock.systemUTC());
     return new WebAuth(config, new SupabaseTokenExchanger());
@@ -340,15 +341,6 @@ final class WebAuth {
 
   private String normalizedSupabaseUrl() {
     return config.supabaseUrl().replaceAll("/+$", "");
-  }
-
-  private static String setting(String property, String env, String fallback) {
-    String propertyValue = System.getProperty(property);
-    if (propertyValue != null && !propertyValue.isBlank()) {
-      return propertyValue.trim();
-    }
-    String envValue = System.getenv(env);
-    return envValue == null || envValue.isBlank() ? fallback : envValue.trim();
   }
 
   private static String cookie(HttpExchange exchange, String name) {

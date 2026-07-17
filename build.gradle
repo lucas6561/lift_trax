@@ -178,7 +178,7 @@ tasks.register('runWeb', JavaExec) {
     description = 'Runs the embedded HTTP server with the local SQLite data store.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.cli.WebServerCli'
-    systemProperty 'lifttrax.dataStore', 'sqlite'
+    systemProperty 'lifttrax.config', 'config/lifttrax-local.properties'
 }
 
 tasks.register('runHostedWeb', JavaExec) {
@@ -186,7 +186,7 @@ tasks.register('runHostedWeb', JavaExec) {
     description = 'Runs the embedded HTTP server with the hosted Postgres data store.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.cli.WebServerCli'
-    systemProperty 'lifttrax.dataStore', 'hosted-postgres'
+    systemProperty 'lifttrax.config', 'config/lifttrax-hosted.properties'
 }
 
 tasks.register('backupDatabase', JavaExec) {
@@ -208,7 +208,7 @@ tasks.register('importHostedDatabase', JavaExec) {
     description = 'Imports a local LiftTrax SQLite database into the configured hosted account.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.cli.ImportHostedDatabaseCli'
-    systemProperty 'lifttrax.dataStore', 'hosted-postgres'
+    systemProperty 'lifttrax.config', 'config/lifttrax-hosted.properties'
 }
 
 

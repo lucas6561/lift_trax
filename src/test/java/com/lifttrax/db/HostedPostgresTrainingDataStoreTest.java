@@ -183,7 +183,7 @@ class HostedPostgresTrainingDataStoreTest {
     IllegalArgumentException error =
         assertThrows(IllegalArgumentException.class, () -> new HostedPostgresConfig("", "", ""));
 
-    assertTrue(error.getMessage().contains("LIFTTRAX_HOSTED_JDBC_URL"));
+    assertTrue(error.getMessage().contains("lifttrax.hosted.jdbcUrl"));
   }
 
   private static HostedPostgresTrainingDataStoreProvider provider() throws Exception {

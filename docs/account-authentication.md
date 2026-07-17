@@ -37,7 +37,7 @@ The cookie contains:
 
 The cookie is always `HttpOnly` and `SameSite=Lax`. Hosted/Supabase mode enables
 `Secure` cookies by default. Local development can opt into secure cookies with
-`LIFTTRAX_AUTH_SECURE_COOKIES=true` or the matching system property.
+`lifttrax.auth.secureCookies=true` in the active config file.
 
 Invalid or expired cookies fail closed: the app clears the session cookie and
 redirects back to sign-in.
@@ -47,7 +47,7 @@ redirects back to sign-in.
 Local development mode is the default so the app can still run offline:
 
 ```text
-LIFTTRAX_AUTH_MODE=local
+lifttrax.auth.mode=local
 ```
 
 The local sign-in page asks for a user ID and optional email, then creates a
@@ -59,13 +59,13 @@ hosted authentication mechanism.
 Hosted auth mode uses Supabase Auth as selected in ADR-0003:
 
 ```text
-LIFTTRAX_AUTH_MODE=supabase
-LIFTTRAX_AUTH_SESSION_SECRET=<long random secret>
-LIFTTRAX_SUPABASE_URL=https://<project>.supabase.co
-LIFTTRAX_SUPABASE_ANON_KEY=<publishable anon key>
-LIFTTRAX_AUTH_PROVIDER=github
-LIFTTRAX_AUTH_REDIRECT_URI=https://<host>/auth/callback
-LIFTTRAX_AUTH_SECURE_COOKIES=true
+lifttrax.auth.mode=supabase
+lifttrax.auth.sessionSecret=<long random secret>
+lifttrax.supabase.url=https://<project>.supabase.co
+lifttrax.supabase.anonKey=<publishable anon key>
+lifttrax.auth.provider=github
+lifttrax.auth.redirectUri=https://<host>/auth/callback
+lifttrax.auth.secureCookies=true
 ```
 
 `/auth/login` starts a Supabase OAuth PKCE flow by redirecting to the configured
