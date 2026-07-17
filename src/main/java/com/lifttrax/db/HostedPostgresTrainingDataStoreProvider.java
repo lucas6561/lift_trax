@@ -5,11 +5,17 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** Hosted JDBC/Postgres provider for user-scoped web training data. */
 public final class HostedPostgresTrainingDataStoreProvider implements TrainingDataStoreProvider {
   private final HostedPostgresConfig config;
+  private final Map<String, TrainingDataStore> storesByUser = new HashMap<>();
+  private final Lock storesLock = new ReentrantLock();
 
   public HostedPostgresTrainingDataStoreProvider(HostedPostgresConfig config) throws Exception {
     this.config = config;
@@ -24,13 +30,27 @@ public final class HostedPostgresTrainingDataStoreProvider implements TrainingDa
 
   @Override
   public TrainingDataStore forUser(String ownerUserId) throws Exception {
-    String appUserId;
-    String lifterProfileId;
-    try (Connection connection = openConnection()) {
-      appUserId = ensureAppUser(connection, ownerUserId);
-      lifterProfileId = ensureDefaultLifterProfile(connection, appUserId, ownerUserId);
+    String requiredOwnerUserId = requireUserId(ownerUserId);
+    storesLock.lock();
+    try {
+      TrainingDataStore cached = storesByUser.get(requiredOwnerUserId);
+      if (cached != null) {
+        return cached;
+      }
+      String appUserId;
+      String lifterProfileId;
+      try (Connection connection = openConnection()) {
+        appUserId = ensureAppUser(connection, requiredOwnerUserId);
+        lifterProfileId = ensureDefaultLifterProfile(connection, appUserId, requiredOwnerUserId);
+      }
+      TrainingDataStore store =
+          new HostedPostgresTrainingDataStore(
+              config, requiredOwnerUserId, appUserId, lifterProfileId);
+      storesByUser.put(requiredOwnerUserId, store);
+      return store;
+    } finally {
+      storesLock.unlock();
     }
-    return new HostedPostgresTrainingDataStore(config, ownerUserId, appUserId, lifterProfileId);
   }
 
   static void initializeSchema(Connection connection) throws SQLException {

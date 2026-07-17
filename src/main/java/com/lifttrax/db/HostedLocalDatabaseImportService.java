@@ -103,13 +103,18 @@ public final class HostedLocalDatabaseImportService {
 
   private static SourceData readSource(Connection connection) throws Exception {
     Map<Integer, SourceLift> lifts = new TreeMap<>();
+    String ownerUserIdColumn =
+        hasColumn(connection, "lifts", "owner_user_id")
+            ? "owner_user_id"
+            : "'local-user' AS owner_user_id";
     try (PreparedStatement statement =
             connection.prepareStatement(
                 """
-                    SELECT id, owner_user_id, name, region, main_lift, muscles, notes
+                    SELECT id, %s, name, region, main_lift, muscles, notes
                     FROM lifts
                     ORDER BY id
-                    """);
+                    """
+                    .formatted(ownerUserIdColumn));
         ResultSet rs = statement.executeQuery()) {
       while (rs.next()) {
         String name = rs.getString("name");
@@ -378,6 +383,13 @@ public final class HostedLocalDatabaseImportService {
       try (ResultSet rs = statement.executeQuery()) {
         return rs.next();
       }
+    }
+  }
+
+  private static boolean hasColumn(Connection connection, String table, String column)
+      throws Exception {
+    try (ResultSet columns = connection.getMetaData().getColumns(null, null, table, column)) {
+      return columns.next();
     }
   }
 

@@ -15,6 +15,9 @@ import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -176,6 +179,58 @@ class HostedPostgresTrainingDataStoreTest {
     assertFalse(otherUser.duplicate());
     assertEquals("import me", owner.getExecutions("Front Squat").get(0).notes());
     assertEquals("import me", other.getExecutions("Front Squat").get(0).notes());
+  }
+
+  @Test
+  void hostedImportSupportsLegacyDatabaseWithoutUserOwnershipColumns() throws Exception {
+    Path source = Files.createTempFile("lifttrax-legacy-hosted-import-source", ".db");
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + source);
+        Statement statement = connection.createStatement()) {
+      statement.execute(
+          """
+              CREATE TABLE lifts (
+                  id INTEGER PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  region TEXT NOT NULL,
+                  main_lift TEXT,
+                  muscles TEXT NOT NULL,
+                  notes TEXT NOT NULL DEFAULT '',
+                  enabled INTEGER NOT NULL DEFAULT 1
+              )
+              """);
+      statement.execute(
+          """
+              CREATE TABLE lift_records (
+                  id INTEGER PRIMARY KEY,
+                  lift_id INTEGER NOT NULL,
+                  date TEXT NOT NULL,
+                  sets TEXT NOT NULL,
+                  warmup INTEGER NOT NULL,
+                  deload INTEGER NOT NULL,
+                  notes TEXT NOT NULL DEFAULT ''
+              )
+              """);
+      statement.execute(
+          """
+              INSERT INTO lifts (id, name, region, main_lift, muscles, notes, enabled)
+              VALUES (1, 'Bench Press', 'UPPER', 'BENCH_PRESS', 'CHEST', '', 1)
+              """);
+      statement.execute(
+          """
+              INSERT INTO lift_records (id, lift_id, date, sets, warmup, deload, notes)
+              VALUES (1, 1, '2026-06-01', '[{"reps":5,"weight":"225 lb"}]', 0, 0,
+                      'legacy import')
+              """);
+      statement.execute("PRAGMA user_version = 11");
+    }
+    TrainingDataStore owner = provider().forUser("legacy-import-owner");
+
+    HostedLocalDatabaseImportService.ImportResult result =
+        HostedLocalDatabaseImportService.importDatabase(source, owner);
+
+    assertEquals(1, result.insertedLifts());
+    assertEquals(1, result.insertedExecutions());
+    assertEquals("legacy import", owner.getExecutions("Bench Press").get(0).notes());
   }
 
   @Test

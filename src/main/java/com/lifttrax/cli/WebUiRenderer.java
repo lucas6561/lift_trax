@@ -2370,16 +2370,19 @@ final class WebUiRenderer {
     StringBuilder html = new StringBuilder();
     html.append("<p>").append(WebHtml.escapeHtml(label)).append("</p>");
 
+    Map<String, Boolean> enabledStatuses;
+    try {
+      enabledStatuses = db.liftEnabledStatuses();
+    } catch (Exception ignored) {
+      enabledStatuses = Map.of();
+    }
+
     boolean hasLift = false;
     for (Lift lift : lifts) {
       if (!search.isEmpty() && !lift.name().toLowerCase(Locale.ROOT).contains(search)) {
         continue;
       }
-      boolean enabled = true;
-      try {
-        enabled = db.isLiftEnabled(lift.name());
-      } catch (Exception ignored) {
-      }
+      boolean enabled = enabledStatuses.getOrDefault(lift.name(), true);
       hasLift = true;
       html.append("<details class='execution-lift-group' data-filter-item data-name='")
           .append(WebHtml.escapeHtml(lift.name()))

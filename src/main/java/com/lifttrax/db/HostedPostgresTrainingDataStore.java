@@ -220,23 +220,40 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
         PreparedStatement statement =
             connection.prepareStatement(
                 """
-                    SELECT e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes
+                    SELECT e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes,
+                        es.metric_kind, es.metric_a, es.metric_b, es.weight, es.rpe
                     FROM executions e
                     JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
+                    LEFT JOIN execution_sets es ON es.execution_id = e.id
                     WHERE e.lifter_profile_id = ? AND c.lifter_profile_id = ?
                         AND c.owner_user_id = ? AND c.name = ?
-                    ORDER BY e.performed_on DESC, e.web_execution_id DESC
+                    ORDER BY e.performed_on DESC, e.web_execution_id DESC, es.set_index
                     """)) {
       statement.setString(1, lifterProfileId);
       statement.setString(2, lifterProfileId);
       statement.setString(3, appUserId);
       statement.setString(4, liftName);
       try (ResultSet rs = statement.executeQuery()) {
-        List<LiftExecution> executions = new ArrayList<>();
+        Map<Integer, ExecutionRows> rowsByExecution = new java.util.LinkedHashMap<>();
         while (rs.next()) {
-          executions.add(mapExecution(connection, rs));
+          int webExecutionId = rs.getInt("web_execution_id");
+          ExecutionRows rows = rowsByExecution.get(webExecutionId);
+          if (rows == null) {
+            rows =
+                new ExecutionRows(
+                    webExecutionId,
+                    parseDate(rs.getObject("performed_on")),
+                    rs.getBoolean("warmup"),
+                    rs.getBoolean("deload"),
+                    rs.getString("notes"),
+                    new ArrayList<>());
+            rowsByExecution.put(webExecutionId, rows);
+          }
+          if (rs.getString("metric_kind") != null) {
+            rows.sets().add(mapExecutionSet(rs));
+          }
         }
-        return executions;
+        return rowsByExecution.values().stream().map(ExecutionRows::toExecution).toList();
       }
     }
   }
@@ -677,17 +694,20 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
       try (ResultSet rs = statement.executeQuery()) {
         List<ExecutionSet> sets = new ArrayList<>();
         while (rs.next()) {
-          Integer metricB = rs.getObject("metric_b") == null ? null : rs.getInt("metric_b");
-          Float rpe = rs.getObject("rpe") == null ? null : rs.getFloat("rpe");
-          sets.add(
-              new ExecutionSet(
-                  metricFromRow(rs.getString("metric_kind"), rs.getInt("metric_a"), metricB),
-                  normalizeWeight(rs.getString("weight")),
-                  rpe));
+          sets.add(mapExecutionSet(rs));
         }
         return sets;
       }
     }
+  }
+
+  private static ExecutionSet mapExecutionSet(ResultSet rs) throws Exception {
+    Integer metricB = rs.getObject("metric_b") == null ? null : rs.getInt("metric_b");
+    Float rpe = rs.getObject("rpe") == null ? null : rs.getFloat("rpe");
+    return new ExecutionSet(
+        metricFromRow(rs.getString("metric_kind"), rs.getInt("metric_a"), metricB),
+        normalizeWeight(rs.getString("weight")),
+        rpe);
   }
 
   private void saveExecutionSets(Connection connection, String executionId, List<ExecutionSet> sets)
@@ -835,4 +855,16 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   }
 
   private record MetricRow(String kind, int a, Integer b) {}
+
+  private record ExecutionRows(
+      int id,
+      LocalDate date,
+      boolean warmup,
+      boolean deload,
+      String notes,
+      List<ExecutionSet> sets) {
+    private LiftExecution toExecution() {
+      return new LiftExecution(id, date, List.copyOf(sets), warmup, deload, notes);
+    }
+  }
 }
