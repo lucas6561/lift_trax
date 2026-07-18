@@ -1609,10 +1609,10 @@ final class WebUiRenderer {
     Map<LocalDate, List<LastWeekExecutionRow>> rowsByDate = new LinkedHashMap<>();
     Map<String, Lift> liftsByName =
         lifts.stream().collect(Collectors.toMap(Lift::name, lift -> lift, (left, right) -> left));
-    com.lifttrax.db.SqliteDb.ExecutionHistorySummary history;
+    com.lifttrax.db.ExecutionHistorySummary history;
     try {
       history = db.executionHistorySummary(normalizedStart, normalizedEnd);
-      for (com.lifttrax.db.SqliteDb.LiftExecutionRow row :
+      for (com.lifttrax.db.LiftExecutionRow row :
           db.getExecutionsBetween(normalizedStart, normalizedEnd)) {
         Lift lift = liftsByName.getOrDefault(row.lift().name(), row.lift());
         LiftExecution execution = row.execution();

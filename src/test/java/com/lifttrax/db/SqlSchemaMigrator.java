@@ -7,7 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 
-/** Applies shared SQLite migrations and records the active schema version. */
+/** Applies SQLite migrations for test and legacy-import fixtures. */
 final class SqlSchemaMigrator {
   private static final String CREATE_MIGRATIONS_TABLE_SQL =
       """

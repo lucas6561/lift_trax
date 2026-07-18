@@ -390,7 +390,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   }
 
   @Override
-  public List<SqliteDb.LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
+  public List<LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
       throws Exception {
     try (Connection connection = openConnection();
         PreparedStatement statement =
@@ -411,7 +411,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
       statement.setObject(4, start);
       statement.setObject(5, end);
       try (ResultSet rs = statement.executeQuery()) {
-        List<SqliteDb.LiftExecutionRow> rows = new ArrayList<>();
+        List<LiftExecutionRow> rows = new ArrayList<>();
         while (rs.next()) {
           Lift lift =
               new Lift(
@@ -420,7 +420,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
                   LiftType.fromDbValue(rs.getString("main_lift")),
                   parseMuscles(rs.getString("muscles")),
                   rs.getString("lift_notes"));
-          rows.add(new SqliteDb.LiftExecutionRow(lift, mapExecution(connection, rs)));
+          rows.add(new LiftExecutionRow(lift, mapExecution(connection, rs)));
         }
         return rows;
       }
@@ -428,7 +428,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   }
 
   @Override
-  public SqliteDb.ExecutionHistorySummary executionHistorySummary(LocalDate start, LocalDate end)
+  public ExecutionHistorySummary executionHistorySummary(LocalDate start, LocalDate end)
       throws Exception {
     try (Connection connection = openConnection();
         PreparedStatement statement =
@@ -448,9 +448,9 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
       statement.setString(3, lifterProfileId);
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
-          return new SqliteDb.ExecutionHistorySummary(0, null, null, null, null);
+          return new ExecutionHistorySummary(0, null, null, null, null);
         }
-        return new SqliteDb.ExecutionHistorySummary(
+        return new ExecutionHistorySummary(
             rs.getInt("record_count"),
             parseDate(rs.getObject("min_date")),
             parseDate(rs.getObject("max_date")),

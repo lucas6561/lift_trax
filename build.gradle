@@ -173,9 +173,14 @@ application {
     mainClass = 'com.lifttrax.cli.DumpDatabaseCli'
 }
 
+tasks.named('run') {
+    description = 'Prints a user-scoped Postgres catalog and execution history.'
+    systemProperty 'lifttrax.config', 'config/lifttrax-local.properties'
+}
+
 tasks.register('runWeb', JavaExec) {
     group = 'application'
-    description = 'Runs the embedded HTTP server with the local SQLite data store.'
+    description = 'Runs the embedded HTTP server with configured Postgres and local auth.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.cli.WebServerCli'
     systemProperty 'lifttrax.config', 'config/lifttrax-local.properties'
@@ -183,24 +188,18 @@ tasks.register('runWeb', JavaExec) {
 
 tasks.register('runHostedWeb', JavaExec) {
     group = 'application'
-    description = 'Runs the embedded HTTP server with the hosted Postgres data store.'
+    description = 'Runs the embedded HTTP server with configured Postgres and hosted config.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.cli.WebServerCli'
     systemProperty 'lifttrax.config', 'config/lifttrax-hosted.properties'
 }
 
-tasks.register('backupDatabase', JavaExec) {
+tasks.register('postgresSqliteBackup', JavaExec) {
     group = 'application'
-    description = 'Creates a plain SQLite backup for a LiftTrax database.'
+    description = 'Creates a validated point-in-time SQLite snapshot of Postgres.'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.lifttrax.cli.BackupDatabaseCli'
-}
-
-tasks.register('restoreDatabase', JavaExec) {
-    group = 'application'
-    description = 'Restores a validated LiftTrax database backup.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.lifttrax.cli.RestoreDatabaseCli'
+    mainClass = 'com.lifttrax.cli.PostgresSqliteBackupCli'
+    systemProperty 'lifttrax.config', 'config/lifttrax-hosted.properties'
 }
 
 tasks.register('importHostedDatabase', JavaExec) {
@@ -209,6 +208,14 @@ tasks.register('importHostedDatabase', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.lifttrax.cli.ImportHostedDatabaseCli'
     systemProperty 'lifttrax.config', 'config/lifttrax-hosted.properties'
+}
+
+tasks.register('generateWave', JavaExec) {
+    group = 'application'
+    description = 'Generates a planned workout from a user-scoped Postgres catalog.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.lifttrax.cli.WaveCli'
+    systemProperty 'lifttrax.config', 'config/lifttrax-local.properties'
 }
 
 

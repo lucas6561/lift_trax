@@ -35,20 +35,11 @@ import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Core SqliteDb component used by LiftTrax. */
+/** Test and legacy-import fixture for the retired SQLite runtime implementation. */
 public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
   public static final int MAX_BACKUPS = 5;
   public static final String LEGACY_OWNER_USER_ID = "local-user";
   private static final Logger LOGGER = LoggerFactory.getLogger(SqliteDb.class);
-
-  public record LiftExecutionRow(Lift lift, LiftExecution execution) {}
-
-  public record ExecutionHistorySummary(
-      int count,
-      LocalDate minDate,
-      LocalDate maxDate,
-      LocalDate nearestBefore,
-      LocalDate nearestAfter) {}
 
   private final Connection connection;
   private final ObjectMapper objectMapper = new ObjectMapper();

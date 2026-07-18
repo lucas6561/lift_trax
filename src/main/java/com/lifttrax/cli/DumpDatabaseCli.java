@@ -1,6 +1,7 @@
 package com.lifttrax.cli;
 
-import com.lifttrax.db.SqliteDb;
+import com.lifttrax.db.TrainingDataStore;
+import com.lifttrax.db.TrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
@@ -14,55 +15,64 @@ public final class DumpDatabaseCli {
 
   public static void main(String[] args) throws Exception {
     CliOptions options = parseArgs(args);
-    String dbPath =
-        options.dbPath() == null
-            ? DbPathResolver.resolveFromArgsOrDefault(new String[0])
-            : options.dbPath();
+    try (TrainingDataStoreProvider provider = TrainingDataStoreProvider.fromEnvironment()) {
+      dump(provider.forUser(options.userId()), options.liftsOnly());
+    }
+  }
 
-    try (SqliteDb db = new SqliteDb(dbPath)) {
-      List<Lift> lifts = db.listLifts();
-      if (lifts.isEmpty()) {
-        System.out.println("No lifts found.");
-        return;
-      }
-
-      for (Lift lift : lifts) {
-        System.out.println(formatLiftHeader(lift));
-        if (!options.liftsOnly()) {
-          List<LiftExecution> executions = db.getExecutions(lift.name());
-          if (executions.isEmpty()) {
-            System.out.println("  (no executions)");
-          } else {
-            for (LiftExecution execution : executions) {
-              System.out.println("  - " + formatExecution(execution));
-            }
+  static void dump(TrainingDataStore db, boolean liftsOnly) throws Exception {
+    List<Lift> lifts = db.listLifts();
+    if (lifts.isEmpty()) {
+      System.out.println("No lifts found.");
+      return;
+    }
+    for (Lift lift : lifts) {
+      System.out.println(formatLiftHeader(lift));
+      if (!liftsOnly) {
+        List<LiftExecution> executions = db.getExecutions(lift.name());
+        if (executions.isEmpty()) {
+          System.out.println("  (no executions)");
+        } else {
+          for (LiftExecution execution : executions) {
+            System.out.println("  - " + formatExecution(execution));
           }
         }
-        System.out.println();
       }
+      System.out.println();
     }
   }
 
   private static CliOptions parseArgs(String... args) {
     boolean liftsOnly = false;
-    String dbPath = null;
-    for (String arg : args) {
+    String userId = null;
+    int index = 0;
+    while (index < args.length) {
+      String arg = args[index];
       if ("--lifts-only".equals(arg)) {
         liftsOnly = true;
+        index++;
+        continue;
+      }
+      if ("--user".equals(arg)) {
+        if (index + 1 >= args.length) {
+          throw new IllegalArgumentException("Missing value after --user");
+        }
+        userId = args[index + 1];
+        index += 2;
         continue;
       }
       if (arg.startsWith("--")) {
         throw new IllegalArgumentException("Unknown option: " + arg);
       }
-      if (dbPath != null) {
-        throw new IllegalArgumentException("Unexpected argument: " + arg);
-      }
-      dbPath = arg;
+      throw new IllegalArgumentException("Unexpected argument: " + arg);
     }
-    return new CliOptions(dbPath, liftsOnly);
+    if (userId == null || userId.isBlank()) {
+      throw new IllegalArgumentException("--user is required.");
+    }
+    return new CliOptions(userId, liftsOnly);
   }
 
-  private record CliOptions(String dbPath, boolean liftsOnly) {}
+  private record CliOptions(String userId, boolean liftsOnly) {}
 
   private static String formatLiftHeader(Lift lift) {
     String main = lift.main() == null ? "" : " [" + lift.main() + "]";

@@ -7,7 +7,8 @@ This repository now uses a **root-level Java/Gradle project layout**.
 - `src/main/java` – application source code
 - `src/test/java` – tests
 - `build.gradle` / `settings.gradle` – Gradle project configuration
-- `shared/sql` – shared SQL schema assets
+- `shared/postgres` - ordered Postgres application migrations
+- `shared/sql` – legacy SQLite import/test schema assets
 - `shared/programs` - program schema and example training program assets
 - `shared/workouts` - generated workout schema and example planned workout assets
 - `docs` - project documentation, including program schema authoring guidance
@@ -17,38 +18,36 @@ This repository now uses a **root-level Java/Gradle project layout**.
 From the repository root:
 
 ```bash
-./gradlew run --args='path/to/lifts.db'
+./gradlew run --args='--user local-user'
 ```
 
-If no argument is provided, it defaults to repository-root `data/lifts.db`
-(auto-detected via `shared/sql/schema.sql`).
+All database-aware commands use the configured Postgres database. Set
+`LIFTTRAX_HOSTED_JDBC_URL`, `LIFTTRAX_HOSTED_JDBC_USER`, and
+`LIFTTRAX_HOSTED_JDBC_PASSWORD`, or place equivalent properties in the selected
+configuration file. Do not commit a file containing credentials.
 
 ## Web UI
-
-Local SQLite mode:
 
 From the repository root:
 
 ```bash
-./gradlew runWeb --args='path/to/lifts.db 8080'
+./gradlew runWeb --args='8080'
 ```
 
-- Arg 1: SQLite database path (defaults to repository-root `lifts.db`)
-- Arg 2: port (defaults to `8080`)
+- Arg 1: port (defaults to `8080`)
 - Server bind address: `0.0.0.0`
 
-Hosted Postgres mode:
+The hosted command has the same Postgres-only runtime behavior but selects the
+ignored hosted configuration file:
 
 ```bash
-./gradlew runHostedWeb --args='path/to/lifts.db 8080'
+./gradlew runHostedWeb --args='8080'
 ```
 
 `runHostedWeb` reads `config/lifttrax-hosted.properties`, which is ignored by
 Git so local database credentials do not get committed. Start from
 `config/lifttrax-hosted.example.properties`, fill in the hosted JDBC settings,
-then run the command above. The database path argument is still accepted by the
-server, but hosted mode uses the configured Postgres connection instead of the
-SQLite file.
+then run the command above. Neither web command accepts a SQLite path.
 
 ## Java project notes
 
@@ -89,24 +88,22 @@ Wave generation can still save markdown. To export a loadable planned workout
 JSON file instead, use a `.json` output name:
 
 ```bash
-java -cp build/libs/lift-trax-java-0.1.0.jar com.lifttrax.cli.WaveCli path/to/lifts.db 4 planned-workout.json
+./gradlew generateWave --args='--user local-user 4 planned-workout.json'
 ```
 
 ## Database schema migrations
 
-SQLite migrations live in `shared/sql/migrations/`. When LiftTrax opens a
-database, it applies pending files in numeric filename order, records applied
-versions in the `schema_migrations` table, and reports the active version through
-SQLite's `PRAGMA user_version`.
+Runtime Postgres migrations live in `shared/postgres/migrations/`. LiftTrax
+applies pending files in numeric filename order and records them in
+`lifttrax_schema_migrations` before serving requests or running a database-aware
+operator command.
 
 To add a migration:
 
 1. Add a file named `NNNN__short-description.sql` under
-   `shared/sql/migrations/`, using the next schema version.
-2. Add the filename to `shared/sql/migrations/index.txt`.
-3. Update `shared/sql/schema_version.txt` and the current schema snapshot in
-   `shared/sql/schema.sql`.
-4. Add or update a database test for the changed schema.
+   `shared/postgres/migrations/`, using the next schema version.
+2. Add the filename to `shared/postgres/migrations/index.txt`.
+3. Add or update a Postgres-mode integration test for the changed schema.
 
 Do not edit a migration after it has shipped. Add a new migration instead.
 
@@ -147,38 +144,34 @@ requiring every workout package to be mutation-clean immediately.
 From the repository root:
 
 ```bash
-./gradlew run --args='path/to/lifts.db --lifts-only'
+./gradlew run --args='--user local-user --lifts-only'
 ```
 
 This prints lift/exercise metadata (name, region, main lift type, muscles, notes) and skips execution history.
 
 ## Database backups
 
-LiftTrax backups are plain SQLite `.db` files. By default, the app stores manual
-backups in a `backups` folder next to the database being backed up. For the
-default database path, that means `data/backups/`.
+LiftTrax can create a complete point-in-time SQLite `.db` artifact from the
+configured Postgres database. This is an operator snapshot of every
+LiftTrax-owned table and every user's rows; it is not a live database, restore
+command, or synchronization mode. The supplied destination is a base filename;
+the published file always includes its UTC creation date and time, for example
+`lifttrax-snapshot-20260718-143522Z.db`.
 
 Create a backup:
 
 ```bash
-./gradlew backupDatabase --args='data/lifts.db'
+./gradlew postgresSqliteBackup --args='data/backups/lifttrax-snapshot.db'
 ```
 
-To choose the exact backup file path:
+The command refuses to overwrite the resulting timestamped destination. After
+verifying the path, an operator can explicitly replace it:
 
 ```bash
-./gradlew backupDatabase --args='data/lifts.db --output data/backups/lifts-manual.db'
+./gradlew postgresSqliteBackup --args='data/backups/lifttrax-snapshot.db --confirm-overwrite'
 ```
 
-Restore a backup:
-
-```bash
-./gradlew restoreDatabase --args='data/backups/lifts-manual.db data/lifts.db --confirm-overwrite'
-```
-
-Restore validates that the source file looks like a LiftTrax SQLite database
-before copying it. If the target database already exists, restore refuses to
-overwrite it unless `--confirm-overwrite` is present. When overwrite is
-confirmed, LiftTrax first saves the previous target database in the same
-`backups` folder with `pre-restore` in the file name, then replaces the target
-with the validated backup.
+The snapshot is read from one repeatable-read Postgres transaction, written to
+a temporary SQLite file, validated by expected tables and per-table row counts,
+then atomically published. Failed snapshots remove the temporary artifact.
+Provider-level Postgres restoration remains an operator/provider procedure.

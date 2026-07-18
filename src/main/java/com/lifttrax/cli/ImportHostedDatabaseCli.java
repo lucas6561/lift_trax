@@ -17,8 +17,7 @@ public final class ImportHostedDatabaseCli {
       printPreview(preview);
       return;
     }
-    try (TrainingDataStoreProvider provider =
-        TrainingDataStoreProvider.fromEnvironment("data/lifts.db")) {
+    try (TrainingDataStoreProvider provider = TrainingDataStoreProvider.fromEnvironment()) {
       TrainingDataStore target = provider.forUser(options.userId());
       HostedLocalDatabaseImportService.ImportResult result =
           HostedLocalDatabaseImportService.importDatabase(Path.of(options.sourcePath()), target);

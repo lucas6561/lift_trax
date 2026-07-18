@@ -17,4 +17,4 @@ COPY config/lifttrax-render.properties /app/config/lifttrax-hosted.properties
 ENV PORT=10000
 EXPOSE 10000
 
-CMD ["sh", "-c", "exec java -Dlifttrax.config=/app/config/lifttrax-hosted.properties -cp '/app/lift_trax/lib/*' com.lifttrax.cli.WebServerCli data/lifts.db \"$PORT\""]
+CMD ["sh", "-c", "exec java -Dlifttrax.config=/app/config/lifttrax-hosted.properties -cp '/app/lift_trax/lib/*' com.lifttrax.cli.WebServerCli \"$PORT\""]

@@ -1,6 +1,6 @@
 package com.lifttrax.cli;
 
-import com.lifttrax.db.SqliteDb;
+import com.lifttrax.db.LiftExecutionRow;
 import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.Lift;
@@ -199,7 +199,7 @@ final class DailyDashboardRenderer {
     Map<String, Lift> liftsByName =
         lifts.stream().collect(Collectors.toMap(Lift::name, lift -> lift, (left, right) -> left));
     List<RecentExecution> recent = new ArrayList<>();
-    for (SqliteDb.LiftExecutionRow row : db.getExecutionsBetween(start, end)) {
+    for (LiftExecutionRow row : db.getExecutionsBetween(start, end)) {
       Lift lift = liftsByName.getOrDefault(row.lift().name(), row.lift());
       recent.add(new RecentExecution(lift, row.execution()));
     }

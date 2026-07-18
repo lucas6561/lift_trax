@@ -1,13 +1,13 @@
 ---
 id: LT-0092
 title: Make Postgres the sole runtime database
-status: ready
+status: done
 track: data
 priority: high
 effort: large
 created: 2026-06-08
 updated: 2026-07-18
-owner: unassigned
+owner: codex
 depends_on: [LT-0082, LT-0083, LT-0087]
 ---
 
@@ -51,38 +51,38 @@ one-way snapshot operation, not synchronization and not a second runtime mode.
 
 ## Acceptance criteria
 
-- [ ] Every Java `main` class and Gradle application task is inventoried and
+- [x] Every Java `main` class and Gradle application task is inventoried and
       classified as Postgres-backed or database-neutral; no normal runtime
       executable opens `SqliteDb` or accepts a SQLite database as its live data
       source.
-- [ ] The normal local web command and hosted deployment both use Postgres, and
+- [x] The normal local web command and hosted deployment both use Postgres, and
       their command-line interfaces no longer require a misleading SQLite path.
-- [ ] All supported database workflows run against Postgres, including lift
+- [x] All supported database workflows run against Postgres, including lift
       catalog operations, execution logging/history, workout and program
       persistence, planned-workout sessions, imports that remain supported,
       database inspection/dump commands, and administrative operations.
-- [ ] The project has a documented Postgres schema and ordered migration path
+- [x] The project has a documented Postgres schema and ordered migration path
       for every LiftTrax-owned application table.
-- [ ] A separately named operator executable connects to Postgres and writes a
+- [x] A separately named operator executable connects to Postgres and writes a
       new SQLite backup file containing the complete LiftTrax-owned schema and
       data, including all users and ownership identifiers.
-- [ ] The backup runs from a transactionally consistent Postgres snapshot,
+- [x] The backup runs from a transactionally consistent Postgres snapshot,
       writes through a temporary file, and only publishes the final SQLite file
       after all tables and validation checks succeed.
-- [ ] Backup creation refuses to overwrite an existing destination unless the
+- [x] Backup creation refuses to overwrite an existing destination unless the
       operator explicitly confirms it, removes an incomplete temporary artifact
       after failure, and exits nonzero with an actionable error.
-- [ ] The SQLite backup records format/schema version and creation metadata, and
+- [x] The SQLite backup records format/schema version and creation metadata, and
       verification compares expected tables plus per-table row counts between
       the Postgres snapshot and the completed SQLite file.
-- [ ] Runtime code cannot write new application data to SQLite; SQLite-specific
+- [x] Runtime code cannot write new application data to SQLite; SQLite-specific
       code is isolated to backup serialization, backup validation, and tests.
-- [ ] Repeatable Postgres integration tests cover migrations and representative
+- [x] Repeatable Postgres integration tests cover migrations and representative
       reads/writes from each database-aware executable, while backup integration
       tests cover completeness, user ownership, empty tables, overwrite safety,
       consistent failure cleanup, and round-trip readability of the SQLite
       artifact.
-- [ ] Developer and operator documentation explains Postgres-only local usage,
+- [x] Developer and operator documentation explains Postgres-only local usage,
       secret handling, backup creation, backup contents, and the fact that the
       SQLite file is a point-in-time artifact rather than a synchronized store.
 
@@ -114,5 +114,20 @@ user-facing, account-scoped export and hosted-provider recovery controls.
   into every remaining database-aware main, then remove the SQLite runtime path
   only after equivalent Postgres coverage exists.
 - Existing SQLite data should receive a separately planned final-import or
-  archival decision before its runtime path is removed; there is no ongoing
-  synchronization requirement.
+archival decision before its runtime path is removed; there is no ongoing
+synchronization requirement.
+
+2026-07-18 completion note:
+
+- All production entry points now use the configured Postgres provider; the
+  retired mutable SQLite implementation lives only in test fixtures.
+- `shared/postgres/migrations/` is the ordered LiftTrax application migration
+  path. Existing hosted tables are adopted safely through idempotent migration
+  SQL and recorded in `lifttrax_schema_migrations`.
+- `postgresSqliteBackup` creates and validates a complete, all-user snapshot
+  through a temporary file and repeatable-read transaction. Published filenames
+  include the snapshot's UTC creation date and time. It is intentionally not a
+  runtime or restore mode.
+- Verification: focused Postgres/backup tests, the full Gradle test suite, and
+  `tasks --group application` passed. Final repository verification used
+  `spotlessApply` followed by `qualityGate`.

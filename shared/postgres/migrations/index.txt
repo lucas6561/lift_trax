@@ -1,0 +1,2 @@
+# LiftTrax-owned Postgres migrations, applied in numeric filename order.
+0001__application-schema.sql

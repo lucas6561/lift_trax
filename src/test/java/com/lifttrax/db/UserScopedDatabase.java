@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/** User-scoped database facade for authenticated web requests. */
+/** Test-only user-scoped facade over the retired SQLite implementation. */
 final class UserScopedDatabase implements TrainingDataStore {
   private final SqliteDb db;
   private final String ownerUserId;
@@ -105,13 +105,13 @@ final class UserScopedDatabase implements TrainingDataStore {
   }
 
   @Override
-  public List<SqliteDb.LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
+  public List<LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
       throws Exception {
     return db.getExecutionsBetweenForUser(ownerUserId, start, end);
   }
 
   @Override
-  public SqliteDb.ExecutionHistorySummary executionHistorySummary(LocalDate start, LocalDate end)
+  public ExecutionHistorySummary executionHistorySummary(LocalDate start, LocalDate end)
       throws Exception {
     return db.executionHistorySummaryForUser(ownerUserId, start, end);
   }

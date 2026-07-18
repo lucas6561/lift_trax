@@ -5,9 +5,10 @@ Date: 2026-06-14
 ## Purpose
 
 This document turns the LiftTrax ownership model into the first hosted schema
-shape for Supabase Postgres. It is a design artifact, not a production
-migration. The implementation work remains in `LT-0087`, `LT-0088`, and
-`LT-0092`.
+shape for Supabase Postgres. The implemented core tables now have an ordered
+runtime migration under `shared/postgres/migrations/`; future relationship,
+program, and session tables remain design guidance until their workflows are
+implemented.
 
 The goals are:
 
@@ -16,8 +17,8 @@ The goals are:
 - support a bounded coach-to-lifter program assignment path;
 - keep completed execution history readable even when exercise catalog data
   changes;
-- leave the local SQLite path available until the hosted adapter and Postgres
-  cutover are proven.
+- keep legacy SQLite readable only as an explicit import source and operator
+  snapshot format after the Postgres cutover.
 
 ## Identity root
 
@@ -324,8 +325,8 @@ First hosted migrations should prioritize these indexes:
   `exercise_catalog_entries`, `executions`, and `execution_sets` so core logging
   works against Supabase Postgres.
 - `LT-0088` should implement `local_imports` and the local `lifts.db` mapping.
-- `LT-0092` should turn the Postgres design into primary migrations after the
-  adapter proves the core workflows.
+- `LT-0092` turned the implemented Postgres core into the primary ordered
+  runtime migration and retired SQLite runtime mode.
 - `LT-0076` through `LT-0079` remain relevant locally; hosted execution
   snapshots should not wait until a local catalog split is fully complete.
 - `LT-0091` should export account-scoped rows through lifter ownership and coach

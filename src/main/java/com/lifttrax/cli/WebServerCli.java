@@ -3,7 +3,6 @@ package com.lifttrax.cli;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.config.LiftTraxConfig;
-import com.lifttrax.db.SqliteDb;
 import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.db.TrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
@@ -46,10 +45,12 @@ public final class WebServerCli {
 
   @SuppressWarnings("PMD.CloseResource")
   public static void main(String[] args) throws Exception {
-    String dbPath = DbPathResolver.resolveFromArgsOrDefault(args);
-    int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
+    if (args.length > 1) {
+      throw new IllegalArgumentException("Usage: WebServerCli [port]");
+    }
+    int port = args.length == 1 ? Integer.parseInt(args[0]) : 8080;
 
-    TrainingDataStoreProvider db = TrainingDataStoreProvider.fromEnvironment(dbPath);
+    TrainingDataStoreProvider db = TrainingDataStoreProvider.fromEnvironment();
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
@@ -274,9 +275,7 @@ public final class WebServerCli {
   }
 
   private static String userIdFor(HttpExchange exchange) {
-    return WebAuth.currentUser(exchange)
-        .map(WebAuth.User::id)
-        .orElse(SqliteDb.LEGACY_OWNER_USER_ID);
+    return WebAuth.currentUser(exchange).map(WebAuth.User::id).orElse("local-user");
   }
 
   private static TrainingDataStore databaseFor(HttpExchange exchange, TrainingDataStoreProvider db)

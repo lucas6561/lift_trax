@@ -15,50 +15,6 @@ import org.junit.jupiter.api.Test;
 class DatabaseBackupCliTest {
 
   @Test
-  void backupCliCreatesRequestedOutputFile() throws Exception {
-    Path tempDir = Files.createTempDirectory("lifttrax-backup-cli");
-    Path dbPath = tempDir.resolve("lifts.db");
-    Path backupPath = tempDir.resolve("manual-backup.db");
-    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
-      db.addLift("Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of(), "");
-    }
-
-    String output =
-        captureOutput(
-            () ->
-                BackupDatabaseCli.main(
-                    new String[] {dbPath.toString(), "--output", backupPath.toString()}));
-
-    assertTrue(Files.isRegularFile(backupPath));
-    assertTrue(output.contains("Backup created:"));
-    assertTrue(output.contains("Schema version:"));
-  }
-
-  @Test
-  void restoreCliRestoresIntoRequestedDatabase() throws Exception {
-    Path tempDir = Files.createTempDirectory("lifttrax-restore-cli");
-    Path sourcePath = tempDir.resolve("source.db");
-    Path targetPath = tempDir.resolve("target.db");
-    try (SqliteDb db = new SqliteDb(sourcePath.toString())) {
-      db.addLift("Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of(), "");
-    }
-    try (SqliteDb db = new SqliteDb(targetPath.toString())) {
-      db.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
-    }
-
-    String output =
-        captureOutput(
-            () ->
-                RestoreDatabaseCli.main(
-                    new String[] {
-                      sourcePath.toString(), targetPath.toString(), "--confirm-overwrite"
-                    }));
-
-    assertTrue(output.contains("Restored database:"));
-    assertTrue(output.contains("Previous database saved as:"));
-  }
-
-  @Test
   void hostedImportCliPreviewReportsValidatedSource() throws Exception {
     Path tempDir = Files.createTempDirectory("lifttrax-import-hosted-cli");
     Path sourcePath = tempDir.resolve("source.db");

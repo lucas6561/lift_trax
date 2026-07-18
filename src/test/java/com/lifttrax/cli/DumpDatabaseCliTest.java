@@ -47,7 +47,9 @@ class DumpDatabaseCliTest {
     PrintStream originalOut = System.out;
     try {
       System.setOut(new PrintStream(output));
-      DumpDatabaseCli.main(new String[] {dbPath.toString(), "--lifts-only"});
+      try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+        DumpDatabaseCli.dump(db, true);
+      }
     } finally {
       System.setOut(originalOut);
     }

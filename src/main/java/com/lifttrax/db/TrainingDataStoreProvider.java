@@ -9,14 +9,11 @@ public interface TrainingDataStoreProvider extends AutoCloseable {
   @Override
   default void close() throws Exception {}
 
-  static TrainingDataStoreProvider fromEnvironment(String sqliteDbPath) throws Exception {
-    String mode = LiftTraxConfig.setting("lifttrax.dataStore", "LIFTTRAX_DATA_STORE", "sqlite");
-    if ("hosted-postgres".equalsIgnoreCase(mode) || "postgres".equalsIgnoreCase(mode)) {
-      return HostedPostgresTrainingDataStoreProvider.fromEnvironment();
-    }
-    if (!"sqlite".equalsIgnoreCase(mode)) {
+  static TrainingDataStoreProvider fromEnvironment() throws Exception {
+    String mode = LiftTraxConfig.setting("lifttrax.dataStore", "LIFTTRAX_DATA_STORE", "postgres");
+    if (!"hosted-postgres".equalsIgnoreCase(mode) && !"postgres".equalsIgnoreCase(mode)) {
       throw new IllegalArgumentException("Unsupported lifttrax.dataStore: " + mode);
     }
-    return new SqliteDb(sqliteDbPath);
+    return HostedPostgresTrainingDataStoreProvider.fromEnvironment();
   }
 }
