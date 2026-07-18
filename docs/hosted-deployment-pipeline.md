@@ -24,20 +24,22 @@ Production:
 
 ## Build And Start Commands
 
-Build command:
+Render runtime:
 
-```powershell
-.\gradlew.bat qualityGate installDist
+```text
+Docker
 ```
 
-Start command:
+The repository `Dockerfile` runs the quality gate and creates the application
+distribution during the image build. The container starts `WebServerCli` in
+hosted mode and listens on Render's `PORT` environment variable.
+
+Equivalent local build and start commands:
 
 ```powershell
-.\gradlew.bat runHostedWeb --args="data/lifts.db 8080"
+docker build -t lifttrax-hosted .
+docker run --rm -p 10000:10000 --env-file .env lifttrax-hosted
 ```
-
-If Render invokes Gradle directly, the service should still run the same
-quality gate before producing the deployable distribution.
 
 GitHub Actions workflow:
 
