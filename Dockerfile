@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jdk-jammy AS build
+FROM eclipse-temurin:21-jdk-jammy AS build
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends unzip \
