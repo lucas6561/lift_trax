@@ -59,4 +59,38 @@ class DumpDatabaseCliTest {
     assertFalse(text.contains("2026-03-12:"));
     assertFalse(text.contains("(no executions)"));
   }
+
+  @Test
+  void liftsOnlyOmitsDisabledLiftsUnlessExplicitlyIncluded() throws Exception {
+    Path dbPath = Files.createTempDirectory("lifttrax-dump-disabled").resolve("lifts.db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Enabled Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+      db.addLift("Disabled Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+      db.setLiftEnabled("Disabled Press", false);
+    }
+
+    String defaultOutput;
+    String completeOutput;
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      defaultOutput = captureDump(db, false);
+      completeOutput = captureDump(db, true);
+    }
+
+    assertTrue(defaultOutput.contains("Enabled Press"));
+    assertFalse(defaultOutput.contains("Disabled Press"));
+    assertTrue(completeOutput.contains("Enabled Press"));
+    assertTrue(completeOutput.contains("Disabled Press"));
+  }
+
+  private static String captureDump(SqliteDb db, boolean includeDisabled) throws Exception {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    PrintStream originalOut = System.out;
+    try {
+      System.setOut(new PrintStream(output));
+      DumpDatabaseCli.dump(db, true, includeDisabled);
+    } finally {
+      System.setOut(originalOut);
+    }
+    return output.toString();
+  }
 }

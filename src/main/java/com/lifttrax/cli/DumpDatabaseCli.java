@@ -7,6 +7,7 @@ import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /** Core DumpDatabaseCli component used by LiftTrax. */
@@ -16,12 +17,22 @@ public final class DumpDatabaseCli {
   public static void main(String[] args) throws Exception {
     CliOptions options = parseArgs(args);
     try (TrainingDataStoreProvider provider = TrainingDataStoreProvider.fromEnvironment()) {
-      dump(provider.forUser(options.userId()), options.liftsOnly());
+      dump(provider.forUser(options.userId()), options.liftsOnly(), options.includeDisabled());
     }
   }
 
   static void dump(TrainingDataStore db, boolean liftsOnly) throws Exception {
+    dump(db, liftsOnly, false);
+  }
+
+  static void dump(TrainingDataStore db, boolean liftsOnly, boolean includeDisabled)
+      throws Exception {
     List<Lift> lifts = db.listLifts();
+    if (liftsOnly && !includeDisabled) {
+      Map<String, Boolean> enabledStatuses = db.liftEnabledStatuses();
+      lifts =
+          lifts.stream().filter(lift -> enabledStatuses.getOrDefault(lift.name(), true)).toList();
+    }
     if (lifts.isEmpty()) {
       System.out.println("No lifts found.");
       return;
@@ -44,12 +55,18 @@ public final class DumpDatabaseCli {
 
   private static CliOptions parseArgs(String... args) {
     boolean liftsOnly = false;
+    boolean includeDisabled = false;
     String userId = null;
     int index = 0;
     while (index < args.length) {
       String arg = args[index];
       if ("--lifts-only".equals(arg)) {
         liftsOnly = true;
+        index++;
+        continue;
+      }
+      if ("--include-disabled".equals(arg)) {
+        includeDisabled = true;
         index++;
         continue;
       }
@@ -66,13 +83,10 @@ public final class DumpDatabaseCli {
       }
       throw new IllegalArgumentException("Unexpected argument: " + arg);
     }
-    if (userId == null || userId.isBlank()) {
-      throw new IllegalArgumentException("--user is required.");
-    }
-    return new CliOptions(userId, liftsOnly);
+    return new CliOptions(CliUserResolver.resolve(userId), liftsOnly, includeDisabled);
   }
 
-  private record CliOptions(String userId, boolean liftsOnly) {}
+  private record CliOptions(String userId, boolean liftsOnly, boolean includeDisabled) {}
 
   private static String formatLiftHeader(Lift lift) {
     String main = lift.main() == null ? "" : " [" + lift.main() + "]";

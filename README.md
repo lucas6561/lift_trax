@@ -88,8 +88,24 @@ Wave generation can still save markdown. To export a loadable planned workout
 JSON file instead, use a `.json` output name:
 
 ```bash
-./gradlew generateWave --args='--user local-user 4 planned-workout.json'
+./gradlew generateWave --args='4 planned-workout.json'
 ```
+
+User-scoped local CLI commands read their default account from an optional,
+machine-specific config. Copy
+`config/lifttrax-local.override.example.properties` to
+`config/lifttrax-local.override.properties` and set:
+
+```properties
+lifttrax.config.include=lifttrax-hosted.properties
+lifttrax.cli.userId=your-user-id
+```
+
+The override file is ignored by Git and layered over
+`config/lifttrax-local.properties`. The include reuses the JDBC URL, username,
+and password from the existing ignored `config/lifttrax-hosted.properties`, so
+credentials are not duplicated. Passing `--user <id>` or setting
+`LIFTTRAX_CLI_USER_ID` still overrides the local default.
 
 ## Database schema migrations
 
@@ -144,10 +160,18 @@ requiring every workout package to be mutation-clean immediately.
 From the repository root:
 
 ```bash
-./gradlew run --args='--user local-user --lifts-only'
+./gradlew run --args='--lifts-only'
 ```
 
-This prints lift/exercise metadata (name, region, main lift type, muscles, notes) and skips execution history.
+This uses the locally configured CLI user and prints lift/exercise metadata
+(name, region, main lift type, muscles, notes) without execution history.
+Disabled lifts are omitted by default. Include the entire catalog with:
+
+```bash
+./gradlew run --args='--lifts-only --include-disabled'
+```
+
+Use `--user <id>` to select a different account for one invocation.
 
 ## Database backups
 

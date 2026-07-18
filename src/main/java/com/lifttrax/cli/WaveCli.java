@@ -69,10 +69,7 @@ public final class WaveCli {
         throw new IllegalArgumentException("Unexpected argument: " + arg);
       }
     }
-    if (userId == null || userId.isBlank()) {
-      throw new IllegalArgumentException("--user is required.");
-    }
-    return new Options(userId, weeks, output);
+    return new Options(CliUserResolver.resolve(userId), weeks, output);
   }
 
   private record Options(String userId, int weeks, String output) {}
