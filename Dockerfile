@@ -11,7 +11,7 @@ RUN ./gradlew --no-daemon qualityGate installDist
 FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
-COPY --from=build /app/build/install/lift_trax /app/lift_trax
+COPY --from=build /app/build/install/lift-trax-java /app/lift_trax
 COPY config/lifttrax-hosted.example.properties /app/config/lifttrax-hosted.properties
 
 ENV PORT=10000
