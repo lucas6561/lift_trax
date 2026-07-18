@@ -1,13 +1,13 @@
 ---
 id: LT-0095
 title: Add offline workout-session drafts
-status: idea
+status: doing
 track: interface
-priority: medium
+priority: critical
 effort: large
 created: 2026-06-15
-updated: 2026-06-15
-owner: unassigned
+updated: 2026-07-18
+owner: codex
 depends_on: [LT-0089, LT-0086, LT-0087]
 ---
 
@@ -44,3 +44,14 @@ sync it deliberately when the hosted server is reachable.
 
 Build this after the hosted persistence adapter is available so the final sync
 path uses the same authorization checks as normal hosted logging.
+
+2026-07-18 implementation slice:
+
+- Free hosting is a product constraint, and Render can sleep during a workout.
+- An active workout must survive at least 2.5 hours of server inactivity,
+  browser refresh/interruption, and a cold server at final submission without
+  losing entered progress.
+- The first slice scopes browser drafts to the authenticated user, exposes
+  unsynced status, wakes the server before final submission, and retries a save
+  while retaining the local draft until the server confirms success.
+- Keep this card open for explicit conflict detection and discard controls.

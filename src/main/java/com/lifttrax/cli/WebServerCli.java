@@ -77,6 +77,7 @@ public final class WebServerCli {
         server, "/offline.html", Set.of("GET"), WebServerCli::handleOffline);
     WebRequestSecurity.register(
         server, "/pwa-icon.svg", Set.of("GET"), WebServerCli::handlePwaIcon);
+    WebRequestSecurity.register(server, "/health", Set.of("GET"), WebServerCli::handleHealth);
     WebRequestSecurity.register(server, "/auth/login", Set.of("GET"), auth::handleLogin);
     WebRequestSecurity.register(server, "/auth/dev-login", Set.of("POST"), auth::handleDevLogin);
     WebRequestSecurity.register(server, "/auth/callback", Set.of("GET"), auth::handleCallback);
@@ -268,11 +269,19 @@ public final class WebServerCli {
             """);
   }
 
+  private static void handleHealth(HttpExchange exchange) throws IOException {
+    sendText(exchange, 200, "ok");
+  }
+
+  private static String userIdFor(HttpExchange exchange) {
+    return WebAuth.currentUser(exchange)
+        .map(WebAuth.User::id)
+        .orElse(SqliteDb.LEGACY_OWNER_USER_ID);
+  }
+
   private static TrainingDataStore databaseFor(HttpExchange exchange, TrainingDataStoreProvider db)
       throws Exception {
-    String userId =
-        WebAuth.currentUser(exchange).map(WebAuth.User::id).orElse(SqliteDb.LEGACY_OWNER_USER_ID);
-    return db.forUser(userId);
+    return db.forUser(userIdFor(exchange));
   }
 
   private static void handleIndex(HttpExchange exchange, TrainingDataStoreProvider rootDb)
@@ -808,7 +817,13 @@ public final class WebServerCli {
           WebHtml.wrapPage(
               "Train " + dayOfWeek,
               PlannedWorkoutSessionHtml.renderPage(
-                  workoutFile, weekNumber, dayOfWeek, lifts, LocalDate.now(), db)));
+                  workoutFile,
+                  weekNumber,
+                  dayOfWeek,
+                  lifts,
+                  LocalDate.now(),
+                  db,
+                  userIdFor(exchange))));
     } catch (Exception e) {
       sendPlannedWorkoutError(exchange, "Could not start workout", e);
     }
@@ -856,7 +871,8 @@ public final class WebServerCli {
                   summary,
                   previouslyLoggedCount,
                   previouslySkippedExercises,
-                  previouslySkippedSets)));
+                  previouslySkippedSets,
+                  userIdFor(exchange))));
     } catch (Exception e) {
       sendPlannedWorkoutError(exchange, "Could not save workout", e);
     }

@@ -33,6 +33,17 @@ final class PlannedWorkoutSessionHtml {
       List<Lift> localLifts,
       LocalDate date,
       Database db) {
+    return renderPage(workoutFile, weekNumber, dayOfWeek, localLifts, date, db, "local-user");
+  }
+
+  static String renderPage(
+      PlannedWorkoutFile workoutFile,
+      int weekNumber,
+      String dayOfWeek,
+      List<Lift> localLifts,
+      LocalDate date,
+      Database db,
+      String ownerUserId) {
     PlannedWorkoutFile.PlannedWorkoutDay day =
         PlannedWorkoutSessionService.findDay(workoutFile, weekNumber, dayOfWeek);
     StringBuilder html = new StringBuilder();
@@ -49,7 +60,7 @@ final class PlannedWorkoutSessionHtml {
     appendNotes(html, day.notes());
     html.append(
             "<form method='post' action='/save-planned-workout-session' class='planned-session-form' data-draft-key='")
-        .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek)))
+        .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek, ownerUserId)))
         .append("'>")
         .append("<input type='hidden' name='plannedWorkoutJson' value='")
         .append(WebHtml.escapeHtml(writeWorkoutJson(workoutFile)))
@@ -93,6 +104,10 @@ final class PlannedWorkoutSessionHtml {
     html.append("<button type='submit' class='save-workout-session-btn")
         .append(day.blocks().size() > 1 ? " is-hidden" : "")
         .append("'>Save Completed Workout</button>")
+        .append(
+            "<button type='button' class='secondary save-workout-session-btn js-session-sync-retry is-hidden'>Retry Save</button>")
+        .append(
+            "<p class='status muted js-session-sync-status' role='status'>Draft saved on this device.</p>")
         .append("</form>");
     appendScript(html);
     return html.toString();
@@ -116,6 +131,28 @@ final class PlannedWorkoutSessionHtml {
       int previouslyLoggedCount,
       int previouslySkippedExercises,
       int previouslySkippedSets) {
+    return renderSavedPage(
+        workoutFile,
+        weekNumber,
+        dayOfWeek,
+        date,
+        summary,
+        previouslyLoggedCount,
+        previouslySkippedExercises,
+        previouslySkippedSets,
+        "local-user");
+  }
+
+  static String renderSavedPage(
+      PlannedWorkoutFile workoutFile,
+      int weekNumber,
+      String dayOfWeek,
+      LocalDate date,
+      PlannedWorkoutSessionService.SaveSummary summary,
+      int previouslyLoggedCount,
+      int previouslySkippedExercises,
+      int previouslySkippedSets,
+      String ownerUserId) {
     PlannedWorkoutFile.PlannedWorkoutDay day =
         PlannedWorkoutSessionService.findDay(workoutFile, weekNumber, dayOfWeek);
     int totalLogged = previouslyLoggedCount + summary.loggedExecutionCount();
@@ -162,15 +199,18 @@ final class PlannedWorkoutSessionHtml {
         .append(
             "<a class='compact-btn secondary' href='/?tab=import-workout'>Import Another Workout</a></p>");
     html.append("<script>localStorage.removeItem('")
-        .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek)))
+        .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek, ownerUserId)))
         .append("');</script>");
     return html.toString();
   }
 
-  private static String draftKey(PlannedWorkoutFile workoutFile, int weekNumber, String dayOfWeek) {
+  private static String draftKey(
+      PlannedWorkoutFile workoutFile, int weekNumber, String dayOfWeek, String ownerUserId) {
     String sourceTime =
         workoutFile.source().generatedAt() == null ? "" : workoutFile.source().generatedAt();
     return "lifttrax:planned-session:"
+        + Integer.toHexString(String.valueOf(ownerUserId).hashCode())
+        + ":"
         + Integer.toHexString(
             (workoutFile.metadata().name() + "|" + sourceTime + "|" + weekNumber + "|" + dayOfWeek)
                 .hashCode());
@@ -460,9 +500,12 @@ final class PlannedWorkoutSessionHtml {
             const blockTitle = form.querySelector('.js-session-block-title');
             const blockProgress = form.querySelector('.js-session-block-progress');
             const blockSaveStatus = form.querySelector('.js-session-block-save-status');
+            const syncStatus = form.querySelector('.js-session-sync-status');
+            const syncRetry = form.querySelector('.js-session-sync-retry');
             const draftKey = form.dataset.draftKey || '';
             let currentBlockIndex = 0;
             let restoringDraft = false;
+            let finalSyncRunning = false;
             const savedBlockIndexes = new Set();
             const skippedBlockIndexes = new Set();
 
@@ -472,6 +515,17 @@ final class PlannedWorkoutSessionHtml {
               }
               blockSaveStatus.textContent = message || '';
               blockSaveStatus.classList.toggle('error', Boolean(isError));
+            }
+
+            function setSyncStatus(message, isError, showRetry) {
+              if (syncStatus) {
+                syncStatus.textContent = message || '';
+                syncStatus.classList.toggle('error', Boolean(isError));
+                syncStatus.classList.toggle('muted', !isError);
+              }
+              if (syncRetry) {
+                syncRetry.classList.toggle('is-hidden', !showRetry);
+              }
             }
 
             function setBlockLocked(block, locked) {
@@ -940,6 +994,9 @@ final class PlannedWorkoutSessionHtml {
               }
               try {
                 const draft = {
+                  version: 2,
+                  updatedAt: new Date().toISOString(),
+                  pendingSync: finalSyncRunning,
                   currentBlockIndex,
                   savedBlockIndexes: Array.from(savedBlockIndexes),
                   skippedBlockIndexes: Array.from(skippedBlockIndexes),
@@ -950,6 +1007,9 @@ final class PlannedWorkoutSessionHtml {
                   exercises: Array.from(form.querySelectorAll('.session-exercise')).map((card) => collectExerciseDraft(card))
                 };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
+                if (!finalSyncRunning) {
+                  setSyncStatus('Draft saved on this device.', false, false);
+                }
               } catch (error) {
                 // A blocked or full browser storage area should not interrupt training.
               }
@@ -997,6 +1057,11 @@ final class PlannedWorkoutSessionHtml {
               setHiddenValue('.js-session-saved-skipped-sets', draft.savedSessionSkippedSets);
               skipBlock.disabled = blockHandled(currentBlockIndex);
               setBlockSaveStatus(blockStatus(currentBlockIndex), false);
+              if (draft.pendingSync) {
+                setSyncStatus('Unsynced workout recovered. Save again to finish syncing.', true, true);
+              } else {
+                setSyncStatus('Draft restored from this device.', false, false);
+              }
               restoringDraft = false;
             }
 
@@ -1185,13 +1250,19 @@ final class PlannedWorkoutSessionHtml {
               const params = new URLSearchParams(new FormData(form));
               params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)));
               nextBlock.disabled = true;
-              setBlockSaveStatus('Saving block...', false);
+              setBlockSaveStatus('Waking server... Your draft is safe on this device.', false);
               try {
-                const response = await fetch('/save-planned-workout-block', {
-                  method: 'POST',
-                  headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                  body: params
-                });
+                await wakeServer();
+                setBlockSaveStatus('Saving block...', false);
+                const response = await fetchWithTimeout(
+                  '/save-planned-workout-block',
+                  {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: params,
+                    credentials: 'same-origin'
+                  },
+                  90000);
                 let payload = {};
                 try {
                   payload = await response.json();
@@ -1274,12 +1345,112 @@ final class PlannedWorkoutSessionHtml {
             });
             restoreDraft();
 
-            form.addEventListener('submit', () => {
+            function prepareFinalResults() {
               const results = blocks.flatMap((block, index) => {
                 return blockHandled(index) ? [] : collectBlockResults(block);
               });
               form.querySelector('.js-session-results').value = JSON.stringify(results);
+            }
+
+            function delay(milliseconds) {
+              return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+            }
+
+            async function fetchWithTimeout(url, options, timeoutMilliseconds) {
+              const controller = new AbortController();
+              const timeout = window.setTimeout(() => controller.abort(), timeoutMilliseconds);
+              try {
+                return await fetch(url, {...options, signal: controller.signal});
+              } finally {
+                window.clearTimeout(timeout);
+              }
+            }
+
+            async function wakeServer() {
+              let lastError = null;
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                setSyncStatus(`Waking server (${attempt}/3)... Your draft is safe on this device.`, false, false);
+                try {
+                  const response = await fetchWithTimeout(
+                    `/health?wake=${Date.now()}`,
+                    {method: 'GET', cache: 'no-store', credentials: 'same-origin'},
+                    90000);
+                  if (response.ok && (await response.text()).trim() === 'ok') {
+                    return;
+                  }
+                  lastError = new Error('The server is not ready yet.');
+                } catch (error) {
+                  lastError = error;
+                }
+                await delay(3000 * attempt);
+              }
+              throw lastError || new Error('Could not wake the server.');
+            }
+
+            async function postCompletedWorkout() {
+              const params = new URLSearchParams(new FormData(form));
+              let lastError = null;
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                setSyncStatus(`Saving workout (${attempt}/3)...`, false, false);
+                try {
+                  const response = await fetchWithTimeout(
+                    form.action,
+                    {
+                      method: 'POST',
+                      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                      body: params,
+                      credentials: 'same-origin'
+                    },
+                    90000);
+                  const responseHtml = await response.text();
+                  if (!response.ok || !responseHtml.includes('Workout Saved')) {
+                    throw new Error('The server did not confirm that the workout was saved.');
+                  }
+                  localStorage.removeItem(draftKey);
+                  document.open();
+                  document.write(responseHtml);
+                  document.close();
+                  return;
+                } catch (error) {
+                  lastError = error;
+                  if (attempt < 3) {
+                    await delay(3000 * attempt);
+                    await wakeServer();
+                  }
+                }
+              }
+              throw lastError || new Error('Could not save the workout.');
+            }
+
+            async function syncCompletedWorkout() {
+              if (finalSyncRunning) {
+                return;
+              }
+              finalSyncRunning = true;
+              saveWorkout.disabled = true;
+              prepareFinalResults();
+              persistDraft();
+              try {
+                await wakeServer();
+                await postCompletedWorkout();
+              } catch (error) {
+                finalSyncRunning = false;
+                saveWorkout.disabled = false;
+                persistDraft();
+                setSyncStatus(
+                  `${error.message || 'Could not sync the workout.'} Your draft is still saved on this device.`,
+                  true,
+                  true);
+              }
+            }
+
+            form.addEventListener('submit', (event) => {
+              event.preventDefault();
+              syncCompletedWorkout();
             });
+            syncRetry.addEventListener('click', syncCompletedWorkout);
+            window.setInterval(() => persistDraft(), 30000);
+            window.addEventListener('pagehide', () => persistDraft());
           })();
         </script>
         """);

@@ -75,6 +75,16 @@ class WebServerCliTest {
   }
 
   @Test
+  void healthEndpointIsLightweightAndDatabaseIndependent() throws Exception {
+    TestExchange exchange = TestExchange.get("/health");
+
+    invokeStaticHandler("handleHealth", exchange);
+
+    assertEquals(200, exchange.status());
+    assertEquals("ok", exchange.responseBody());
+  }
+
+  @Test
   void securedRouteRejectsMissingCsrfForPost() throws Exception {
     TestExchange exchange = TestExchange.post("/add-execution", form("lift", "Back Squat"));
 
