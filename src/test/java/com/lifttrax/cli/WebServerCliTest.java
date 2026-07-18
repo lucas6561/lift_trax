@@ -297,6 +297,28 @@ class WebServerCliTest {
   }
 
   @Test
+  void supabaseLoginUsesPkceWithoutOverridingProviderState() throws Exception {
+    WebAuth auth =
+        WebAuth.supabaseForTest(Clock.fixed(Instant.parse("2026-06-14T12:00:00Z"), ZoneOffset.UTC));
+    TestExchange exchange = TestExchange.get("/auth/login");
+
+    auth.handleLogin(exchange);
+
+    assertEquals(303, exchange.status());
+    assertTrue(exchange.location().startsWith("https://example.supabase.co/auth/v1/authorize?"));
+    assertTrue(exchange.location().contains("provider=github"));
+    assertTrue(exchange.location().contains("code_challenge="));
+    assertTrue(exchange.location().contains("code_challenge_method=s256"));
+    assertFalse(exchange.location().contains("state="));
+    assertTrue(
+        exchange.responseHeaders.get("Set-Cookie").stream()
+            .anyMatch(cookie -> cookie.startsWith("lt_pkce_verifier=")));
+    assertFalse(
+        exchange.responseHeaders.get("Set-Cookie").stream()
+            .anyMatch(cookie -> cookie.startsWith("lt_oauth_state=")));
+  }
+
+  @Test
   void loadLastNoPriorRedirectPreservesAddExecutionPrefill() throws Exception {
     Method method =
         WebServerCli.class.getDeclaredMethod(

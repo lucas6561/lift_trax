@@ -30,7 +30,6 @@ final class WebAuth {
   static final String SESSION_COOKIE_NAME = "lt_session";
 
   private static final String USER_ATTRIBUTE = "lifttrax.currentUser";
-  private static final String STATE_COOKIE_NAME = "lt_oauth_state";
   private static final String VERIFIER_COOKIE_NAME = "lt_pkce_verifier";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -88,6 +87,20 @@ final class WebAuth {
             "",
             "github",
             "http://localhost:8080/auth/callback",
+            clock),
+        new SupabaseTokenExchanger());
+  }
+
+  static WebAuth supabaseForTest(Clock clock) {
+    return new WebAuth(
+        new Config(
+            AuthMode.SUPABASE,
+            "lifttrax-test-session-secret",
+            true,
+            "https://example.supabase.co",
+            "test-anon-key",
+            "github",
+            "https://lifttrax.example/auth/callback",
             clock),
         new SupabaseTokenExchanger());
   }
@@ -176,8 +189,7 @@ final class WebAuth {
       return;
     }
     String code = query.getOrDefault("code", "").trim();
-    String state = query.getOrDefault("state", "").trim();
-    if (code.isBlank() || !state.equals(cookie(exchange, STATE_COOKIE_NAME))) {
+    if (code.isBlank()) {
       sendAuthFailure(exchange, 400);
       return;
     }
@@ -191,7 +203,6 @@ final class WebAuth {
       User user = userFromAccessToken(tokens.accessToken());
       Instant expiresAt = config.clock().instant().plusSeconds(Math.max(60, tokens.expiresIn()));
       setSessionCookie(exchange, user, expiresAt);
-      clearCookie(exchange, STATE_COOKIE_NAME);
       clearCookie(exchange, VERIFIER_COOKIE_NAME);
       redirect(exchange, "/");
     } catch (Exception ignored) {
@@ -230,10 +241,8 @@ final class WebAuth {
       sendAuthFailure(exchange, 500);
       return;
     }
-    String state = randomToken();
     String verifier = randomToken();
     String challenge = codeChallenge(verifier);
-    addCookie(exchange, STATE_COOKIE_NAME, state, OAUTH_COOKIE_DURATION);
     addCookie(exchange, VERIFIER_COOKIE_NAME, verifier, OAUTH_COOKIE_DURATION);
     String location =
         normalizedSupabaseUrl()
@@ -243,9 +252,7 @@ final class WebAuth {
             + urlEncode(config.redirectUri())
             + "&code_challenge="
             + urlEncode(challenge)
-            + "&code_challenge_method=s256"
-            + "&state="
-            + urlEncode(state);
+            + "&code_challenge_method=s256";
     redirect(exchange, location);
   }
 
