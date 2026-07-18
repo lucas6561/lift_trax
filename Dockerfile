@@ -1,5 +1,9 @@
 FROM eclipse-temurin:17-jdk-jammy AS build
 
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY . .
 RUN ./gradlew --no-daemon qualityGate installDist
