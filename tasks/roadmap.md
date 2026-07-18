@@ -118,7 +118,8 @@ Hosted web app path:
 6. `LT-0086`: Enforce user-scoped authorization.
 7. `LT-0087`: Build hosted persistence adapter for Supabase Postgres.
 8. `LT-0088`: Import local database to hosted account.
-9. `LT-0092`: Port primary database to Postgres.
+9. `LT-0092`: Make Postgres the sole runtime database and add an on-demand
+   Postgres-to-SQLite operator backup.
 10. `LT-0089`: Define PWA and offline boundaries.
 11. `LT-0090`: Create hosted deployment pipeline.
 12. `LT-0091`: Add hosted backup and export controls.
