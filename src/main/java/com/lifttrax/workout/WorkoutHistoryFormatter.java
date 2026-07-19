@@ -29,8 +29,13 @@ public final class WorkoutHistoryFormatter {
   public static String lastExecutionSummary(
       Database db, String liftName, boolean warmup, SetMetric metric, boolean includeDeload)
       throws Exception {
+    return lastExecutionSummary(db.getExecutions(liftName), warmup, metric, includeDeload);
+  }
+
+  public static String lastExecutionSummary(
+      List<LiftExecution> liftExecutions, boolean warmup, SetMetric metric, boolean includeDeload) {
     List<LiftExecution> executions =
-        db.getExecutions(liftName).stream()
+        liftExecutions.stream()
             .filter(e -> e.warmup() == warmup && (includeDeload || !e.deload()))
             .sorted(
                 Comparator.comparing(LiftExecution::date)
@@ -54,9 +59,13 @@ public final class WorkoutHistoryFormatter {
   }
 
   public static String bestOneRepMax(Database db, String liftName) throws Exception {
+    return bestOneRepMax(db.getExecutions(liftName));
+  }
+
+  public static String bestOneRepMax(List<LiftExecution> executions) {
     String bestWeight = null;
     double bestWeightLbs = 0.0;
-    for (LiftExecution exec : db.getExecutions(liftName)) {
+    for (LiftExecution exec : executions) {
       if (exec.warmup()) {
         continue;
       }
@@ -78,7 +87,7 @@ public final class WorkoutHistoryFormatter {
 
   public static String percentageOfBestOneRepMax(Database db, String liftName, double percent)
       throws Exception {
-    BestOneRepMax best = bestOneRepMaxValue(db, liftName);
+    BestOneRepMax best = bestOneRepMaxValue(db.getExecutions(liftName));
     if (best == null) {
       return null;
     }
@@ -90,21 +99,32 @@ public final class WorkoutHistoryFormatter {
     if (db == null || target == null) {
       return null;
     }
+    if (targetPercent(target) == null) {
+      return null;
+    }
+    return suggestedWeight(db.getExecutions(liftName), target);
+  }
+
+  public static String suggestedWeight(
+      List<LiftExecution> executions, PlannedWorkoutFile.PlannedSetTarget target) {
+    if (target == null) {
+      return null;
+    }
     Double targetPercent = targetPercent(target);
     if (targetPercent == null) {
       return null;
     }
-    BestOneRepMax base = trainingMaxValue(db, liftName);
+    BestOneRepMax base = trainingMaxValue(executions);
     if (base == null) {
       return null;
     }
     return formatPercentage(base.weightLbs(), targetPercent);
   }
 
-  private static BestOneRepMax bestOneRepMaxValue(Database db, String liftName) throws Exception {
+  private static BestOneRepMax bestOneRepMaxValue(List<LiftExecution> executions) {
     String bestWeight = null;
     double bestWeightLbs = 0.0;
-    for (LiftExecution exec : db.getExecutions(liftName)) {
+    for (LiftExecution exec : executions) {
       if (exec.warmup()) {
         continue;
       }
@@ -124,14 +144,14 @@ public final class WorkoutHistoryFormatter {
     return bestWeight == null ? null : new BestOneRepMax(bestWeightLbs);
   }
 
-  private static BestOneRepMax trainingMaxValue(Database db, String liftName) throws Exception {
-    BestOneRepMax trueOneRepMax = bestOneRepMaxValue(db, liftName);
+  private static BestOneRepMax trainingMaxValue(List<LiftExecution> executions) {
+    BestOneRepMax trueOneRepMax = bestOneRepMaxValue(executions);
     if (trueOneRepMax != null) {
       return trueOneRepMax;
     }
 
     HistoricalSet fallback = null;
-    for (LiftExecution exec : db.getExecutions(liftName)) {
+    for (LiftExecution exec : executions) {
       if (exec.warmup()) {
         continue;
       }

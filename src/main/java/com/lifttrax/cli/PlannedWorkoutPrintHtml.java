@@ -10,6 +10,7 @@ final class PlannedWorkoutPrintHtml {
   private PlannedWorkoutPrintHtml() {}
 
   static String renderPage(PlannedWorkoutFile workoutFile, Database db) {
+    PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, workoutFile);
     StringBuilder html = new StringBuilder();
     html.append(
             """
@@ -68,7 +69,7 @@ final class PlannedWorkoutPrintHtml {
           .append(week.weekNumber())
           .append("</h2>");
       for (PlannedWorkoutFile.PlannedWorkoutDay day : week.days()) {
-        appendDay(html, day, db);
+        appendDay(html, day, history);
       }
       html.append("</section>");
     }
@@ -76,7 +77,9 @@ final class PlannedWorkoutPrintHtml {
   }
 
   private static void appendDay(
-      StringBuilder html, PlannedWorkoutFile.PlannedWorkoutDay day, Database db) {
+      StringBuilder html,
+      PlannedWorkoutFile.PlannedWorkoutDay day,
+      PlannedWorkoutHistory.Snapshot history) {
     html.append("<section class='print-day'><h3>")
         .append(WebHtml.escapeHtml(day.title()))
         .append("</h3>");
@@ -89,7 +92,7 @@ final class PlannedWorkoutPrintHtml {
           .append("</span></div>");
       appendNotes(html, block.notes());
       for (PlannedWorkoutFile.PlannedExercise exercise : block.exercises()) {
-        appendExercise(html, block, exercise, db);
+        appendExercise(html, block, exercise, history);
       }
       html.append("</article>");
     }
@@ -100,7 +103,7 @@ final class PlannedWorkoutPrintHtml {
       StringBuilder html,
       PlannedWorkoutFile.PlannedWorkoutBlock block,
       PlannedWorkoutFile.PlannedExercise exercise,
-      Database db) {
+      PlannedWorkoutHistory.Snapshot history) {
     html.append("<div class='print-exercise'><div><strong>")
         .append(WebHtml.escapeHtml(exercise.name()))
         .append("</strong>");
@@ -114,17 +117,17 @@ final class PlannedWorkoutPrintHtml {
         .append(WebHtml.escapeHtml(PlannedWorkoutText.plannedSets(exercise.plannedSets())))
         .append("</div>");
 
-    PlannedWorkoutHistory.Summary history = PlannedWorkoutHistory.lookup(db, block, exercise);
+    PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
     StringBuilder extra = new StringBuilder();
     appendExtra(extra, "Notes", exercise.notes());
     appendExtra(
         extra,
         "Suggested",
-        PlannedWorkoutText.loadSuggestions(db, exercise.name(), exercise.plannedSets()));
-    appendExtra(extra, "Last", history.last());
-    appendExtra(extra, "Best 1RM", history.bestOneRepMax());
+        PlannedWorkoutText.loadSuggestions(history, exercise.name(), exercise.plannedSets()));
+    appendExtra(extra, "Last", summary.last());
+    appendExtra(extra, "Best 1RM", summary.bestOneRepMax());
     appendExtra(extra, "Swap options", String.join(", ", exercise.substitutionOptions()));
-    if (history.unavailable()) {
+    if (summary.unavailable()) {
       appendExtra(extra, "History", "unavailable");
     }
     if (!extra.isEmpty()) {

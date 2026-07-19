@@ -1,5 +1,6 @@
 package com.lifttrax.cli;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,8 +15,10 @@ import com.lifttrax.workout.PlannedWorkoutFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class WebUiRendererTest {
@@ -523,6 +526,28 @@ class WebUiRendererTest {
     assertTrue(html.contains("class='print-week'"));
     assertTrue(html.contains("class='print-target'"));
     assertFalse(html.contains("data-theme='dark'"));
+  }
+
+  @Test
+  void plannedWorkoutPrintLoadsHistoryInOneBatch() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        com.lifttrax.workout.PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v2.json"));
+    Path dbPath = Files.createTempFile("lifttrax-print-history-batch", ".db");
+    AtomicInteger batchLoads = new AtomicInteger();
+    try (SqliteDb db =
+        new SqliteDb(dbPath.toString()) {
+          @Override
+          public Map<String, List<LiftExecution>> getExecutionsByLift(Collection<String> liftNames)
+              throws Exception {
+            batchLoads.incrementAndGet();
+            return super.getExecutionsByLift(liftNames);
+          }
+        }) {
+      PlannedWorkoutPrintHtml.renderPage(workoutFile, db);
+    }
+
+    assertEquals(1, batchLoads.get());
   }
 
   private static LiftExecution execution(LocalDate date, boolean warmup) {

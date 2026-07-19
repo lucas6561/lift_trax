@@ -6,7 +6,10 @@ import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Contract for Database behavior used by other LiftTrax components. */
 public interface Database {
@@ -31,6 +34,17 @@ public interface Database {
   boolean isLiftEnabled(String name) throws Exception;
 
   List<LiftExecution> getExecutions(String liftName) throws Exception;
+
+  default Map<String, List<LiftExecution>> getExecutionsByLift(Collection<String> liftNames)
+      throws Exception {
+    Map<String, List<LiftExecution>> executionsByLift = new LinkedHashMap<>();
+    for (String liftName : liftNames) {
+      if (!executionsByLift.containsKey(liftName)) {
+        executionsByLift.put(liftName, getExecutions(liftName));
+      }
+    }
+    return executionsByLift;
+  }
 
   void updateLiftExecution(int execId, LiftExecution execution) throws Exception;
 

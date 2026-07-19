@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.function.Function;
 
 /** Shared human-readable formatting for planned-workout display formats. */
 public final class PlannedWorkoutText {
@@ -61,6 +62,22 @@ public final class PlannedWorkoutText {
     if (db == null || sets.isEmpty()) {
       return "";
     }
+    return loadSuggestions(sets, target -> suggestedWeight(db, liftName, target));
+  }
+
+  public static String loadSuggestions(
+      PlannedWorkoutHistory.Snapshot history,
+      String liftName,
+      List<PlannedWorkoutFile.PlannedSetTarget> sets) {
+    if (history == null || sets.isEmpty()) {
+      return "";
+    }
+    return loadSuggestions(sets, target -> history.suggestedWeight(liftName, target));
+  }
+
+  private static String loadSuggestions(
+      List<PlannedWorkoutFile.PlannedSetTarget> sets,
+      Function<PlannedWorkoutFile.PlannedSetTarget, String> suggestion) {
     List<String> groups = new ArrayList<>();
     int index = 0;
     while (index < sets.size()) {
@@ -69,7 +86,7 @@ public final class PlannedWorkoutText {
       while (index + count < sets.size() && samePlannedTarget(target, sets.get(index + count))) {
         count++;
       }
-      String suggested = suggestedWeight(db, liftName, target);
+      String suggested = suggestion.apply(target);
       if (!suggested.isBlank()) {
         groups.add(count > 1 ? count + "x " + suggested : suggested);
       }

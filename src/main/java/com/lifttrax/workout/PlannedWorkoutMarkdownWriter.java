@@ -9,6 +9,7 @@ public final class PlannedWorkoutMarkdownWriter {
   private PlannedWorkoutMarkdownWriter() {}
 
   public static List<String> createMarkdown(PlannedWorkoutFile workoutFile, Database db) {
+    PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, workoutFile);
     List<String> lines = new ArrayList<>();
     lines.add("# " + workoutFile.metadata().name());
     if (!workoutFile.metadata().description().isBlank()) {
@@ -33,7 +34,7 @@ public final class PlannedWorkoutMarkdownWriter {
         appendNotes(lines, day.notes(), "");
         lines.add("");
         for (PlannedWorkoutFile.PlannedWorkoutBlock block : day.blocks()) {
-          appendBlock(lines, block, db);
+          appendBlock(lines, block, history);
         }
       }
     }
@@ -41,7 +42,9 @@ public final class PlannedWorkoutMarkdownWriter {
   }
 
   private static void appendBlock(
-      List<String> lines, PlannedWorkoutFile.PlannedWorkoutBlock block, Database db) {
+      List<String> lines,
+      PlannedWorkoutFile.PlannedWorkoutBlock block,
+      PlannedWorkoutHistory.Snapshot history) {
     lines.add("#### " + block.title());
     lines.add("*" + PlannedWorkoutText.blockMeta(block) + "*");
     appendNotes(lines, block.notes(), "");
@@ -60,18 +63,18 @@ public final class PlannedWorkoutMarkdownWriter {
         lines.add("  - Notes: " + exercise.notes());
       }
       String suggestions =
-          PlannedWorkoutText.loadSuggestions(db, exercise.name(), exercise.plannedSets());
+          PlannedWorkoutText.loadSuggestions(history, exercise.name(), exercise.plannedSets());
       if (!suggestions.isBlank()) {
         lines.add("  - Suggested: " + suggestions);
       }
-      PlannedWorkoutHistory.Summary history = PlannedWorkoutHistory.lookup(db, block, exercise);
-      if (history.last() != null) {
-        lines.add("  - Last: " + history.last());
+      PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
+      if (summary.last() != null) {
+        lines.add("  - Last: " + summary.last());
       }
-      if (history.bestOneRepMax() != null) {
-        lines.add("  - Best 1RM: " + history.bestOneRepMax());
+      if (summary.bestOneRepMax() != null) {
+        lines.add("  - Best 1RM: " + summary.bestOneRepMax());
       }
-      if (history.unavailable()) {
+      if (summary.unavailable()) {
         lines.add("  - History unavailable.");
       }
       if (!exercise.substitutionOptions().isEmpty()) {

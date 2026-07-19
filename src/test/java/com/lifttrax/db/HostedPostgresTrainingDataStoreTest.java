@@ -20,6 +20,7 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class HostedPostgresTrainingDataStoreTest {
@@ -61,6 +62,38 @@ class HostedPostgresTrainingDataStoreTest {
             .count());
     assertEquals(
         1, userA.getExecutionsBetween(LocalDate.of(2026, 6, 10), LocalDate.of(2026, 6, 20)).size());
+  }
+
+  @Test
+  void hostedAdapterLoadsMultipleExecutionHistoriesInOneBatch() throws Exception {
+    TrainingDataStore store = provider().forUser("batch-user");
+    store.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+    store.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+    store.addLiftExecution(
+        "Bench Press",
+        new LiftExecution(
+            null,
+            LocalDate.of(2026, 7, 17),
+            List.of(new ExecutionSet(new SetMetric.Reps(1), "315 lb", null)),
+            false,
+            false,
+            "bench"));
+    store.addLiftExecution(
+        "Back Squat",
+        new LiftExecution(
+            null,
+            LocalDate.of(2026, 7, 18),
+            List.of(new ExecutionSet(new SetMetric.Reps(3), "405 lb", 8.0f)),
+            false,
+            false,
+            "squat"));
+
+    Map<String, List<LiftExecution>> executionsByLift =
+        store.getExecutionsByLift(List.of("Bench Press", "Back Squat", "Missing Lift"));
+
+    assertEquals("bench", executionsByLift.get("Bench Press").get(0).notes());
+    assertEquals("squat", executionsByLift.get("Back Squat").get(0).notes());
+    assertTrue(executionsByLift.get("Missing Lift").isEmpty());
   }
 
   @Test

@@ -14,8 +14,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -216,27 +219,49 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
 
   @Override
   public List<LiftExecution> getExecutions(String liftName) throws Exception {
+    return getExecutionsByLift(List.of(liftName)).getOrDefault(liftName, List.of());
+  }
+
+  @Override
+  public Map<String, List<LiftExecution>> getExecutionsByLift(Collection<String> liftNames)
+      throws Exception {
+    List<String> requestedNames = new ArrayList<>(new LinkedHashSet<>(liftNames));
+    Map<String, List<LiftExecution>> executionsByLift = new LinkedHashMap<>();
+    for (String liftName : requestedNames) {
+      executionsByLift.put(liftName, new ArrayList<>());
+    }
+    if (requestedNames.isEmpty()) {
+      return executionsByLift;
+    }
+
+    String placeholders = String.join(", ", Collections.nCopies(requestedNames.size(), "?"));
+    String sql =
+        """
+            SELECT c.name, e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload,
+                e.notes, es.metric_kind, es.metric_a, es.metric_b, es.weight, es.rpe
+            FROM executions e
+            JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
+            LEFT JOIN execution_sets es ON es.execution_id = e.id
+            WHERE e.lifter_profile_id = ? AND c.lifter_profile_id = ?
+                AND c.owner_user_id = ? AND c.name IN (%s)
+            ORDER BY c.name, e.performed_on DESC, e.web_execution_id DESC, es.set_index
+            """
+            .formatted(placeholders);
     try (Connection connection = openConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                """
-                    SELECT e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes,
-                        es.metric_kind, es.metric_a, es.metric_b, es.weight, es.rpe
-                    FROM executions e
-                    JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
-                    LEFT JOIN execution_sets es ON es.execution_id = e.id
-                    WHERE e.lifter_profile_id = ? AND c.lifter_profile_id = ?
-                        AND c.owner_user_id = ? AND c.name = ?
-                    ORDER BY e.performed_on DESC, e.web_execution_id DESC, es.set_index
-                    """)) {
+        PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, lifterProfileId);
       statement.setString(2, lifterProfileId);
       statement.setString(3, appUserId);
-      statement.setString(4, liftName);
+      for (int i = 0; i < requestedNames.size(); i++) {
+        statement.setString(i + 4, requestedNames.get(i));
+      }
       try (ResultSet rs = statement.executeQuery()) {
-        Map<Integer, ExecutionRows> rowsByExecution = new java.util.LinkedHashMap<>();
+        Map<String, Map<Integer, ExecutionRows>> rowsByLift = new LinkedHashMap<>();
         while (rs.next()) {
+          String liftName = rs.getString("name");
           int webExecutionId = rs.getInt("web_execution_id");
+          Map<Integer, ExecutionRows> rowsByExecution =
+              rowsByLift.computeIfAbsent(liftName, ignored -> new LinkedHashMap<>());
           ExecutionRows rows = rowsByExecution.get(webExecutionId);
           if (rows == null) {
             rows =
@@ -253,7 +278,12 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
             rows.sets().add(mapExecutionSet(rs));
           }
         }
-        return rowsByExecution.values().stream().map(ExecutionRows::toExecution).toList();
+        for (Map.Entry<String, Map<Integer, ExecutionRows>> entry : rowsByLift.entrySet()) {
+          executionsByLift.put(
+              entry.getKey(),
+              entry.getValue().values().stream().map(ExecutionRows::toExecution).toList());
+        }
+        return executionsByLift;
       }
     }
   }

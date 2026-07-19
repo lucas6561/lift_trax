@@ -46,6 +46,7 @@ final class PlannedWorkoutSessionHtml {
       String ownerUserId) {
     PlannedWorkoutFile.PlannedWorkoutDay day =
         PlannedWorkoutSessionService.findDay(workoutFile, weekNumber, dayOfWeek);
+    PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, day);
     StringBuilder html = new StringBuilder();
     html.append("<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>")
         .append("<h1>Train ")
@@ -99,7 +100,7 @@ final class PlannedWorkoutSessionHtml {
           localLiftNames,
           localLiftNotes,
           date,
-          db);
+          history);
     }
     html.append("<button type='submit' class='save-workout-session-btn")
         .append(day.blocks().size() > 1 ? " is-hidden" : "")
@@ -247,7 +248,7 @@ final class PlannedWorkoutSessionHtml {
       Set<String> localLiftNames,
       Map<String, String> localLiftNotes,
       LocalDate date,
-      Database db) {
+      PlannedWorkoutHistory.Snapshot history) {
     html.append("<section class='session-block")
         .append(blockIndex == 0 ? " is-current" : " is-hidden")
         .append("' data-session-block-index='")
@@ -272,7 +273,7 @@ final class PlannedWorkoutSessionHtml {
           localLiftNames,
           localLiftNotes,
           date,
-          db);
+          history);
     }
     html.append("</section>");
   }
@@ -285,7 +286,7 @@ final class PlannedWorkoutSessionHtml {
       Set<String> localLiftNames,
       Map<String, String> localLiftNotes,
       LocalDate date,
-      Database db) {
+      PlannedWorkoutHistory.Snapshot history) {
     html.append("<article class='session-exercise' data-exercise-key='")
         .append(WebHtml.escapeHtml(key))
         .append("' data-planned-lift='")
@@ -319,10 +320,10 @@ final class PlannedWorkoutSessionHtml {
           .append(WebHtml.escapeHtml(exercise.notes()))
           .append("</p>");
     }
-    appendHistory(html, db, block, exercise);
+    appendHistory(html, history, block, exercise);
     List<PlannedWorkoutFile.PlannedSetTarget> plannedSets = exercise.plannedSets();
-    appendTargets(html, plannedSets, exercise.name(), db);
-    MetricSeed seed = firstMetricSeed(plannedSets, exercise.name(), db);
+    appendTargets(html, plannedSets, exercise.name(), history);
+    MetricSeed seed = firstMetricSeed(plannedSets, exercise.name(), history);
     html.append(
             "<div class='add-execution-form session-execution-widget js-session-execution-input'>")
         .append(
@@ -366,7 +367,7 @@ final class PlannedWorkoutSessionHtml {
       StringBuilder html,
       List<PlannedWorkoutFile.PlannedSetTarget> plannedSets,
       String liftName,
-      Database db) {
+      PlannedWorkoutHistory.Snapshot history) {
     if (plannedSets.isEmpty()) {
       html.append("<p class='muted'>Target: Enter completed work</p>");
       return;
@@ -375,23 +376,27 @@ final class PlannedWorkoutSessionHtml {
     for (PlannedWorkoutFile.PlannedSetTarget target : plannedSets) {
       html.append("<li>Target: ")
           .append(WebHtml.escapeHtml(PlannedWorkoutText.plannedSet(target)))
-          .append(suggestionHtml(db, liftName, target))
+          .append(suggestionHtml(history, liftName, target))
           .append("</li>");
     }
     html.append("</ol></details>");
   }
 
   private static MetricSeed firstMetricSeed(
-      List<PlannedWorkoutFile.PlannedSetTarget> plannedSets, String liftName, Database db) {
+      List<PlannedWorkoutFile.PlannedSetTarget> plannedSets,
+      String liftName,
+      PlannedWorkoutHistory.Snapshot history) {
     if (plannedSets.isEmpty()) {
       return new MetricSeed("reps", "5", "5", "5", "");
     }
-    return MetricSeed.from(plannedSets.get(0), liftName, db);
+    return MetricSeed.from(plannedSets.get(0), liftName, history);
   }
 
   private static String suggestionHtml(
-      Database db, String liftName, PlannedWorkoutFile.PlannedSetTarget target) {
-    String suggested = PlannedWorkoutText.suggestedWeight(db, liftName, target);
+      PlannedWorkoutHistory.Snapshot history,
+      String liftName,
+      PlannedWorkoutFile.PlannedSetTarget target) {
+    String suggested = history.suggestedWeight(liftName, target);
     if (suggested.isBlank()) {
       return "";
     }
@@ -400,29 +405,26 @@ final class PlannedWorkoutSessionHtml {
 
   private static void appendHistory(
       StringBuilder html,
-      Database db,
+      PlannedWorkoutHistory.Snapshot history,
       PlannedWorkoutFile.PlannedWorkoutBlock block,
       PlannedWorkoutFile.PlannedExercise exercise) {
-    if (db == null) {
-      return;
-    }
-    PlannedWorkoutHistory.Summary history = PlannedWorkoutHistory.lookup(db, block, exercise);
-    if (history.unavailable()) {
+    PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
+    if (summary.unavailable()) {
       html.append("<div class='session-history muted'>History unavailable.</div>");
       return;
     }
-    if (history.isEmpty()) {
+    if (summary.isEmpty()) {
       return;
     }
     html.append("<div class='session-history' aria-label='Exercise history'>");
-    if (history.last() != null) {
+    if (summary.last() != null) {
       html.append("<span><strong>Last:</strong> ")
-          .append(WebHtml.escapeHtml(history.last()))
+          .append(WebHtml.escapeHtml(summary.last()))
           .append("</span>");
     }
-    if (history.bestOneRepMax() != null) {
+    if (summary.bestOneRepMax() != null) {
       html.append("<span><strong>Best 1RM:</strong> ")
-          .append(WebHtml.escapeHtml(history.bestOneRepMax()))
+          .append(WebHtml.escapeHtml(summary.bestOneRepMax()))
           .append("</span>");
     }
     html.append("</div>");
@@ -1459,11 +1461,13 @@ final class PlannedWorkoutSessionHtml {
   private record MetricSeed(
       String metricType, String metricValue, String metricLeft, String metricRight, String weight) {
     static MetricSeed from(
-        PlannedWorkoutFile.PlannedSetTarget target, String liftName, Database db) {
+        PlannedWorkoutFile.PlannedSetTarget target,
+        String liftName,
+        PlannedWorkoutHistory.Snapshot history) {
       if (target == null) {
         return new MetricSeed("reps", "", "", "", "");
       }
-      String weight = suggestedWeight(target, liftName, db);
+      String weight = suggestedWeight(target, liftName, history);
       return switch (target.metricType()) {
         case "reps" -> new MetricSeed("reps", text(target.reps()), "", "", weight);
         case "reps_lr" ->
@@ -1488,8 +1492,10 @@ final class PlannedWorkoutSessionHtml {
     }
 
     private static String suggestedWeight(
-        PlannedWorkoutFile.PlannedSetTarget target, String liftName, Database db) {
-      return PlannedWorkoutText.suggestedWeight(db, liftName, target);
+        PlannedWorkoutFile.PlannedSetTarget target,
+        String liftName,
+        PlannedWorkoutHistory.Snapshot history) {
+      return history.suggestedWeight(liftName, target);
     }
   }
 }

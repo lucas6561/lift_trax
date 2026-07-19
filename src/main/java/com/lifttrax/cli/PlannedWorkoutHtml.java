@@ -109,6 +109,7 @@ final class PlannedWorkoutHtml {
   }
 
   static String renderPage(PlannedWorkoutFile workoutFile, Database db) {
+    PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, workoutFile);
     StringBuilder html = new StringBuilder();
     html.append("<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>");
     html.append("<h1>").append(WebHtml.escapeHtml(workoutFile.metadata().name())).append("</h1>");
@@ -124,7 +125,7 @@ final class PlannedWorkoutHtml {
         .append("</p>");
     html.append(renderOutputActions(workoutFile));
     for (PlannedWorkoutFile.PlannedWorkoutWeek week : workoutFile.weeks()) {
-      appendPlannedWeek(html, week, db);
+      appendPlannedWeek(html, week, history);
     }
     if (!workoutFile.completedWorkouts().isEmpty()) {
       html.append("<h2>Completed Results</h2>");
@@ -136,7 +137,9 @@ final class PlannedWorkoutHtml {
   }
 
   private static void appendPlannedWeek(
-      StringBuilder html, PlannedWorkoutFile.PlannedWorkoutWeek week, Database db) {
+      StringBuilder html,
+      PlannedWorkoutFile.PlannedWorkoutWeek week,
+      PlannedWorkoutHistory.Snapshot history) {
     html.append("<section class='planned-week'><h2>Week ")
         .append(week.weekNumber())
         .append("</h2>");
@@ -145,7 +148,7 @@ final class PlannedWorkoutHtml {
           .append(WebHtml.escapeHtml(day.title()))
           .append("</h3>");
       for (PlannedWorkoutFile.PlannedWorkoutBlock block : day.blocks()) {
-        appendPlannedBlock(html, block, db);
+        appendPlannedBlock(html, block, history);
       }
       html.append("</section>");
     }
@@ -273,7 +276,9 @@ final class PlannedWorkoutHtml {
   }
 
   private static void appendPlannedBlock(
-      StringBuilder html, PlannedWorkoutFile.PlannedWorkoutBlock block, Database db) {
+      StringBuilder html,
+      PlannedWorkoutFile.PlannedWorkoutBlock block,
+      PlannedWorkoutHistory.Snapshot history) {
     html.append("<article class='planned-block'><header><h4>")
         .append(WebHtml.escapeHtml(block.title()))
         .append("</h4><p class='muted'>")
@@ -288,7 +293,7 @@ final class PlannedWorkoutHtml {
     }
     html.append("<ol class='planned-exercise-list'>");
     for (PlannedWorkoutFile.PlannedExercise exercise : block.exercises()) {
-      appendPlannedExercise(html, block, exercise, db);
+      appendPlannedExercise(html, block, exercise, history);
     }
     html.append("</ol></article>");
   }
@@ -297,7 +302,7 @@ final class PlannedWorkoutHtml {
       StringBuilder html,
       PlannedWorkoutFile.PlannedWorkoutBlock block,
       PlannedWorkoutFile.PlannedExercise exercise,
-      Database db) {
+      PlannedWorkoutHistory.Snapshot history) {
     html.append("<li><strong>").append(WebHtml.escapeHtml(exercise.name())).append("</strong>");
     String details = PlannedWorkoutText.exerciseDetails(exercise);
     if (!details.isBlank()) {
@@ -307,7 +312,7 @@ final class PlannedWorkoutHtml {
         .append(WebHtml.escapeHtml(PlannedWorkoutText.plannedSets(exercise.plannedSets())))
         .append("</div>");
     String suggestions =
-        PlannedWorkoutText.loadSuggestions(db, exercise.name(), exercise.plannedSets());
+        PlannedWorkoutText.loadSuggestions(history, exercise.name(), exercise.plannedSets());
     if (!suggestions.isBlank()) {
       html.append("<div class='planned-load-suggestion muted'><strong>Suggested:</strong> ")
           .append(WebHtml.escapeHtml(suggestions))
@@ -318,7 +323,7 @@ final class PlannedWorkoutHtml {
           .append(WebHtml.escapeHtml(exercise.notes()))
           .append("</div>");
     }
-    appendHistory(html, db, block, exercise);
+    appendHistory(html, history, block, exercise);
     if (!exercise.substitutionOptions().isEmpty()) {
       html.append("<div class='muted'>Swap options: ")
           .append(WebHtml.escapeHtml(String.join(", ", exercise.substitutionOptions())))
@@ -329,30 +334,26 @@ final class PlannedWorkoutHtml {
 
   private static void appendHistory(
       StringBuilder html,
-      Database db,
+      PlannedWorkoutHistory.Snapshot history,
       PlannedWorkoutFile.PlannedWorkoutBlock block,
       PlannedWorkoutFile.PlannedExercise exercise) {
-    if (db == null) {
-      return;
-    }
-
-    PlannedWorkoutHistory.Summary history = PlannedWorkoutHistory.lookup(db, block, exercise);
-    if (history.unavailable()) {
+    PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
+    if (summary.unavailable()) {
       html.append("<div class='planned-history muted'>History unavailable.</div>");
       return;
     }
-    if (history.isEmpty()) {
+    if (summary.isEmpty()) {
       return;
     }
     html.append("<div class='planned-history'>");
-    if (history.last() != null) {
+    if (summary.last() != null) {
       html.append("<span><strong>Last:</strong> ")
-          .append(WebHtml.escapeHtml(history.last()))
+          .append(WebHtml.escapeHtml(summary.last()))
           .append("</span>");
     }
-    if (history.bestOneRepMax() != null) {
+    if (summary.bestOneRepMax() != null) {
       html.append("<span><strong>Best 1RM:</strong> ")
-          .append(WebHtml.escapeHtml(history.bestOneRepMax()))
+          .append(WebHtml.escapeHtml(summary.bestOneRepMax()))
           .append("</span>");
     }
     html.append("</div>");
