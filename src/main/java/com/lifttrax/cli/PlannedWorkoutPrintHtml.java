@@ -1,9 +1,13 @@
 package com.lifttrax.cli;
 
 import com.lifttrax.db.Database;
+import com.lifttrax.models.Lift;
 import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutHistory;
 import com.lifttrax.workout.PlannedWorkoutText;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
 /** Renders a compact, ink-friendly planned-workout print view. */
 final class PlannedWorkoutPrintHtml {
@@ -11,6 +15,7 @@ final class PlannedWorkoutPrintHtml {
 
   static String renderPage(PlannedWorkoutFile workoutFile, Database db) {
     PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, workoutFile);
+    Map<String, String> liftNotes = loadLiftNotes(db);
     StringBuilder html = new StringBuilder();
     html.append(
             """
@@ -69,7 +74,7 @@ final class PlannedWorkoutPrintHtml {
           .append(week.weekNumber())
           .append("</h2>");
       for (PlannedWorkoutFile.PlannedWorkoutDay day : week.days()) {
-        appendDay(html, day, history);
+        appendDay(html, day, history, liftNotes);
       }
       html.append("</section>");
     }
@@ -79,20 +84,21 @@ final class PlannedWorkoutPrintHtml {
   private static void appendDay(
       StringBuilder html,
       PlannedWorkoutFile.PlannedWorkoutDay day,
-      PlannedWorkoutHistory.Snapshot history) {
+      PlannedWorkoutHistory.Snapshot history,
+      Map<String, String> liftNotes) {
     html.append("<section class='print-day'><h3>")
         .append(WebHtml.escapeHtml(day.title()))
         .append("</h3>");
-    appendNotes(html, day.notes());
+    appendProgramNotes(html, day.notes());
     for (PlannedWorkoutFile.PlannedWorkoutBlock block : day.blocks()) {
       html.append("<article class='print-block'><div class='print-block-header'><h4>")
           .append(WebHtml.escapeHtml(block.title()))
           .append("</h4><span class='print-block-meta'>")
           .append(WebHtml.escapeHtml(PlannedWorkoutText.blockMeta(block)))
           .append("</span></div>");
-      appendNotes(html, block.notes());
+      appendProgramNotes(html, block.notes());
       for (PlannedWorkoutFile.PlannedExercise exercise : block.exercises()) {
-        appendExercise(html, block, exercise, history);
+        appendExercise(html, block, exercise, history, liftNotes);
       }
       html.append("</article>");
     }
@@ -103,7 +109,8 @@ final class PlannedWorkoutPrintHtml {
       StringBuilder html,
       PlannedWorkoutFile.PlannedWorkoutBlock block,
       PlannedWorkoutFile.PlannedExercise exercise,
-      PlannedWorkoutHistory.Snapshot history) {
+      PlannedWorkoutHistory.Snapshot history,
+      Map<String, String> liftNotes) {
     html.append("<div class='print-exercise'><div><strong>")
         .append(WebHtml.escapeHtml(exercise.name()))
         .append("</strong>");
@@ -119,7 +126,8 @@ final class PlannedWorkoutPrintHtml {
 
     PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
     StringBuilder extra = new StringBuilder();
-    appendExtra(extra, "Notes", exercise.notes());
+    appendExtra(extra, "Lift notes", liftNotes.get(liftKey(exercise.name())));
+    appendExtra(extra, "Program notes", exercise.notes());
     appendExtra(
         extra,
         "Suggested",
@@ -149,14 +157,33 @@ final class PlannedWorkoutPrintHtml {
         .append(WebHtml.escapeHtml(value));
   }
 
-  private static void appendNotes(StringBuilder html, java.util.List<String> notes) {
+  private static void appendProgramNotes(StringBuilder html, java.util.List<String> notes) {
     if (notes.isEmpty()) {
       return;
     }
-    html.append("<ul class='print-notes'>");
+    html.append("<div class='print-notes'><strong>Program notes:</strong><ul>");
     for (String note : notes) {
       html.append("<li>").append(WebHtml.escapeHtml(note)).append("</li>");
     }
-    html.append("</ul>");
+    html.append("</ul></div>");
+  }
+
+  private static Map<String, String> loadLiftNotes(Database db) {
+    Map<String, String> notesByLift = new HashMap<>();
+    if (db == null) {
+      return notesByLift;
+    }
+    try {
+      for (Lift lift : db.listLifts()) {
+        notesByLift.put(liftKey(lift.name()), lift.notes());
+      }
+    } catch (Exception ignored) {
+      // The imported program can still be printed when the local lift catalog is unavailable.
+    }
+    return notesByLift;
+  }
+
+  private static String liftKey(String name) {
+    return name.trim().toLowerCase(Locale.ROOT);
   }
 }

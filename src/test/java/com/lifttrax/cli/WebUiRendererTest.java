@@ -529,6 +529,66 @@ class WebUiRendererTest {
   }
 
   @Test
+  void plannedWorkoutPrintLabelsAndIncludesLiftAndProgramNotes() throws Exception {
+    PlannedWorkoutFile.PlannedSetTarget setTarget =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1, "reps", 5, null, null, null, null, null, null, null, null, "STRAIGHT", false);
+    PlannedWorkoutFile.PlannedExercise exercise =
+        new PlannedWorkoutFile.PlannedExercise(
+            "Back Squat",
+            "LOWER",
+            "SQUAT",
+            List.of(),
+            List.of(setTarget),
+            "Use the program tempo.",
+            List.of());
+    PlannedWorkoutFile.PlannedWorkoutBlock block =
+        new PlannedWorkoutFile.PlannedWorkoutBlock(
+            1,
+            "Main work",
+            "main",
+            null,
+            false,
+            List.of(exercise),
+            List.of("Stop one rep before failure."));
+    PlannedWorkoutFile.PlannedWorkoutDay day =
+        new PlannedWorkoutFile.PlannedWorkoutDay(
+            "MONDAY", "Monday", List.of(block), List.of("Take full rest periods."));
+    PlannedWorkoutFile workoutFile =
+        new PlannedWorkoutFile(
+            1,
+            new PlannedWorkoutFile.PlannedWorkoutMetadata(
+                "Notes test", "Print note labels.", 1, List.of()),
+            new PlannedWorkoutFile.PlannedWorkoutSource(
+                "test", "test", "Test Program", null, "2026-07-19T00:00:00Z"),
+            List.of(new PlannedWorkoutFile.PlannedWorkoutWeek(1, List.of(day))),
+            List.of());
+    Path dbPath = Files.createTempFile("lifttrax-print-notes", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift(
+          "Back squat",
+          LiftRegion.LOWER,
+          LiftType.SQUAT,
+          List.of(),
+          "Brace hard and keep the knees tracking out.");
+
+      String html = PlannedWorkoutPrintHtml.renderPage(workoutFile, db);
+
+      assertTrue(
+          html.contains(
+              "<strong>Lift notes:</strong> Brace hard and keep the knees tracking out."));
+      assertTrue(html.contains("<strong>Program notes:</strong> Use the program tempo."));
+      assertTrue(
+          html.contains(
+              "<strong>Program notes:</strong><ul><li>Take full rest periods.</li></ul>"));
+      assertTrue(
+          html.contains(
+              "<strong>Program notes:</strong><ul><li>Stop one rep before failure.</li></ul>"));
+      assertFalse(html.contains("<strong>Notes:</strong>"));
+    }
+  }
+
+  @Test
   void plannedWorkoutPrintLoadsHistoryInOneBatch() throws Exception {
     PlannedWorkoutFile workoutFile =
         com.lifttrax.workout.PlannedWorkoutJson.readPath(
