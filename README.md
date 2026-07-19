@@ -98,13 +98,14 @@ machine-specific config. Copy
 
 ```properties
 lifttrax.config.include=lifttrax-hosted.properties
-lifttrax.cli.userId=your-user-id
+lifttrax.cli.userId=your-username
 ```
 
 The override file is ignored by Git and layered over
 `config/lifttrax-local.properties`. The include reuses the JDBC URL, username,
 and password from the existing ignored `config/lifttrax-hosted.properties`, so
-credentials are not duplicated. Passing `--user <id>` or setting
+credentials are not duplicated. The value can be a LiftTrax username or the
+underlying authentication ID. Passing `--user <username-or-id>` or setting
 `LIFTTRAX_CLI_USER_ID` still overrides the local default.
 
 ## Database schema migrations
@@ -171,7 +172,7 @@ Disabled lifts are omitted by default. Include the entire catalog with:
 ./gradlew run --args='--lifts-only --include-disabled'
 ```
 
-Use `--user <id>` to select a different account for one invocation.
+Use `--user <username-or-id>` to select a different account for one invocation.
 
 ## Database backups
 

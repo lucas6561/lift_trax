@@ -32,6 +32,7 @@ Prepare LiftTrax for use beyond one local database on one machine.
 - `LT-0091`: Add hosted backup and export controls.
 - `LT-0094`: Add PWA installability shell.
 - `LT-0095`: Add offline workout-session drafts.
+- `LT-0096`: Add friendly account usernames.
 
 ## Hosted web app sequence
 
@@ -49,6 +50,7 @@ Prepare LiftTrax for use beyond one local database on one machine.
 12. `LT-0091`: Add hosted backup and user export controls.
 13. `LT-0094`: Add the installable PWA shell without offline writes.
 14. `LT-0095`: Add user-scoped offline workout-session drafts.
+15. `LT-0096`: Add friendly account usernames without exposing auth UUIDs.
 
 Planning decisions now recorded:
 

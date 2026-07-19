@@ -3,6 +3,7 @@ package com.lifttrax.cli;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.config.LiftTraxConfig;
+import com.lifttrax.db.AccountProfile;
 import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.db.TrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
@@ -80,9 +81,18 @@ public final class WebServerCli {
         server, "/pwa-icon.svg", Set.of("GET"), WebServerCli::handlePwaIcon);
     WebRequestSecurity.register(server, "/health", Set.of("GET"), WebServerCli::handleHealth);
     WebRequestSecurity.register(server, "/auth/login", Set.of("GET"), auth::handleLogin);
-    WebRequestSecurity.register(server, "/auth/dev-login", Set.of("POST"), auth::handleDevLogin);
+    WebRequestSecurity.register(
+        server,
+        "/auth/dev-login",
+        Set.of("POST"),
+        exchange -> auth.handleDevLogin(exchange, db::resolveAuthUserId));
     WebRequestSecurity.register(server, "/auth/callback", Set.of("GET"), auth::handleCallback);
     WebRequestSecurity.register(server, "/auth/logout", Set.of("POST"), auth::handleLogout);
+    WebRequestSecurity.register(
+        server,
+        "/account",
+        Set.of("GET", "POST"),
+        auth.protect(exchange -> handleAccount(exchange, db)));
     WebRequestSecurity.register(
         server, "/", Set.of("GET"), auth.protect(exchange -> handleIndex(exchange, db)));
     WebRequestSecurity.register(
@@ -121,7 +131,11 @@ public final class WebServerCli {
         server,
         "/planned-workout-work-along",
         Set.of("POST"),
-        auth.protect(WebServerCli::handlePlannedWorkoutWorkAlong));
+        auth.protect(
+            exchange -> {
+              prepareAccountLabel(exchange, db);
+              handlePlannedWorkoutWorkAlong(exchange);
+            }));
     WebRequestSecurity.register(
         server,
         "/planned-workout-print",
@@ -280,7 +294,81 @@ public final class WebServerCli {
 
   private static TrainingDataStore databaseFor(HttpExchange exchange, TrainingDataStoreProvider db)
       throws Exception {
-    return db.forUser(userIdFor(exchange));
+    Optional<WebAuth.User> currentUser = WebAuth.currentUser(exchange);
+    if (currentUser.isEmpty()) {
+      return db.forUser("local-user");
+    }
+    WebAuth.User user = currentUser.get();
+    prepareAccountLabel(exchange, db);
+    return db.forUser(user.id());
+  }
+
+  private static void prepareAccountLabel(HttpExchange exchange, TrainingDataStoreProvider db)
+      throws IOException {
+    WebAuth.User user = WebAuth.currentUser(exchange).orElseThrow();
+    try {
+      AccountProfile account = db.accountFor(user.id(), user.email());
+      WebAuth.setAccountLabel(exchange, account.displayLabel());
+    } catch (Exception e) {
+      throw new IOException("Could not load the signed-in LiftTrax account.", e);
+    }
+  }
+
+  private static void handleAccount(HttpExchange exchange, TrainingDataStoreProvider db)
+      throws IOException {
+    WebAuth.User user = WebAuth.currentUser(exchange).orElseThrow();
+    try {
+      AccountProfile account = db.accountFor(user.id(), user.email());
+      String message = "";
+      String messageType = "success";
+      if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+        Map<String, String> form = parseForm(exchange.getRequestBody());
+        try {
+          account = db.updateUsername(user.id(), form.getOrDefault("username", ""));
+          message = "Username saved.";
+        } catch (IllegalArgumentException e) {
+          message = e.getMessage();
+          messageType = "error";
+        }
+      }
+      WebAuth.setAccountLabel(exchange, account.displayLabel());
+      String value =
+          account.username().isBlank()
+              ? suggestedUsername(user.suggestedUsername())
+              : account.username();
+      String status =
+          message.isBlank()
+              ? ""
+              : "<p class='status " + messageType + "'>" + WebHtml.escapeHtml(message) + "</p>";
+      String body =
+          """
+              <h1>Account</h1>
+              <p class='muted'>Choose the memorable username used by LiftTrax displays and operator commands. Your sign-in ID remains the private ownership key.</p>
+              %s
+              <form method='post' action='/account' class='query-form' style='display:block;'>
+                <label>Username <input name='username' value='%s' required minlength='3' maxlength='30' pattern='[A-Za-z0-9][A-Za-z0-9_-]{2,29}' autocomplete='username'></label>
+                <p class='muted'>3-30 letters, numbers, underscores, or hyphens. Usernames are stored in lowercase.</p>
+                <button type='submit'>Save Username</button>
+              </form>
+              <p><a href='/'>Back to LiftTrax</a></p>
+              """
+              .formatted(status, WebHtml.escapeHtml(value));
+      sendHtml(exchange, WebHtml.wrapPage("Account", body));
+    } catch (Exception e) {
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Account Error",
+              "<h1>Account Error</h1><p class='status error'>Account settings are temporarily unavailable.</p>"));
+    }
+  }
+
+  private static String suggestedUsername(String suggestion) {
+    if (suggestion == null) {
+      return "";
+    }
+    String normalized = suggestion.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "-");
+    return normalized.length() > 30 ? normalized.substring(0, 30) : normalized;
   }
 
   private static void handleIndex(HttpExchange exchange, TrainingDataStoreProvider rootDb)

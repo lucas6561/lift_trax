@@ -30,6 +30,7 @@ final class WebAuth {
   static final String SESSION_COOKIE_NAME = "lt_session";
 
   private static final String USER_ATTRIBUTE = "lifttrax.currentUser";
+  private static final String ACCOUNT_LABEL_ATTRIBUTE = "lifttrax.accountLabel";
   private static final String VERIFIER_COOKIE_NAME = "lt_pkce_verifier";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -126,15 +127,24 @@ final class WebAuth {
     return value instanceof User user ? Optional.of(user) : Optional.empty();
   }
 
+  static void setAccountLabel(HttpExchange exchange, String label) {
+    if (label != null && !label.isBlank()) {
+      exchange.setAttribute(ACCOUNT_LABEL_ATTRIBUTE, label.trim());
+    }
+  }
+
   static String decorateAuthenticatedHtml(HttpExchange exchange, String html) {
     Optional<User> user = currentUser(exchange);
     if (user.isEmpty() || !html.contains("<main class='container'>")) {
       return html;
     }
+    Object configuredLabel = exchange.getAttribute(ACCOUNT_LABEL_ATTRIBUTE);
+    String label =
+        configuredLabel instanceof String value && !value.isBlank() ? value : user.get().label();
     String accountBar =
-        "<section class='auth-bar'><span>Signed in as "
-            + WebHtml.escapeHtml(user.get().label())
-            + "</span><form method='post' action='/auth/logout'>"
+        "<section class='auth-bar'><a href='/account'>Signed in as "
+            + WebHtml.escapeHtml(label)
+            + "</a><form method='post' action='/auth/logout'>"
             + "<button type='submit' class='secondary compact-btn'>Sign Out</button></form></section>";
     return html.replace("<main class='container'>", "<main class='container'>" + accountBar);
   }
@@ -146,29 +156,35 @@ final class WebAuth {
     }
     Map<String, String> query = parseQuery(exchange.getRequestURI());
     String returnTo = safeReturnTo(query.getOrDefault("returnTo", "/"));
+    String defaultUser =
+        LiftTraxConfig.setting("lifttrax.cli.userId", "LIFTTRAX_CLI_USER_ID", "local-user");
     String body =
         """
             <h1>Sign In</h1>
             <p class='muted'>Local development sign-in. Hosted builds should use Supabase Auth.</p>
             <form method='post' action='/auth/dev-login' class='query-form' style='display:block;'>
-              <label>User ID <input name='userId' value='local-user' required></label>
+              <label>Username or account ID <input name='userId' value='%s' required></label>
               <label>Email <input name='email' value='local@lifttrax.test'></label>
               <input type='hidden' name='returnTo' value='%s'>
               <button type='submit'>Sign In</button>
             </form>
             """
-            .formatted(WebHtml.escapeHtml(returnTo));
+            .formatted(WebHtml.escapeHtml(defaultUser), WebHtml.escapeHtml(returnTo));
     WebServerCli.sendHtml(exchange, WebHtml.wrapPage("Sign In", body));
   }
 
   void handleDevLogin(HttpExchange exchange) throws IOException {
+    handleDevLogin(exchange, value -> value);
+  }
+
+  void handleDevLogin(HttpExchange exchange, UserIdResolver userIdResolver) throws IOException {
     if (config.mode() != AuthMode.LOCAL) {
       sendText(exchange, 404, "Not Found");
       return;
     }
     Map<String, String> form = parseForm(exchange);
-    String userId = form.getOrDefault("userId", "").trim();
-    if (userId.isBlank()) {
+    String accountIdentifier = form.getOrDefault("userId", "").trim();
+    if (accountIdentifier.isBlank()) {
       WebServerCli.sendHtml(
           exchange,
           WebHtml.wrapPage(
@@ -176,9 +192,20 @@ final class WebAuth {
               "<h1>Sign In Error</h1><p class='status error'>User ID is required.</p>"));
       return;
     }
+    String userId;
+    try {
+      userId = userIdResolver.resolve(accountIdentifier);
+    } catch (Exception e) {
+      WebServerCli.sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Sign In Error",
+              "<h1>Sign In Error</h1><p class='status error'>No existing LiftTrax account matches that username or account ID.</p><p><a href='/auth/login'>Back to sign in</a></p>"));
+      return;
+    }
     String email = form.getOrDefault("email", "").trim();
     Instant expiresAt = config.clock().instant().plus(LOCAL_SESSION_DURATION);
-    setSessionCookie(exchange, new User(userId, email), expiresAt);
+    setSessionCookie(exchange, new User(userId, email, accountIdentifier), expiresAt);
     redirect(exchange, safeReturnTo(form.getOrDefault("returnTo", "/")));
   }
 
@@ -266,7 +293,12 @@ final class WebAuth {
     if (id.isBlank()) {
       throw new IOException("Access token missing subject");
     }
-    return new User(id, claims.path("email").asText(""));
+    String suggestedUsername =
+        claims
+            .path("user_metadata")
+            .path("user_name")
+            .asText(claims.path("preferred_username").asText(""));
+    return new User(id, claims.path("email").asText(""), suggestedUsername);
   }
 
   private Optional<User> verifySession(String value) {
@@ -276,15 +308,16 @@ final class WebAuth {
         return Optional.empty();
       }
       String payload = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
-      String[] fields = payload.split("\n", 3);
-      if (fields.length != 3) {
+      String[] fields = payload.split("\n", -1);
+      if (fields.length != 3 && fields.length != 4) {
         return Optional.empty();
       }
-      Instant expiresAt = Instant.ofEpochSecond(Long.parseLong(fields[2]));
+      int expiresIndex = fields.length - 1;
+      Instant expiresAt = Instant.ofEpochSecond(Long.parseLong(fields[expiresIndex]));
       if (!expiresAt.isAfter(config.clock().instant())) {
         return Optional.empty();
       }
-      return Optional.of(new User(fields[0], fields[1]));
+      return Optional.of(new User(fields[0], fields[1], fields.length == 4 ? fields[2] : ""));
     } catch (RuntimeException ignored) {
       return Optional.empty();
     }
@@ -297,7 +330,14 @@ final class WebAuth {
   }
 
   private String signSession(User user, Instant expiresAt) {
-    String payload = user.id() + "\n" + user.email() + "\n" + expiresAt.getEpochSecond();
+    String payload =
+        user.id()
+            + "\n"
+            + user.email()
+            + "\n"
+            + user.suggestedUsername()
+            + "\n"
+            + expiresAt.getEpochSecond();
     String encoded =
         Base64.getUrlEncoder()
             .withoutPadding()
@@ -447,13 +487,22 @@ final class WebAuth {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 
-  record User(String id, String email) {
+  record User(String id, String email, String suggestedUsername) {
+    User(String id, String email) {
+      this(id, email, "");
+    }
+
     String label() {
       return email == null || email.isBlank() ? id : email;
     }
   }
 
   record SupabaseTokens(String accessToken, String refreshToken, long expiresIn) {}
+
+  @FunctionalInterface
+  interface UserIdResolver {
+    String resolve(String identifier) throws Exception;
+  }
 
   private record Config(
       AuthMode mode,

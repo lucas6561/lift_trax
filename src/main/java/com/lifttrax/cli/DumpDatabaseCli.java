@@ -17,7 +17,10 @@ public final class DumpDatabaseCli {
   public static void main(String[] args) throws Exception {
     CliOptions options = parseArgs(args);
     try (TrainingDataStoreProvider provider = TrainingDataStoreProvider.fromEnvironment()) {
-      dump(provider.forUser(options.userId()), options.liftsOnly(), options.includeDisabled());
+      dump(
+          provider.forUserIdentifier(options.userId()),
+          options.liftsOnly(),
+          options.includeDisabled());
     }
   }
 

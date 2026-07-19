@@ -125,6 +125,7 @@ Hosted web app path:
 12. `LT-0091`: Add hosted backup and export controls.
 13. `LT-0094`: Add PWA installability shell.
 14. `LT-0095`: Add offline workout-session drafts.
+15. `LT-0096`: Add friendly account usernames and automatic account selection.
 
 `docs/user-ownership-model.md` defines the user, lifter, coach, and ownership
 rules for this path. `docs/adr/0003-hosted-auth-data-platform.md` selects

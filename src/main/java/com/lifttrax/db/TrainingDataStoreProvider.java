@@ -6,6 +6,23 @@ import com.lifttrax.config.LiftTraxConfig;
 public interface TrainingDataStoreProvider extends AutoCloseable {
   TrainingDataStore forUser(String ownerUserId) throws Exception;
 
+  default TrainingDataStore forUserIdentifier(String identifier) throws Exception {
+    return forUser(resolveAuthUserId(identifier));
+  }
+
+  default String resolveAuthUserId(String identifier) throws Exception {
+    return identifier;
+  }
+
+  default AccountProfile accountFor(String authUserId, String email) throws Exception {
+    forUser(authUserId);
+    return new AccountProfile(authUserId, "", email);
+  }
+
+  default AccountProfile updateUsername(String authUserId, String username) throws Exception {
+    throw new UnsupportedOperationException("Account usernames require hosted Postgres.");
+  }
+
   @Override
   default void close() throws Exception {}
 

@@ -18,7 +18,7 @@ public final class ImportHostedDatabaseCli {
       return;
     }
     try (TrainingDataStoreProvider provider = TrainingDataStoreProvider.fromEnvironment()) {
-      TrainingDataStore target = provider.forUser(options.userId());
+      TrainingDataStore target = provider.forUserIdentifier(options.userId());
       HostedLocalDatabaseImportService.ImportResult result =
           HostedLocalDatabaseImportService.importDatabase(Path.of(options.sourcePath()), target);
       printResult(result);
@@ -73,8 +73,8 @@ public final class ImportHostedDatabaseCli {
     if (sourcePath == null) {
       throw new IllegalArgumentException("Source database path is required.");
     }
-    if (!previewOnly && (userId == null || userId.isBlank())) {
-      throw new IllegalArgumentException("--user is required unless --preview is used.");
+    if (!previewOnly) {
+      userId = CliUserResolver.resolve(userId);
     }
     return new Options(sourcePath, userId, previewOnly);
   }

@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.lifttrax.db.AccountProfile;
 import com.lifttrax.db.SqliteDb;
+import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.db.TrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
@@ -204,6 +206,48 @@ class WebServerCliTest {
   }
 
   @Test
+  void accountPageLetsTheSignedInUserSaveAndDisplayAUsername() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange exchange = TestExchange.post("/account", form("username", "Lucas_7"));
+    addSessionCookie(exchange, auth, "auth-user", "dev@example.test", Duration.ofHours(1));
+    String[] username = {""};
+    TrainingDataStoreProvider provider =
+        new TrainingDataStoreProvider() {
+          @Override
+          public TrainingDataStore forUser(String ownerUserId) {
+            return null;
+          }
+
+          @Override
+          public AccountProfile accountFor(String authUserId, String email) {
+            return new AccountProfile(authUserId, username[0], email);
+          }
+
+          @Override
+          public AccountProfile updateUsername(String authUserId, String newUsername) {
+            username[0] = newUsername.toLowerCase(java.util.Locale.ROOT);
+            return new AccountProfile(authUserId, username[0], "dev@example.test");
+          }
+        };
+
+    auth.protect(
+            secured -> {
+              try {
+                invokeHandler("handleAccount", secured, provider);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            })
+        .handle(exchange);
+
+    assertEquals(200, exchange.status());
+    assertTrue(exchange.responseBody().contains("Username saved."));
+    assertTrue(exchange.responseBody().contains("Signed in as lucas_7"));
+    assertTrue(exchange.responseBody().contains("value='lucas_7'"));
+    assertFalse(exchange.responseBody().contains("auth-user"));
+  }
+
+  @Test
   void authenticatedIndexUsesCurrentUsersScopedData() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-web-user-scope", ".db");
     WebAuth auth = fixedAuth(false);
@@ -276,6 +320,34 @@ class WebServerCliTest {
     assertTrue(cookie.contains("HttpOnly"));
     assertTrue(cookie.contains("SameSite=Lax"));
     assertTrue(cookie.contains("Secure"));
+  }
+
+  @Test
+  void localDevelopmentLoginResolvesUsernameBeforeSigningTheSession() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange login =
+        TestExchange.post(
+            "/auth/dev-login",
+            form("userId", "lucas", "email", "local@example.test", "returnTo", "/"));
+
+    auth.handleDevLogin(
+        login,
+        identifier -> {
+          assertEquals("lucas", identifier);
+          return "0efba538-3f28-45c4-9bde-0b5f4c02d006";
+        });
+
+    String setCookie = login.responseHeaders.getFirst("Set-Cookie");
+    TestExchange authenticated = TestExchange.get("/");
+    authenticated.requestHeaders.add("Cookie", setCookie.substring(0, setCookie.indexOf(';')));
+    auth.protect(
+            exchange ->
+                assertEquals(
+                    "0efba538-3f28-45c4-9bde-0b5f4c02d006",
+                    WebAuth.currentUser(exchange).orElseThrow().id()))
+        .handle(authenticated);
+
+    assertEquals(303, login.status());
   }
 
   @Test
@@ -1557,8 +1629,8 @@ class WebServerCliTest {
     }
   }
 
-  private static void invokeHandler(String methodName, HttpExchange exchange, SqliteDb db)
-      throws Exception {
+  private static void invokeHandler(
+      String methodName, HttpExchange exchange, TrainingDataStoreProvider db) throws Exception {
     Method method =
         WebServerCli.class.getDeclaredMethod(
             methodName, HttpExchange.class, TrainingDataStoreProvider.class);

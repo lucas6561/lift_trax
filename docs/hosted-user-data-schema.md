@@ -31,13 +31,18 @@ profile row keyed to the stable Supabase auth user ID.
 | --- | --- |
 | `id uuid primary key` | LiftTrax app user ID. Can match `auth.users.id` if the implementation keeps a one-to-one mapping. |
 | `auth_user_id uuid not null unique` | Stable Supabase Auth subject. |
-| `display_name text` | Optional app display name. |
+| `email text` | Email copied from the authenticated session when available. |
+| `username text unique` | Optional lowercase LiftTrax username for display and operator lookup. |
 | `created_at timestamptz not null` | Creation time. |
 | `updated_at timestamptz not null` | Last profile update. |
 
 `auth_user_id` is the identity bridge for server-side auth context. It should
 not be exposed as the only privacy boundary; all private queries still need
 owner or relationship predicates.
+
+`username` is mutable and must never replace `auth_user_id` in authorization
+predicates or ownership foreign keys. The application normalizes usernames to
+lowercase and limits them to 3-30 letters, numbers, underscores, or hyphens.
 
 ## Lifter ownership
 

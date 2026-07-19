@@ -19,6 +19,7 @@ routes:
   `local`;
 - `/auth/callback`: receives the Supabase PKCE callback in hosted mode;
 - `/auth/logout`: clears the LiftTrax session cookie.
+- `/account`: lets the signed-in user choose a memorable LiftTrax username.
 
 All normal app routes are protected. Anonymous users are redirected to
 `/auth/login` with a local `returnTo` path. Authenticated handlers can read the
@@ -32,6 +33,7 @@ The cookie contains:
 
 - the stable user ID;
 - the email when available;
+- the provider username as an initial account-page suggestion when available;
 - an expiration timestamp;
 - an HMAC signature created with the configured session secret.
 
@@ -50,9 +52,14 @@ Local development mode is the default so the app can still run offline:
 lifttrax.auth.mode=local
 ```
 
-The local sign-in page asks for a user ID and optional email, then creates a
-signed LiftTrax session. It does not store passwords and must not be used as a
-hosted authentication mechanism.
+The local sign-in page asks for a username or account ID and optional email,
+then creates a signed LiftTrax session. The account field defaults to the same
+machine-local `lifttrax.cli.userId` / `LIFTTRAX_CLI_USER_ID` setting used by
+operator commands. A username is resolved to the existing immutable auth ID
+before the session is signed, so signing out and back in cannot create a second
+empty identity merely because the friendly username was entered. Local mode
+does not store passwords and must not be used as a hosted authentication
+mechanism.
 
 ## Supabase mode
 
@@ -72,6 +79,22 @@ lifttrax.auth.secureCookies=true
 provider. `/auth/callback` validates the state cookie, exchanges the auth code
 with Supabase, reads the stable `sub` claim from the returned access token, and
 creates the LiftTrax server-side session cookie.
+
+## LiftTrax usernames
+
+The immutable Supabase `sub` claim remains the private authorization and
+ownership key. LiftTrax stores a separate mutable username for display and
+operator lookup; changing a username never changes record ownership.
+
+Authenticated users can set or change their username at `/account`. Usernames
+are normalized to lowercase, must contain 3-30 letters, numbers, underscores,
+or hyphens, and are unique. The GitHub username is suggested on first setup when
+Supabase includes it in `user_metadata.user_name`.
+
+Signed-in browser requests always select the session account automatically.
+Operator commands have no browser session, so their existing `--user` option
+and machine-local default accept either the LiftTrax username or immutable auth
+ID. Unknown identifiers fail instead of silently creating a new account.
 
 Callback errors return a generic authentication failure page and do not echo
 provider error details or secrets.

@@ -27,7 +27,7 @@ public final class WaveCli {
     String output = options.output() == null ? defaultOutput : options.output();
 
     try (TrainingDataStoreProvider provider = TrainingDataStoreProvider.fromEnvironment()) {
-      TrainingDataStore db = provider.forUser(options.userId());
+      TrainingDataStore db = provider.forUserIdentifier(options.userId());
       ConjugateWorkoutBuilder builder = new ConjugateWorkoutBuilder();
       var wave = builder.getWave(options.weeks(), db);
       if (output.toLowerCase(Locale.ROOT).endsWith(".json")) {

@@ -65,6 +65,36 @@ class HostedPostgresTrainingDataStoreTest {
   }
 
   @Test
+  void accountUsernamesAreNormalizedUniqueAndResolveToTheImmutableAuthUser() throws Exception {
+    HostedPostgresTrainingDataStoreProvider provider = provider();
+    provider.accountFor("auth-user-a", "a@example.test");
+    provider.accountFor("auth-user-b", "b@example.test");
+
+    AccountProfile updated = provider.updateUsername("auth-user-a", "  Lucas_7  ");
+
+    assertEquals("lucas_7", updated.username());
+    assertEquals("a@example.test", updated.email());
+    assertEquals(provider.forUser("auth-user-a"), provider.forUserIdentifier("LUCAS_7"));
+    assertEquals(provider.forUser("auth-user-a"), provider.forUserIdentifier("auth-user-a"));
+    assertThrows(
+        IllegalArgumentException.class, () -> provider.updateUsername("auth-user-b", "lucas_7"));
+    assertThrows(
+        IllegalArgumentException.class, () -> provider.updateUsername("auth-user-b", "no spaces"));
+    assertThrows(IllegalArgumentException.class, () -> provider.forUserIdentifier("missing-user"));
+  }
+
+  @Test
+  void usernameResolutionRecoversOriginalAccountAfterAnAccidentalAuthIdCollision()
+      throws Exception {
+    HostedPostgresTrainingDataStoreProvider provider = provider();
+    provider.accountFor("original-auth-id", "original@example.test");
+    provider.updateUsername("original-auth-id", "lucas");
+    provider.accountFor("lucas", "accidental@example.test");
+
+    assertEquals("original-auth-id", provider.resolveAuthUserId("lucas"));
+  }
+
+  @Test
   void hostedAdapterLoadsMultipleExecutionHistoriesInOneBatch() throws Exception {
     TrainingDataStore store = provider().forUser("batch-user");
     store.addLift("Bench Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");

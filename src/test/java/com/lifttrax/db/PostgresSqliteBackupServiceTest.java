@@ -32,6 +32,7 @@ class PostgresSqliteBackupServiceTest {
         new HostedPostgresTrainingDataStoreProvider(config);
     TrainingDataStore first = provider.forUser("owner-a");
     TrainingDataStore second = provider.forUser("owner-b");
+    provider.updateUsername("owner-a", "backup-user");
     first.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
     second.addLift("Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
     first.addLiftExecution(
@@ -64,6 +65,14 @@ class PostgresSqliteBackupServiceTest {
                     "SELECT COUNT(DISTINCT owner_user_id) FROM exercise_catalog_entries")) {
       assertTrue(resultSet.next());
       assertEquals(2, resultSet.getInt(1));
+    }
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + result.backupPath());
+        ResultSet resultSet =
+            connection
+                .createStatement()
+                .executeQuery("SELECT username FROM app_users WHERE auth_user_id = 'owner-a'")) {
+      assertTrue(resultSet.next());
+      assertEquals("backup-user", resultSet.getString(1));
     }
   }
 

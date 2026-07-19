@@ -24,8 +24,8 @@ live store, and there is no SQLite restore or synchronization mode.
 | --- | --- | --- |
 | `WebServerCli` / `runWeb` | Postgres-backed | Uses local auth configuration and configured Postgres; optional argument is only the port. |
 | `WebServerCli` / `runHostedWeb` | Postgres-backed | Uses hosted configuration and configured Postgres; optional argument is only the port. |
-| `DumpDatabaseCli` / `run` | Postgres-backed | Requires `--user` and prints that user's catalog/history. |
-| `WaveCli` / `generateWave` | Postgres-backed | Requires `--user` and reads that user's catalog while generating a file. |
+| `DumpDatabaseCli` / `run` | Postgres-backed | Uses the configured username/auth ID unless `--user` overrides it, then prints that account's catalog/history. |
+| `WaveCli` / `generateWave` | Postgres-backed | Uses the configured username/auth ID unless `--user` overrides it while generating a file. |
 | `ImportHostedDatabaseCli` / `importHostedDatabase` | Postgres-backed target | Reads a legacy SQLite source without modifying it and writes only to Postgres. |
 | `PostgresSqliteBackupCli` / `postgresSqliteBackup` | Postgres-backed operator command | Reads every LiftTrax-owned Postgres table and creates a non-runtime SQLite artifact. |
 
