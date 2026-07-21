@@ -151,7 +151,7 @@ public final class WebServerCli {
         "/planned-workout-json",
         Set.of("POST"),
         auth.protect(WebServerCli::handlePlannedWorkoutJson));
-    WebRequestSecurity.register(
+    WebRequestSecurity.registerReadOnly(
         server,
         "/planned-workout-session",
         Set.of("POST"),
@@ -285,6 +285,7 @@ public final class WebServerCli {
   }
 
   private static void handleHealth(HttpExchange exchange) throws IOException {
+    WebRequestSecurity.exposeCsrfToken(exchange);
     sendText(exchange, 200, "ok");
   }
 

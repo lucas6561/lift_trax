@@ -6,7 +6,7 @@ track: interface
 priority: critical
 effort: large
 created: 2026-06-15
-updated: 2026-07-18
+updated: 2026-07-21
 owner: codex
 depends_on: [LT-0089, LT-0086, LT-0087]
 ---
@@ -55,3 +55,13 @@ path uses the same authorization checks as normal hosted logging.
   unsynced status, wakes the server before final submission, and retries a save
   while retaining the local draft until the server confirms success.
 - Keep this card open for explicit conflict detection and discard controls.
+
+2026-07-21 work-along recovery slice:
+
+- Submit each completed block to hosted history immediately, including the final
+  block, and keep the device draft as protection for only the unfinished work
+  and reconnect position.
+- Keep the current-block actions below the block so submission happens after
+  data entry rather than from the sticky progress header.
+- Treat the session-rendering POST as read-only and refresh the open form's CSRF
+  token after waking the server so a restored Chrome tab can submit safely.

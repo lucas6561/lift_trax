@@ -29,6 +29,7 @@ final class WebRequestSecurity {
   static final int MAX_REQUEST_BYTES = 1_048_576;
   static final String CSRF_COOKIE_NAME = "lt_csrf";
   static final String CSRF_FORM_FIELD = "csrfToken";
+  static final String CSRF_HEADER_NAME = "X-CSRF-Token";
 
   private static final String CSRF_ATTRIBUTE = "lifttrax.csrfToken";
   private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -39,7 +40,12 @@ final class WebRequestSecurity {
   private WebRequestSecurity() {}
 
   static void register(HttpServer server, String path, Set<String> methods, HttpHandler handler) {
-    server.createContext(path, exchange -> handleSecured(exchange, path, methods, handler));
+    server.createContext(path, exchange -> handleSecured(exchange, path, methods, true, handler));
+  }
+
+  static void registerReadOnly(
+      HttpServer server, String path, Set<String> methods, HttpHandler handler) {
+    server.createContext(path, exchange -> handleSecured(exchange, path, methods, false, handler));
   }
 
   static void setSecureCookies(boolean value) {
@@ -48,6 +54,22 @@ final class WebRequestSecurity {
 
   static void handleSecured(
       HttpExchange exchange, String routePath, Set<String> methods, HttpHandler handler)
+      throws IOException {
+    handleSecured(exchange, routePath, methods, true, handler);
+  }
+
+  static void handleReadOnly(
+      HttpExchange exchange, String routePath, Set<String> methods, HttpHandler handler)
+      throws IOException {
+    handleSecured(exchange, routePath, methods, false, handler);
+  }
+
+  private static void handleSecured(
+      HttpExchange exchange,
+      String routePath,
+      Set<String> methods,
+      boolean enforceCsrf,
+      HttpHandler handler)
       throws IOException {
     String method = exchange.getRequestMethod().toUpperCase(Locale.ROOT);
     if (!routePath.equals(exchange.getRequestURI().getPath())) {
@@ -73,7 +95,7 @@ final class WebRequestSecurity {
       secureExchange.setCsrfCookie();
     }
 
-    if (requiresCsrf(method) && !validCsrf(exchange, requestBytes, csrfToken)) {
+    if (enforceCsrf && requiresCsrf(method) && !validCsrf(exchange, requestBytes, csrfToken)) {
       sendText(secureExchange, 403, "Missing or invalid CSRF token");
       return;
     }
@@ -91,6 +113,13 @@ final class WebRequestSecurity {
     String replacement =
         "$1<input type='hidden' name='" + CSRF_FORM_FIELD + "' value='" + escapedToken + "'>";
     return matcher.replaceAll(replacement);
+  }
+
+  static void exposeCsrfToken(HttpExchange exchange) {
+    Object token = exchange.getAttribute(CSRF_ATTRIBUTE);
+    if (token instanceof String csrfToken && !csrfToken.isBlank()) {
+      exchange.getResponseHeaders().set(CSRF_HEADER_NAME, csrfToken);
+    }
   }
 
   private static byte[] requestBytes(HttpExchange exchange) throws IOException {
@@ -120,7 +149,7 @@ final class WebRequestSecurity {
   }
 
   private static boolean validCsrf(HttpExchange exchange, byte[] requestBytes, String csrfToken) {
-    String submitted = exchange.getRequestHeaders().getFirst("X-CSRF-Token");
+    String submitted = exchange.getRequestHeaders().getFirst(CSRF_HEADER_NAME);
     if (submitted == null || submitted.isBlank()) {
       submitted = formValue(requestBytes, CSRF_FORM_FIELD);
     }

@@ -41,10 +41,20 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("js-session-next-block"));
     assertTrue(html.contains("js-session-skip-block"));
     assertTrue(html.contains(">Skip block</button>"));
-    assertTrue(html.contains("Save &amp; Next block"));
+    assertTrue(
+        html.indexOf("class='secondary js-session-skip-block'")
+            < html.indexOf("data-session-block-index='0'"));
+    assertTrue(html.contains("Submit Block &amp; Next"));
+    assertTrue(html.contains("Submit Final Block"));
+    assertTrue(
+        html.indexOf("class='session-block-actions'")
+            > html.indexOf("data-session-block-index='1'"));
+    assertTrue(
+        html.indexOf("class='session-block-actions'")
+            > html.indexOf("class='secondary js-session-skip-block'"));
     assertTrue(html.contains("js-session-block-save-status"));
-    assertTrue(html.contains("showBlock(currentBlockIndex + 1)"));
-    assertTrue(html.contains("class='save-workout-session-btn is-hidden'"));
+    assertTrue(html.contains("showBlock(submittedIndex + 1)"));
+    assertTrue(html.contains("await syncCompletedWorkout();"));
     assertTrue(html.contains("action='/save-planned-workout-session'"));
     assertTrue(html.contains("name='savedSessionLoggedCount'"));
     assertTrue(html.contains("name='savedSessionSkippedExercises'"));
@@ -116,7 +126,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("function skipCurrentBlock()"));
     assertTrue(html.contains("'/save-planned-workout-block',"));
     assertTrue(html.contains("await wakeServer();"));
-    assertTrue(html.contains("'Waking server... Your draft is safe on this device.'"));
+    assertTrue(html.contains("'Waking server... Your unsubmitted block is safe on this device.'"));
     assertTrue(
         html.contains(
             "params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)))"));
@@ -125,18 +135,20 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("setHiddenValue('.js-session-saved-logged-count'"));
     assertTrue(html.contains("incrementHiddenValue('.js-session-saved-logged-count'"));
     assertTrue(html.contains("blockHandled(index) ? [] : collectBlockResults(block)"));
+    assertTrue(html.contains("blocks.flatMap((block, index) => {"));
     assertTrue(html.contains("setBlockLocked(block, true);"));
     assertTrue(html.contains("class='status muted js-session-sync-status'"));
-    assertTrue(
-        html.contains(
-            "class='secondary save-workout-session-btn js-session-sync-retry is-hidden'"));
+    assertTrue(html.contains("class='secondary js-session-sync-retry is-hidden'>Retry Finish"));
     assertTrue(html.contains("async function wakeServer()"));
     assertTrue(html.contains("`/health?wake=${Date.now()}`"));
+    assertTrue(html.contains("function refreshCsrfToken(response)"));
+    assertTrue(html.contains("response.headers.get('X-CSRF-Token')"));
+    assertTrue(html.contains("refreshCsrfToken(response);"));
     assertTrue(html.contains("async function postCompletedWorkout()"));
     assertTrue(html.contains("form.addEventListener('submit', (event) =>"));
     assertTrue(html.contains("window.setInterval(() => persistDraft(), 30000)"));
     assertTrue(html.contains("window.addEventListener('pagehide', () => persistDraft())"));
-    assertTrue(html.contains("Your draft is still saved on this device."));
+    assertTrue(html.contains("Your workout state is still on this device."));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));
     assertFalse(html.contains("name='rpe' value='8.0'"));
     assertFalse(html.contains("class='session-history'"));

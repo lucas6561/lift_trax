@@ -99,6 +99,37 @@ class WebServerCliTest {
   }
 
   @Test
+  void readOnlyPostCanRestoreAPageAndIssuesItsCurrentCsrfToken() throws Exception {
+    TestExchange exchange =
+        TestExchange.post("/planned-workout-session", form("csrfToken", "stale-page-token"));
+    String body =
+        "<form method='post' action='/save-planned-workout-session'><button>Submit</button></form>";
+
+    WebRequestSecurity.handleReadOnly(
+        exchange,
+        "/planned-workout-session",
+        Set.of("POST"),
+        secured -> WebServerCli.sendHtml(secured, WebHtml.wrapPage("Workout", body)));
+
+    assertEquals(200, exchange.status());
+    String csrfCookie = exchange.responseHeaders.getFirst("Set-Cookie");
+    String csrfToken = csrfCookie.substring("lt_csrf=".length(), csrfCookie.indexOf(';'));
+    assertTrue(exchange.responseBody().contains("name='csrfToken' value='" + csrfToken + "'"));
+  }
+
+  @Test
+  void securedHealthResponseCanRefreshAnOpenFormsCsrfToken() throws Exception {
+    TestExchange exchange = TestExchange.get("/health");
+
+    WebRequestSecurity.handleSecured(
+        exchange, "/health", Set.of("GET"), WebRequestSecurity::exposeCsrfToken);
+
+    String csrfCookie = exchange.responseHeaders.getFirst("Set-Cookie");
+    String csrfToken = csrfCookie.substring("lt_csrf=".length(), csrfCookie.indexOf(';'));
+    assertEquals(csrfToken, exchange.responseHeaders.getFirst("X-CSRF-Token"));
+  }
+
+  @Test
   void securedRouteRejectsOversizedRequests() throws Exception {
     TestExchange exchange =
         TestExchange.post(

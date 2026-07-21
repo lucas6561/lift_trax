@@ -102,13 +102,11 @@ final class PlannedWorkoutSessionHtml {
           date,
           history);
     }
-    html.append("<button type='submit' class='save-workout-session-btn")
-        .append(day.blocks().size() > 1 ? " is-hidden" : "")
-        .append("'>Save Completed Workout</button>")
+    appendBlockActions(html, day.blocks().size());
+    html.append(
+            "<button type='button' class='secondary js-session-sync-retry is-hidden'>Retry Finish</button>")
         .append(
-            "<button type='button' class='secondary save-workout-session-btn js-session-sync-retry is-hidden'>Retry Save</button>")
-        .append(
-            "<p class='status muted js-session-sync-status' role='status'>Draft saved on this device.</p>")
+            "<p class='status muted js-session-sync-status' role='status'>Unsubmitted block backed up on this device.</p>")
         .append("</form>");
     appendScript(html);
     return html.toString();
@@ -231,13 +229,16 @@ final class PlannedWorkoutSessionHtml {
         .append("</span></div><progress class='js-session-block-progress' value='1' max='")
         .append(blocks.size())
         .append(
-            "'></progress><span class='muted js-session-block-save-status'></span><div class='session-block-actions'>")
+            "'></progress><button type='button' class='secondary js-session-skip-block'>Skip block</button><span class='muted js-session-block-save-status'></span></nav>");
+  }
+
+  private static void appendBlockActions(StringBuilder html, int blockCount) {
+    html.append("<div class='session-block-actions' aria-label='Current block actions'>")
         .append(
             "<button type='button' class='secondary js-session-previous-block' disabled>Previous block</button>")
-        .append("<button type='button' class='secondary js-session-skip-block'>Skip block</button>")
-        .append("<button type='button' class='js-session-next-block")
-        .append(blocks.size() == 1 ? " is-hidden" : "")
-        .append("'>Save &amp; Next block</button></div></nav>");
+        .append("<button type='button' class='js-session-next-block'>")
+        .append(blockCount == 1 ? "Submit Final Block" : "Submit Block &amp; Next")
+        .append("</button></div>");
   }
 
   private static void appendBlock(
@@ -497,7 +498,6 @@ final class PlannedWorkoutSessionHtml {
             const previousBlock = form.querySelector('.js-session-previous-block');
             const nextBlock = form.querySelector('.js-session-next-block');
             const skipBlock = form.querySelector('.js-session-skip-block');
-            const saveWorkout = form.querySelector('.save-workout-session-btn');
             const blockPosition = form.querySelector('.js-session-block-position');
             const blockTitle = form.querySelector('.js-session-block-title');
             const blockProgress = form.querySelector('.js-session-block-progress');
@@ -546,9 +546,21 @@ final class PlannedWorkoutSessionHtml {
                 return 'Block skipped.';
               }
               if (savedBlockIndexes.has(index)) {
-                return 'Block saved to history.';
+                return 'Block submitted to history.';
               }
               return '';
+            }
+
+            function updateBlockActions() {
+              const handled = blockHandled(currentBlockIndex);
+              const finalBlock = currentBlockIndex === blocks.length - 1;
+              previousBlock.disabled = currentBlockIndex === 0;
+              skipBlock.disabled = handled;
+              if (handled) {
+                nextBlock.textContent = finalBlock ? 'Finish Workout' : 'Next block';
+              } else {
+                nextBlock.textContent = finalBlock ? 'Submit Final Block' : 'Submit Block & Next';
+              }
             }
 
             function incrementHiddenValue(selector, amount) {
@@ -582,10 +594,7 @@ final class PlannedWorkoutSessionHtml {
               blockPosition.textContent = `Block ${currentBlockIndex + 1} of ${blocks.length}`;
               blockTitle.textContent = current.querySelector('h2').textContent;
               blockProgress.value = currentBlockIndex + 1;
-              previousBlock.disabled = currentBlockIndex === 0;
-              nextBlock.classList.toggle('is-hidden', currentBlockIndex === blocks.length - 1);
-              skipBlock.disabled = blockHandled(currentBlockIndex);
-              saveWorkout.classList.toggle('is-hidden', currentBlockIndex !== blocks.length - 1);
+              updateBlockActions();
               setBlockSaveStatus(blockStatus(currentBlockIndex), false);
               current.scrollIntoView({ behavior: 'smooth', block: 'start' });
               persistDraft();
@@ -1006,11 +1015,15 @@ final class PlannedWorkoutSessionHtml {
                   savedSessionSkippedExercises: hiddenValue('.js-session-saved-skipped-exercises'),
                   savedSessionSkippedSets: hiddenValue('.js-session-saved-skipped-sets'),
                   sessionDate: (form.querySelector("input[name='sessionDate']") || {}).value || '',
-                  exercises: Array.from(form.querySelectorAll('.session-exercise')).map((card) => collectExerciseDraft(card))
+                  exercises: blocks.flatMap((block, index) => {
+                    return blockHandled(index)
+                      ? []
+                      : Array.from(block.querySelectorAll('.session-exercise')).map((card) => collectExerciseDraft(card));
+                  })
                 };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
                 if (!finalSyncRunning) {
-                  setSyncStatus('Draft saved on this device.', false, false);
+                  setSyncStatus('Unsubmitted block backed up on this device.', false, false);
                 }
               } catch (error) {
                 // A blocked or full browser storage area should not interrupt training.
@@ -1057,12 +1070,12 @@ final class PlannedWorkoutSessionHtml {
               setHiddenValue('.js-session-saved-logged-count', draft.savedSessionLoggedCount);
               setHiddenValue('.js-session-saved-skipped-exercises', draft.savedSessionSkippedExercises);
               setHiddenValue('.js-session-saved-skipped-sets', draft.savedSessionSkippedSets);
-              skipBlock.disabled = blockHandled(currentBlockIndex);
+              updateBlockActions();
               setBlockSaveStatus(blockStatus(currentBlockIndex), false);
               if (draft.pendingSync) {
-                setSyncStatus('Unsynced workout recovered. Save again to finish syncing.', true, true);
+                setSyncStatus('Submitted blocks recovered. Finish the workout again to confirm completion.', true, true);
               } else {
-                setSyncStatus('Draft restored from this device.', false, false);
+                setSyncStatus('Unsubmitted block restored from this device.', false, false);
               }
               restoringDraft = false;
             }
@@ -1244,18 +1257,18 @@ final class PlannedWorkoutSessionHtml {
                 event.preventDefault();
               }
             });
-            async function saveBlock(index) {
+            async function submitBlock(index) {
               if (blockHandled(index)) {
                 return true;
               }
               const block = blocks[index];
-              const params = new URLSearchParams(new FormData(form));
-              params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)));
               nextBlock.disabled = true;
-              setBlockSaveStatus('Waking server... Your draft is safe on this device.', false);
+              setBlockSaveStatus('Waking server... Your unsubmitted block is safe on this device.', false);
               try {
                 await wakeServer();
-                setBlockSaveStatus('Saving block...', false);
+                const params = new URLSearchParams(new FormData(form));
+                params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)));
+                setBlockSaveStatus('Submitting block...', false);
                 const response = await fetchWithTimeout(
                   '/save-planned-workout-block',
                   {
@@ -1272,7 +1285,7 @@ final class PlannedWorkoutSessionHtml {
                   payload = {};
                 }
                 if (!response.ok) {
-                  throw new Error(payload.error || 'Could not save block.');
+                  throw new Error(payload.error || 'Could not submit block.');
                 }
                 savedBlockIndexes.add(index);
                 setBlockLocked(block, true);
@@ -1280,11 +1293,12 @@ final class PlannedWorkoutSessionHtml {
                 incrementHiddenValue('.js-session-saved-skipped-exercises', payload.skippedExercises);
                 incrementHiddenValue('.js-session-saved-skipped-sets', payload.skippedSets);
                 persistDraft();
+                updateBlockActions();
                 const logged = Number(payload.loggedExecutionCount || 0);
-                setBlockSaveStatus(logged === 1 ? 'Saved 1 execution.' : `Saved ${logged} executions.`, false);
+                setBlockSaveStatus(logged === 1 ? 'Submitted 1 execution.' : `Submitted ${logged} executions.`, false);
                 return true;
               } catch (error) {
-                setBlockSaveStatus(error.message || 'Could not save block.', true);
+                setBlockSaveStatus(error.message || 'Could not submit block.', true);
                 return false;
               } finally {
                 nextBlock.disabled = false;
@@ -1294,7 +1308,7 @@ final class PlannedWorkoutSessionHtml {
             function skipCurrentBlock() {
               const index = currentBlockIndex;
               if (savedBlockIndexes.has(index)) {
-                setBlockSaveStatus('Block already saved to history.', false);
+                setBlockSaveStatus('Block already submitted to history.', false);
                 return;
               }
               if (skippedBlockIndexes.has(index)) {
@@ -1305,8 +1319,8 @@ final class PlannedWorkoutSessionHtml {
               skippedBlockIndexes.add(index);
               setBlockLocked(block, true);
               setBlockSaveStatus('Block skipped.', false);
-              skipBlock.disabled = true;
               persistDraft();
+              updateBlockActions();
               if (index < blocks.length - 1) {
                 showBlock(index + 1);
               }
@@ -1315,9 +1329,15 @@ final class PlannedWorkoutSessionHtml {
             previousBlock.addEventListener('click', () => showBlock(currentBlockIndex - 1));
             skipBlock.addEventListener('click', skipCurrentBlock);
             nextBlock.addEventListener('click', async () => {
-              const saved = await saveBlock(currentBlockIndex);
-              if (saved) {
-                showBlock(currentBlockIndex + 1);
+              const submittedIndex = currentBlockIndex;
+              const submitted = await submitBlock(submittedIndex);
+              if (!submitted) {
+                return;
+              }
+              if (submittedIndex < blocks.length - 1) {
+                showBlock(submittedIndex + 1);
+              } else {
+                await syncCompletedWorkout();
               }
             });
             form.querySelectorAll('.session-exercise').forEach((card) => {
@@ -1368,15 +1388,26 @@ final class PlannedWorkoutSessionHtml {
               }
             }
 
+            function refreshCsrfToken(response) {
+              const csrfToken = response.headers.get('X-CSRF-Token');
+              if (!csrfToken) {
+                return;
+              }
+              form.querySelectorAll("input[name='csrfToken']").forEach((input) => {
+                input.value = csrfToken;
+              });
+            }
+
             async function wakeServer() {
               let lastError = null;
               for (let attempt = 1; attempt <= 3; attempt++) {
-                setSyncStatus(`Waking server (${attempt}/3)... Your draft is safe on this device.`, false, false);
+                setSyncStatus(`Waking server (${attempt}/3)... Your unsubmitted block is safe on this device.`, false, false);
                 try {
                   const response = await fetchWithTimeout(
                     `/health?wake=${Date.now()}`,
                     {method: 'GET', cache: 'no-store', credentials: 'same-origin'},
                     90000);
+                  refreshCsrfToken(response);
                   if (response.ok && (await response.text()).trim() === 'ok') {
                     return;
                   }
@@ -1390,11 +1421,11 @@ final class PlannedWorkoutSessionHtml {
             }
 
             async function postCompletedWorkout() {
-              const params = new URLSearchParams(new FormData(form));
               let lastError = null;
               for (let attempt = 1; attempt <= 3; attempt++) {
-                setSyncStatus(`Saving workout (${attempt}/3)...`, false, false);
+                setSyncStatus(`Finishing workout (${attempt}/3)...`, false, false);
                 try {
+                  const params = new URLSearchParams(new FormData(form));
                   const response = await fetchWithTimeout(
                     form.action,
                     {
@@ -1429,7 +1460,7 @@ final class PlannedWorkoutSessionHtml {
                 return;
               }
               finalSyncRunning = true;
-              saveWorkout.disabled = true;
+              nextBlock.disabled = true;
               prepareFinalResults();
               persistDraft();
               try {
@@ -1437,10 +1468,10 @@ final class PlannedWorkoutSessionHtml {
                 await postCompletedWorkout();
               } catch (error) {
                 finalSyncRunning = false;
-                saveWorkout.disabled = false;
+                nextBlock.disabled = false;
                 persistDraft();
                 setSyncStatus(
-                  `${error.message || 'Could not sync the workout.'} Your draft is still saved on this device.`,
+                  `${error.message || 'Could not finish the workout.'} Your workout state is still on this device.`,
                   true,
                   true);
               }

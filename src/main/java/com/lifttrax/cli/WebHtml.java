@@ -173,7 +173,9 @@ final class WebHtml {
                 .session-block-summary { display: flex; flex-direction: column; gap: 0.08rem; min-width: 0; }
                 .session-block-summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .session-block-nav progress { margin: 0; }
-                .session-block-actions { display: flex; gap: 0.35rem; }
+                .session-block-nav .js-session-skip-block { min-height: 2.35rem; margin: 0; white-space: nowrap; }
+                .session-block-nav .js-session-block-save-status { grid-column: 1 / -1; }
+                .session-block-actions { display: flex; justify-content: flex-end; gap: 0.35rem; margin-top: 0.15rem; }
                 .session-block-actions button { min-height: 2.35rem; margin: 0; white-space: nowrap; }
                 .session-block { border: 1px solid var(--pico-muted-border-color); border-radius: 0.6rem; padding: 0.58rem; background: rgba(9, 16, 30, 0.7); }
                 .session-block.is-current { border-color: rgba(34, 197, 94, 0.58); }
@@ -252,8 +254,8 @@ final class WebHtml {
                   .js-remove-set { grid-column: 1 / -1; }
                   .session-exercise > header { align-items: stretch; flex-direction: column; }
                   .session-exercise > header label { width: 100%; }
-                  .planned-session-form { padding-bottom: 4.4rem; }
-                  .session-block-nav { position: sticky; top: auto; bottom: 0.35rem; z-index: 4; grid-template-columns: 1fr; }
+                  .session-block-nav { grid-template-columns: 1fr; }
+                  .session-block-nav .js-session-skip-block { width: 100%; }
                   .session-block-actions { display: grid; grid-template-columns: 1fr; }
                   .session-block-actions button { width: 100%; }
                   .session-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
