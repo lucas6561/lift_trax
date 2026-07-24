@@ -127,6 +127,25 @@ class HostedPostgresTrainingDataStoreTest {
   }
 
   @Test
+  void workoutSubmissionReceiptsAreIdempotentAndScopedToTheLifter() throws Exception {
+    HostedPostgresTrainingDataStoreProvider provider = provider();
+    TrainingDataStore userA = provider.forUser("receipt-user-a");
+    TrainingDataStore userB = provider.forUser("receipt-user-b");
+    WorkoutSubmissionReceipt receipt = new WorkoutSubmissionReceipt("fingerprint-a", 2, 1, 3);
+
+    userA.recordWorkoutSubmission("session-a:block:0", receipt);
+    userA.recordWorkoutSubmission("session-a:block:0", receipt);
+
+    assertEquals(receipt, userA.getWorkoutSubmission("session-a:block:0"));
+    assertNull(userB.getWorkoutSubmission("session-a:block:0"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            userA.recordWorkoutSubmission(
+                "session-a:block:0", new WorkoutSubmissionReceipt("changed", 2, 1, 3)));
+  }
+
+  @Test
   void hostedAdapterRejectsCrossUserExecutionMutationWithoutLeakingPrivateRows() throws Exception {
     HostedPostgresTrainingDataStoreProvider provider = provider();
     TrainingDataStore owner = provider.forUser("owner");

@@ -893,6 +893,67 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
   }
 
   @Override
+  public WorkoutSubmissionReceipt getWorkoutSubmission(String submissionId) throws Exception {
+    return getWorkoutSubmissionForUser(LEGACY_OWNER_USER_ID, submissionId);
+  }
+
+  WorkoutSubmissionReceipt getWorkoutSubmissionForUser(String ownerUserId, String submissionId)
+      throws Exception {
+    String sql =
+        """
+            SELECT payload_fingerprint, logged_execution_count, skipped_exercises, skipped_sets
+            FROM workout_submission_receipts
+            WHERE owner_user_id = ? AND submission_id = ?
+            """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, submissionId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return null;
+        }
+        return new WorkoutSubmissionReceipt(
+            resultSet.getString("payload_fingerprint"),
+            resultSet.getInt("logged_execution_count"),
+            resultSet.getInt("skipped_exercises"),
+            resultSet.getInt("skipped_sets"));
+      }
+    }
+  }
+
+  @Override
+  public void recordWorkoutSubmission(String submissionId, WorkoutSubmissionReceipt receipt)
+      throws Exception {
+    recordWorkoutSubmissionForUser(LEGACY_OWNER_USER_ID, submissionId, receipt);
+  }
+
+  void recordWorkoutSubmissionForUser(
+      String ownerUserId, String submissionId, WorkoutSubmissionReceipt receipt) throws Exception {
+    String sql =
+        """
+            INSERT OR IGNORE INTO workout_submission_receipts (
+                owner_user_id, submission_id, payload_fingerprint,
+                logged_execution_count, skipped_exercises, skipped_sets
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, requireOwnerUserId(ownerUserId));
+      statement.setString(2, submissionId);
+      statement.setString(3, receipt.fingerprint());
+      statement.setInt(4, receipt.loggedExecutionCount());
+      statement.setInt(5, receipt.skippedExercises());
+      statement.setInt(6, receipt.skippedSets());
+      statement.executeUpdate();
+    }
+    WorkoutSubmissionReceipt stored = getWorkoutSubmissionForUser(ownerUserId, submissionId);
+    if (stored == null || !stored.fingerprint().equals(receipt.fingerprint())) {
+      throw new IllegalArgumentException(
+          "This workout block conflicts with data already submitted from this session.");
+    }
+  }
+
+  @Override
   public void updateLift(
       String currentName,
       String newName,

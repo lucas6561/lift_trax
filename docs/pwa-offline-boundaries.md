@@ -29,18 +29,25 @@ old authenticated content.
 
 ## Offline Writes
 
-Offline writes are deferred for the first hosted beta. Logging a completed set,
-editing history, deleting history, importing a local database, and saving a
-planned workout session must require a live server response.
+Completed history remains network-only. Logging a standalone execution, editing
+or deleting history, importing a local database, and submitting a planned
+workout block require a live server response.
 
-Future offline training-session drafts can be added after they have a dedicated
-draft model. A safe draft model needs:
+`LT-0095` adds a narrow exception for an active planned-workout working copy:
 
-- device-local storage scoped to the signed-in user identifier;
-- visible "unsynced draft" state;
-- conflict handling when the same session changes on another device;
-- an explicit discard path;
-- server validation before any draft becomes completed history.
+- the loaded workout form is backed up immediately in device-local storage;
+- storage keys and draft contents are scoped to the immutable signed-in user
+  identity;
+- the Dashboard offers Resume and explicit Discard actions;
+- device-only, submitting, and hosted-confirmed states are shown separately;
+- the server validates every submitted block;
+- stable session/block submission IDs make reconnect retries idempotent and
+  reject changed-payload conflicts.
+
+The authenticated workout page is still not cached. Starting or reconstructing
+the page after Chrome discards it requires a network connection, but the device
+backup remains available until reconnection. There is no automatic background
+sync or cross-device merge.
 
 ## Installability
 

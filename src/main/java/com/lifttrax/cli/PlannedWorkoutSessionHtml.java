@@ -6,8 +6,12 @@ import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutHistory;
 import com.lifttrax.workout.PlannedWorkoutJson;
 import com.lifttrax.workout.PlannedWorkoutText;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +20,200 @@ import java.util.Set;
 /** Renders a follow-along workout day seeded from an imported workout file. */
 final class PlannedWorkoutSessionHtml {
   private PlannedWorkoutSessionHtml() {}
+
+  static String renderResumePanel(String ownerUserId) {
+    String draftPrefix = draftPrefix(ownerUserId);
+    String legacyDraftPrefix = legacyDraftPrefix(ownerUserId);
+    return """
+        <section class='planned-session-resume is-hidden' data-draft-prefix='%s' data-legacy-draft-prefix='%s' aria-live='polite'>
+          <h2>Active workouts on this phone</h2>
+          <p class='muted js-planned-session-resume-status'>Checking device backups...</p>
+          <ul class='planned-session-resume-list js-planned-session-resume-list'></ul>
+        </section>
+        <script>
+          (function () {
+            const panel = document.querySelector('.planned-session-resume');
+            if (!panel) {
+              return;
+            }
+            const prefixes = [panel.dataset.draftPrefix || '', panel.dataset.legacyDraftPrefix || '']
+              .filter((prefix) => prefix);
+            const status = panel.querySelector('.js-planned-session-resume-status');
+            const list = panel.querySelector('.js-planned-session-resume-list');
+
+            function showStorageError(message) {
+              panel.classList.remove('is-hidden');
+              status.textContent = message;
+              status.classList.remove('muted');
+              status.classList.add('error');
+              list.replaceChildren();
+            }
+
+            function readDrafts() {
+              const drafts = [];
+              for (let index = 0; index < localStorage.length; index++) {
+                const key = localStorage.key(index);
+                if (!key || !prefixes.some((prefix) => key.startsWith(prefix))) {
+                  continue;
+                }
+                try {
+                  const draft = JSON.parse(localStorage.getItem(key) || 'null');
+                  if (!draft || typeof draft !== 'object' || !draft.plannedWorkoutJson
+                      || draft.ownerScope !== panel.dataset.draftPrefix) {
+                    continue;
+                  }
+                  drafts.push({key, draft});
+                } catch (error) {
+                  // A damaged draft is ignored without hiding other recoverable workouts.
+                }
+              }
+              return drafts.sort((left, right) =>
+                String(right.draft.updatedAt || '').localeCompare(String(left.draft.updatedAt || '')));
+            }
+
+            function renderDrafts() {
+              let drafts;
+              try {
+                drafts = readDrafts();
+              } catch (error) {
+                showStorageError('LiftTrax cannot read this phone\\'s workout backups.');
+                return;
+              }
+              list.replaceChildren();
+              if (drafts.length === 0) {
+                panel.classList.add('is-hidden');
+                return;
+              }
+              panel.classList.remove('is-hidden');
+              status.textContent = 'Resume where you left off or discard a device backup.';
+              status.classList.remove('error');
+              status.classList.add('muted');
+              drafts.forEach(({key, draft}) => {
+                const item = document.createElement('li');
+                item.className = 'planned-session-resume-item';
+                const detail = document.createElement('p');
+                const title = document.createElement('strong');
+                title.textContent = draft.workoutName || 'Planned workout';
+                const description = document.createElement('span');
+                const updated = draft.updatedAt ? new Date(draft.updatedAt).toLocaleString() : 'time unavailable';
+                const day = draft.dayTitle || draft.dayOfWeek || 'Workout';
+                description.className = 'muted';
+                description.textContent = `${day} - saved on this phone ${updated}`;
+                detail.append(title, document.createElement('br'), description);
+
+                const resume = document.createElement('a');
+                resume.className = 'compact-btn';
+                resume.textContent = 'Resume';
+                resume.href = `/planned-workout-session?draft=${encodeURIComponent(key)}`;
+
+                const discard = document.createElement('button');
+                discard.type = 'button';
+                discard.className = 'secondary compact-btn';
+                discard.textContent = 'Discard';
+                discard.addEventListener('click', () => {
+                  if (!window.confirm(`Discard the device backup for ${title.textContent}?`)) {
+                    return;
+                  }
+                  try {
+                    localStorage.removeItem(key);
+                    renderDrafts();
+                  } catch (error) {
+                    showStorageError('LiftTrax could not discard this phone\\'s workout backup.');
+                  }
+                });
+                item.append(detail, resume, discard);
+                list.append(item);
+              });
+            }
+
+            renderDrafts();
+          })();
+        </script>
+        """
+        .formatted(WebHtml.escapeHtml(draftPrefix), WebHtml.escapeHtml(legacyDraftPrefix));
+  }
+
+  static String renderResumePage(String draftKey, String ownerUserId) {
+    if (draftKey == null
+        || draftKey.isBlank()
+        || (!draftKey.startsWith(draftPrefix(ownerUserId))
+            && !draftKey.startsWith(legacyDraftPrefix(ownerUserId)))) {
+      return """
+          <h1>Workout backup unavailable</h1>
+          <p class='status error'>This workout backup does not belong to the signed-in account or is no longer available.</p>
+          <p><a class='compact-btn' href='/?tab=dashboard'>Back to Dashboard</a></p>
+          """;
+    }
+    return """
+        <h1>Resume Workout</h1>
+        <p class='status muted js-session-resume-status'>Loading the workout saved on this phone...</p>
+        <button type='button' class='secondary js-session-resume-retry is-hidden'>Retry</button>
+        <p><a href='/?tab=dashboard'>Back to Dashboard</a></p>
+        <div class='js-session-resume' data-draft-key='%s' data-owner-scope='%s'></div>
+        <script>
+          (function () {
+            const shell = document.querySelector('.js-session-resume');
+            const status = document.querySelector('.js-session-resume-status');
+            const retry = document.querySelector('.js-session-resume-retry');
+            if (!shell || !status || !retry) {
+              return;
+            }
+
+            function fail(message) {
+              status.textContent = message;
+              status.classList.remove('muted');
+              status.classList.add('error');
+              retry.classList.remove('is-hidden');
+            }
+
+            async function resumeWorkout() {
+              retry.classList.add('is-hidden');
+              status.textContent = 'Loading the workout saved on this phone...';
+              status.classList.remove('error');
+              status.classList.add('muted');
+              let draft;
+              try {
+                draft = JSON.parse(localStorage.getItem(shell.dataset.draftKey) || 'null');
+              } catch (error) {
+                fail('LiftTrax could not read this phone\\'s workout backup.');
+                return;
+              }
+              if (!draft || typeof draft !== 'object' || !draft.plannedWorkoutJson
+                  || draft.ownerScope !== shell.dataset.ownerScope
+                  || !draft.weekNumber || !draft.dayOfWeek) {
+                fail('This phone no longer has a usable backup for the workout.');
+                return;
+              }
+              const params = new URLSearchParams();
+              params.set('plannedWorkoutJson', draft.plannedWorkoutJson);
+              params.set('weekNumber', String(draft.weekNumber));
+              params.set('dayOfWeek', String(draft.dayOfWeek));
+              try {
+                const response = await fetch('/planned-workout-session', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                  body: params,
+                  credentials: 'same-origin'
+                });
+                const html = await response.text();
+                if (!response.ok) {
+                  throw new Error('The workout page could not be restored.');
+                }
+                document.open();
+                document.write(html);
+                document.close();
+              } catch (error) {
+                fail(`${error.message || 'The workout page could not be restored.'} Reconnect and try again.`);
+              }
+            }
+
+            retry.addEventListener('click', resumeWorkout);
+            resumeWorkout();
+          })();
+        </script>
+        """
+        .formatted(WebHtml.escapeHtml(draftKey), WebHtml.escapeHtml(draftPrefix(ownerUserId)));
+  }
 
   static String renderPage(
       PlannedWorkoutFile workoutFile,
@@ -62,6 +260,14 @@ final class PlannedWorkoutSessionHtml {
     html.append(
             "<form method='post' action='/save-planned-workout-session' class='planned-session-form' data-draft-key='")
         .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek, ownerUserId)))
+        .append("' data-legacy-draft-key='")
+        .append(WebHtml.escapeHtml(legacyDraftKey(workoutFile, weekNumber, dayOfWeek, ownerUserId)))
+        .append("' data-workout-name='")
+        .append(WebHtml.escapeHtml(workoutFile.metadata().name()))
+        .append("' data-day-title='")
+        .append(WebHtml.escapeHtml(day.title()))
+        .append("' data-owner-scope='")
+        .append(WebHtml.escapeHtml(draftPrefix(ownerUserId)))
         .append("'>")
         .append("<input type='hidden' name='plannedWorkoutJson' value='")
         .append(WebHtml.escapeHtml(writeWorkoutJson(workoutFile)))
@@ -106,7 +312,11 @@ final class PlannedWorkoutSessionHtml {
     html.append(
             "<button type='button' class='secondary js-session-sync-retry is-hidden'>Retry Finish</button>")
         .append(
-            "<p class='status muted js-session-sync-status' role='status'>Unsubmitted block backed up on this device.</p>")
+            "<button type='button' class='secondary js-session-discard'>Discard Workout</button>")
+        .append(
+            "<p class='status muted session-device-status js-session-device-status' role='status'>Preparing device backup...</p>")
+        .append(
+            "<p class='status muted js-session-sync-status' role='status'>Not yet submitted to hosted history.</p>")
         .append("</form>");
     appendScript(html);
     return html.toString();
@@ -203,13 +413,38 @@ final class PlannedWorkoutSessionHtml {
     return html.toString();
   }
 
-  private static String draftKey(
+  static String draftPrefix(String ownerUserId) {
+    try {
+      byte[] digest =
+          MessageDigest.getInstance("SHA-256")
+              .digest(String.valueOf(ownerUserId).getBytes(StandardCharsets.UTF_8));
+      return "lifttrax:planned-session:" + HexFormat.of().formatHex(digest, 0, 12) + ":";
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("Could not scope workout drafts to the signed-in user.", e);
+    }
+  }
+
+  private static String legacyDraftPrefix(String ownerUserId) {
+    return "lifttrax:planned-session:"
+        + Integer.toHexString(String.valueOf(ownerUserId).hashCode())
+        + ":";
+  }
+
+  private static String legacyDraftKey(
       PlannedWorkoutFile workoutFile, int weekNumber, String dayOfWeek, String ownerUserId) {
     String sourceTime =
         workoutFile.source().generatedAt() == null ? "" : workoutFile.source().generatedAt();
-    return "lifttrax:planned-session:"
-        + Integer.toHexString(String.valueOf(ownerUserId).hashCode())
-        + ":"
+    return legacyDraftPrefix(ownerUserId)
+        + Integer.toHexString(
+            (workoutFile.metadata().name() + "|" + sourceTime + "|" + weekNumber + "|" + dayOfWeek)
+                .hashCode());
+  }
+
+  static String draftKey(
+      PlannedWorkoutFile workoutFile, int weekNumber, String dayOfWeek, String ownerUserId) {
+    String sourceTime =
+        workoutFile.source().generatedAt() == null ? "" : workoutFile.source().generatedAt();
+    return draftPrefix(ownerUserId)
         + Integer.toHexString(
             (workoutFile.metadata().name() + "|" + sourceTime + "|" + weekNumber + "|" + dayOfWeek)
                 .hashCode());
@@ -502,12 +737,19 @@ final class PlannedWorkoutSessionHtml {
             const blockTitle = form.querySelector('.js-session-block-title');
             const blockProgress = form.querySelector('.js-session-block-progress');
             const blockSaveStatus = form.querySelector('.js-session-block-save-status');
+            const deviceStatus = form.querySelector('.js-session-device-status');
             const syncStatus = form.querySelector('.js-session-sync-status');
             const syncRetry = form.querySelector('.js-session-sync-retry');
+            const discardWorkout = form.querySelector('.js-session-discard');
             const draftKey = form.dataset.draftKey || '';
+            const legacyDraftKey = form.dataset.legacyDraftKey || '';
             let currentBlockIndex = 0;
+            let initializingForm = true;
             let restoringDraft = false;
+            let restoredLegacyDraftKey = '';
             let finalSyncRunning = false;
+            let blockSyncRunning = false;
+            let sessionId = '';
             const savedBlockIndexes = new Set();
             const skippedBlockIndexes = new Set();
 
@@ -528,6 +770,22 @@ final class PlannedWorkoutSessionHtml {
               if (syncRetry) {
                 syncRetry.classList.toggle('is-hidden', !showRetry);
               }
+            }
+
+            function setDeviceStatus(message, isError) {
+              if (!deviceStatus) {
+                return;
+              }
+              deviceStatus.textContent = message || '';
+              deviceStatus.classList.toggle('error', Boolean(isError));
+              deviceStatus.classList.toggle('muted', !isError);
+            }
+
+            function createSessionId() {
+              if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return window.crypto.randomUUID();
+              }
+              return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
             }
 
             function setBlockLocked(block, locked) {
@@ -1000,14 +1258,24 @@ final class PlannedWorkoutSessionHtml {
             }
 
             function persistDraft() {
-              if (restoringDraft || !draftKey) {
-                return;
+              if (initializingForm || restoringDraft || !draftKey) {
+                return false;
               }
               try {
+                if (!sessionId) {
+                  sessionId = createSessionId();
+                }
                 const draft = {
-                  version: 2,
+                  version: 3,
                   updatedAt: new Date().toISOString(),
-                  pendingSync: finalSyncRunning,
+                  pendingSync: finalSyncRunning || blockSyncRunning,
+                  sessionId,
+                  ownerScope: form.dataset.ownerScope || '',
+                  workoutName: form.dataset.workoutName || 'Planned workout',
+                  dayTitle: form.dataset.dayTitle || '',
+                  plannedWorkoutJson: (form.querySelector("input[name='plannedWorkoutJson']") || {}).value || '',
+                  weekNumber: (form.querySelector("input[name='weekNumber']") || {}).value || '',
+                  dayOfWeek: (form.querySelector("input[name='dayOfWeek']") || {}).value || '',
                   currentBlockIndex,
                   savedBlockIndexes: Array.from(savedBlockIndexes),
                   skippedBlockIndexes: Array.from(skippedBlockIndexes),
@@ -1021,12 +1289,19 @@ final class PlannedWorkoutSessionHtml {
                       : Array.from(block.querySelectorAll('.session-exercise')).map((card) => collectExerciseDraft(card));
                   })
                 };
-                localStorage.setItem(draftKey, JSON.stringify(draft));
-                if (!finalSyncRunning) {
-                  setSyncStatus('Unsubmitted block backed up on this device.', false, false);
+                const serialized = JSON.stringify(draft);
+                localStorage.setItem(draftKey, serialized);
+                if (localStorage.getItem(draftKey) !== serialized) {
+                  throw new Error('The browser did not retain the workout backup.');
                 }
+                const savedTime = new Date(draft.updatedAt).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+                setDeviceStatus(`Saved on this phone at ${savedTime}.`, false);
+                return true;
               } catch (error) {
-                // A blocked or full browser storage area should not interrupt training.
+                setDeviceStatus(
+                  'Could not back up this workout on this phone. Keep this page open until the problem is fixed.',
+                  true);
+                return false;
               }
             }
 
@@ -1036,7 +1311,14 @@ final class PlannedWorkoutSessionHtml {
               }
               let draft = null;
               try {
-                draft = JSON.parse(localStorage.getItem(draftKey) || 'null');
+                let serialized = localStorage.getItem(draftKey);
+                if (!serialized && legacyDraftKey && legacyDraftKey !== draftKey) {
+                  serialized = localStorage.getItem(legacyDraftKey);
+                  if (serialized) {
+                    restoredLegacyDraftKey = legacyDraftKey;
+                  }
+                }
+                draft = JSON.parse(serialized || 'null');
               } catch (error) {
                 draft = null;
               }
@@ -1044,6 +1326,9 @@ final class PlannedWorkoutSessionHtml {
                 return;
               }
               restoringDraft = true;
+              if (typeof draft.sessionId === 'string' && draft.sessionId.trim()) {
+                sessionId = draft.sessionId.trim();
+              }
               const dateInput = form.querySelector("input[name='sessionDate']");
               if (dateInput && typeof draft.sessionDate === 'string' && draft.sessionDate.trim()) {
                 dateInput.value = draft.sessionDate;
@@ -1075,7 +1360,7 @@ final class PlannedWorkoutSessionHtml {
               if (draft.pendingSync) {
                 setSyncStatus('Submitted blocks recovered. Finish the workout again to confirm completion.', true, true);
               } else {
-                setSyncStatus('Unsubmitted block restored from this device.', false, false);
+                setSyncStatus('Unsubmitted work restored from this phone.', false, false);
               }
               restoringDraft = false;
             }
@@ -1262,12 +1547,18 @@ final class PlannedWorkoutSessionHtml {
                 return true;
               }
               const block = blocks[index];
+              if (!sessionId) {
+                sessionId = createSessionId();
+              }
+              blockSyncRunning = true;
               nextBlock.disabled = true;
-              setBlockSaveStatus('Waking server... Your unsubmitted block is safe on this device.', false);
+              persistDraft();
+              setBlockSaveStatus('Waking server... Check the device-backup status below.', false);
               try {
                 await wakeServer();
                 const params = new URLSearchParams(new FormData(form));
                 params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)));
+                params.set('submissionId', `${sessionId}:block:${index}`);
                 setBlockSaveStatus('Submitting block...', false);
                 const response = await fetchWithTimeout(
                   '/save-planned-workout-block',
@@ -1296,12 +1587,19 @@ final class PlannedWorkoutSessionHtml {
                 updateBlockActions();
                 const logged = Number(payload.loggedExecutionCount || 0);
                 setBlockSaveStatus(logged === 1 ? 'Submitted 1 execution.' : `Submitted ${logged} executions.`, false);
+                setSyncStatus('Submitted block confirmed in hosted history.', false, false);
                 return true;
               } catch (error) {
                 setBlockSaveStatus(error.message || 'Could not submit block.', true);
+                setSyncStatus(
+                  `${error.message || 'Could not submit block.'} Check the device-backup status above.`,
+                  true,
+                  false);
                 return false;
               } finally {
+                blockSyncRunning = false;
                 nextBlock.disabled = false;
+                persistDraft();
               }
             }
 
@@ -1365,7 +1663,20 @@ final class PlannedWorkoutSessionHtml {
               updateLiftNote(card);
               toggleExercise(card);
             });
+            initializingForm = false;
             restoreDraft();
+            if (persistDraft()) {
+              if (restoredLegacyDraftKey) {
+                try {
+                  localStorage.removeItem(restoredLegacyDraftKey);
+                } catch (error) {
+                  // The new verified backup remains available if legacy cleanup is blocked.
+                }
+              }
+              const resumeUrl = new URL('/planned-workout-session', window.location.origin);
+              resumeUrl.searchParams.set('draft', draftKey);
+              window.history.replaceState({}, '', `${resumeUrl.pathname}${resumeUrl.search}`);
+            }
 
             function prepareFinalResults() {
               const results = blocks.flatMap((block, index) => {
@@ -1401,7 +1712,7 @@ final class PlannedWorkoutSessionHtml {
             async function wakeServer() {
               let lastError = null;
               for (let attempt = 1; attempt <= 3; attempt++) {
-                setSyncStatus(`Waking server (${attempt}/3)... Your unsubmitted block is safe on this device.`, false, false);
+                setSyncStatus(`Waking server (${attempt}/3)... Check the device-backup status above.`, false, false);
                 try {
                   const response = await fetchWithTimeout(
                     `/health?wake=${Date.now()}`,
@@ -1426,6 +1737,7 @@ final class PlannedWorkoutSessionHtml {
                 setSyncStatus(`Finishing workout (${attempt}/3)...`, false, false);
                 try {
                   const params = new URLSearchParams(new FormData(form));
+                  params.set('submissionId', `${sessionId}:finish`);
                   const response = await fetchWithTimeout(
                     form.action,
                     {
@@ -1437,7 +1749,12 @@ final class PlannedWorkoutSessionHtml {
                     90000);
                   const responseHtml = await response.text();
                   if (!response.ok || !responseHtml.includes('Workout Saved')) {
-                    throw new Error('The server did not confirm that the workout was saved.');
+                    const responseDocument = new DOMParser().parseFromString(responseHtml, 'text/html');
+                    const serverError = responseDocument.querySelector('.status.error');
+                    throw new Error(
+                      serverError && serverError.textContent
+                        ? serverError.textContent.trim()
+                        : 'The server did not confirm that the workout was saved.');
                   }
                   localStorage.removeItem(draftKey);
                   document.open();
@@ -1471,7 +1788,7 @@ final class PlannedWorkoutSessionHtml {
                 nextBlock.disabled = false;
                 persistDraft();
                 setSyncStatus(
-                  `${error.message || 'Could not finish the workout.'} Your workout state is still on this device.`,
+                  `${error.message || 'Could not finish the workout.'} Check the device-backup status above.`,
                   true,
                   true);
               }
@@ -1482,8 +1799,25 @@ final class PlannedWorkoutSessionHtml {
               syncCompletedWorkout();
             });
             syncRetry.addEventListener('click', syncCompletedWorkout);
+            discardWorkout.addEventListener('click', () => {
+              if (!window.confirm('Discard this workout backup? Submitted history will be kept.')) {
+                return;
+              }
+              try {
+                localStorage.removeItem(draftKey);
+                window.location.href = '/?tab=dashboard';
+              } catch (error) {
+                setDeviceStatus('LiftTrax could not discard this phone\\'s workout backup.', true);
+              }
+            });
             window.setInterval(() => persistDraft(), 30000);
             window.addEventListener('pagehide', () => persistDraft());
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'hidden') {
+                persistDraft();
+              }
+            });
+            document.addEventListener('freeze', () => persistDraft());
           })();
         </script>
         """);

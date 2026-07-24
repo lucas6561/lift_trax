@@ -361,6 +361,17 @@ public final class PostgresSqliteBackupService {
             "rpe"));
     tables.add(
         table(
+            "workout_submission_receipts",
+            "CREATE TABLE workout_submission_receipts (lifter_profile_id TEXT NOT NULL, submission_id TEXT NOT NULL, payload_fingerprint TEXT NOT NULL, logged_execution_count INTEGER NOT NULL, skipped_exercises INTEGER NOT NULL, skipped_sets INTEGER NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (lifter_profile_id, submission_id))",
+            "lifter_profile_id",
+            "submission_id",
+            "payload_fingerprint",
+            "logged_execution_count",
+            "skipped_exercises",
+            "skipped_sets",
+            "created_at"));
+    tables.add(
+        table(
             "local_imports",
             "CREATE TABLE local_imports (id TEXT PRIMARY KEY, target_app_user_id TEXT NOT NULL, target_lifter_profile_id TEXT NOT NULL, source_kind TEXT NOT NULL, source_fingerprint TEXT NOT NULL, source_schema_version INTEGER NOT NULL, lift_count INTEGER NOT NULL, execution_count INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)",
             "id",

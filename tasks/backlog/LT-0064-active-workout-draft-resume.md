@@ -38,3 +38,7 @@ Follow-along workout sessions can save partial progress and resume later without
 ## Notes
 
 This is the usability bridge between the current follow-along session and the durable planned-versus-completed storage in `LT-0027`.
+
+The phone/browser recovery slice is being delivered by `LT-0095`. Keep this
+card for a future server-owned draft lifecycle or cross-device resume instead
+of duplicating the same-device acceptance criteria.

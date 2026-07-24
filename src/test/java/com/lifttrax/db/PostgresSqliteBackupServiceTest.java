@@ -44,6 +44,8 @@ class PostgresSqliteBackupServiceTest {
             false,
             false,
             "snapshot"));
+    first.recordWorkoutSubmission(
+        "session-a:block:0", new WorkoutSubmissionReceipt("receipt-fingerprint", 1, 0, 0));
     Path destination = Files.createTempDirectory("postgres-sqlite-backup").resolve("backup.db");
 
     PostgresSqliteBackupService.BackupResult result =
@@ -55,6 +57,7 @@ class PostgresSqliteBackupServiceTest {
     assertEquals(2L, result.validation().rowCounts().get("lifter_profiles"));
     assertEquals(2L, result.validation().rowCounts().get("exercise_catalog_entries"));
     assertEquals(1L, result.validation().rowCounts().get("executions"));
+    assertEquals(1L, result.validation().rowCounts().get("workout_submission_receipts"));
     assertEquals(0L, result.validation().rowCounts().get("local_imports"));
     assertEquals(result.validation(), PostgresSqliteBackupService.validate(result.backupPath()));
     try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + result.backupPath());

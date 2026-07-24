@@ -160,6 +160,113 @@ class PlannedWorkoutSessionServiceTest {
   }
 
   @Test
+  void stableSubmissionIdMakesRetriesIdempotentWithoutSuppressingANewIdenticalWorkout()
+      throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-follow-session-idempotent", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLift("Farmer Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "");
+      String blockResults =
+          """
+          [
+            {
+              "exerciseKey":"1:0",
+              "plannedLift":"Back Squat",
+              "performedLift":"Back Squat",
+              "state":"complete",
+              "notes":"same work",
+              "sets":[{"state":"complete","metricType":"reps","metricValue":"5","weight":"225 lb","rpe":""}]
+            }
+          ]
+          """;
+
+      PlannedWorkoutSessionService.SaveSummary first =
+          PlannedWorkoutSessionService.saveSubmittedResults(
+              db,
+              workoutFile(),
+              1,
+              "MONDAY",
+              LocalDate.parse("2026-05-31"),
+              blockResults,
+              false,
+              "session-a:block:0");
+      PlannedWorkoutSessionService.SaveSummary retry =
+          PlannedWorkoutSessionService.saveSubmittedResults(
+              db,
+              workoutFile(),
+              1,
+              "MONDAY",
+              LocalDate.parse("2026-05-31"),
+              blockResults,
+              false,
+              "session-a:block:0");
+      PlannedWorkoutSessionService.SaveSummary newWorkout =
+          PlannedWorkoutSessionService.saveSubmittedResults(
+              db,
+              workoutFile(),
+              1,
+              "MONDAY",
+              LocalDate.parse("2026-05-31"),
+              blockResults,
+              false,
+              "session-b:block:0");
+
+      assertEquals(1, first.loggedExecutionCount());
+      assertEquals(1, retry.loggedExecutionCount());
+      assertEquals(1, newWorkout.loggedExecutionCount());
+      assertEquals(2, db.getExecutions("Back Squat").size());
+    }
+  }
+
+  @Test
+  void stableSubmissionIdRejectsChangedPayloadInsteadOfWritingAConflict() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-follow-session-conflict", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLift("Farmer Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "");
+      String blockResults =
+          """
+          [
+            {
+              "exerciseKey":"1:0",
+              "plannedLift":"Back Squat",
+              "performedLift":"Back Squat",
+              "state":"complete",
+              "notes":"original",
+              "sets":[{"state":"complete","metricType":"reps","metricValue":"5","weight":"225 lb","rpe":""}]
+            }
+          ]
+          """;
+      PlannedWorkoutSessionService.saveSubmittedResults(
+          db,
+          workoutFile(),
+          1,
+          "MONDAY",
+          LocalDate.parse("2026-05-31"),
+          blockResults,
+          false,
+          "session-a:block:0");
+
+      IllegalArgumentException conflict =
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  PlannedWorkoutSessionService.saveSubmittedResults(
+                      db,
+                      workoutFile(),
+                      1,
+                      "MONDAY",
+                      LocalDate.parse("2026-05-31"),
+                      blockResults.replace("original", "changed"),
+                      false,
+                      "session-a:block:0"));
+
+      assertTrue(conflict.getMessage().contains("changed after it was already submitted"));
+      assertEquals(1, db.getExecutions("Back Squat").size());
+    }
+  }
+
+  @Test
   void saveRejectsChangedLiftThatIsNotInTheLocalLibrary() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-follow-session-unknown-swap", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {

@@ -2,15 +2,20 @@ package com.lifttrax.cli;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lifttrax.db.Database;
+import com.lifttrax.db.TrainingDataStore;
+import com.lifttrax.db.WorkoutSubmissionReceipt;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutJson;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,7 +57,7 @@ final class PlannedWorkoutSessionService {
   }
 
   static SaveSummary save(
-      Database db,
+      TrainingDataStore db,
       PlannedWorkoutFile workoutFile,
       int weekNumber,
       String dayOfWeek,
@@ -63,7 +68,7 @@ final class PlannedWorkoutSessionService {
   }
 
   static SaveSummary saveSubmittedResults(
-      Database db,
+      TrainingDataStore db,
       PlannedWorkoutFile workoutFile,
       int weekNumber,
       String dayOfWeek,
@@ -71,14 +76,46 @@ final class PlannedWorkoutSessionService {
       String resultsJson,
       boolean requireEveryPlannedExercise)
       throws Exception {
+    return saveSubmittedResults(
+        db, workoutFile, weekNumber, dayOfWeek, date, resultsJson, requireEveryPlannedExercise, "");
+  }
+
+  static SaveSummary saveSubmittedResults(
+      TrainingDataStore db,
+      PlannedWorkoutFile workoutFile,
+      int weekNumber,
+      String dayOfWeek,
+      LocalDate date,
+      String resultsJson,
+      boolean requireEveryPlannedExercise,
+      String submissionId)
+      throws Exception {
     PlannedWorkoutFile.PlannedWorkoutDay day = findDay(workoutFile, weekNumber, dayOfWeek);
+    String normalizedSubmissionId = normalizeSubmissionId(submissionId);
+    String fingerprint =
+        normalizedSubmissionId.isBlank()
+            ? ""
+            : submissionFingerprint(
+                workoutFile, weekNumber, dayOfWeek, date, resultsJson, requireEveryPlannedExercise);
+    if (!normalizedSubmissionId.isBlank()) {
+      WorkoutSubmissionReceipt receipt = db.getWorkoutSubmission(normalizedSubmissionId);
+      if (receipt != null) {
+        if (!receipt.fingerprint().equals(fingerprint)) {
+          throw new IllegalArgumentException(
+              "This workout block changed after it was already submitted. Resume the saved version or start a new workout.");
+        }
+        return SaveSummary.fromReceipt(receipt);
+      }
+    }
     Map<String, PlannedExerciseItem> plannedByKey = plannedByKey(day);
     JsonNode submitted = readSubmittedResults(resultsJson);
     if (requireEveryPlannedExercise && submitted.size() != plannedByKey.size()) {
       throw new IllegalArgumentException("Submit a result for every planned exercise.");
     }
     if (!requireEveryPlannedExercise && submitted.size() == 0) {
-      return new SaveSummary(List.of(), 0, 0);
+      SaveSummary summary = new SaveSummary(List.of(), 0, 0);
+      recordSubmission(db, normalizedSubmissionId, fingerprint, summary);
+      return summary;
     }
 
     List<PendingExecution> pending = new ArrayList<>();
@@ -133,7 +170,8 @@ final class PlannedWorkoutSessionService {
 
     List<LoggedExercise> logged = new ArrayList<>();
     for (PendingExecution item : pending) {
-      if (hasMatchingExecution(db, item.performedLift(), item.execution())) {
+      if (normalizedSubmissionId.isBlank()
+          && hasMatchingExecution(db, item.performedLift(), item.execution())) {
         continue;
       }
       db.addLiftExecution(item.performedLift(), item.execution());
@@ -141,11 +179,61 @@ final class PlannedWorkoutSessionService {
           new LoggedExercise(
               item.performedLift(), item.execution().sets().size(), item.substitution()));
     }
-    return new SaveSummary(List.copyOf(logged), skippedExercises, skippedSets);
+    SaveSummary summary = new SaveSummary(List.copyOf(logged), skippedExercises, skippedSets);
+    recordSubmission(db, normalizedSubmissionId, fingerprint, summary);
+    return summary;
   }
 
-  private static boolean hasMatchingExecution(Database db, String liftName, LiftExecution execution)
+  private static void recordSubmission(
+      TrainingDataStore db, String submissionId, String fingerprint, SaveSummary summary)
       throws Exception {
+    if (submissionId.isBlank()) {
+      return;
+    }
+    db.recordWorkoutSubmission(
+        submissionId,
+        new WorkoutSubmissionReceipt(
+            fingerprint,
+            summary.loggedExecutionCount(),
+            summary.skippedExercises(),
+            summary.skippedSets()));
+  }
+
+  private static String normalizeSubmissionId(String submissionId) {
+    String value = submissionId == null ? "" : submissionId.trim();
+    if (value.length() > 200 || (!value.isBlank() && !value.matches("[A-Za-z0-9:_-]+"))) {
+      throw new IllegalArgumentException("Workout submission ID is invalid.");
+    }
+    return value;
+  }
+
+  private static String submissionFingerprint(
+      PlannedWorkoutFile workoutFile,
+      int weekNumber,
+      String dayOfWeek,
+      LocalDate date,
+      String resultsJson,
+      boolean requireEveryPlannedExercise)
+      throws Exception {
+    String payload =
+        PlannedWorkoutJson.writeString(workoutFile)
+            + "\n"
+            + weekNumber
+            + "\n"
+            + dayOfWeek
+            + "\n"
+            + date
+            + "\n"
+            + requireEveryPlannedExercise
+            + "\n"
+            + resultsJson;
+    byte[] digest =
+        MessageDigest.getInstance("SHA-256").digest(payload.getBytes(StandardCharsets.UTF_8));
+    return HexFormat.of().formatHex(digest);
+  }
+
+  private static boolean hasMatchingExecution(
+      TrainingDataStore db, String liftName, LiftExecution execution) throws Exception {
     for (LiftExecution existing : db.getExecutions(liftName)) {
       if (existing.date().equals(execution.date())
           && existing.warmup() == execution.warmup()
@@ -276,9 +364,25 @@ final class PlannedWorkoutSessionService {
 
   record LoggedExercise(String liftName, int setCount, boolean substitution) {}
 
-  record SaveSummary(List<LoggedExercise> loggedExercises, int skippedExercises, int skippedSets) {
+  record SaveSummary(
+      List<LoggedExercise> loggedExercises,
+      int skippedExercises,
+      int skippedSets,
+      int confirmedLoggedExecutionCount) {
+    SaveSummary(List<LoggedExercise> loggedExercises, int skippedExercises, int skippedSets) {
+      this(loggedExercises, skippedExercises, skippedSets, loggedExercises.size());
+    }
+
+    static SaveSummary fromReceipt(WorkoutSubmissionReceipt receipt) {
+      return new SaveSummary(
+          List.of(),
+          receipt.skippedExercises(),
+          receipt.skippedSets(),
+          receipt.loggedExecutionCount());
+    }
+
     int loggedExecutionCount() {
-      return loggedExercises.size();
+      return confirmedLoggedExecutionCount;
     }
 
     long substitutionCount() {

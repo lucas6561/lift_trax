@@ -154,7 +154,7 @@ public final class WebServerCli {
     WebRequestSecurity.registerReadOnly(
         server,
         "/planned-workout-session",
-        Set.of("POST"),
+        Set.of("GET", "POST"),
         auth.protect(exchange -> handlePlannedWorkoutSession(exchange, db)));
     WebRequestSecurity.register(
         server,
@@ -426,19 +426,20 @@ public final class WebServerCli {
       }
 
       String body =
-          WebUiRenderer.renderIndexBody(
-              db,
-              lifts,
-              search,
-              queryLift,
-              activeTab,
-              statusMessage,
-              statusType,
-              prefill,
-              lastWeekStart,
-              lastWeekEnd,
-              waveWeeks,
-              query);
+          PlannedWorkoutSessionHtml.renderResumePanel(userIdFor(exchange))
+              + WebUiRenderer.renderIndexBody(
+                  db,
+                  lifts,
+                  search,
+                  queryLift,
+                  activeTab,
+                  statusMessage,
+                  statusType,
+                  prefill,
+                  lastWeekStart,
+                  lastWeekEnd,
+                  waveWeeks,
+                  query);
       sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
     } catch (Exception e) {
       String message =
@@ -887,6 +888,16 @@ public final class WebServerCli {
 
   private static void handlePlannedWorkoutSession(
       HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+    if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+      Map<String, String> query = parseQuery(exchange.getRequestURI());
+      String draftKey = query.getOrDefault("draft", "").trim();
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Resume Workout",
+              PlannedWorkoutSessionHtml.renderResumePage(draftKey, userIdFor(exchange))));
+      return;
+    }
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -946,7 +957,8 @@ public final class WebServerCli {
               dayOfWeek,
               date,
               form.getOrDefault("sessionResultsJson", "[]"),
-              false);
+              false,
+              form.getOrDefault("submissionId", ""));
       sendHtml(
           exchange,
           WebHtml.wrapPage(
@@ -989,7 +1001,8 @@ public final class WebServerCli {
               dayOfWeek,
               date,
               form.getOrDefault("sessionResultsJson", "[]"),
-              false);
+              false,
+              form.getOrDefault("submissionId", ""));
       sendJson(
           exchange,
           200,

@@ -87,6 +87,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("name='rpe' value=''"));
     assertTrue(html.contains("class='js-detailed-sets' value='[]'"));
     assertTrue(html.contains("data-draft-key='lifttrax:planned-session:"));
+    assertTrue(html.contains("data-legacy-draft-key='lifttrax:planned-session:"));
     assertTrue(
         html.contains(
             "name='setEntryMode-1-0' value='multiple' checked data-control-name='setEntryMode'"));
@@ -113,8 +114,21 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("const widgetRadioState = new WeakMap();"));
     assertTrue(html.contains("if (state[name])"));
     assertTrue(html.contains("rememberRadioValue(widget, 'setEntryMode', mode);"));
-    assertTrue(html.contains("localStorage.setItem(draftKey, JSON.stringify(draft));"));
+    assertTrue(html.contains("localStorage.setItem(draftKey, serialized);"));
+    assertTrue(html.contains("localStorage.getItem(draftKey) !== serialized"));
+    assertTrue(html.contains("version: 3"));
+    assertTrue(html.contains("plannedWorkoutJson:"));
+    assertTrue(html.contains("ownerScope: form.dataset.ownerScope"));
+    assertTrue(html.contains("sessionId,"));
+    assertTrue(html.contains("Saved on this phone at ${savedTime}."));
+    assertTrue(html.contains("Could not back up this workout on this phone."));
     assertTrue(html.contains("restoreDraft();"));
+    assertTrue(html.contains("let initializingForm = true;"));
+    assertTrue(html.contains("if (initializingForm || restoringDraft || !draftKey)"));
+    assertTrue(html.indexOf("initializingForm = false;") < html.lastIndexOf("restoreDraft();"));
+    assertTrue(html.contains("serialized = localStorage.getItem(legacyDraftKey);"));
+    assertTrue(html.contains("localStorage.removeItem(restoredLegacyDraftKey);"));
+    assertTrue(html.contains("window.history.replaceState"));
     assertTrue(html.contains("currentBlockIndex"));
     assertTrue(html.contains("detailedSets.length > 0 || setEntryMode(widget) === 'individual'"));
     assertTrue(html.contains("event.preventDefault();"));
@@ -126,10 +140,11 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("function skipCurrentBlock()"));
     assertTrue(html.contains("'/save-planned-workout-block',"));
     assertTrue(html.contains("await wakeServer();"));
-    assertTrue(html.contains("'Waking server... Your unsubmitted block is safe on this device.'"));
+    assertTrue(html.contains("'Waking server... Check the device-backup status below.'"));
     assertTrue(
         html.contains(
             "params.set('sessionResultsJson', JSON.stringify(collectBlockResults(block)))"));
+    assertTrue(html.contains("params.set('submissionId', `${sessionId}:block:${index}`)"));
     assertTrue(
         html.contains("savedSessionLoggedCount: hiddenValue('.js-session-saved-logged-count')"));
     assertTrue(html.contains("setHiddenValue('.js-session-saved-logged-count'"));
@@ -148,7 +163,10 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("form.addEventListener('submit', (event) =>"));
     assertTrue(html.contains("window.setInterval(() => persistDraft(), 30000)"));
     assertTrue(html.contains("window.addEventListener('pagehide', () => persistDraft())"));
-    assertTrue(html.contains("Your workout state is still on this device."));
+    assertTrue(html.contains("document.addEventListener('visibilitychange'"));
+    assertTrue(html.contains("document.addEventListener('freeze'"));
+    assertTrue(html.contains("class='secondary js-session-discard'>Discard Workout"));
+    assertTrue(html.contains("Check the device-backup status above."));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));
     assertFalse(html.contains("name='rpe' value='8.0'"));
     assertFalse(html.contains("class='session-history'"));
@@ -176,16 +194,47 @@ class PlannedWorkoutSessionHtmlTest {
             "user-two");
 
     assertTrue(
-        firstUser.contains(
-            "data-draft-key='lifttrax:planned-session:"
-                + Integer.toHexString("user-one".hashCode())
-                + ":"));
+        firstUser.contains("data-draft-key='" + PlannedWorkoutSessionHtml.draftPrefix("user-one")));
     assertTrue(
         secondUser.contains(
-            "data-draft-key='lifttrax:planned-session:"
-                + Integer.toHexString("user-two".hashCode())
-                + ":"));
+            "data-draft-key='" + PlannedWorkoutSessionHtml.draftPrefix("user-two")));
     assertFalse(firstUser.equals(secondUser));
+  }
+
+  @Test
+  void dashboardResumePanelDiscoversOnlyCurrentUserDraftsAndSupportsDiscard() {
+    String html = PlannedWorkoutSessionHtml.renderResumePanel("user-one");
+
+    assertTrue(
+        html.contains(
+            "data-draft-prefix='" + PlannedWorkoutSessionHtml.draftPrefix("user-one") + "'"));
+    assertFalse(html.contains(PlannedWorkoutSessionHtml.draftPrefix("user-two")));
+    assertTrue(html.contains("prefixes.some((prefix) => key.startsWith(prefix))"));
+    assertTrue(html.contains("draft.plannedWorkoutJson"));
+    assertTrue(html.contains("draft.ownerScope !== panel.dataset.draftPrefix"));
+    assertTrue(html.contains("Resume"));
+    assertTrue(html.contains("Discard"));
+    assertTrue(html.contains("localStorage.removeItem(key)"));
+    assertTrue(html.contains("LiftTrax cannot read this phone\\'s workout backups."));
+  }
+
+  @Test
+  void resumePageReloadsAValidCurrentUserDraftAndRejectsAnotherUsersKey() {
+    String currentPrefix = PlannedWorkoutSessionHtml.draftPrefix("user-one");
+    String resume = PlannedWorkoutSessionHtml.renderResumePage(currentPrefix + "abc", "user-one");
+    String rejected =
+        PlannedWorkoutSessionHtml.renderResumePage(
+            PlannedWorkoutSessionHtml.draftPrefix("user-two") + "abc", "user-one");
+
+    assertTrue(resume.contains("data-draft-key='" + currentPrefix + "abc'"));
+    assertTrue(resume.contains("data-owner-scope='" + currentPrefix + "'"));
+    assertTrue(resume.contains("localStorage.getItem(shell.dataset.draftKey)"));
+    assertTrue(resume.contains("draft.ownerScope !== shell.dataset.ownerScope"));
+    assertTrue(resume.contains("fetch('/planned-workout-session'"));
+    assertTrue(resume.contains("params.set('plannedWorkoutJson', draft.plannedWorkoutJson)"));
+    assertTrue(resume.contains("document.write(html)"));
+    assertTrue(rejected.contains("Workout backup unavailable"));
+    assertFalse(rejected.contains("localStorage.getItem"));
   }
 
   @Test

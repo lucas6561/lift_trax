@@ -12,6 +12,7 @@ import com.lifttrax.models.WeightText;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -101,6 +102,66 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
       if (webExecutionId <= 0) {
         throw new IllegalStateException("Hosted execution ID was invalid.");
       }
+    }
+  }
+
+  @Override
+  public WorkoutSubmissionReceipt getWorkoutSubmission(String submissionId) throws Exception {
+    try (Connection connection = openConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                """
+                    SELECT payload_fingerprint, logged_execution_count,
+                           skipped_exercises, skipped_sets
+                    FROM workout_submission_receipts
+                    WHERE lifter_profile_id = ? AND submission_id = ?
+                    """)) {
+      statement.setString(1, lifterProfileId);
+      statement.setString(2, submissionId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return null;
+        }
+        return new WorkoutSubmissionReceipt(
+            resultSet.getString("payload_fingerprint"),
+            resultSet.getInt("logged_execution_count"),
+            resultSet.getInt("skipped_exercises"),
+            resultSet.getInt("skipped_sets"));
+      }
+    }
+  }
+
+  @Override
+  public void recordWorkoutSubmission(String submissionId, WorkoutSubmissionReceipt receipt)
+      throws Exception {
+    try (Connection connection = openConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                """
+                    INSERT INTO workout_submission_receipts (
+                        lifter_profile_id, submission_id, payload_fingerprint,
+                        logged_execution_count, skipped_exercises, skipped_sets
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """)) {
+      statement.setString(1, lifterProfileId);
+      statement.setString(2, submissionId);
+      statement.setString(3, receipt.fingerprint());
+      statement.setInt(4, receipt.loggedExecutionCount());
+      statement.setInt(5, receipt.skippedExercises());
+      statement.setInt(6, receipt.skippedSets());
+      try {
+        statement.executeUpdate();
+      } catch (SQLException e) {
+        if (!"23505".equals(e.getSQLState())) {
+          throw e;
+        }
+      }
+    }
+    WorkoutSubmissionReceipt stored = getWorkoutSubmission(submissionId);
+    if (stored == null || !stored.fingerprint().equals(receipt.fingerprint())) {
+      throw new IllegalArgumentException(
+          "This workout block conflicts with data already submitted from this session.");
     }
   }
 

@@ -33,6 +33,17 @@ final class UserScopedDatabase implements TrainingDataStore {
   }
 
   @Override
+  public WorkoutSubmissionReceipt getWorkoutSubmission(String submissionId) throws Exception {
+    return db.getWorkoutSubmissionForUser(ownerUserId, submissionId);
+  }
+
+  @Override
+  public void recordWorkoutSubmission(String submissionId, WorkoutSubmissionReceipt receipt)
+      throws Exception {
+    db.recordWorkoutSubmissionForUser(ownerUserId, submissionId, receipt);
+  }
+
+  @Override
   public void updateLift(
       String currentName,
       String newName,

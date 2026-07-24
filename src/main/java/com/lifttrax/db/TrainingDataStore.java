@@ -18,4 +18,9 @@ public interface TrainingDataStore extends Database {
   Map<String, LiftExecution> latestExecutionsByLift() throws Exception;
 
   Map<String, Boolean> liftEnabledStatuses() throws Exception;
+
+  WorkoutSubmissionReceipt getWorkoutSubmission(String submissionId) throws Exception;
+
+  void recordWorkoutSubmission(String submissionId, WorkoutSubmissionReceipt receipt)
+      throws Exception;
 }

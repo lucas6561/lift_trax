@@ -167,7 +167,13 @@ final class WebHtml {
                 .planned-history { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; margin-top: 0.18rem; color: var(--pico-muted-color); }
                 .planned-notes { margin-bottom: 0.45rem; }
                 .planned-day .compact-actions { margin-top: 0.4rem; }
+                .planned-session-resume { border: 1px solid rgba(250, 204, 21, 0.58); border-left: 4px solid #facc15; border-radius: 0.6rem; padding: 0.7rem; margin-bottom: 0.8rem; background: rgba(66, 54, 12, 0.28); }
+                .planned-session-resume h2 { margin-bottom: 0.3rem; }
+                .planned-session-resume-list { display: grid; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+                .planned-session-resume-item { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: 0.5rem; align-items: center; }
+                .planned-session-resume-item p { margin: 0; }
                 .planned-session-form { display: flex; flex-direction: column; gap: 0.65rem; }
+                .session-device-status { margin-bottom: 0.25rem; }
                 .session-date { max-width: 15rem; }
                 .session-block-nav { position: sticky; top: 0.35rem; z-index: 2; display: grid; grid-template-columns: minmax(150px, 1fr) minmax(130px, 1fr) auto; gap: 0.55rem; align-items: center; border: 1px solid rgba(34, 197, 94, 0.58); border-radius: 0.6rem; padding: 0.48rem; background: rgba(7, 13, 26, 0.96); box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
                 .session-block-summary { display: flex; flex-direction: column; gap: 0.08rem; min-width: 0; }
@@ -258,6 +264,8 @@ final class WebHtml {
                   .session-block-nav .js-session-skip-block { width: 100%; }
                   .session-block-actions { display: grid; grid-template-columns: 1fr; }
                   .session-block-actions button { width: 100%; }
+                  .planned-session-resume-item { grid-template-columns: 1fr; }
+                  .planned-session-resume-item .compact-btn { width: 100%; }
                   .session-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                   .save-workout-session-btn { bottom: 4rem; width: 100%; }
                 }
