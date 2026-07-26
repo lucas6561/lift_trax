@@ -55,7 +55,9 @@ lifttrax.auth.mode=local
 The local sign-in page asks for a username or account ID and optional email,
 then creates a signed LiftTrax session. The account field defaults to the same
 machine-local `lifttrax.cli.userId` / `LIFTTRAX_CLI_USER_ID` setting used by
-operator commands. A username is resolved to the existing immutable auth ID
+operator commands. The email can be pre-filled with the machine-local
+`lifttrax.auth.localEmail` / `LIFTTRAX_AUTH_LOCAL_EMAIL` setting. A username is
+resolved to the existing immutable auth ID
 before the session is signed, so signing out and back in cannot create a second
 empty identity merely because the friendly username was entered. Local mode
 does not store passwords and must not be used as a hosted authentication

@@ -99,6 +99,7 @@ machine-specific config. Copy
 ```properties
 lifttrax.config.include=lifttrax-hosted.properties
 lifttrax.cli.userId=your-username
+lifttrax.auth.localEmail=you@example.com
 ```
 
 The override file is ignored by Git and layered over
@@ -107,6 +108,8 @@ and password from the existing ignored `config/lifttrax-hosted.properties`, so
 credentials are not duplicated. The value can be a LiftTrax username or the
 underlying authentication ID. Passing `--user <username-or-id>` or setting
 `LIFTTRAX_CLI_USER_ID` still overrides the local default.
+The optional email pre-fills the local-development sign-in form and can also
+be supplied with `LIFTTRAX_AUTH_LOCAL_EMAIL`.
 
 ## Database schema migrations
 

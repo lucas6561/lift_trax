@@ -354,6 +354,29 @@ class WebServerCliTest {
   }
 
   @Test
+  void localDevelopmentLoginPrefillsConfiguredEmail() throws Exception {
+    String property = "lifttrax.auth.localEmail";
+    String previous = System.getProperty(property);
+    System.setProperty(property, "local+configured@example.test");
+    try {
+      WebAuth auth = fixedAuth(false);
+      TestExchange exchange = TestExchange.get("/auth/login");
+
+      auth.handleLogin(exchange);
+
+      assertEquals(200, exchange.status());
+      assertTrue(
+          exchange.responseBody().contains("name='email' value='local+configured@example.test'"));
+    } finally {
+      if (previous == null) {
+        System.clearProperty(property);
+      } else {
+        System.setProperty(property, previous);
+      }
+    }
+  }
+
+  @Test
   void localDevelopmentLoginResolvesUsernameBeforeSigningTheSession() throws Exception {
     WebAuth auth = fixedAuth(false);
     TestExchange login =

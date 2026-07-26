@@ -158,18 +158,24 @@ final class WebAuth {
     String returnTo = safeReturnTo(query.getOrDefault("returnTo", "/"));
     String defaultUser =
         LiftTraxConfig.setting("lifttrax.cli.userId", "LIFTTRAX_CLI_USER_ID", "local-user");
+    String defaultEmail =
+        LiftTraxConfig.setting(
+            "lifttrax.auth.localEmail", "LIFTTRAX_AUTH_LOCAL_EMAIL", "local@lifttrax.test");
     String body =
         """
             <h1>Sign In</h1>
             <p class='muted'>Local development sign-in. Hosted builds should use Supabase Auth.</p>
             <form method='post' action='/auth/dev-login' class='query-form' style='display:block;'>
               <label>Username or account ID <input name='userId' value='%s' required></label>
-              <label>Email <input name='email' value='local@lifttrax.test'></label>
+              <label>Email <input name='email' value='%s'></label>
               <input type='hidden' name='returnTo' value='%s'>
               <button type='submit'>Sign In</button>
             </form>
             """
-            .formatted(WebHtml.escapeHtml(defaultUser), WebHtml.escapeHtml(returnTo));
+            .formatted(
+                WebHtml.escapeHtml(defaultUser),
+                WebHtml.escapeHtml(defaultEmail),
+                WebHtml.escapeHtml(returnTo));
     WebServerCli.sendHtml(exchange, WebHtml.wrapPage("Sign In", body));
   }
 
