@@ -134,20 +134,26 @@ shape, exception misuse, mutable static state, fragile synchronization, and
 selected file/string performance mistakes. Exclusions stay in the ruleset with a
 short rationale so future tightening has a clear starting point.
 
-Coverage is enforced at **90% instruction coverage** for the currently maintained Java core slice:
+Coverage is enforced at **90% instruction coverage across all production Java
+code**. New packages and classes enter the same aggregate gate automatically;
+there is no hand-maintained coverage allowlist. See
+`docs/code-organization-and-quality.md` for package responsibilities, test
+expectations, and the boundary for architecture decisions.
 
-- selected `com.lifttrax.workout` planner classes (see `build.gradle` `coverageIncludes`)
-- `com.lifttrax.cli.WeightInputParser`
-- `com.lifttrax.cli.WebHtml`
-
-This keeps the threshold focused on behavior-heavy code while the remaining Java port surfaces continue to evolve.
+The GitHub `Quality` workflow runs this same gate for every pull request and
+push to `main`, and uploads the JUnit, PMD, and JaCoCo reports even when the gate
+fails.
 
 ## Mutation testing workflow
 
-PIT mutation testing is configured for a narrow first workout-planning slice:
+PIT mutation testing covers workout planning plus the active-workout save/input
+boundary:
 
 - `com.lifttrax.workout.ConjugateWorkoutBuilder`
 - `com.lifttrax.workout.WaveMarkdownWriter`
+- `com.lifttrax.cli.PlannedWorkoutSessionService`
+- `com.lifttrax.cli.WeightInputParser`
+- `com.lifttrax.cli.ExecutionSetFormValues`
 
 Run the repeatable local command:
 
@@ -160,3 +166,6 @@ timestamped report folders are disabled. The HTML report is the easiest way to
 inspect surviving mutations; the XML report is available for later automation.
 The current threshold is modest by design and should be tightened as surviving
 mutations are either killed with stronger assertions or deliberately documented.
+Renderer-heavy classes such as `PlannedWorkoutSessionHtml` stay outside the PIT
+target because their HTML and embedded JavaScript produce high-noise mutations;
+focused renderer tests and browser checks protect those surfaces instead.

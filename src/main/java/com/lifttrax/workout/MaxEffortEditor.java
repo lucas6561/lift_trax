@@ -31,7 +31,26 @@ final class MaxEffortEditor {
     if (GraphicsEnvironment.isHeadless() || System.getenv("LIFT_TRAX_HEADLESS") != null) {
       return MaxEffortPlan.fromDefaults(defaultLower, defaultUpper);
     }
+    return editPlanInteractively(
+        squatOptions,
+        deadliftOptions,
+        benchOptions,
+        overheadOptions,
+        defaultLower,
+        defaultUpper,
+        (panel, title) ->
+            JOptionPane.showConfirmDialog(
+                null, panel, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE));
+  }
 
+  static MaxEffortPlan editPlanInteractively(
+      List<Lift> squatOptions,
+      List<Lift> deadliftOptions,
+      List<Lift> benchOptions,
+      List<Lift> overheadOptions,
+      List<Lift> defaultLower,
+      List<Lift> defaultUpper,
+      ConfirmationDialog dialog) {
     int weeks = defaultLower.size();
     List<Integer> lowerEvenWeeks = weekIndexes(weeks, 0);
     List<Integer> lowerOddWeeks = weekIndexes(weeks, 1);
@@ -88,13 +107,7 @@ final class MaxEffortEditor {
       panel.add(row("Upper Week " + ((i + 1) * 7), "Bench", bench, "OHP", ohp));
     }
 
-    int result =
-        JOptionPane.showConfirmDialog(
-            null,
-            panel,
-            "Max Effort Planner",
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE);
+    int result = dialog.show(panel, "Max Effort Planner");
 
     if (result != JOptionPane.OK_OPTION) {
       return MaxEffortPlan.fromDefaults(defaultLower, defaultUpper);
@@ -120,6 +133,11 @@ final class MaxEffortEditor {
     }
 
     return new MaxEffortPlan(lower, upper, lowerDeload, upperDeload);
+  }
+
+  @FunctionalInterface
+  interface ConfirmationDialog {
+    int show(JPanel panel, String title);
   }
 
   private static JPanel row(

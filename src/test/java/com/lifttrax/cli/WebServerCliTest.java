@@ -16,15 +16,19 @@ import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutJson;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpPrincipal;
+import com.sun.net.httpserver.HttpServer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -37,12 +41,121 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class WebServerCliTest {
+
+  @Test
+  void extractedRouteRegistryStartsACompleteServerAndStopsCleanly() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-registry", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString());
+        WebServerCli.RunningServer server = WebServerCli.start(0, db, fixedAuth(false))) {
+      HttpURLConnection health =
+          (HttpURLConnection)
+              URI.create("http://127.0.0.1:" + server.port() + "/health").toURL().openConnection();
+      assertEquals(200, health.getResponseCode());
+      assertEquals("ok", new String(health.getInputStream().readAllBytes()));
+
+      HttpURLConnection manifest =
+          (HttpURLConnection)
+              URI.create("http://127.0.0.1:" + server.port() + "/manifest.webmanifest")
+                  .toURL()
+                  .openConnection();
+      assertEquals(200, manifest.getResponseCode());
+      assertTrue(new String(manifest.getInputStream().readAllBytes()).contains("\"LiftTrax\""));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void environmentAuthAndSupabaseCallbackExchangeARealLocalTokenResponse() throws Exception {
+    String[] keys = {
+      "lifttrax.auth.mode",
+      "lifttrax.auth.sessionSecret",
+      "lifttrax.auth.secureCookies",
+      "lifttrax.supabase.url",
+      "lifttrax.supabase.anonKey",
+      "lifttrax.auth.provider",
+      "lifttrax.auth.redirectUri"
+    };
+    Map<String, String> previous = new java.util.HashMap<>();
+    for (String key : keys) {
+      previous.put(key, System.getProperty(key));
+    }
+
+    HttpServer tokenServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    String payload =
+        Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(
+                """
+                {"sub":"auth-user","email":"user@example.test","user_metadata":{"user_name":"lucas"}}
+                """
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    String accessToken = "e30." + payload + ".signature";
+    tokenServer.createContext(
+        "/auth/v1/token",
+        exchange -> {
+          String request =
+              new String(
+                  exchange.getRequestBody().readAllBytes(),
+                  java.nio.charset.StandardCharsets.UTF_8);
+          assertTrue(request.contains("\"auth_code\":\"code-1\""));
+          assertEquals("anon-key", exchange.getRequestHeaders().getFirst("apikey"));
+          byte[] response =
+              ("{\"access_token\":\""
+                      + accessToken
+                      + "\",\"refresh_token\":\"refresh\",\"expires_in\":3600}")
+                  .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream output = exchange.getResponseBody()) {
+            output.write(response);
+          }
+        });
+    tokenServer.start();
+    try {
+      System.setProperty("lifttrax.auth.mode", "supabase");
+      System.setProperty("lifttrax.auth.sessionSecret", "coverage-secret");
+      System.setProperty("lifttrax.auth.secureCookies", "false");
+      System.setProperty(
+          "lifttrax.supabase.url", "http://127.0.0.1:" + tokenServer.getAddress().getPort() + "/");
+      System.setProperty("lifttrax.supabase.anonKey", "anon-key");
+      System.setProperty("lifttrax.auth.provider", "github");
+      System.setProperty("lifttrax.auth.redirectUri", "http://localhost/auth/callback");
+
+      WebAuth auth = WebAuth.fromEnvironment(8080);
+      assertFalse(auth.secureCookies());
+      TestExchange callback = TestExchange.get("/auth/callback?code=code-1");
+      callback.requestHeaders.add("Cookie", "lt_pkce_verifier=verifier-1");
+
+      auth.handleCallback(callback);
+
+      assertEquals(303, callback.status());
+      assertEquals("/", callback.location());
+      String cookies = String.join("\n", callback.responseHeaders.get("Set-Cookie"));
+      assertTrue(cookies.contains(WebAuth.SESSION_COOKIE_NAME + "="));
+      assertTrue(cookies.contains("lt_pkce_verifier=;"));
+
+      System.setProperty("lifttrax.auth.mode", "local");
+      System.clearProperty("lifttrax.auth.sessionSecret");
+      assertFalse(WebAuth.fromEnvironment(9090).secureCookies());
+    } finally {
+      tokenServer.stop(0);
+      for (String key : keys) {
+        String value = previous.get(key);
+        if (value == null) {
+          System.clearProperty(key);
+        } else {
+          System.setProperty(key, value);
+        }
+      }
+    }
+  }
 
   @Test
   void escapeHtmlEscapesSpecialCharacters() {
@@ -1683,6 +1796,409 @@ class WebServerCliTest {
     }
   }
 
+  @Test
+  void liftCrudFragmentAndDetailRoutesCoverSuccessfulAndInvalidRequests() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-lift-crud", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      TestExchange create =
+          TestExchange.post(
+              "/add-lift",
+              form(
+                  "name",
+                  "Safety Bar Squat",
+                  "region",
+                  "LOWER",
+                  "main",
+                  "SQUAT",
+                  "muscles",
+                  "QUAD, GLUTE",
+                  "notes",
+                  "upright"));
+      invokeHandler("handleAddLift", create, db);
+      assertEquals(303, create.status());
+      assertEquals("upright", db.getLift("Safety Bar Squat").notes());
+
+      TestExchange update =
+          TestExchange.post(
+              "/update-lift",
+              form(
+                  "currentName",
+                  "Safety Bar Squat",
+                  "name",
+                  "SSB Squat",
+                  "region",
+                  "LOWER",
+                  "main",
+                  "SQUAT",
+                  "muscles",
+                  "QUAD,HAMSTRING",
+                  "notes",
+                  "updated",
+                  "tab",
+                  "executions",
+                  "lastWeekStart",
+                  "2026-07-20",
+                  "lastWeekEnd",
+                  "2026-07-26"));
+      invokeHandler("handleUpdateLift", update, db);
+      assertEquals(303, update.status());
+      assertTrue(update.location().contains("Updated+lift"));
+      assertEquals("updated", db.getLift("SSB Squat").notes());
+
+      TestExchange disable =
+          TestExchange.post(
+              "/set-lift-enabled", form("lift", "SSB Squat", "enabled", "0", "tab", "executions"));
+      invokeHandler("handleSetLiftEnabled", disable, db);
+      assertFalse(db.isLiftEnabled("SSB Squat"));
+      assertTrue(disable.location().contains("Disabled+lift"));
+
+      db.setLiftEnabled("SSB Squat", true);
+      db.addLiftExecution(
+          "SSB Squat",
+          new LiftExecution(
+              null,
+              LocalDate.parse("2026-07-27"),
+              List.of(new ExecutionSet(new SetMetric.Reps(3), "315 lb", 8.5f)),
+              false,
+              false,
+              "solid"));
+
+      TestExchange detail = TestExchange.get("/lift?name=SSB+Squat");
+      invokeHandler("handleLift", detail, db);
+      assertEquals(200, detail.status());
+      assertTrue(detail.responseBody().contains("315 lb"));
+      assertTrue(detail.responseBody().contains("solid"));
+
+      TestExchange fragment = TestExchange.get("/executions-fragment?lift=SSB+Squat");
+      invokeHandler("handleExecutionsFragment", fragment, db);
+      assertEquals(200, fragment.status());
+      assertTrue(fragment.responseBody().contains("315 lb"));
+
+      TestExchange missingFragment = TestExchange.get("/executions-fragment");
+      invokeHandler("handleExecutionsFragment", missingFragment, db);
+      assertEquals(400, missingFragment.status());
+
+      TestExchange missingDetail = TestExchange.get("/lift");
+      invokeHandler("handleLift", missingDetail, db);
+      assertTrue(missingDetail.responseBody().contains("Missing lift name"));
+
+      TestExchange delete =
+          TestExchange.post("/delete-lift", form("lift", "SSB Squat", "tab", "executions"));
+      invokeHandler("handleDeleteLift", delete, db);
+      assertEquals(303, delete.status());
+      assertTrue(delete.location().contains("Deleted+lift"));
+
+      TestExchange missingName =
+          TestExchange.post("/add-lift", form("name", "", "region", "UPPER"));
+      invokeHandler("handleAddLift", missingName, db);
+      assertTrue(missingName.location().contains("name%20is%20required"));
+
+      TestExchange invalidMethod = TestExchange.put("/add-lift", "");
+      invokeHandler("handleAddLift", invalidMethod, db);
+      assertEquals(405, invalidMethod.status());
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void loadLastRouteCoversMissingPriorAndEveryMetricPrefill() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-load-last-coverage", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "");
+
+      TestExchange missingLift = TestExchange.get("/load-last-execution");
+      invokeHandler("handleLoadLastExecution", missingLift, db);
+      assertTrue(missingLift.location().contains("Lift%20is%20required"));
+
+      TestExchange noPrior =
+          TestExchange.get(
+              "/load-last-execution?lift=Carry&date=bad-date&weight=80+lb&setCount=2&notes=keep");
+      invokeHandler("handleLoadLastExecution", noPrior, db);
+      assertTrue(noPrior.location().contains("No+prior+executions"));
+      assertTrue(noPrior.location().contains("prefillWeight=80+lb"));
+
+      List<SetMetric> metrics =
+          List.of(
+              new SetMetric.Reps(5),
+              new SetMetric.RepsLr(4, 3),
+              new SetMetric.TimeSecs(45),
+              new SetMetric.DistanceFeet(100));
+      List<String> expectedTypes = List.of("reps", "reps-lr", "time", "distance");
+      for (int i = 0; i < metrics.size(); i++) {
+        db.addLiftExecution(
+            "Carry",
+            new LiftExecution(
+                null,
+                LocalDate.of(2026, 7, 20 + i),
+                List.of(new ExecutionSet(metrics.get(i), "90 lb", 7.5f)),
+                i == 1,
+                i == 2,
+                "loaded"));
+        String flags = (i == 1 ? "&warmup=1" : "") + (i == 2 ? "&deload=1" : "");
+        TestExchange loaded =
+            TestExchange.get("/load-last-execution?lift=Carry&date=2026-07-27" + flags);
+        invokeHandler("handleLoadLastExecution", loaded, db);
+        assertEquals(303, loaded.status());
+        assertTrue(loaded.location().contains("prefillMetricType=" + expectedTypes.get(i)));
+        assertTrue(loaded.location().contains("prefillNotes=loaded"));
+      }
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void indexNavigationAndMutationValidationBranchesRemainRecoverable() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-validation-coverage", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Press", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+      for (String navigation : List.of("prev", "next", "current", "last", "unknown")) {
+        TestExchange index =
+            TestExchange.get(
+                "/?tab=last-week&lastWeekStart=bad&lastWeekEnd=bad&waveWeeks=999&lastWeekNav="
+                    + navigation);
+        invokeHandler("handleIndex", index, db);
+        assertEquals(200, index.status());
+        assertTrue(index.responseBody().contains("Last Week"));
+      }
+
+      TestExchange invalidIndexMethod = TestExchange.put("/", "");
+      invokeHandler("handleIndex", invalidIndexMethod, db);
+      assertEquals(405, invalidIndexMethod.status());
+
+      TestExchange missingExecutionLift =
+          TestExchange.post("/add-execution", form("lift", "", "setCount", "1"));
+      invokeHandler("handleAddExecution", missingExecutionLift, db);
+      assertTrue(missingExecutionLift.location().contains("Lift%20is%20required"));
+
+      TestExchange invalidExecution =
+          TestExchange.post(
+              "/add-execution",
+              form("lift", "Press", "setCount", "0", "metricType", "reps", "metricValue", "5"));
+      invokeHandler("handleAddExecution", invalidExecution, db);
+      assertTrue(invalidExecution.location().contains("Failed+to+save+execution"));
+
+      TestExchange missingUpdate =
+          TestExchange.post(
+              "/update-lift", form("currentName", "", "name", "", "tab", "executions"));
+      invokeHandler("handleUpdateLift", missingUpdate, db);
+      assertTrue(missingUpdate.location().contains("name%20is%20required"));
+
+      TestExchange missingEnable =
+          TestExchange.post("/set-lift-enabled", form("lift", "", "tab", "executions"));
+      invokeHandler("handleSetLiftEnabled", missingEnable, db);
+      assertTrue(missingEnable.location().contains("Lift%20is%20required"));
+
+      TestExchange unknownEnable =
+          TestExchange.post(
+              "/set-lift-enabled", form("lift", "Missing", "enabled", "1", "tab", "executions"));
+      invokeHandler("handleSetLiftEnabled", unknownEnable, db);
+      assertTrue(unknownEnable.location().contains("Failed+to+update+lift+status"));
+
+      TestExchange missingDelete =
+          TestExchange.post("/delete-lift", form("lift", "", "tab", "executions"));
+      invokeHandler("handleDeleteLift", missingDelete, db);
+      assertTrue(missingDelete.location().contains("Lift%20is%20required"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void plannedWorkoutRoutesCoverPreviewDownloadsResumeAndIdempotentEmptySaves() throws Exception {
+    String json =
+        Files.readString(Path.of("shared", "workouts", "examples", "conjugate-wave-v2.json"));
+    PlannedWorkoutFile workout = PlannedWorkoutJson.readString(json);
+    int weekNumber = workout.weeks().get(0).weekNumber();
+    String dayOfWeek = workout.weeks().get(0).days().get(0).dayOfWeek();
+    Path dbPath = Files.createTempFile("lifttrax-route-planned-workout", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      String workoutForm = form("plannedWorkoutJson", json);
+
+      TestExchange preview = TestExchange.post("/planned-workout-preview", workoutForm);
+      invokeHandler("handlePlannedWorkoutPreview", preview, db);
+      assertEquals(200, preview.status());
+      assertTrue(preview.responseBody().contains(workout.metadata().name()));
+
+      TestExchange workAlong = TestExchange.post("/planned-workout-work-along", workoutForm);
+      invokeStaticHandler("handlePlannedWorkoutWorkAlong", workAlong);
+      assertTrue(workAlong.responseBody().contains("Start Workout"));
+
+      TestExchange print = TestExchange.post("/planned-workout-print", workoutForm);
+      invokeHandler("handlePlannedWorkoutPrint", print, db);
+      assertEquals(200, print.status());
+      assertTrue(print.responseBody().contains("Print"));
+
+      TestExchange markdown = TestExchange.post("/planned-workout-markdown", workoutForm);
+      invokeHandler("handlePlannedWorkoutMarkdown", markdown, db);
+      assertEquals(200, markdown.status());
+      assertTrue(markdown.responseHeaders.getFirst("Content-Disposition").endsWith(".md\""));
+
+      TestExchange downloadJson = TestExchange.post("/planned-workout-json", workoutForm);
+      invokeStaticHandler("handlePlannedWorkoutJson", downloadJson);
+      assertEquals(200, downloadJson.status());
+      assertTrue(downloadJson.responseHeaders.getFirst("Content-Disposition").endsWith(".json\""));
+
+      TestExchange resume = TestExchange.get("/planned-workout-session?draft=draft-key");
+      invokeHandler("handlePlannedWorkoutSession", resume, db);
+      assertTrue(resume.responseBody().contains("Resume Workout"));
+
+      TestExchange start =
+          TestExchange.post(
+              "/planned-workout-session",
+              form(
+                  "plannedWorkoutJson",
+                  json,
+                  "weekNumber",
+                  String.valueOf(weekNumber),
+                  "dayOfWeek",
+                  dayOfWeek));
+      invokeHandler("handlePlannedWorkoutSession", start, db);
+      assertEquals(200, start.status());
+      assertTrue(start.responseBody().contains("Train " + dayOfWeek));
+
+      TestExchange saveBlock =
+          TestExchange.post(
+              "/save-planned-workout-block",
+              form(
+                  "plannedWorkoutJson",
+                  json,
+                  "weekNumber",
+                  String.valueOf(weekNumber),
+                  "dayOfWeek",
+                  dayOfWeek,
+                  "sessionDate",
+                  "2026-07-27",
+                  "sessionResultsJson",
+                  "[]",
+                  "submissionId",
+                  "coverage-block-1"));
+      invokeHandler("handleSavePlannedWorkoutBlock", saveBlock, db);
+      assertEquals(200, saveBlock.status());
+      assertTrue(saveBlock.responseBody().contains("\"loggedExecutionCount\":0"));
+
+      TestExchange saveSession =
+          TestExchange.post(
+              "/save-planned-workout-session",
+              form(
+                  "plannedWorkoutJson",
+                  json,
+                  "weekNumber",
+                  String.valueOf(weekNumber),
+                  "dayOfWeek",
+                  dayOfWeek,
+                  "sessionDate",
+                  "2026-07-27",
+                  "sessionResultsJson",
+                  "[]",
+                  "submissionId",
+                  "coverage-session-1",
+                  "savedSessionLoggedCount",
+                  "2",
+                  "savedSessionSkippedExercises",
+                  "bad",
+                  "savedSessionSkippedSets",
+                  "-4"));
+      invokeHandler("handleSavePlannedWorkoutSession", saveSession, db);
+      assertEquals(200, saveSession.status());
+      assertTrue(saveSession.responseBody().contains("Workout Saved"));
+
+      TestExchange invalidPreview = TestExchange.post("/planned-workout-preview", "");
+      invokeHandler("handlePlannedWorkoutPreview", invalidPreview, db);
+      assertTrue(invalidPreview.responseBody().contains("Import Error"));
+
+      TestExchange invalidBlock = TestExchange.post("/save-planned-workout-block", "");
+      invokeHandler("handleSavePlannedWorkoutBlock", invalidBlock, db);
+      assertEquals(400, invalidBlock.status());
+      assertTrue(invalidBlock.responseBody().contains("error"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void serverParsingHelpersCoverBoundsDatesDetailedSetsAndDownloadNames() throws Exception {
+    assertEquals(
+        7,
+        invokePrivate(
+            "parseBoundedInt",
+            new Class<?>[] {String.class, int.class, int.class, int.class},
+            null,
+            7,
+            1,
+            24));
+    assertEquals(
+        24,
+        invokePrivate(
+            "parseBoundedInt",
+            new Class<?>[] {String.class, int.class, int.class, int.class},
+            "99",
+            7,
+            1,
+            24));
+    assertEquals(
+        7,
+        invokePrivate(
+            "parseBoundedInt",
+            new Class<?>[] {String.class, int.class, int.class, int.class},
+            "bad",
+            7,
+            1,
+            24));
+    assertEquals(
+        LocalDate.parse("2026-07-27"),
+        invokePrivate(
+            "parseDateOrDefault",
+            new Class<?>[] {String.class, LocalDate.class},
+            "2026-07-27",
+            LocalDate.MIN));
+    assertEquals(
+        LocalDate.MIN,
+        invokePrivate(
+            "parseDateOrDefault",
+            new Class<?>[] {String.class, LocalDate.class},
+            "bad",
+            LocalDate.MIN));
+    assertEquals(
+        List.of(Muscle.QUAD, Muscle.GLUTE),
+        invokePrivate("parseMuscles", new Class<?>[] {String.class}, "QUAD, ,GLUTE"));
+    assertEquals(
+        List.of(), invokePrivate("parseMuscles", new Class<?>[] {String.class}, (Object) null));
+
+    List<ExecutionSet> sets =
+        (List<ExecutionSet>)
+            invokePrivate(
+                "parseDetailedSets",
+                new Class<?>[] {String.class},
+                """
+                [
+                  {"metricType":"reps-lr","metricLeft":"4","metricRight":"3","weight":"25 lb","rpe":"8"},
+                  {"metricType":"time","metricValue":"30","weight":"","rpe":""},
+                  {"metricType":"distance","metricValue":"100","weight":"90 lb","rpe":"7.5"}
+                ]
+                """);
+    assertEquals(3, sets.size());
+    assertEquals(new SetMetric.RepsLr(4, 3), sets.get(0).metric());
+    assertEquals(
+        List.of(), invokePrivate("parseDetailedSets", new Class<?>[] {String.class}, "{}"));
+    assertEquals(
+        List.of(), invokePrivate("parseDetailedSets", new Class<?>[] {String.class}, "bad-json"));
+
+    String exampleJson =
+        Files.readString(Path.of("shared", "workouts", "examples", "conjugate-wave-v2.json"));
+    PlannedWorkoutFile workout = PlannedWorkoutJson.readString(exampleJson);
+    assertTrue(
+        ((String)
+                invokePrivate(
+                    "downloadName",
+                    new Class<?>[] {PlannedWorkoutFile.class, String.class},
+                    workout,
+                    ".json"))
+            .endsWith(".json"));
+  }
+
   private static void invokeHandler(
       String methodName, HttpExchange exchange, TrainingDataStoreProvider db) throws Exception {
     Method method =
@@ -1697,6 +2213,13 @@ class WebServerCliTest {
     Method method = WebServerCli.class.getDeclaredMethod(methodName, HttpExchange.class);
     method.setAccessible(true);
     method.invoke(null, exchange);
+  }
+
+  private static Object invokePrivate(String methodName, Class<?>[] parameterTypes, Object... args)
+      throws Exception {
+    Method method = WebServerCli.class.getDeclaredMethod(methodName, parameterTypes);
+    method.setAccessible(true);
+    return method.invoke(null, args);
   }
 
   private static String form(String... pairs) {

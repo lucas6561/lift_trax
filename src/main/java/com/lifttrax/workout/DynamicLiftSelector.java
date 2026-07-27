@@ -25,7 +25,24 @@ final class DynamicLiftSelector {
         || System.getenv("LIFT_TRAX_HEADLESS") != null) {
       return defaults;
     }
+    return chooseInteractively(
+        squatOptions,
+        deadliftOptions,
+        benchOptions,
+        overheadOptions,
+        defaults,
+        (panel, title) ->
+            JOptionPane.showConfirmDialog(
+                null, panel, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE));
+  }
 
+  static DynamicLiftChoices chooseInteractively(
+      List<Lift> squatOptions,
+      List<Lift> deadliftOptions,
+      List<Lift> benchOptions,
+      List<Lift> overheadOptions,
+      DynamicLiftChoices defaults,
+      ConfirmationDialog dialog) {
     JComboBox<Lift> squat = new JComboBox<>(squatOptions.toArray(Lift[]::new));
     JComboBox<Lift> deadlift = new JComboBox<>(deadliftOptions.toArray(Lift[]::new));
     JComboBox<Lift> bench = new JComboBox<>(benchOptions.toArray(Lift[]::new));
@@ -46,13 +63,7 @@ final class DynamicLiftSelector {
     panel.add(new JLabel("Overhead Press"));
     panel.add(overhead);
 
-    int result =
-        JOptionPane.showConfirmDialog(
-            null,
-            panel,
-            "Dynamic Effort Lifts",
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE);
+    int result = dialog.show(panel, "Dynamic Effort Lifts");
 
     if (result != JOptionPane.OK_OPTION) {
       return defaults;
@@ -63,6 +74,11 @@ final class DynamicLiftSelector {
         (Lift) deadlift.getSelectedItem(),
         (Lift) bench.getSelectedItem(),
         (Lift) overhead.getSelectedItem());
+  }
+
+  @FunctionalInterface
+  interface ConfirmationDialog {
+    int show(JPanel panel, String title);
   }
 
   record DynamicLiftChoices(Lift squat, Lift deadlift, Lift bench, Lift overhead) {}

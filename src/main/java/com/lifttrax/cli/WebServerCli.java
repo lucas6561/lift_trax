@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -52,16 +51,29 @@ public final class WebServerCli {
     int port = args.length == 1 ? Integer.parseInt(args[0]) : 8080;
 
     TrainingDataStoreProvider db = TrainingDataStoreProvider.fromEnvironment();
+    WebAuth auth = WebAuth.fromEnvironment(port);
+    RunningServer running = start(port, db, auth);
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
                 () -> {
+                  running.close();
                   try {
                     db.close();
                   } catch (Exception ignored) {
                   }
                 }));
 
+    System.out.println("LiftTrax web UI started.");
+    System.out.printf(
+        Locale.ROOT,
+        "Open http://localhost:%d or http://<your-ip>:%d from any device on your network.%n",
+        running.port(),
+        running.port());
+  }
+
+  static RunningServer start(int port, TrainingDataStoreProvider db, WebAuth auth)
+      throws IOException {
     String bindAddress = LiftTraxConfig.setting("lifttrax.web.bind", "LIFTTRAX_WEB_BIND", "");
     if (bindAddress.isBlank()) {
       bindAddress = defaultBindAddress();
@@ -69,137 +81,38 @@ public final class WebServerCli {
     HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
     ExecutorService executor =
         Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
-    WebAuth auth = WebAuth.fromEnvironment(port);
     WebRequestSecurity.setSecureCookies(auth.secureCookies());
-    WebRequestSecurity.register(
-        server, "/manifest.webmanifest", Set.of("GET"), WebServerCli::handleManifest);
-    WebRequestSecurity.register(
-        server, "/service-worker.js", Set.of("GET"), WebServerCli::handleServiceWorker);
-    WebRequestSecurity.register(
-        server, "/offline.html", Set.of("GET"), WebServerCli::handleOffline);
-    WebRequestSecurity.register(
-        server, "/pwa-icon.svg", Set.of("GET"), WebServerCli::handlePwaIcon);
-    WebRequestSecurity.register(server, "/health", Set.of("GET"), WebServerCli::handleHealth);
-    WebRequestSecurity.register(server, "/auth/login", Set.of("GET"), auth::handleLogin);
-    WebRequestSecurity.register(
-        server,
-        "/auth/dev-login",
-        Set.of("POST"),
-        exchange -> auth.handleDevLogin(exchange, db::resolveAuthUserId));
-    WebRequestSecurity.register(server, "/auth/callback", Set.of("GET"), auth::handleCallback);
-    WebRequestSecurity.register(server, "/auth/logout", Set.of("POST"), auth::handleLogout);
-    WebRequestSecurity.register(
-        server,
-        "/account",
-        Set.of("GET", "POST"),
-        auth.protect(exchange -> handleAccount(exchange, db)));
-    WebRequestSecurity.register(
-        server, "/", Set.of("GET"), auth.protect(exchange -> handleIndex(exchange, db)));
-    WebRequestSecurity.register(
-        server, "/lift", Set.of("GET"), auth.protect(exchange -> handleLift(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/add-execution",
-        Set.of("POST"),
-        auth.protect(exchange -> handleAddExecution(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/update-execution",
-        Set.of("POST"),
-        auth.protect(exchange -> handleUpdateExecution(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/delete-execution",
-        Set.of("POST"),
-        auth.protect(exchange -> handleDeleteExecution(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/delete-lift",
-        Set.of("POST"),
-        auth.protect(exchange -> handleDeleteLift(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/update-lift",
-        Set.of("POST"),
-        auth.protect(exchange -> handleUpdateLift(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/planned-workout-preview",
-        Set.of("GET", "POST"),
-        auth.protect(exchange -> handlePlannedWorkoutPreview(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/planned-workout-work-along",
-        Set.of("POST"),
-        auth.protect(
-            exchange -> {
-              prepareAccountLabel(exchange, db);
-              handlePlannedWorkoutWorkAlong(exchange);
-            }));
-    WebRequestSecurity.register(
-        server,
-        "/planned-workout-print",
-        Set.of("POST"),
-        auth.protect(exchange -> handlePlannedWorkoutPrint(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/planned-workout-markdown",
-        Set.of("POST"),
-        auth.protect(exchange -> handlePlannedWorkoutMarkdown(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/planned-workout-json",
-        Set.of("POST"),
-        auth.protect(WebServerCli::handlePlannedWorkoutJson));
-    WebRequestSecurity.registerReadOnly(
-        server,
-        "/planned-workout-session",
-        Set.of("GET", "POST"),
-        auth.protect(exchange -> handlePlannedWorkoutSession(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/save-planned-workout-session",
-        Set.of("POST"),
-        auth.protect(exchange -> handleSavePlannedWorkoutSession(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/save-planned-workout-block",
-        Set.of("POST"),
-        auth.protect(exchange -> handleSavePlannedWorkoutBlock(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/executions-fragment",
-        Set.of("GET"),
-        auth.protect(exchange -> handleExecutionsFragment(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/load-last-execution",
-        Set.of("GET"),
-        auth.protect(exchange -> handleLoadLastExecution(exchange, db)));
-    WebRequestSecurity.register(
-        server, "/add-lift", Set.of("POST"), auth.protect(exchange -> handleAddLift(exchange, db)));
-    WebRequestSecurity.register(
-        server,
-        "/set-lift-enabled",
-        Set.of("POST"),
-        auth.protect(exchange -> handleSetLiftEnabled(exchange, db)));
+    WebRouteRegistry.register(server, db, auth);
     server.setExecutor(executor);
     server.start();
-    Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
+    return new RunningServer(server, executor);
+  }
 
-    System.out.println("LiftTrax web UI started.");
-    System.out.printf(
-        Locale.ROOT,
-        "Open http://localhost:%d or http://<your-ip>:%d from any device on your network.%n",
-        port,
-        port);
+  static final class RunningServer implements AutoCloseable {
+    private final HttpServer server;
+    private final ExecutorService executor;
+
+    RunningServer(HttpServer server, ExecutorService executor) {
+      this.server = server;
+      this.executor = executor;
+    }
+
+    int port() {
+      return server.getAddress().getPort();
+    }
+
+    @Override
+    public void close() {
+      server.stop(0);
+      executor.shutdownNow();
+    }
   }
 
   private static String defaultBindAddress() {
     return String.join(".", "0", "0", "0", "0");
   }
 
-  private static void handleManifest(HttpExchange exchange) throws IOException {
+  static void handleManifest(HttpExchange exchange) throws IOException {
     sendContent(
         exchange,
         "application/manifest+json; charset=utf-8",
@@ -224,7 +137,7 @@ public final class WebServerCli {
             """);
   }
 
-  private static void handleServiceWorker(HttpExchange exchange) throws IOException {
+  static void handleServiceWorker(HttpExchange exchange) throws IOException {
     sendContent(
         exchange,
         "text/javascript; charset=utf-8",
@@ -263,7 +176,7 @@ public final class WebServerCli {
             """);
   }
 
-  private static void handleOffline(HttpExchange exchange) throws IOException {
+  static void handleOffline(HttpExchange exchange) throws IOException {
     sendHtml(
         exchange,
         WebHtml.wrapPage(
@@ -271,7 +184,7 @@ public final class WebServerCli {
             "<h1>LiftTrax</h1><p>The app is offline. Reconnect to view or save training data.</p>"));
   }
 
-  private static void handlePwaIcon(HttpExchange exchange) throws IOException {
+  static void handlePwaIcon(HttpExchange exchange) throws IOException {
     sendContent(
         exchange,
         "image/svg+xml; charset=utf-8",
@@ -284,7 +197,7 @@ public final class WebServerCli {
             """);
   }
 
-  private static void handleHealth(HttpExchange exchange) throws IOException {
+  static void handleHealth(HttpExchange exchange) throws IOException {
     WebRequestSecurity.exposeCsrfToken(exchange);
     sendText(exchange, 200, "ok");
   }
@@ -304,7 +217,7 @@ public final class WebServerCli {
     return db.forUser(user.id());
   }
 
-  private static void prepareAccountLabel(HttpExchange exchange, TrainingDataStoreProvider db)
+  static void prepareAccountLabel(HttpExchange exchange, TrainingDataStoreProvider db)
       throws IOException {
     WebAuth.User user = WebAuth.currentUser(exchange).orElseThrow();
     try {
@@ -315,7 +228,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleAccount(HttpExchange exchange, TrainingDataStoreProvider db)
+  static void handleAccount(HttpExchange exchange, TrainingDataStoreProvider db)
       throws IOException {
     WebAuth.User user = WebAuth.currentUser(exchange).orElseThrow();
     try {
@@ -333,28 +246,7 @@ public final class WebServerCli {
         }
       }
       WebAuth.setAccountLabel(exchange, account.displayLabel());
-      String value =
-          account.username().isBlank()
-              ? suggestedUsername(user.suggestedUsername())
-              : account.username();
-      String status =
-          message.isBlank()
-              ? ""
-              : "<p class='status " + messageType + "'>" + WebHtml.escapeHtml(message) + "</p>";
-      String body =
-          """
-              <h1>Account</h1>
-              <p class='muted'>Choose the memorable username used by LiftTrax displays and operator commands. Your sign-in ID remains the private ownership key.</p>
-              %s
-              <form method='post' action='/account' class='query-form' style='display:block;'>
-                <label>Username <input name='username' value='%s' required minlength='3' maxlength='30' pattern='[A-Za-z0-9][A-Za-z0-9_-]{2,29}' autocomplete='username'></label>
-                <p class='muted'>3-30 letters, numbers, underscores, or hyphens. Usernames are stored in lowercase.</p>
-                <button type='submit'>Save Username</button>
-              </form>
-              <p><a href='/'>Back to LiftTrax</a></p>
-              """
-              .formatted(status, WebHtml.escapeHtml(value));
-      sendHtml(exchange, WebHtml.wrapPage("Account", body));
+      sendHtml(exchange, AccountPageHtml.render(account, user, message, messageType));
     } catch (Exception e) {
       sendHtml(
           exchange,
@@ -364,15 +256,7 @@ public final class WebServerCli {
     }
   }
 
-  private static String suggestedUsername(String suggestion) {
-    if (suggestion == null) {
-      return "";
-    }
-    String normalized = suggestion.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "-");
-    return normalized.length() > 30 ? normalized.substring(0, 30) : normalized;
-  }
-
-  private static void handleIndex(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleIndex(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -453,7 +337,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleAddExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleAddExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -517,8 +401,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleLoadLastExecution(
-      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+  static void handleLoadLastExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -598,8 +482,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleExecutionsFragment(
-      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+  static void handleExecutionsFragment(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -624,7 +508,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleUpdateExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleUpdateExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -695,7 +579,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleDeleteExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleDeleteExecution(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -725,7 +609,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleDeleteLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleDeleteLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -757,8 +641,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handlePlannedWorkoutPreview(
-      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+  static void handlePlannedWorkoutPreview(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     String method = exchange.getRequestMethod();
     if (!"POST".equalsIgnoreCase(method) && !"GET".equalsIgnoreCase(method)) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -803,7 +687,7 @@ public final class WebServerCli {
     throw new IllegalArgumentException("Paste a workout file or enter a file path.");
   }
 
-  private static void handlePlannedWorkoutWorkAlong(HttpExchange exchange) throws IOException {
+  static void handlePlannedWorkoutWorkAlong(HttpExchange exchange) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -819,8 +703,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handlePlannedWorkoutPrint(
-      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+  static void handlePlannedWorkoutPrint(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -835,8 +719,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handlePlannedWorkoutMarkdown(
-      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+  static void handlePlannedWorkoutMarkdown(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -857,7 +741,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handlePlannedWorkoutJson(HttpExchange exchange) throws IOException {
+  static void handlePlannedWorkoutJson(HttpExchange exchange) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -886,8 +770,8 @@ public final class WebServerCli {
     return (slug.isBlank() ? "planned-workout" : slug) + extension;
   }
 
-  private static void handlePlannedWorkoutSession(
-      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+  static void handlePlannedWorkoutSession(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       Map<String, String> query = parseQuery(exchange.getRequestURI());
       String draftKey = query.getOrDefault("draft", "").trim();
@@ -928,7 +812,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleSavePlannedWorkoutSession(
+  static void handleSavePlannedWorkoutSession(
       HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -978,8 +862,8 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleSavePlannedWorkoutBlock(
-      HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
+  static void handleSavePlannedWorkoutBlock(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
       return;
@@ -1032,7 +916,7 @@ public final class WebServerCli {
                 + "</p><p class='muted'>Use your browser back button to keep editing the session.</p>"));
   }
 
-  private static void handleUpdateLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleUpdateLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -1093,7 +977,7 @@ public final class WebServerCli {
         + WebUiRenderer.urlEncode(focusTarget);
   }
 
-  private static void handleAddLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleAddLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -1130,7 +1014,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void handleSetLiftEnabled(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleSetLiftEnabled(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");
@@ -1374,7 +1258,7 @@ public final class WebServerCli {
     return parseQuery(URI.create("/?" + form));
   }
 
-  private static void handleLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+  static void handleLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
       sendText(exchange, 405, "Method Not Allowed");

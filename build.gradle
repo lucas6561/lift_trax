@@ -88,9 +88,18 @@ tasks.withType(Pmd).configureEach {
 pitest {
     targetClasses = [
         'com.lifttrax.workout.ConjugateWorkoutBuilder',
-        'com.lifttrax.workout.WaveMarkdownWriter'
+        'com.lifttrax.workout.WaveMarkdownWriter',
+        'com.lifttrax.cli.PlannedWorkoutSessionService',
+        'com.lifttrax.cli.WeightInputParser',
+        'com.lifttrax.cli.ExecutionSetFormValues'
     ]
-    targetTests = ['com.lifttrax.workout.*Test']
+    targetTests = [
+        'com.lifttrax.workout.*Test',
+        'com.lifttrax.cli.PlannedWorkoutSessionServiceTest',
+        'com.lifttrax.cli.WeightInputParserTest',
+        'com.lifttrax.cli.ExecutionInputWidgetCoverageTest',
+        'com.lifttrax.cli.WebUiRendererTest'
+    ]
     pitestVersion = '1.22.1'
     junit5PluginVersion = '1.2.3'
     threads = 4
@@ -116,33 +125,8 @@ tasks.register('qualityGate') {
     dependsOn tasks.named('jacocoTestCoverageVerification')
 }
 
-def coverageIncludes = [
-    // LT-0011 coverage policy: enforce 90% instruction coverage on stable workout-planning
-    // and web input/rendering helpers. Expand this list as more product surfaces stabilize.
-    'com/lifttrax/workout/ConjugateWorkoutBuilder.class',
-    'com/lifttrax/workout/HypertrophyWorkoutBuilder.class',
-    'com/lifttrax/workout/WaveMarkdownWriter.class',
-    'com/lifttrax/workout/AccessoryStacks.class',
-    'com/lifttrax/workout/WarmupStacks.class',
-    'com/lifttrax/workout/DynamicLifts.class',
-    'com/lifttrax/workout/MaxEffortLiftPools.class',
-    'com/lifttrax/workout/RandomStack.class',
-    'com/lifttrax/workout/RandomSupport.class',
-    'com/lifttrax/workout/SwingDynamicLiftSource.class',
-    'com/lifttrax/workout/SwingMaxEffortPlanSource.class',
-    // Web weight parsing and HTML safety helpers
-    'com/lifttrax/cli/WeightInputParser.class',
-    'com/lifttrax/cli/WeightInputParser$*.class',
-    'com/lifttrax/cli/WebHtml.class'
-]
-
-def coverageClassDirs = sourceSets.main.output.asFileTree.matching {
-    include coverageIncludes
-}
-
 tasks.named('jacocoTestReport') {
     dependsOn tasks.named('test')
-    classDirectories.setFrom(coverageClassDirs)
     reports {
         xml.required = true
         html.required = true
@@ -151,7 +135,6 @@ tasks.named('jacocoTestReport') {
 
 tasks.named('jacocoTestCoverageVerification') {
     dependsOn tasks.named('test')
-    classDirectories.setFrom(coverageClassDirs)
     violationRules {
         rule {
             limit {

@@ -26,4 +26,6 @@ The app is headed toward a larger product with program schemas, persistence, mob
 - `LT-0075`: Add mutation testing ratchet.
 - `LT-0013`: Document package boundaries and coding standards.
 - `LT-0014`: Add CI quality checks.
+- `LT-0097`: Enforce whole-code unit test coverage.
+- `LT-0098`: Decompose web server boundaries.
 - `LT-0010`: Document architecture decisions.

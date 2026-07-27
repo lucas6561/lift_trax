@@ -137,27 +137,34 @@ the repository root:
 ```
 
 This checks Java formatting, runs PMD static analysis, runs the test suite, and
-verifies the JaCoCo coverage threshold.
+verifies at least 90% instruction coverage across all production Java code.
+GitHub Actions runs the same command for every pull request and push to `main`
+and preserves the test, PMD, and JaCoCo reports.
 
 PMD scans production Java sources for correctness, security, best-practice,
 style, maintainability, concurrency, and selected file/string performance risks.
 Intentional rule exclusions are documented in `config/pmd/ruleset.xml`.
+Package responsibilities, test expectations, and ADR guidance are documented in
+`docs/code-organization-and-quality.md`.
 
 ## Mutation testing
 
-Core workout wave generation has a focused PIT mutation-test target. Run it
-locally from the repository root:
+Core workout generation, planned-workout saving, and active-workout input
+helpers have focused PIT mutation-test targets. Run them locally from the
+repository root:
 
 ```bash
 ./gradlew pitest
 ```
 
-The first target slice is `com.lifttrax.workout.ConjugateWorkoutBuilder` and
-`com.lifttrax.workout.WaveMarkdownWriter`, exercised by the workout test suite.
-PIT writes repeatable HTML and XML reports to `build/reports/pitest/`; surviving
-mutations in that report are the backlog for future assertion tightening. The
-initial thresholds are intentionally modest so mutation testing can land without
-requiring every workout package to be mutation-clean immediately.
+The target set includes `ConjugateWorkoutBuilder`, `WaveMarkdownWriter`,
+`PlannedWorkoutSessionService`, `WeightInputParser`, and
+`ExecutionSetFormValues`. Renderer-heavy HTML classes remain outside PIT because
+their large string/JavaScript output creates noisy mutations better protected by
+focused renderer and browser tests. PIT writes repeatable HTML and XML reports
+to `build/reports/pitest/`; surviving mutations are the backlog for assertion
+tightening. The threshold is a floor, not a reason to ignore surviving
+mutations.
 
 ## Dump lifts only (no executions)
 

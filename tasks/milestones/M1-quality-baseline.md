@@ -21,6 +21,8 @@ Make the engineering bar explicit and enforce it with one repeatable command.
 - `LT-0075`: Add mutation testing ratchet.
 - `LT-0013`: Document package boundaries and coding standards.
 - `LT-0014`: Add CI quality checks.
+- `LT-0097`: Enforce whole-code unit test coverage.
+- `LT-0098`: Decompose web server boundaries.
 
 ## Notes
 

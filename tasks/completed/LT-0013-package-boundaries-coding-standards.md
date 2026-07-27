@@ -1,12 +1,12 @@
 ---
 id: LT-0013
 title: Document package boundaries and coding standards
-status: idea
+status: done
 track: docs
 priority: medium
 effort: small
 created: 2026-05-27
-updated: 2026-05-27
+updated: 2026-07-27
 owner: unassigned
 depends_on: [LT-0010]
 ---
@@ -28,11 +28,16 @@ Project documentation explains package responsibilities, naming conventions, tes
 
 ## Acceptance criteria
 
-- [ ] Each main package has a documented responsibility.
-- [ ] Test expectations are documented for domain, database, CLI, web, and schema code.
-- [ ] Static analysis and formatting expectations are documented.
-- [ ] The docs identify when a new ADR is expected.
+- [x] Each main package has a documented responsibility.
+- [x] Test expectations are documented for domain, database, CLI, web, and schema code.
+- [x] Static analysis and formatting expectations are documented.
+- [x] The docs identify when a new ADR is expected.
 
 ## Notes
 
 Keep this short enough that it gets read.
+
+Completed with `docs/code-organization-and-quality.md`, linked from the README
+and `JAVA_PROJECT.md`. The guide documents package ownership, dependency
+direction, test expectations, required checks, naming guidance, and ADR
+triggers. `./gradlew.bat qualityGate` passed on 2026-07-27.

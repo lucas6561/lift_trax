@@ -224,6 +224,68 @@ class HostedPostgresTrainingDataStoreTest {
   }
 
   @Test
+  void hostedAdapterCoversLiftAndExecutionCrudForEveryMetricKind() throws Exception {
+    TrainingDataStore store = provider().forUser("metric-crud-user");
+    store.addLift(
+        "Loaded Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(Muscle.FOREARM), "before");
+    store.updateLift(
+        "Loaded Carry",
+        "Farmer Carry",
+        LiftRegion.LOWER,
+        LiftType.CONDITIONING,
+        List.of(Muscle.FOREARM, Muscle.CORE),
+        "after");
+
+    assertEquals("after", store.getLift("Farmer Carry").notes());
+    assertEquals(Boolean.TRUE, store.liftEnabledStatuses().get("Farmer Carry"));
+    assertEquals(
+        List.of("Farmer Carry"),
+        store.liftsByRegionAndType(LiftRegion.LOWER, LiftType.CONDITIONING).stream()
+            .map(Lift::name)
+            .toList());
+
+    List<ExecutionSet> allMetrics =
+        List.of(
+            new ExecutionSet(new SetMetric.Reps(5), "100 lb", 7.0f),
+            new ExecutionSet(new SetMetric.RepsLr(4, 3), "50 lb", null),
+            new ExecutionSet(new SetMetric.RepsRange(8, 12), "40 lb", 8.0f),
+            new ExecutionSet(new SetMetric.TimeSecs(60), "none", null),
+            new ExecutionSet(new SetMetric.DistanceFeet(100), "90 lb", 9.0f));
+    store.addLiftExecution(
+        "Farmer Carry",
+        new LiftExecution(
+            null, LocalDate.of(2026, 7, 26), allMetrics, false, false, "all metrics"));
+    LiftExecution saved = store.getExecutions("Farmer Carry").get(0);
+    assertEquals(allMetrics, saved.sets());
+
+    LiftExecution updated =
+        new LiftExecution(
+            saved.id(),
+            LocalDate.of(2026, 7, 27),
+            List.of(
+                new ExecutionSet(new SetMetric.RepsLr(6, 5), "55 lb", 8.5f),
+                new ExecutionSet(new SetMetric.RepsRange(10, 15), "45 lb", null),
+                new ExecutionSet(new SetMetric.TimeSecs(75), "none", null),
+                new ExecutionSet(new SetMetric.DistanceFeet(120), "95 lb", null)),
+            true,
+            true,
+            "updated");
+    store.updateLiftExecution(saved.id(), updated);
+    assertEquals(updated.sets(), store.getExecution("Farmer Carry", saved.id()).sets());
+    assertEquals(
+        1,
+        store
+            .executionHistorySummary(LocalDate.of(2026, 7, 27), LocalDate.of(2026, 7, 27))
+            .count());
+
+    store.deleteLiftExecution(saved.id());
+    assertTrue(store.getExecutions("Farmer Carry").isEmpty());
+    store.deleteLift("Farmer Carry");
+    assertThrows(IllegalArgumentException.class, () -> store.getLift("Farmer Carry"));
+    assertThrows(IllegalArgumentException.class, () -> store.deleteLift("Farmer Carry"));
+  }
+
+  @Test
   void hostedImportCopiesLocalDatabaseIntoOneAccountAndSkipsRepeatedImports() throws Exception {
     Path source = Files.createTempFile("lifttrax-hosted-import-source", ".db");
     try (SqliteDb db = new SqliteDb(source.toString())) {

@@ -37,6 +37,19 @@ class WeightInputParserTest {
   }
 
   @Test
+  void parsesLeftRightWeightUnitFromEitherSide() {
+    WeightInputParser.WeightPrefill leftUnit = WeightInputParser.parseWeightPrefill("45kg|50");
+    WeightInputParser.WeightPrefill rightUnit = WeightInputParser.parseWeightPrefill("45|50KG");
+
+    assertEquals("kg", leftUnit.lrUnit());
+    assertEquals("45", leftUnit.leftValue());
+    assertEquals("50", leftUnit.rightValue());
+    assertEquals("kg", rightUnit.lrUnit());
+    assertEquals("45", rightUnit.leftValue());
+    assertEquals("50", rightUnit.rightValue());
+  }
+
+  @Test
   void parsesAccommodatingChainsFromBarAndChainWeight() {
     WeightInputParser.WeightPrefill parsed = WeightInputParser.parseWeightPrefill("185 kg+40c");
 
