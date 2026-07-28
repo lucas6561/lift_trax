@@ -1,5 +1,6 @@
 package com.lifttrax.cli;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -29,5 +30,13 @@ class WebHtmlTest {
     assertTrue(html.contains(".save-workout-session-btn { bottom: 4rem; width: 100%"));
     assertTrue(html.contains(".execution-row-actions { flex: 1 1 100%; width: 100%;"));
     assertTrue(html.contains(".execution-row-actions .danger { flex: 0 0 36%; margin-left: auto;"));
+  }
+
+  @Test
+  void workAlongBlockNavigationScrollsWithThePage() {
+    String html = WebHtml.wrapPage("LiftTrax", "<form class='planned-session-form'></form>");
+
+    assertTrue(html.contains(".session-block-nav { display: grid;"));
+    assertFalse(html.contains(".session-block-nav { position: sticky;"));
   }
 }

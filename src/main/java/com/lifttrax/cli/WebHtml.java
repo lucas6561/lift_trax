@@ -175,7 +175,7 @@ final class WebHtml {
                 .planned-session-form { display: flex; flex-direction: column; gap: 0.65rem; }
                 .session-device-status { margin-bottom: 0.25rem; }
                 .session-date { max-width: 15rem; }
-                .session-block-nav { position: sticky; top: 0.35rem; z-index: 2; display: grid; grid-template-columns: minmax(150px, 1fr) minmax(130px, 1fr) auto; gap: 0.55rem; align-items: center; border: 1px solid rgba(34, 197, 94, 0.58); border-radius: 0.6rem; padding: 0.48rem; background: rgba(7, 13, 26, 0.96); box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
+                .session-block-nav { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(130px, 1fr) auto; gap: 0.55rem; align-items: center; border: 1px solid rgba(34, 197, 94, 0.58); border-radius: 0.6rem; padding: 0.48rem; background: rgba(7, 13, 26, 0.96); }
                 .session-block-summary { display: flex; flex-direction: column; gap: 0.08rem; min-width: 0; }
                 .session-block-summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .session-block-nav progress { margin: 0; }
