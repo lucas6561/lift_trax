@@ -2,3 +2,4 @@
 0001__application-schema.sql
 0002__account-usernames.sql
 0003__workout-submission-receipts.sql
+0004__secure-public-tables.sql

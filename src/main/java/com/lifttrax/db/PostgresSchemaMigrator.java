@@ -15,6 +15,7 @@ import java.util.List;
 final class PostgresSchemaMigrator {
   static final String MIGRATIONS_TABLE = "lifttrax_schema_migrations";
   private static final String MIGRATION_ROOT = "postgres/migrations/";
+  private static final String POSTGRES_ONLY_DIRECTIVE = "-- lifttrax:postgres-only";
 
   private PostgresSchemaMigrator() {}
 
@@ -82,7 +83,10 @@ final class PostgresSchemaMigrator {
     boolean autoCommit = connection.getAutoCommit();
     connection.setAutoCommit(false);
     try {
-      executeSql(connection, migration.sql());
+      String databaseProductName = connection.getMetaData().getDatabaseProductName();
+      if (shouldExecuteMigration(databaseProductName, migration.sql())) {
+        executeSql(connection, migration.sql());
+      }
       try (PreparedStatement statement =
           connection.prepareStatement(
               "INSERT INTO " + MIGRATIONS_TABLE + " (version, name) VALUES (?, ?)")) {
@@ -97,6 +101,11 @@ final class PostgresSchemaMigrator {
     } finally {
       connection.setAutoCommit(autoCommit);
     }
+  }
+
+  static boolean shouldExecuteMigration(String databaseProductName, String sql) {
+    return !sql.startsWith(POSTGRES_ONLY_DIRECTIVE)
+        || "PostgreSQL".equalsIgnoreCase(databaseProductName);
   }
 
   private static void executeSql(Connection connection, String sql) throws SQLException {

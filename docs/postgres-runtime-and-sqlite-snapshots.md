@@ -60,6 +60,12 @@ application schema contains:
 Supabase `auth`, storage, and provider-internal schemas are not LiftTrax-owned
 application tables and are intentionally excluded.
 
+Migration `0004__secure-public-tables.sql` enables Row Level Security on every
+LiftTrax-owned table in the exposed `public` schema and removes Data API access
+for the Supabase `anon` and `authenticated` roles. The Java runtime continues
+to connect directly with its protected JDBC credentials; no browser client has
+direct table access.
+
 ## Creating a SQLite snapshot
 
 ```powershell

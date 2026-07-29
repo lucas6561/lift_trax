@@ -38,6 +38,20 @@ During an explicit import, that means:
 user-scoped store for dashboard, lift detail, execution listing,
 planned-workout history, and execution mutations.
 
+## Database defense in depth
+
+Postgres migration `0004__secure-public-tables.sql` enables Row Level Security
+on every LiftTrax-owned table in Supabase's exposed `public` schema. It grants
+no Data API policies, revokes all table and sequence privileges from the
+Supabase `anon` and `authenticated` roles, and changes the `postgres` role's
+default privileges so future application tables and sequences are private.
+
+The Render-hosted Java server remains the only application data path. It uses a
+trusted direct JDBC role with `BYPASSRLS`, derives the immutable Supabase Auth
+subject from the signed server session, and applies the existing owner
+predicates to every query. RLS therefore closes accidental Data API exposure
+without replacing the Java authorization boundary.
+
 ## Current limits
 
 The first hosted account slice does not implement every future sharing feature
@@ -47,8 +61,9 @@ yet:
   assignment workflow introduces shared records;
 - programs and planned-workout definitions remain versioned files rather than
   hosted tables;
-- Supabase Postgres Row Level Security remains a defense-in-depth follow-up for
-  the deployment/database migration work.
+- direct browser access to application tables remains intentionally unsupported;
+- future browser-to-Data-API features require explicit least-privilege grants
+  and reviewed RLS policies before they can access any rows.
 
 Those pieces remain follow-up scope for the broader hosted roadmap, but private
 core logging data is scoped by the signed-in account in Postgres.
