@@ -206,6 +206,16 @@ final class WebHtml {
                 .session-set-grid label { min-width: 0; }
                 .session-set-grid input,
                 .session-set-grid select { width: 100%; }
+                .session-entry-primary { display: grid; grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(86px, 0.7fr)); gap: 0.4rem; align-items: end; border: 1px solid rgba(34, 197, 94, 0.42); border-radius: 0.55rem; padding: 0.48rem; background: rgba(20, 83, 45, 0.14); }
+                .session-entry-primary label { min-width: 0; margin: 0; }
+                .session-entry-primary input,
+                .session-entry-primary select { min-width: 0; width: 100%; margin-bottom: 0; }
+                .session-entry-weight-control { display: grid; grid-template-columns: minmax(0, 1fr) 4.25rem; gap: 0.3rem; }
+                .session-entry-more { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0 0.45rem; }
+                .session-entry-more > summary { display: flex; align-items: center; min-height: 2.65rem; color: var(--pico-primary); cursor: pointer; font-weight: 700; }
+                .session-entry-options { display: grid; gap: 0.45rem; padding-bottom: 0.45rem; }
+                .session-entry-options fieldset { min-width: 0; margin: 0; }
+                .session-entry-meta { align-items: center; }
                 .save-execution-btn,
                 .save-workout-session-btn { min-height: 2.75rem; }
                 .save-workout-session-btn { position: sticky; bottom: 0.35rem; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
@@ -267,6 +277,17 @@ final class WebHtml {
                   .planned-session-resume-item { grid-template-columns: 1fr; }
                   .planned-session-resume-item .compact-btn { width: 100%; }
                   .session-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  .session-entry-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+                  .session-entry-weight { grid-column: 1 / -1; }
+                  .session-entry-primary input,
+                  .session-entry-primary select { min-height: 2.75rem; font-size: 1rem; }
+                  .session-entry-more > summary { min-height: 2.9rem; }
+                  .session-entry-options .segmented { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  .session-entry-options .stacked-row { align-items: stretch; }
+                  .session-entry-options .stacked-row > label { flex: 1 1 8rem; min-width: 0; }
+                  .session-entry-options input,
+                  .session-entry-options select,
+                  .session-entry-options button { width: 100%; }
                   .save-workout-session-btn { bottom: 4rem; width: 100%; }
                 }
                 .is-hidden { display: none; }

@@ -563,8 +563,8 @@ final class PlannedWorkoutSessionHtml {
     html.append(
             "<div class='add-execution-form session-execution-widget js-session-execution-input'>")
         .append(
-            ExecutionInputWidgetHtml.render(
-                prefill(block, exercise, seed, plannedSets, date), List.of(), false, false, key))
+            ExecutionInputWidgetHtml.renderWorkAlong(
+                prefill(block, exercise, seed, plannedSets, date), key))
         .append("</div></article>");
   }
 
@@ -904,13 +904,18 @@ final class PlannedWorkoutSessionHtml {
             }
 
             function syncMetricInputs(widget) {
-              const isLr = radioValue(widget, 'metricType', 'reps') === 'reps-lr';
+              const metricType = radioValue(widget, 'metricType', 'reps');
+              const isLr = metricType === 'reps-lr';
               const single = widget.querySelector('.metric-single');
               const lr = widget.querySelectorAll('.metric-lr');
+              const label = widget.querySelector('.js-session-metric-label');
               if (single) {
                 single.classList.toggle('is-hidden', isLr);
               }
               lr.forEach((item) => item.classList.toggle('is-hidden', !isLr));
+              if (label) {
+                label.textContent = metricType === 'time' ? 'Seconds' : metricType === 'distance' ? 'Feet' : 'Reps';
+              }
             }
 
             function syncWeightMode(widget) {

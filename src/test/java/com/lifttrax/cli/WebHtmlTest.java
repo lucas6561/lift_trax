@@ -39,4 +39,18 @@ class WebHtmlTest {
     assertTrue(html.contains(".session-block-nav { display: grid;"));
     assertFalse(html.contains(".session-block-nav { position: sticky;"));
   }
+
+  @Test
+  void workAlongSetEntryUsesACompactPhoneGrid() {
+    String html = WebHtml.wrapPage("LiftTrax", "<form class='planned-session-form'></form>");
+
+    assertTrue(
+        html.contains(
+            ".session-entry-primary { display: grid; grid-template-columns: minmax(180px, 1.4fr)"));
+    assertTrue(
+        html.contains(
+            ".session-entry-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }"));
+    assertTrue(html.contains(".session-entry-weight { grid-column: 1 / -1; }"));
+    assertTrue(html.contains(".session-entry-more > summary { min-height: 2.9rem; }"));
+  }
 }

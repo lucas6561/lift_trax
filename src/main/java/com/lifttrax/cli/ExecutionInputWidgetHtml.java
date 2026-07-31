@@ -214,6 +214,207 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(prefill.notes()));
   }
 
+  static String renderWorkAlong(
+      WebUiRenderer.AddExecutionPrefill prefillInput, String radioNameSuffix) {
+    WebUiRenderer.AddExecutionPrefill prefill =
+        prefillInput == null ? WebUiRenderer.AddExecutionPrefill.empty() : prefillInput;
+    WeightInputParser.WeightPrefill weightPrefill =
+        WeightInputParser.parseWeightPrefill(prefill.weight());
+    SetEntryModeState setEntryMode = SetEntryModeState.from(List.of(), false);
+    String weightModeName = radioName("weightMode", radioNameSuffix);
+    String setEntryModeName = radioName("setEntryMode", radioNameSuffix);
+    String metricTypeName = radioName("metricType", radioNameSuffix);
+    String standardWeightChecked =
+        prefill.weight().isBlank() || "weight".equals(weightPrefill.mode()) ? "checked" : "";
+    String lrWeightChecked = "lr".equals(weightPrefill.mode()) ? "checked" : "";
+    String bandsWeightChecked = "bands".equals(weightPrefill.mode()) ? "checked" : "";
+    String accomWeightChecked = "accom".equals(weightPrefill.mode()) ? "checked" : "";
+    String noneWeightChecked =
+        !prefill.weight().isBlank() && "none".equals(weightPrefill.mode()) ? "checked" : "";
+    String customWeightChecked = "custom".equals(weightPrefill.mode()) ? "checked" : "";
+    String weightUnitLbSelected = "lb".equals(weightPrefill.weightUnit()) ? " selected" : "";
+    String weightUnitKgSelected = "kg".equals(weightPrefill.weightUnit()) ? " selected" : "";
+    String weightUnitLrLbSelected = "lb".equals(weightPrefill.lrUnit()) ? " selected" : "";
+    String weightUnitLrKgSelected = "kg".equals(weightPrefill.lrUnit()) ? " selected" : "";
+    String accomUnitLbSelected = "lb".equals(weightPrefill.accomUnit()) ? " selected" : "";
+    String accomUnitKgSelected = "kg".equals(weightPrefill.accomUnit()) ? " selected" : "";
+    String accomChainsSelected = "chains".equals(weightPrefill.accomMode()) ? " selected" : "";
+    String accomBandsSelected = "bands".equals(weightPrefill.accomMode()) ? " selected" : "";
+    String bandChecks = renderBandChecks("weightBandColors", weightPrefill.bands());
+    String accomBandChecks = renderBandChecks("accomBandColors", weightPrefill.accomBands());
+    String repsChecked = "reps".equals(prefill.metricType()) ? "checked" : "";
+    String repsLrChecked = "reps-lr".equals(prefill.metricType()) ? "checked" : "";
+    String timeChecked = "time".equals(prefill.metricType()) ? "checked" : "";
+    String distanceChecked = "distance".equals(prefill.metricType()) ? "checked" : "";
+    String metricLabel =
+        switch (prefill.metricType()) {
+          case "time" -> "Seconds";
+          case "distance" -> "Feet";
+          default -> "Reps";
+        };
+    boolean uncommonWeight = !prefill.weight().isBlank() && !"weight".equals(weightPrefill.mode());
+    boolean leftRightMetric = "reps-lr".equals(prefill.metricType());
+    String moreOptionsOpen = uncommonWeight || leftRightMetric ? " open" : "";
+
+    return """
+                  <input type='hidden' name='weight' class='js-weight-hidden' value='%s'/>
+                  <input type='hidden' name='detailedSets' class='js-detailed-sets' value='[]'/>
+                  <div class='session-entry-primary' aria-label='Completed set entry'>
+                    <label class='session-entry-weight weight-weight'>Weight
+                      <span class='session-entry-weight-control'>
+                        <input type='number' inputmode='decimal' step='0.5' min='0' name='weightValue' data-focus-target='add-weight' value='%s' placeholder='225'/>
+                        <select name='weightUnit' aria-label='Weight unit'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
+                      </span>
+                    </label>
+                    <label class='metric-single'><span class='js-session-metric-label'>%s</span>
+                      <input type='number' inputmode='numeric' min='1' name='metricValue' value='%s'/>
+                    </label>
+                    <label>RPE
+                      <input type='number' inputmode='decimal' step='0.1' min='1' max='10' name='rpe' value='%s' placeholder='8.5'/>
+                    </label>
+                    <label class='entry-mode-multiple'>Sets
+                      <input type='number' inputmode='numeric' min='1' name='setCount' value='%s'/>
+                    </label>
+                  </div>
+                  <details class='session-entry-more'%s>
+                    <summary>More set options</summary>
+                    <div class='session-entry-options'>
+                      <fieldset>
+                        <legend>Weight type</legend>
+                        <div class='segmented'>
+                          <label><input type='radio' name='%s' value='weight' %s data-control-name='weightMode'/> Weight</label>
+                          <label><input type='radio' name='%s' value='lr' %s data-control-name='weightMode'/> L/R Weight</label>
+                          <label><input type='radio' name='%s' value='bands' %s data-control-name='weightMode'/> Bands</label>
+                          <label><input type='radio' name='%s' value='accom' %s data-control-name='weightMode'/> Accommodating</label>
+                          <label><input type='radio' name='%s' value='none' %s data-control-name='weightMode'/> None</label>
+                          <label><input type='radio' name='%s' value='custom' %s data-control-name='weightMode'/> Custom</label>
+                        </div>
+                        <div class='stacked-row weight-lr is-hidden'>
+                          <label>Left <input type='number' inputmode='decimal' step='0.5' min='0' name='weightLeft' value='%s' placeholder='40'/></label>
+                          <label>Right <input type='number' inputmode='decimal' step='0.5' min='0' name='weightRight' value='%s' placeholder='40'/></label>
+                          <label>Unit
+                            <select name='weightUnitLr'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
+                          </label>
+                        </div>
+                        <div class='stacked-row weight-bands is-hidden'>
+                          <label>Bands</label>
+                          <div class='segmented'>%s</div>
+                        </div>
+                        <div class='stacked-row weight-accom is-hidden'>
+                          <label>Bar <input type='number' inputmode='decimal' step='0.5' min='0' name='accomBar' value='%s' placeholder='225'/></label>
+                          <label>Unit
+                            <select name='accomUnit'><option value='lb'%s>lb</option><option value='kg'%s>kg</option></select>
+                          </label>
+                          <label>Resistance
+                            <select name='accomMode'><option value='chains'%s>Chains</option><option value='bands'%s>Bands</option></select>
+                          </label>
+                          <label class='accom-chains'>Chain <input type='number' inputmode='decimal' step='0.5' min='0' name='accomChain' value='%s' placeholder='40'/></label>
+                          <div class='accom-bands is-hidden'>
+                            <label>Bands</label>
+                            <div class='segmented'>%s</div>
+                          </div>
+                        </div>
+                        <div class='stacked-row weight-custom is-hidden'>
+                          <label>Custom <input type='text' name='customWeight' value='%s' placeholder='225 lb+40c'/></label>
+                        </div>
+                      </fieldset>
+                      <fieldset class='set-entry-mode'>
+                        <legend>Set logging</legend>
+                        <div class='segmented set-entry-mode-choice'>
+                          <label><input type='radio' name='%s' value='multiple' %s data-control-name='setEntryMode'/> Matching sets</label>
+                          <label><input type='radio' name='%s' value='individual' %s data-control-name='setEntryMode'/> Log individually</label>
+                        </div>
+                        <details class='individual-sets-details'%s>
+                          <summary>Individual set log</summary>
+                          <div class='stacked-row'>
+                            <label>Copies <input type='number' inputmode='numeric' min='1' name='setCopies' value='1'/></label>
+                            <button type='button' class='secondary js-add-set'>Add Set to Log</button>
+                            <button type='button' class='secondary js-clear-sets'>Clear Set Log</button>
+                            <output class='set-log-status js-set-log-status' aria-live='polite'>No sets in log</output>
+                          </div>
+                          <ul class='set-list js-set-list'></ul>
+                        </details>
+                      </fieldset>
+                      <fieldset>
+                        <legend>Measurement</legend>
+                        <div class='segmented'>
+                          <label><input type='radio' name='%s' value='reps' %s data-control-name='metricType'/> Reps</label>
+                          <label><input type='radio' name='%s' value='reps-lr' %s data-control-name='metricType'/> L/R Reps</label>
+                          <label><input type='radio' name='%s' value='time' %s data-control-name='metricType'/> Seconds</label>
+                          <label><input type='radio' name='%s' value='distance' %s data-control-name='metricType'/> Feet</label>
+                        </div>
+                        <div class='stacked-row session-entry-lr'>
+                          <label class='metric-lr is-hidden'>Left <input type='number' inputmode='numeric' min='1' name='metricLeft' value='%s'/></label>
+                          <label class='metric-lr is-hidden'>Right <input type='number' inputmode='numeric' min='1' name='metricRight' value='%s'/></label>
+                        </div>
+                      </fieldset>
+                      <div class='stacked-row session-entry-meta'>
+                        <label>Date <input type='date' name='date' value='%s'/></label>
+                        <label><input type='checkbox' name='warmup' %s/> Warm-up</label>
+                        <label><input type='checkbox' name='deload' %s/> Deload</label>
+                      </div>
+                      <label>Notes
+                        <input type='text' name='notes' value='%s' placeholder='Optional notes'/>
+                      </label>
+                    </div>
+                  </details>
+                """
+        .formatted(
+            WebHtml.escapeHtml(prefill.weight()),
+            WebHtml.escapeHtml(weightPrefill.weightValue()),
+            weightUnitLbSelected,
+            weightUnitKgSelected,
+            metricLabel,
+            WebHtml.escapeHtml(prefill.metricValue()),
+            WebHtml.escapeHtml(prefill.rpe()),
+            WebHtml.escapeHtml(prefill.setCount()),
+            moreOptionsOpen,
+            weightModeName,
+            standardWeightChecked,
+            weightModeName,
+            lrWeightChecked,
+            weightModeName,
+            bandsWeightChecked,
+            weightModeName,
+            accomWeightChecked,
+            weightModeName,
+            noneWeightChecked,
+            weightModeName,
+            customWeightChecked,
+            WebHtml.escapeHtml(weightPrefill.leftValue()),
+            WebHtml.escapeHtml(weightPrefill.rightValue()),
+            weightUnitLrLbSelected,
+            weightUnitLrKgSelected,
+            bandChecks,
+            WebHtml.escapeHtml(weightPrefill.accomBar()),
+            accomUnitLbSelected,
+            accomUnitKgSelected,
+            accomChainsSelected,
+            accomBandsSelected,
+            WebHtml.escapeHtml(weightPrefill.accomChain()),
+            accomBandChecks,
+            WebHtml.escapeHtml(weightPrefill.customWeight()),
+            setEntryModeName,
+            setEntryMode.multipleChecked(),
+            setEntryModeName,
+            setEntryMode.individualChecked(),
+            setEntryMode.detailsOpen(),
+            metricTypeName,
+            repsChecked,
+            metricTypeName,
+            repsLrChecked,
+            metricTypeName,
+            timeChecked,
+            metricTypeName,
+            distanceChecked,
+            WebHtml.escapeHtml(prefill.metricLeft()),
+            WebHtml.escapeHtml(prefill.metricRight()),
+            WebHtml.escapeHtml(prefill.date()),
+            prefill.warmup() ? "checked" : "",
+            prefill.deload() ? "checked" : "",
+            WebHtml.escapeHtml(prefill.notes()));
+  }
+
   private static String radioName(String baseName, String suffix) {
     if (suffix == null || suffix.isBlank()) {
       return baseName;

@@ -81,17 +81,26 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("Changed to: ${performedLift.value}"));
     assertTrue(html.contains("Target: 5 reps @ 80%"));
     assertTrue(html.contains("session-execution-widget js-session-execution-input"));
+    assertTrue(html.contains("class='session-entry-primary' aria-label='Completed set entry'"));
+    assertTrue(html.contains("class='session-entry-weight weight-weight'>Weight"));
+    assertTrue(html.contains("<span class='js-session-metric-label'>Reps</span>"));
+    assertTrue(html.contains("<label class='entry-mode-multiple'>Sets"));
+    assertTrue(html.contains("<details class='session-entry-more'>"));
+    assertTrue(html.contains("<summary>More set options</summary>"));
     assertTrue(html.contains("name='metricValue' value='5'"));
     assertTrue(html.contains("class='js-weight-hidden' value=''"));
     assertTrue(html.contains("name='setCount' value='2'"));
     assertTrue(html.contains("name='rpe' value=''"));
     assertTrue(html.contains("class='js-detailed-sets' value='[]'"));
+    assertTrue(
+        html.contains(
+            "name='weightMode-1-0' value='weight' checked data-control-name='weightMode'"));
     assertTrue(html.contains("data-draft-key='lifttrax:planned-session:"));
     assertTrue(html.contains("data-legacy-draft-key='lifttrax:planned-session:"));
     assertTrue(
         html.contains(
             "name='setEntryMode-1-0' value='multiple' checked data-control-name='setEntryMode'"));
-    assertTrue(html.contains("Multiple matching sets"));
+    assertTrue(html.contains("Matching sets"));
     assertTrue(html.contains("Individual set log"));
     assertTrue(html.contains("Add Set to Log"));
     assertTrue(html.contains("class='set-log-status js-set-log-status'"));
@@ -112,6 +121,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("addSetBtn.click();"));
     assertTrue(html.contains("Array.from({length: setCount}"));
     assertTrue(html.contains("const widgetRadioState = new WeakMap();"));
+    assertTrue(html.contains("label.textContent = metricType === 'time'"));
     assertTrue(html.contains("if (state[name])"));
     assertTrue(html.contains("rememberRadioValue(widget, 'setEntryMode', mode);"));
     assertTrue(html.contains("localStorage.setItem(draftKey, serialized);"));
