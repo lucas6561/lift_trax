@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -231,6 +232,7 @@ class PlannedWorkoutFileTest {
 
     assertEquals(80, target.percent());
     assertEquals(8.0f, target.rpe());
+    assertFalse(PlannedWorkoutJson.writeString(workoutFile).contains("\"rest\""));
   }
 
   @Test
@@ -298,7 +300,89 @@ class PlannedWorkoutFileTest {
     assertTrue(
         exception
             .getOriginalMessage()
-            .contains("plannedSet cannot set both percent and rpe in schemaVersion 3"));
+            .contains("plannedSet cannot set both percent and rpe in schemaVersion 3 or later"));
+  }
+
+  @Test
+  void plannedWorkoutV4LoadsAndDisplaysRestRanges() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v4.json"));
+    PlannedWorkoutFile.PlannedSetTarget target =
+        workoutFile
+            .weeks()
+            .get(0)
+            .days()
+            .get(0)
+            .blocks()
+            .get(0)
+            .exercises()
+            .get(0)
+            .plannedSets()
+            .get(0);
+
+    assertEquals(180, target.rest().minimumSeconds());
+    assertEquals(300, target.rest().maximumSeconds());
+    assertEquals("1 reps rest 3-5 min", PlannedWorkoutText.plannedSet(target));
+    assertEquals(
+        workoutFile, PlannedWorkoutJson.readString(PlannedWorkoutJson.writeString(workoutFile)));
+
+    PlannedWorkoutFile.PlannedSetTarget secondsRange =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1,
+            "reps",
+            5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new PlannedWorkoutFile.RestRange(90, 120),
+            false);
+    PlannedWorkoutFile.PlannedSetTarget exactRest =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1,
+            "reps",
+            5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new PlannedWorkoutFile.RestRange(120, 120),
+            false);
+
+    assertEquals("5 reps rest 90-120 sec", PlannedWorkoutText.plannedSet(secondsRange));
+    assertEquals("5 reps rest 2 min", PlannedWorkoutText.plannedSet(exactRest));
+  }
+
+  @Test
+  void plannedWorkoutRestRangesRejectInvalidBoundsAndOlderVersions() throws Exception {
+    assertThrows(IllegalArgumentException.class, () -> new PlannedWorkoutFile.RestRange(null, 120));
+    assertThrows(IllegalArgumentException.class, () -> new PlannedWorkoutFile.RestRange(60, null));
+    assertThrows(IllegalArgumentException.class, () -> new PlannedWorkoutFile.RestRange(-1, 60));
+    assertThrows(IllegalArgumentException.class, () -> new PlannedWorkoutFile.RestRange(180, 120));
+
+    JsonNode root =
+        JSON.readTree(Path.of("shared", "workouts", "examples", "conjugate-wave-v4.json").toFile());
+    ((ObjectNode) root).put("schemaVersion", 3);
+
+    JsonProcessingException exception =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+
+    assertTrue(
+        exception
+            .getOriginalMessage()
+            .contains("plannedSet.rest requires workout schemaVersion 4 or later"));
   }
 
   @Test
@@ -401,7 +485,7 @@ class PlannedWorkoutFileTest {
     assertTrue(
         exception
             .getOriginalMessage()
-            .contains("Unsupported workout schemaVersion 99; supported versions: [1, 2, 3]."));
+            .contains("Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4]."));
   }
 
   @Test
@@ -434,6 +518,23 @@ class PlannedWorkoutFileTest {
       assertTrue(root.path("weeks").isArray());
       assertTrue(root.path("weeks").get(0).path("days").get(0).path("blocks").isArray());
       assertTrue(root.path("completedWorkouts").isArray());
+      if (schemaVersion == 4) {
+        JsonNode rest =
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets")
+                .get(0)
+                .path("rest");
+        assertEquals(180, rest.path("minimumSeconds").asInt());
+        assertEquals(300, rest.path("maximumSeconds").asInt());
+        assertTrue(JSON.readTree(schema.toFile()).path("$defs").has("restRange"));
+      }
     }
   }
 }

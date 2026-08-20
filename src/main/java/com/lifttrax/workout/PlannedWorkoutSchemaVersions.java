@@ -14,7 +14,8 @@ public final class PlannedWorkoutSchemaVersions {
           Map.of(
               1, "/workouts/schema/workout.schema.v1.json",
               2, "/workouts/schema/workout.schema.v2.json",
-              3, "/workouts/schema/workout.schema.v3.json"));
+              3, "/workouts/schema/workout.schema.v3.json",
+              4, "/workouts/schema/workout.schema.v4.json"));
 
   private PlannedWorkoutSchemaVersions() {}
 

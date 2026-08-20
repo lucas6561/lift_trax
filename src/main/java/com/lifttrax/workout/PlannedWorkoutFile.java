@@ -1,5 +1,6 @@
 package com.lifttrax.workout;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -25,6 +26,7 @@ public record PlannedWorkoutFile(
     if (schemaVersion >= 3) {
       validateSingleIntensityMode(weeks);
     }
+    validateRestRangeVersion(schemaVersion, weeks);
   }
 
   public record PlannedWorkoutMetadata(
@@ -127,7 +129,39 @@ public record PlannedWorkoutFile(
       Integer percent,
       Float rpe,
       String accommodatingResistance,
+      @JsonInclude(JsonInclude.Include.NON_NULL) RestRange rest,
       boolean deload) {
+    public PlannedSetTarget(
+        Integer setNumber,
+        String metricType,
+        Integer reps,
+        Integer repsLeft,
+        Integer repsRight,
+        Integer repsMin,
+        Integer repsMax,
+        Integer seconds,
+        Integer distanceFeet,
+        Integer percent,
+        Float rpe,
+        String accommodatingResistance,
+        boolean deload) {
+      this(
+          setNumber,
+          metricType,
+          reps,
+          repsLeft,
+          repsRight,
+          repsMin,
+          repsMax,
+          seconds,
+          distanceFeet,
+          percent,
+          rpe,
+          accommodatingResistance,
+          null,
+          deload);
+    }
+
     public PlannedSetTarget {
       metricType = requiredText(metricType, "plannedSet.metricType");
       metricType = normalizeMetricType(metricType);
@@ -136,6 +170,24 @@ public record PlannedWorkoutFile(
       }
       if (setNumber != null && setNumber < 1) {
         throw new IllegalArgumentException("plannedSet.setNumber must be positive when present");
+      }
+    }
+  }
+
+  public record RestRange(Integer minimumSeconds, Integer maximumSeconds) {
+    public RestRange {
+      if (minimumSeconds == null) {
+        throw new IllegalArgumentException("plannedSet.rest.minimumSeconds is required");
+      }
+      if (maximumSeconds == null) {
+        throw new IllegalArgumentException("plannedSet.rest.maximumSeconds is required");
+      }
+      if (minimumSeconds < 0) {
+        throw new IllegalArgumentException("plannedSet.rest.minimumSeconds cannot be negative");
+      }
+      if (maximumSeconds < minimumSeconds) {
+        throw new IllegalArgumentException(
+            "plannedSet.rest.maximumSeconds must be greater than or equal to minimumSeconds");
       }
     }
   }
@@ -224,7 +276,27 @@ public record PlannedWorkoutFile(
             for (PlannedSetTarget set : exercise.plannedSets()) {
               if (set.percent() != null && set.rpe() != null) {
                 throw new IllegalArgumentException(
-                    "plannedSet cannot set both percent and rpe in schemaVersion 3");
+                    "plannedSet cannot set both percent and rpe in schemaVersion 3 or later");
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  static void validateRestRangeVersion(int schemaVersion, List<PlannedWorkoutWeek> weeks) {
+    if (schemaVersion >= 4) {
+      return;
+    }
+    for (PlannedWorkoutWeek week : weeks) {
+      for (PlannedWorkoutDay day : week.days()) {
+        for (PlannedWorkoutBlock block : day.blocks()) {
+          for (PlannedExercise exercise : block.exercises()) {
+            for (PlannedSetTarget set : exercise.plannedSets()) {
+              if (set.rest() != null) {
+                throw new IllegalArgumentException(
+                    "plannedSet.rest requires workout schemaVersion 4 or later");
               }
             }
           }

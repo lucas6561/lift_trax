@@ -25,8 +25,8 @@ class SchemaVersionsTest {
 
   @Test
   void plannedWorkoutCatalogKeepsEveryPublishedSnapshotAvailable() {
-    assertEquals(List.of(1, 2, 3), PlannedWorkoutSchemaVersions.supported());
-    assertEquals(3, PlannedWorkoutSchemaVersions.latest());
+    assertEquals(List.of(1, 2, 3, 4), PlannedWorkoutSchemaVersions.supported());
+    assertEquals(4, PlannedWorkoutSchemaVersions.latest());
 
     for (int schemaVersion : PlannedWorkoutSchemaVersions.supported()) {
       assertNotNull(

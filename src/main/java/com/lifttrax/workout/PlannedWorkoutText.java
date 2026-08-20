@@ -109,6 +109,9 @@ public final class PlannedWorkoutText {
         && !"STRAIGHT".equals(target.accommodatingResistance())) {
       parts.add(target.accommodatingResistance());
     }
+    if (target.rest() != null) {
+      parts.add(rest(target.rest()));
+    }
     if (target.deload()) {
       parts.add("deload");
     }
@@ -159,6 +162,7 @@ public final class PlannedWorkoutText {
         && Objects.equals(first.percent(), second.percent())
         && Objects.equals(first.rpe(), second.rpe())
         && Objects.equals(first.accommodatingResistance(), second.accommodatingResistance())
+        && Objects.equals(first.rest(), second.rest())
         && first.deload() == second.deload();
   }
 
@@ -184,6 +188,25 @@ public final class PlannedWorkoutText {
       return "up to " + target.repsMax() + " reps";
     }
     return "reps";
+  }
+
+  private static String rest(PlannedWorkoutFile.RestRange rest) {
+    int minimum = rest.minimumSeconds();
+    int maximum = rest.maximumSeconds();
+    if (minimum == maximum) {
+      return "rest " + duration(minimum);
+    }
+    if (minimum % 60 == 0 && maximum % 60 == 0) {
+      return "rest " + (minimum / 60) + "-" + (maximum / 60) + " min";
+    }
+    return "rest " + minimum + "-" + maximum + " sec";
+  }
+
+  private static String duration(int seconds) {
+    if (seconds % 60 == 0) {
+      return (seconds / 60) + " min";
+    }
+    return seconds + " sec";
   }
 
   private static String join(List<String> values) {

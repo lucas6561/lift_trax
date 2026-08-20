@@ -81,8 +81,9 @@ After previewing an imported file, choose `Start This Day` for the workout you
 want to train.
 The follow-along screen seeds the planned set counts, accepts completed reps,
 left/right reps, seconds, distance, weight, and RPE, and saves completed work
-into normal execution history. Workout-file swap choices are available when the
-matching lifts exist locally.
+into normal execution history. Planned-set rest ranges appear in preview,
+print, Markdown, and follow-along targets. Workout-file swap choices are
+available when the matching lifts exist locally.
 
 Wave generation can still save markdown. To export a loadable planned workout
 JSON file instead, use a `.json` output name:

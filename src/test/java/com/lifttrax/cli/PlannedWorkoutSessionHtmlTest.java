@@ -80,6 +80,7 @@ class PlannedWorkoutSessionHtmlTest {
             "<option value='Safety Bar Squat' data-lift-note='' disabled>Safety Bar Squat (not in local lifts)</option>"));
     assertTrue(html.contains("Changed to: ${performedLift.value}"));
     assertTrue(html.contains("Target: 5 reps @ 80%"));
+    assertTrue(html.contains("Target: 5 reps @ 80% rest 2-3 min"));
     assertTrue(html.contains("session-execution-widget js-session-execution-input"));
     assertTrue(html.contains("class='session-entry-primary' aria-label='Completed set entry'"));
     assertTrue(html.contains("class='session-entry-weight weight-weight'>Weight"));
@@ -398,10 +399,36 @@ class PlannedWorkoutSessionHtmlTest {
   private static PlannedWorkoutFile workoutFile() {
     PlannedWorkoutFile.PlannedSetTarget squat =
         new PlannedWorkoutFile.PlannedSetTarget(
-            1, "reps", 5, null, null, null, null, null, null, 80, null, "STRAIGHT", false);
+            1,
+            "reps",
+            5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            80,
+            null,
+            "STRAIGHT",
+            new PlannedWorkoutFile.RestRange(120, 180),
+            false);
     PlannedWorkoutFile.PlannedSetTarget squatBackoff =
         new PlannedWorkoutFile.PlannedSetTarget(
-            2, "reps", 5, null, null, null, null, null, null, 80, null, "STRAIGHT", false);
+            2,
+            "reps",
+            5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            80,
+            null,
+            "STRAIGHT",
+            new PlannedWorkoutFile.RestRange(120, 180),
+            false);
     PlannedWorkoutFile.PlannedSetTarget carry =
         new PlannedWorkoutFile.PlannedSetTarget(
             1, "distance_feet", null, null, null, null, null, null, 100, null, null, null, false);
@@ -424,7 +451,7 @@ class PlannedWorkoutSessionHtmlTest {
             "",
             List.of());
     return new PlannedWorkoutFile(
-        2,
+        4,
         new PlannedWorkoutFile.PlannedWorkoutMetadata(
             "Imported Wave", "Ready to train.", 1, List.of()),
         new PlannedWorkoutFile.PlannedWorkoutSource(

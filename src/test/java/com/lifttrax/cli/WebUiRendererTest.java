@@ -313,13 +313,39 @@ class WebUiRendererTest {
   void plannedWorkoutPageRendersWeeksBlocksAndGroupedTargets() {
     PlannedWorkoutFile.PlannedSetTarget firstSet =
         new PlannedWorkoutFile.PlannedSetTarget(
-            1, "reps", 5, null, null, null, null, null, null, 80, null, "CHAINS", false);
+            1,
+            "reps",
+            5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            80,
+            null,
+            "CHAINS",
+            new PlannedWorkoutFile.RestRange(120, 180),
+            false);
     PlannedWorkoutFile.PlannedSetTarget secondSet =
         new PlannedWorkoutFile.PlannedSetTarget(
-            2, "reps", 5, null, null, null, null, null, null, 80, null, "CHAINS", false);
+            2,
+            "reps",
+            5,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            80,
+            null,
+            "CHAINS",
+            new PlannedWorkoutFile.RestRange(120, 180),
+            false);
     PlannedWorkoutFile workoutFile =
         new PlannedWorkoutFile(
-            1,
+            4,
             new PlannedWorkoutFile.PlannedWorkoutMetadata(
                 "Imported Wave", "Ready to train.", 1, List.of("test")),
             new PlannedWorkoutFile.PlannedWorkoutSource(
@@ -358,7 +384,7 @@ class WebUiRendererTest {
     assertTrue(html.contains("Week 1"));
     assertTrue(html.contains("Monday"));
     assertTrue(html.contains("Backoff Sets"));
-    assertTrue(html.contains("2x 5 reps @ 80% CHAINS"));
+    assertTrue(html.contains("2x 5 reps @ 80% CHAINS rest 2-3 min"));
     assertTrue(html.contains("Swap options: Front Squat"));
     assertFalse(html.contains("action='/planned-workout-session'"));
     assertFalse(html.contains("Start This Day"));

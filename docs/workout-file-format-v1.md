@@ -40,6 +40,11 @@ Set targets can represent:
 - accommodating resistance
 - deload flags
 
+The latest version also supports a machine-readable `rest` range on each
+planned set. It uses inclusive `minimumSeconds` and `maximumSeconds` values;
+equal values represent an exact rest duration. Version `1` remains unchanged
+and loadable.
+
 ## Import Boundary
 
 The file should be loadable on its own. It stores exercise names, regions, lift

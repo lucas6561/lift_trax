@@ -8,12 +8,18 @@ new versions ship. New files should always use the latest schema snapshot.
 | Contract | Latest version | Supported versions |
 | --- | --- | --- |
 | Program schema | `2` | `1`, `2` |
-| Planned workout format | `3` | `1`, `2`, `3` |
+| Planned workout format | `4` | `1`, `2`, `3`, `4` |
 
 Planned-workout version `3` keeps the version `2` payload shape but tightens
 new planned-set intensity authoring: a set can specify `percent` or `rpe`, but
 not both. Versions `1` and `2` remain loadable for already-generated workout
 files that may contain both fields.
+
+Planned-workout version `4` adds an optional machine-readable `rest` range to
+each planned set. The range uses inclusive `minimumSeconds` and
+`maximumSeconds` values; LiftTrax also requires the maximum to be greater than
+or equal to the minimum. Versions `1` through `3` remain loadable without rest
+guidance.
 
 ## Numbered Snapshots and Latest Entrypoints
 

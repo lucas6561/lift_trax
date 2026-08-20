@@ -20,7 +20,8 @@ public final class PlannedWorkoutJson {
       Map.of(
           1, PlannedWorkoutJson::readCompatibleShape,
           2, PlannedWorkoutJson::readCompatibleShape,
-          3, PlannedWorkoutJson::readCompatibleShape);
+          3, PlannedWorkoutJson::readCompatibleShape,
+          4, PlannedWorkoutJson::readCompatibleShape);
 
   private PlannedWorkoutJson() {}
 
