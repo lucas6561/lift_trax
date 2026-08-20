@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifttrax.local/schemas/execution-dump.schema.v1.json",
+  "title": "LiftTrax execution dump",
+  "description": "A user-scoped, chronological export of LiftTrax execution history.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "dateRange",
+    "executionCount",
+    "executions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "dateRange": {
+      "$ref": "#/$defs/dateRange"
+    },
+    "executionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "executions": {
+      "type": "array",
+      "description": "Executions ordered by date, lift name, and execution ID.",
+      "items": {
+        "$ref": "#/$defs/execution"
+      }
+    }
+  },
+  "$defs": {
+    "nullableDate": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dateRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/nullableDate",
+          "description": "Inclusive lower date bound, or null when unbounded."
+        },
+        "to": {
+          "$ref": "#/$defs/nullableDate",
+          "description": "Inclusive upper date bound, or null when unbounded."
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "lift",
+        "date",
+        "warmup",
+        "deload",
+        "notes",
+        "sets"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "The account-scoped execution identifier."
+        },
+        "lift": {
+          "$ref": "#/$defs/lift"
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "warmup": {
+          "type": "boolean"
+        },
+        "deload": {
+          "type": "boolean"
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/set"
+          }
+        }
+      }
+    },
+    "lift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "region",
+        "main",
+        "muscles",
+        "notes"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "enum": [
+            "UPPER",
+            "LOWER"
+          ]
+        },
+        "main": {
+          "anyOf": [
+            {
+              "enum": [
+                "BENCH_PRESS",
+                "OVERHEAD_PRESS",
+                "SQUAT",
+                "DEADLIFT",
+                "CONDITIONING",
+                "ACCESSORY",
+                "MOBILITY"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "BICEP",
+              "TRICEP",
+              "NECK",
+              "LAT",
+              "QUAD",
+              "HAMSTRING",
+              "CALF",
+              "LOWER_BACK",
+              "CHEST",
+              "FOREARM",
+              "REAR_DELT",
+              "FRONT_DELT",
+              "SHOULDER",
+              "CORE",
+              "GLUTE",
+              "TRAP"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "weight",
+        "rpe"
+      ],
+      "properties": {
+        "metric": {
+          "$ref": "#/$defs/metric"
+        },
+        "weight": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "rpe": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "metric": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/repsMetric"
+        },
+        {
+          "$ref": "#/$defs/repsLrMetric"
+        },
+        {
+          "$ref": "#/$defs/repsRangeMetric"
+        },
+        {
+          "$ref": "#/$defs/timeSecondsMetric"
+        },
+        {
+          "$ref": "#/$defs/distanceFeetMetric"
+        }
+      ]
+    },
+    "repsMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reps"
+      ],
+      "properties": {
+        "kind": {
+          "const": "reps"
+        },
+        "reps": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "repsLrMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "left",
+        "right"
+      ],
+      "properties": {
+        "kind": {
+          "const": "reps_lr"
+        },
+        "left": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "right": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "repsRangeMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "min",
+        "max"
+      ],
+      "properties": {
+        "kind": {
+          "const": "reps_range"
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "timeSecondsMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "seconds"
+      ],
+      "properties": {
+        "kind": {
+          "const": "time_seconds"
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "distanceFeetMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "feet"
+      ],
+      "properties": {
+        "kind": {
+          "const": "distance_feet"
+        },
+        "feet": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

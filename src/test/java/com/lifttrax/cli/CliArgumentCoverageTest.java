@@ -30,6 +30,32 @@ class CliArgumentCoverageTest {
     assertEquals("lucas", invokeAccessor(options, "userId"));
     assertEquals(true, invokeAccessor(options, "liftsOnly"));
     assertEquals(true, invokeAccessor(options, "includeDisabled"));
+    assertEquals(false, invokeAccessor(options, "executionsOnly"));
+    assertEquals(null, invokeAccessor(options, "from"));
+    assertEquals(null, invokeAccessor(options, "to"));
+    assertEquals(ExecutionDumpWriter.Format.JSON, invokeAccessor(options, "format"));
+
+    Object executionOptions =
+        invoke(
+            DumpDatabaseCli.class,
+            "parseArgs",
+            new Class<?>[] {String[].class},
+            (Object)
+                new String[] {
+                  "--user",
+                  "lucas",
+                  "--executions-only",
+                  "--from",
+                  "2026-01-01",
+                  "--to",
+                  "2026-01-31",
+                  "--format",
+                  "human"
+                });
+    assertEquals(true, invokeAccessor(executionOptions, "executionsOnly"));
+    assertEquals(LocalDate.parse("2026-01-01"), invokeAccessor(executionOptions, "from"));
+    assertEquals(LocalDate.parse("2026-01-31"), invokeAccessor(executionOptions, "to"));
+    assertEquals(ExecutionDumpWriter.Format.HUMAN, invokeAccessor(executionOptions, "format"));
 
     Lift lift =
         new Lift(
@@ -87,6 +113,25 @@ class CliArgumentCoverageTest {
   @Test
   void dumpArgumentErrorsAreSpecific() {
     assertArgumentFailure(DumpDatabaseCli.class, new String[] {"--user"}, "Missing value");
+    assertArgumentFailure(DumpDatabaseCli.class, new String[] {"--from"}, "Missing value");
+    assertArgumentFailure(
+        DumpDatabaseCli.class,
+        new String[] {"--executions-only", "--from", "January"},
+        "YYYY-MM-DD");
+    assertArgumentFailure(
+        DumpDatabaseCli.class,
+        new String[] {"--executions-only", "--format", "csv"},
+        "Unsupported execution dump format");
+    assertArgumentFailure(
+        DumpDatabaseCli.class,
+        new String[] {"--lifts-only", "--executions-only"},
+        "cannot be combined");
+    assertArgumentFailure(
+        DumpDatabaseCli.class, new String[] {"--from", "2026-01-01"}, "require --executions-only");
+    assertArgumentFailure(
+        DumpDatabaseCli.class,
+        new String[] {"--executions-only", "--from", "2026-02-01", "--to", "2026-01-01"},
+        "on or before");
     assertArgumentFailure(DumpDatabaseCli.class, new String[] {"--wat"}, "Unknown option");
     assertArgumentFailure(DumpDatabaseCli.class, new String[] {"extra"}, "Unexpected argument");
   }

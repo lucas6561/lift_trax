@@ -166,6 +166,35 @@ to `build/reports/pitest/`; surviving mutations are the backlog for assertion
 tightening. The threshold is a floor, not a reason to ignore surviving
 mutations.
 
+## Dump execution history
+
+Dump every execution for the locally configured CLI user as JSON:
+
+```bash
+./gradlew --quiet run --args='--executions-only' > executions.json
+```
+
+`--from` and `--to` add optional inclusive `YYYY-MM-DD` bounds. Either bound
+can be used alone; omitting both exports all execution dates:
+
+```bash
+./gradlew --quiet run --args='--executions-only --from 2026-01-01 --to 2026-03-31' > executions-q1.json
+```
+
+For output intended to be read directly, select the human format:
+
+```bash
+./gradlew run --args='--executions-only --format human'
+```
+
+JSON output is chronological and includes lift context, execution flags and
+notes, plus every recorded set. Its versioned contract is
+`shared/executions/schema/execution-dump.schema.v1.json`; use
+`shared/executions/schema/execution-dump.schema.latest.json` when a consumer
+should follow the newest format. See `docs/execution-dump-format.md` for the
+field layout and metric variants. Use `--user <username-or-id>` to select a
+different account for one invocation.
+
 ## Dump lifts only (no executions)
 
 From the repository root:

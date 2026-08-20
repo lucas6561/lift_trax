@@ -6,6 +6,8 @@ import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -17,10 +19,12 @@ public final class DumpDatabaseCli {
   public static void main(String[] args) throws Exception {
     CliOptions options = parseArgs(args);
     try (TrainingDataStoreProvider provider = TrainingDataStoreProvider.fromEnvironment()) {
-      dump(
-          provider.forUserIdentifier(options.userId()),
-          options.liftsOnly(),
-          options.includeDisabled());
+      TrainingDataStore db = provider.forUserIdentifier(options.userId());
+      if (options.executionsOnly()) {
+        ExecutionDumpWriter.write(db, options.from(), options.to(), options.format(), System.out);
+      } else {
+        dump(db, options.liftsOnly(), options.includeDisabled());
+      }
     }
   }
 
@@ -59,6 +63,11 @@ public final class DumpDatabaseCli {
   private static CliOptions parseArgs(String... args) {
     boolean liftsOnly = false;
     boolean includeDisabled = false;
+    boolean executionsOnly = false;
+    boolean formatSpecified = false;
+    LocalDate from = null;
+    LocalDate to = null;
+    ExecutionDumpWriter.Format format = ExecutionDumpWriter.Format.JSON;
     String userId = null;
     int index = 0;
     while (index < args.length) {
@@ -73,11 +82,29 @@ public final class DumpDatabaseCli {
         index++;
         continue;
       }
+      if ("--executions-only".equals(arg)) {
+        executionsOnly = true;
+        index++;
+        continue;
+      }
+      if ("--from".equals(arg)) {
+        from = parseDate(optionValue(args, index, arg), arg);
+        index += 2;
+        continue;
+      }
+      if ("--to".equals(arg)) {
+        to = parseDate(optionValue(args, index, arg), arg);
+        index += 2;
+        continue;
+      }
+      if ("--format".equals(arg)) {
+        format = ExecutionDumpWriter.Format.parse(optionValue(args, index, arg));
+        formatSpecified = true;
+        index += 2;
+        continue;
+      }
       if ("--user".equals(arg)) {
-        if (index + 1 >= args.length) {
-          throw new IllegalArgumentException("Missing value after --user");
-        }
-        userId = args[index + 1];
+        userId = optionValue(args, index, arg);
         index += 2;
         continue;
       }
@@ -86,10 +113,57 @@ public final class DumpDatabaseCli {
       }
       throw new IllegalArgumentException("Unexpected argument: " + arg);
     }
-    return new CliOptions(CliUserResolver.resolve(userId), liftsOnly, includeDisabled);
+    validateExecutionOptions(liftsOnly, executionsOnly, formatSpecified, from, to);
+    return new CliOptions(
+        CliUserResolver.resolve(userId),
+        liftsOnly,
+        includeDisabled,
+        executionsOnly,
+        from,
+        to,
+        format);
   }
 
-  private record CliOptions(String userId, boolean liftsOnly, boolean includeDisabled) {}
+  private static String optionValue(String[] args, int index, String option) {
+    if (index + 1 >= args.length) {
+      throw new IllegalArgumentException("Missing value after " + option);
+    }
+    return args[index + 1];
+  }
+
+  private static LocalDate parseDate(String value, String option) {
+    try {
+      return LocalDate.parse(value);
+    } catch (DateTimeParseException error) {
+      throw new IllegalArgumentException(option + " must use YYYY-MM-DD: " + value, error);
+    }
+  }
+
+  private static void validateExecutionOptions(
+      boolean liftsOnly,
+      boolean executionsOnly,
+      boolean formatSpecified,
+      LocalDate from,
+      LocalDate to) {
+    if (liftsOnly && executionsOnly) {
+      throw new IllegalArgumentException("--lifts-only cannot be combined with --executions-only");
+    }
+    if (!executionsOnly && (formatSpecified || from != null || to != null)) {
+      throw new IllegalArgumentException("--format, --from, and --to require --executions-only");
+    }
+    if (from != null && to != null && from.isAfter(to)) {
+      throw new IllegalArgumentException("--from must be on or before --to");
+    }
+  }
+
+  private record CliOptions(
+      String userId,
+      boolean liftsOnly,
+      boolean includeDisabled,
+      boolean executionsOnly,
+      LocalDate from,
+      LocalDate to,
+      ExecutionDumpWriter.Format format) {}
 
   private static String formatLiftHeader(Lift lift) {
     String main = lift.main() == null ? "" : " [" + lift.main() + "]";
@@ -112,7 +186,7 @@ public final class DumpDatabaseCli {
     return execution.date() + ": " + sets + tags + notes;
   }
 
-  private static String formatTags(LiftExecution execution) {
+  static String formatTags(LiftExecution execution) {
     if (execution.warmup() && execution.deload()) {
       return " (warm-up, deload)";
     }
@@ -125,7 +199,7 @@ public final class DumpDatabaseCli {
     return "";
   }
 
-  private static String formatSet(ExecutionSet set) {
+  static String formatSet(ExecutionSet set) {
     String metric = formatMetric(set.metric());
     String weight =
         set.weight() == null || "none".equalsIgnoreCase(set.weight()) ? "" : " @ " + set.weight();
