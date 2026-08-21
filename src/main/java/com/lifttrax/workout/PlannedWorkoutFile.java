@@ -27,6 +27,7 @@ public record PlannedWorkoutFile(
       validateSingleIntensityMode(weeks);
     }
     validateRestRangeVersion(schemaVersion, weeks);
+    validateLoadGuidanceVersion(schemaVersion, weeks);
   }
 
   public record PlannedWorkoutMetadata(
@@ -127,7 +128,9 @@ public record PlannedWorkoutFile(
       Integer seconds,
       Integer distanceFeet,
       Integer percent,
+      @JsonInclude(JsonInclude.Include.NON_NULL) String percentOf,
       Float rpe,
+      @JsonInclude(JsonInclude.Include.NON_NULL) Float rpeCap,
       String accommodatingResistance,
       @JsonInclude(JsonInclude.Include.NON_NULL) RestRange rest,
       boolean deload) {
@@ -156,9 +159,45 @@ public record PlannedWorkoutFile(
           seconds,
           distanceFeet,
           percent,
+          null,
           rpe,
+          null,
           accommodatingResistance,
           null,
+          deload);
+    }
+
+    public PlannedSetTarget(
+        Integer setNumber,
+        String metricType,
+        Integer reps,
+        Integer repsLeft,
+        Integer repsRight,
+        Integer repsMin,
+        Integer repsMax,
+        Integer seconds,
+        Integer distanceFeet,
+        Integer percent,
+        Float rpe,
+        String accommodatingResistance,
+        RestRange rest,
+        boolean deload) {
+      this(
+          setNumber,
+          metricType,
+          reps,
+          repsLeft,
+          repsRight,
+          repsMin,
+          repsMax,
+          seconds,
+          distanceFeet,
+          percent,
+          null,
+          rpe,
+          null,
+          accommodatingResistance,
+          rest,
           deload);
     }
 
@@ -171,6 +210,13 @@ public record PlannedWorkoutFile(
       if (setNumber != null && setNumber < 1) {
         throw new IllegalArgumentException("plannedSet.setNumber must be positive when present");
       }
+      if (rpeCap != null && (rpeCap < 0.0f || rpeCap > 10.0f)) {
+        throw new IllegalArgumentException("plannedSet.rpeCap must be between 0 and 10");
+      }
+    }
+
+    public String loadReference(String exerciseName) {
+      return percentOf == null || percentOf.isBlank() ? exerciseName : percentOf;
     }
   }
 
@@ -297,6 +343,26 @@ public record PlannedWorkoutFile(
               if (set.rest() != null) {
                 throw new IllegalArgumentException(
                     "plannedSet.rest requires workout schemaVersion 4 or later");
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  static void validateLoadGuidanceVersion(int schemaVersion, List<PlannedWorkoutWeek> weeks) {
+    if (schemaVersion >= 5) {
+      return;
+    }
+    for (PlannedWorkoutWeek week : weeks) {
+      for (PlannedWorkoutDay day : week.days()) {
+        for (PlannedWorkoutBlock block : day.blocks()) {
+          for (PlannedExercise exercise : block.exercises()) {
+            for (PlannedSetTarget set : exercise.plannedSets()) {
+              if (set.percentOf() != null || set.rpeCap() != null) {
+                throw new IllegalArgumentException(
+                    "plannedSet.percentOf and plannedSet.rpeCap require workout schemaVersion 5 or later");
               }
             }
           }

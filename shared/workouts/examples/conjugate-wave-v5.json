@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 5,
+  "metadata": {
+    "name": "Example Conjugate Planned Wave",
+    "description": "A compact planned-workout example generated from a conjugate wave.",
+    "totalWeeks": 1,
+    "tags": [
+      "example",
+      "conjugate"
+    ]
+  },
+  "source": {
+    "kind": "wave-generation",
+    "generator": "conjugate",
+    "programName": "Conjugate Wave",
+    "programSchemaVersion": null,
+    "generatedAt": "2026-05-29T00:00:00Z"
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "title": "Monday",
+          "blocks": [
+            {
+              "order": 1,
+              "title": "Paused Deadlift Main Work",
+              "blockType": "supplemental",
+              "rounds": null,
+              "warmup": false,
+              "exercises": [
+                {
+                  "name": "1\" Paused Deadlift",
+                  "region": "LOWER",
+                  "type": "DEADLIFT",
+                  "muscles": [
+                    "HAMSTRING",
+                    "GLUTE"
+                  ],
+                  "plannedSets": [
+                    {
+                      "setNumber": 1,
+                      "metricType": "reps",
+                      "reps": 4,
+                      "repsLeft": null,
+                      "repsRight": null,
+                      "repsMin": null,
+                      "repsMax": null,
+                      "seconds": null,
+                      "distanceFeet": null,
+                      "percent": 70,
+                      "percentOf": "Conventional Deadlift",
+                      "rpe": null,
+                      "rpeCap": 8,
+                      "accommodatingResistance": null,
+                      "rest": {
+                        "minimumSeconds": 180,
+                        "maximumSeconds": 300
+                      },
+                      "deload": false
+                    }
+                  ],
+                  "notes": "Start at the percentage target and reduce the load if needed to honor the RPE cap.",
+                  "substitutionOptions": [
+                    "Conventional Deadlift",
+                    "Deficit Deadlift"
+                  ]
+                }
+              ],
+              "notes": [
+                "Use the Conventional Deadlift max as the load reference."
+              ]
+            }
+          ],
+          "notes": []
+        }
+      ]
+    }
+  ],
+  "completedWorkouts": []
+}

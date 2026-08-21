@@ -102,7 +102,7 @@ public final class WorkoutHistoryFormatter {
     if (targetPercent(target) == null) {
       return null;
     }
-    return suggestedWeight(db.getExecutions(liftName), target);
+    return suggestedWeight(db.getExecutions(target.loadReference(liftName)), target);
   }
 
   public static String suggestedWeight(

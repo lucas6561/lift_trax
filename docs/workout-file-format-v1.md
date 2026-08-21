@@ -36,14 +36,18 @@ Set targets can represent:
 - timed work
 - distance work
 - percent targets
+- percentage references to another exercise's max or history
 - RPE targets
+- RPE caps paired with an objective starting load
 - accommodating resistance
 - deload flags
 
-The latest version also supports a machine-readable `rest` range on each
-planned set. It uses inclusive `minimumSeconds` and `maximumSeconds` values;
-equal values represent an exact rest duration. Version `1` remains unchanged
-and loadable.
+The latest version supports `percentOf` when a percentage should use another
+exercise as its load reference, plus `rpeCap` when the percentage is the
+objective starting point but the load should be reduced to stay below an RPE
+ceiling. It also supports a machine-readable `rest` range on each planned set,
+using inclusive `minimumSeconds` and `maximumSeconds` values; equal values
+represent an exact rest duration. Version `1` remains unchanged and loadable.
 
 ## Import Boundary
 
@@ -61,8 +65,9 @@ shows the same local history context used by generated waves: `Last:` and `Best
 From the preview, `Start This Day` opens the follow-along logging screen for one
 week and day. Planned set counts seed editable result fields for reps,
 left/right reps, time, and distance. Current generated planned sets use percent
-or RPE as the intensity target, not both; older imports with both remain
-readable for compatibility. Completed sets can add weights and RPE,
+or RPE as the primary intensity target, not both; a percent target may also use
+an RPE cap. Older imports with both percent and prescribed RPE remain readable
+for compatibility. Completed sets can add weights and RPE,
 planned work can be skipped, and exercises can use substitution options already
 declared in the workout file when those lifts exist locally. Saved work enters
 the regular execution history. Durable planned-versus-completed storage is a

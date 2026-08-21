@@ -54,6 +54,9 @@ public final class PlannedWorkoutHistory {
     for (PlannedWorkoutFile.PlannedWorkoutBlock block : day.blocks()) {
       for (PlannedWorkoutFile.PlannedExercise exercise : block.exercises()) {
         liftNames.add(exercise.name());
+        for (PlannedWorkoutFile.PlannedSetTarget target : exercise.plannedSets()) {
+          liftNames.add(target.loadReference(exercise.name()));
+        }
       }
     }
   }
@@ -94,9 +97,10 @@ public final class PlannedWorkoutHistory {
         return "";
       }
       try {
+        String referenceLiftName = target.loadReference(liftName);
         String suggested =
             WorkoutHistoryFormatter.suggestedWeight(
-                executionsByLift.getOrDefault(liftName, List.of()), target);
+                executionsByLift.getOrDefault(referenceLiftName, List.of()), target);
         return suggested == null ? "" : suggested;
       } catch (Exception e) {
         return "";

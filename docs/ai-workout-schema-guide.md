@@ -61,11 +61,17 @@ Workout requirements:
   athlete should train them.
 - Use planned set metricType values from the schema: reps, reps_lr, reps_range,
   time_seconds, distance_feet, or none.
-- Include either percent or rpe for a planned set, not both. Older files written
-  against prior numbered schemas may contain both and remain readable for
-  compatibility. Add
-  accommodatingResistance, notes, and substitutionOptions only when they are
-  useful and valid for the schema.
+- Use either percent or rpe as the primary intensity prescription for a planned
+  set, not both. Older files written against prior numbered schemas may contain
+  both and remain readable for compatibility.
+- An rpeCap may accompany percent. It means to start with the percentage-based
+  load, never exceed the cap, and reduce the load when necessary. Do not replace
+  an RPE-prescribed set's rpe with rpeCap.
+- When percent should use another exercise's max or history, set percentOf to
+  that exercise's exact LiftTrax name. Omit percentOf when the planned
+  exercise itself is the percentage reference.
+- Add accommodatingResistance, notes, and substitutionOptions only when they
+  are useful and valid for the schema.
 - When rest guidance is useful, add a planned-set `rest` object with inclusive
   integer `minimumSeconds` and `maximumSeconds` values. Use equal values for an
   exact duration, and never make the maximum smaller than the minimum.
@@ -88,11 +94,15 @@ Sanity-check the generated file before training from it:
    positive `reps` value, timed work uses `time_seconds` and `seconds`, distance
    work uses `distance_feet` and `distanceFeet`, and rep ranges use
    `reps_range`, `repsMin`, and `repsMax`.
-6. Check each optional rest range uses non-negative integer seconds and has
+6. Check each optional `rpeCap` is between 0 and 10. A set may use `percent`
+   with `rpeCap`, but it must not use `percent` with `rpe`.
+7. Check each `percentOf` value names the intended load-reference exercise and
+   is used only to clarify a percentage target.
+8. Check each optional rest range uses non-negative integer seconds and has
    `maximumSeconds` greater than or equal to `minimumSeconds`.
-7. If you use a JSON Schema validator, validate the file against the raw schema
+9. If you use a JSON Schema validator, validate the file against the raw schema
    URL above.
-8. In LiftTrax, open the web UI, go to the Import Workout tab, select the JSON
+10. In LiftTrax, open the web UI, go to the Import Workout tab, select the JSON
    file, and use App Preview first. The preview should show readable weeks,
    days, blocks, exercise names, and set targets before you choose Work Along.
 
@@ -103,8 +113,23 @@ same schema instead of manually editing large sections by hand.
 
 A valid planned-workout example lives at:
 
-- `shared/workouts/examples/conjugate-wave-v4.json`
+- `shared/workouts/examples/conjugate-wave-v5.json`
 
 That example shows the same importable planned-workout shape: metadata, source,
-weeks, days, blocks, exercise details, planned set targets with rest guidance,
-and an empty completed-workout list.
+weeks, days, blocks, exercise details, planned set targets with percentage
+references, RPE caps, rest guidance, and an empty completed-workout list. Its
+main-work target is equivalent to:
+
+```json
+{
+  "metricType": "reps",
+  "reps": 4,
+  "percent": 70,
+  "percentOf": "Conventional Deadlift",
+  "rpeCap": 8,
+  "deload": false
+}
+```
+
+This means to start with 70% of the Conventional Deadlift max and reduce the
+load if necessary rather than exceeding RPE 8.

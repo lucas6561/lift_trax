@@ -99,10 +99,17 @@ public final class PlannedWorkoutText {
     List<String> parts = new ArrayList<>();
     parts.add(plannedMetric(target));
     if (target.percent() != null) {
-      parts.add("@ " + target.percent() + "%");
+      String percentOf =
+          target.percentOf() == null || target.percentOf().isBlank()
+              ? ""
+              : " of " + target.percentOf();
+      parts.add("@ " + target.percent() + "%" + percentOf);
     }
     if (target.rpe() != null) {
       parts.add("RPE " + String.format(Locale.ROOT, "%.1f", target.rpe()));
+    }
+    if (target.rpeCap() != null) {
+      parts.add("RPE cap " + String.format(Locale.ROOT, "%.1f", target.rpeCap()));
     }
     if (target.accommodatingResistance() != null
         && !target.accommodatingResistance().isBlank()
@@ -160,7 +167,9 @@ public final class PlannedWorkoutText {
         && Objects.equals(first.seconds(), second.seconds())
         && Objects.equals(first.distanceFeet(), second.distanceFeet())
         && Objects.equals(first.percent(), second.percent())
+        && Objects.equals(first.percentOf(), second.percentOf())
         && Objects.equals(first.rpe(), second.rpe())
+        && Objects.equals(first.rpeCap(), second.rpeCap())
         && Objects.equals(first.accommodatingResistance(), second.accommodatingResistance())
         && Objects.equals(first.rest(), second.rest())
         && first.deload() == second.deload();

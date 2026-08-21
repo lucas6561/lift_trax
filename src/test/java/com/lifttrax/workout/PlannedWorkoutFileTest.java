@@ -9,8 +9,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.lifttrax.models.ExecutionSet;
+import com.lifttrax.models.LiftExecution;
+import com.lifttrax.models.SetMetric;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -365,6 +369,77 @@ class PlannedWorkoutFileTest {
   }
 
   @Test
+  void plannedWorkoutV5LoadsAndUsesPercentageReferencesWithRpeCaps() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v5.json"));
+    PlannedWorkoutFile.PlannedExercise exercise =
+        workoutFile.weeks().get(0).days().get(0).blocks().get(0).exercises().get(0);
+    PlannedWorkoutFile.PlannedSetTarget target = exercise.plannedSets().get(0);
+
+    assertEquals(70, target.percent());
+    assertEquals("Conventional Deadlift", target.percentOf());
+    assertEquals(8.0f, target.rpeCap());
+    assertEquals(
+        "4 reps @ 70% of Conventional Deadlift RPE cap 8.0 rest 3-5 min",
+        PlannedWorkoutText.plannedSet(target));
+    assertEquals(
+        workoutFile, PlannedWorkoutJson.readString(PlannedWorkoutJson.writeString(workoutFile)));
+
+    ConjugateWorkoutBuilderTest.FakeDb db = ConjugateWorkoutBuilderTest.FakeDb.withSeedData();
+    db.exec(
+        "Conventional Deadlift",
+        new LiftExecution(
+            10,
+            LocalDate.of(2026, 8, 1),
+            List.of(new ExecutionSet(new SetMetric.Reps(1), "445 lb", 9.0f)),
+            false,
+            false,
+            ""));
+
+    assertEquals("315 lb", PlannedWorkoutText.suggestedWeight(db, exercise.name(), target));
+    assertEquals(
+        "315 lb",
+        PlannedWorkoutHistory.load(db, workoutFile).suggestedWeight(exercise.name(), target));
+  }
+
+  @Test
+  void plannedWorkoutV5GuidanceRejectsInvalidCapsAndOlderVersions() throws Exception {
+    JsonNode root =
+        JSON.readTree(Path.of("shared", "workouts", "examples", "conjugate-wave-v5.json").toFile());
+    ObjectNode target =
+        (ObjectNode)
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets")
+                .get(0);
+
+    target.put("rpeCap", 11);
+    JsonProcessingException invalidCap =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(
+        invalidCap.getOriginalMessage().contains("plannedSet.rpeCap must be between 0 and 10"));
+
+    target.put("rpeCap", 8);
+    ((ObjectNode) root).put("schemaVersion", 4);
+    JsonProcessingException olderVersion =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(
+        olderVersion
+            .getOriginalMessage()
+            .contains(
+                "plannedSet.percentOf and plannedSet.rpeCap require workout schemaVersion 5 or later"));
+  }
+
+  @Test
   void plannedWorkoutRestRangesRejectInvalidBoundsAndOlderVersions() throws Exception {
     assertThrows(IllegalArgumentException.class, () -> new PlannedWorkoutFile.RestRange(null, 120));
     assertThrows(IllegalArgumentException.class, () -> new PlannedWorkoutFile.RestRange(60, null));
@@ -485,7 +560,8 @@ class PlannedWorkoutFileTest {
     assertTrue(
         exception
             .getOriginalMessage()
-            .contains("Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4]."));
+            .contains(
+                "Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4, 5]."));
   }
 
   @Test
@@ -518,7 +594,7 @@ class PlannedWorkoutFileTest {
       assertTrue(root.path("weeks").isArray());
       assertTrue(root.path("weeks").get(0).path("days").get(0).path("blocks").isArray());
       assertTrue(root.path("completedWorkouts").isArray());
-      if (schemaVersion == 4) {
+      if (schemaVersion >= 4) {
         JsonNode rest =
             root.path("weeks")
                 .get(0)
@@ -534,6 +610,27 @@ class PlannedWorkoutFileTest {
         assertEquals(180, rest.path("minimumSeconds").asInt());
         assertEquals(300, rest.path("maximumSeconds").asInt());
         assertTrue(JSON.readTree(schema.toFile()).path("$defs").has("restRange"));
+      }
+      if (schemaVersion == 5) {
+        JsonNode plannedSetProperties =
+            JSON.readTree(schema.toFile()).path("$defs").path("plannedSet").path("properties");
+        assertEquals(0, plannedSetProperties.path("rpeCap").path("minimum").asInt());
+        assertEquals(10, plannedSetProperties.path("rpeCap").path("maximum").asInt());
+        assertTrue(plannedSetProperties.path("percentOf").path("type").isArray());
+
+        JsonNode plannedSet =
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets")
+                .get(0);
+        assertEquals("Conventional Deadlift", plannedSet.path("percentOf").asText());
+        assertEquals(8, plannedSet.path("rpeCap").asInt());
       }
     }
   }
