@@ -5,6 +5,7 @@ import com.lifttrax.models.LiftExecution;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -54,11 +55,20 @@ public final class PlannedWorkoutHistory {
     for (PlannedWorkoutFile.PlannedWorkoutBlock block : day.blocks()) {
       for (PlannedWorkoutFile.PlannedExercise exercise : block.exercises()) {
         liftNames.add(exercise.name());
+        if (isContinentalCleanAndPress(exercise.name())) {
+          liftNames.add("Overhead Press");
+        }
         for (PlannedWorkoutFile.PlannedSetTarget target : exercise.plannedSets()) {
           liftNames.add(target.loadReference(exercise.name()));
         }
       }
     }
+  }
+
+  private static boolean isContinentalCleanAndPress(String exerciseName) {
+    String normalized =
+        exerciseName.toLowerCase(Locale.ROOT).replace("&", "and").replaceAll("[^a-z]+", " ").trim();
+    return "continental clean and press".equals(normalized);
   }
 
   public static final class Snapshot {
@@ -105,6 +115,28 @@ public final class PlannedWorkoutHistory {
       } catch (Exception e) {
         return "";
       }
+    }
+
+    public String suggestedWeightFractionOfTarget(
+        String liftName, PlannedWorkoutFile.PlannedSetTarget target, double fraction) {
+      if (unavailable) {
+        return "";
+      }
+      try {
+        String referenceLiftName = target.loadReference(liftName);
+        String suggested =
+            WorkoutHistoryFormatter.suggestedWeightFractionOfTarget(
+                executionsByLift.getOrDefault(referenceLiftName, List.of()), target, fraction);
+        return suggested == null ? "" : suggested;
+      } catch (Exception e) {
+        return "";
+      }
+    }
+
+    public boolean targetAtLeast(
+        PlannedWorkoutFile.PlannedSetTarget target, double minimumPercent) {
+      Double percent = WorkoutHistoryFormatter.targetPercent(target);
+      return percent != null && percent >= minimumPercent;
     }
 
     private static Snapshot empty() {

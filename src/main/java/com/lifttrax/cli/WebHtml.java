@@ -198,6 +198,13 @@ final class WebHtml {
                 .session-lift-note { border-left: 3px solid #22c55e; padding: 0.32rem 0.5rem; margin: 0.35rem 0 0.45rem; background: rgba(20, 83, 45, 0.18); color: #dcfce7; overflow-wrap: anywhere; }
                 .session-history { display: flex; flex-wrap: wrap; gap: 0.32rem 0.75rem; border: 1px solid rgba(250, 204, 21, 0.36); border-radius: 0.45rem; padding: 0.36rem 0.46rem; margin: 0.35rem 0 0.45rem; background: rgba(113, 63, 18, 0.18); color: #fde68a; }
                 .session-history span { overflow-wrap: anywhere; }
+                .session-warmup { border: 1px solid rgba(56, 189, 248, 0.48); border-left: 4px solid #38bdf8; border-radius: 0.5rem; padding: 0.48rem 0.55rem; margin: 0.4rem 0 0.5rem; background: rgba(8, 47, 73, 0.28); }
+                .session-warmup h4 { margin-bottom: 0.22rem; }
+                .session-warmup p { margin-bottom: 0.3rem; }
+                .session-warmup ol { margin-bottom: 0.35rem; }
+                .session-warmup-weight { color: #bae6fd; white-space: nowrap; }
+                .session-warmup-backoff { border-top: 1px solid rgba(56, 189, 248, 0.3); padding-top: 0.35rem; }
+                .session-warmup-caution { color: #fde68a; font-weight: 600; }
                 .session-exercise.is-skipped,
                 .session-set.is-skipped { opacity: 0.62; }
                 .session-set { border: 1px dashed var(--pico-muted-border-color); border-radius: 0.45rem; padding: 0.4rem; margin: 0.4rem 0; }

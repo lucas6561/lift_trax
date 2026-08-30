@@ -245,6 +245,8 @@ final class PlannedWorkoutSessionHtml {
     PlannedWorkoutFile.PlannedWorkoutDay day =
         PlannedWorkoutSessionService.findDay(workoutFile, weekNumber, dayOfWeek);
     PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, day);
+    Map<String, PlannedWorkoutWarmups.WarmupPlan> warmups =
+        PlannedWorkoutWarmups.forDay(day, history);
     StringBuilder html = new StringBuilder();
     html.append("<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>")
         .append("<h1>Train ")
@@ -306,7 +308,8 @@ final class PlannedWorkoutSessionHtml {
           localLiftNames,
           localLiftNotes,
           date,
-          history);
+          history,
+          warmups);
     }
     appendBlockActions(html, day.blocks().size());
     html.append(
@@ -484,7 +487,8 @@ final class PlannedWorkoutSessionHtml {
       Set<String> localLiftNames,
       Map<String, String> localLiftNotes,
       LocalDate date,
-      PlannedWorkoutHistory.Snapshot history) {
+      PlannedWorkoutHistory.Snapshot history,
+      Map<String, PlannedWorkoutWarmups.WarmupPlan> warmups) {
     html.append("<section class='session-block")
         .append(blockIndex == 0 ? " is-current" : " is-hidden")
         .append("' data-session-block-index='")
@@ -509,7 +513,8 @@ final class PlannedWorkoutSessionHtml {
           localLiftNames,
           localLiftNotes,
           date,
-          history);
+          history,
+          warmups.get(key));
     }
     html.append("</section>");
   }
@@ -522,7 +527,8 @@ final class PlannedWorkoutSessionHtml {
       Set<String> localLiftNames,
       Map<String, String> localLiftNotes,
       LocalDate date,
-      PlannedWorkoutHistory.Snapshot history) {
+      PlannedWorkoutHistory.Snapshot history,
+      PlannedWorkoutWarmups.WarmupPlan warmup) {
     html.append("<article class='session-exercise' data-exercise-key='")
         .append(WebHtml.escapeHtml(key))
         .append("' data-planned-lift='")
@@ -557,6 +563,7 @@ final class PlannedWorkoutSessionHtml {
           .append("</p>");
     }
     appendHistory(html, history, block, exercise);
+    appendWarmup(html, warmup);
     List<PlannedWorkoutFile.PlannedSetTarget> plannedSets = exercise.plannedSets();
     appendTargets(html, plannedSets, exercise.name(), history);
     MetricSeed seed = firstMetricSeed(plannedSets, exercise.name(), history);
@@ -566,6 +573,46 @@ final class PlannedWorkoutSessionHtml {
             ExecutionInputWidgetHtml.renderWorkAlong(
                 prefill(block, exercise, seed, plannedSets, date), key))
         .append("</div></article>");
+  }
+
+  private static void appendWarmup(StringBuilder html, PlannedWorkoutWarmups.WarmupPlan warmup) {
+    if (warmup == null) {
+      return;
+    }
+    html.append("<aside class='session-warmup' aria-label='Warm-up ramp'><h4>")
+        .append(WebHtml.escapeHtml(warmup.title()))
+        .append(
+            "</h4><p class='muted'>Do these before the programmed work. Warm-ups do not count as work sets.</p><ol>");
+    for (PlannedWorkoutWarmups.WarmupSet set : warmup.sets()) {
+      html.append("<li>")
+          .append(WebHtml.escapeHtml(set.load()))
+          .append(" &times; ")
+          .append(WebHtml.escapeHtml(set.reps()));
+      if (!set.suggestedWeight().isBlank()) {
+        html.append(" <strong class='session-warmup-weight'>&mdash; ")
+            .append(WebHtml.escapeHtml(set.suggestedWeight()))
+            .append("</strong>");
+      }
+      html.append("</li>");
+    }
+    html.append("</ol>");
+    if (warmup.sets().stream()
+        .map(PlannedWorkoutWarmups.WarmupSet::suggestedWeight)
+        .allMatch(String::isBlank)) {
+      html.append(
+          "<p class='muted'>Suggested weights will appear when this account has a usable max or weighted RPE history for the reference lift.</p>");
+    }
+    html.append(
+            "<p class='muted'>Keep warm-ups around RPE 5 or lower. Rest 45-60 seconds early and 90-120 seconds for the last one or two ramps.</p><p class='muted'>")
+        .append(WebHtml.escapeHtml(warmup.intent()))
+        .append("</p>");
+    if (!warmup.backoffNote().isBlank()) {
+      html.append("<p class='session-warmup-backoff'><strong>Back-off work:</strong> ")
+          .append(WebHtml.escapeHtml(warmup.backoffNote()))
+          .append("</p>");
+    }
+    html.append(
+        "<p class='session-warmup-caution'>If the final warm-up is unexpectedly slow or above RPE 6, reduce the work weight to honor its RPE cap.</p></aside>");
   }
 
   private static WebUiRenderer.AddExecutionPrefill prefill(

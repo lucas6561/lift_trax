@@ -313,6 +313,15 @@ class PlannedWorkoutSessionHtmlTest {
 
       assertTrue(html.contains("Target: 5 reps @ 80%"));
       assertTrue(html.contains("Suggested: 295 lb"));
+      assertTrue(html.contains("class='session-warmup' aria-label='Warm-up ramp'"));
+      assertTrue(html.contains("40% of working weight &times; 5"));
+      assertTrue(html.contains("&mdash; 120 lb"));
+      assertTrue(html.contains("55% of working weight &times; 3"));
+      assertTrue(html.contains("&mdash; 165 lb"));
+      assertTrue(html.contains("65% of working weight &times; 2"));
+      assertTrue(html.contains("&mdash; 195 lb"));
+      assertTrue(html.contains("70% of working weight &times; 1"));
+      assertTrue(html.contains("&mdash; 210 lb"));
       assertTrue(html.contains("class='js-weight-hidden' value='295 lb'"));
       assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='295'"));
       assertTrue(html.contains("name='rpe' value=''"));
