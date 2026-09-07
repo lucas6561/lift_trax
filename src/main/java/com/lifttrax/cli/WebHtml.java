@@ -156,6 +156,8 @@ final class WebHtml {
                 .planned-import-actions .error { color: #fca5a5; }
                 .planned-output-form { margin: 0.45rem 0 0.65rem; }
                 .planned-output-buttons { align-items: stretch; }
+                .planned-output-buttons .compact-btn,
+                .planned-file-picker { min-height: 48px; padding: 0.6rem 0.75rem; }
                 .planned-workalong-form { max-width: 620px; display: flex; flex-direction: column; gap: 0.55rem; }
                 .planned-workalong-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
                 .planned-week { margin-top: 0.75rem; }
