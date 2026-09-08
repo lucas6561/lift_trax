@@ -316,18 +316,112 @@ class PlannedWorkoutSessionHtmlTest {
       assertTrue(html.contains("class='session-warmup' aria-label='Warm-up ramp'"));
       assertTrue(html.contains("40% of working weight &times; 5"));
       assertTrue(html.contains("&mdash; 120 lb"));
-      assertTrue(html.contains("55% of working weight &times; 3"));
-      assertTrue(html.contains("&mdash; 165 lb"));
-      assertTrue(html.contains("65% of working weight &times; 2"));
-      assertTrue(html.contains("&mdash; 195 lb"));
-      assertTrue(html.contains("70% of working weight &times; 1"));
-      assertTrue(html.contains("&mdash; 210 lb"));
+      assertTrue(html.contains("60% of working weight &times; 3"));
+      assertTrue(html.contains("&mdash; 175 lb"));
+      assertTrue(html.contains("75% of working weight &times; 2"));
+      assertTrue(html.contains("&mdash; 220 lb"));
+      assertTrue(html.contains("85% of working weight &times; 1"));
+      assertTrue(html.contains("&mdash; 250 lb"));
+      assertTrue(html.contains("All percentages are of the planned working weight."));
+      assertTrue(html.contains("Planned working weight: <strong>295 lb</strong>"));
+      assertTrue(html.contains("Warm-up loads use nearest 5 lb rounding"));
+      assertTrue(html.contains("the final bridge may be adjusted to keep the last jump small"));
+      assertFalse(html.contains("A working weight could not be calculated"));
       assertTrue(html.contains("class='js-weight-hidden' value='295 lb'"));
       assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='295'"));
       assertTrue(html.contains("name='rpe' value=''"));
       assertTrue(html.contains("class='session-history' aria-label='Exercise history'"));
       assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
       assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
+    }
+  }
+
+  @Test
+  void warmupUsesManualPercentagesWhenWorkingWeightIsUnavailable() {
+    String html =
+        PlannedWorkoutSessionHtml.renderPage(
+            workoutFile(),
+            1,
+            "MONDAY",
+            List.of(lift("Back Squat", LiftType.SQUAT)),
+            LocalDate.parse("2026-05-31"));
+
+    assertTrue(html.contains("40% of working weight &times; 5"));
+    assertTrue(html.contains("A working weight could not be calculated"));
+    assertTrue(html.contains("Apply these percentages to the working weight you choose"));
+    assertTrue(
+        html.contains("check that each step increases while staying below the working weight"));
+    assertFalse(html.contains("Planned working weight: <strong>"));
+    assertFalse(html.contains("Warm-up loads use nearest 5 lb rounding"));
+    assertTrue(html.contains("RPE 6-6.5 or lower"));
+    assertTrue(html.contains("technique deteriorates, you feel pain"));
+    assertTrue(html.contains("effort reaches RPE 7 or higher"));
+    assertTrue(
+        html.contains("adjust the working weight instead of adding more heavy warm-up reps"));
+  }
+
+  @Test
+  void warmupRestMatchesTheFirstWorkSetRepBracket() {
+    int[] reps = {1, 3, 6, 10, 15, 16};
+    List<String> expectedRest =
+        List.of(
+            "Rest 60-120 seconds between early warm-ups and 2.5-4 minutes before the work set.",
+            "Rest 60-120 seconds between early warm-ups and 2-3 minutes before the work set.",
+            "Rest 60-90 seconds between early warm-ups and 90-150 seconds before the work set.",
+            "Rest 45-90 seconds between early warm-ups and 60-120 seconds before the work set.",
+            "Rest 45-75 seconds between early warm-ups and 60-90 seconds before the work set.",
+            "Rest 45-75 seconds between early warm-ups and 60-90 seconds before the work set.");
+
+    for (int i = 0; i < reps.length; i++) {
+      String html =
+          PlannedWorkoutSessionHtml.renderPage(
+              rpeOnlyWorkoutFile(reps[i]),
+              1,
+              "MONDAY",
+              List.of(lift("Back Squat", LiftType.SQUAT)),
+              LocalDate.parse("2026-05-31"));
+
+      assertTrue(html.contains(expectedRest.get(i)), "Rest guidance for " + reps[i] + " reps");
+    }
+  }
+
+  @Test
+  void warmupWarnsWhenAvailableLoadsCannotMeetTheFinalGap() throws Exception {
+    for (int pounds : new int[] {20, 5}) {
+      Path dbPath = Files.createTempFile("lifttrax-follow-session-warmup-gap", ".db");
+      try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+        db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+        db.addLiftExecution(
+            "Back Squat",
+            new LiftExecution(
+                null,
+                LocalDate.parse("2026-05-30"),
+                List.of(new ExecutionSet(new SetMetric.Reps(1), pounds + " lb", null)),
+                false,
+                false,
+                ""));
+
+        String html =
+            PlannedWorkoutSessionHtml.renderPage(
+                warmupWorkoutFile(1, 100, null),
+                1,
+                "MONDAY",
+                List.of(lift("Back Squat", LiftType.SQUAT)),
+                LocalDate.parse("2026-05-31"),
+                db);
+
+        assertTrue(html.contains("class='session-warmup-load-warning'"));
+        assertTrue(html.contains("cannot meet the final warm-up gap"));
+        assertFalse(html.contains("A working weight could not be calculated"));
+        if (pounds == 20) {
+          assertTrue(html.contains("&mdash; 15 lb"));
+          assertFalse(html.contains("No loaded warm-up sets fit"));
+        } else {
+          assertTrue(html.contains("No loaded warm-up sets fit below this working weight."));
+          assertFalse(html.contains("<ol></ol>"));
+          assertFalse(html.contains("<strong class='session-warmup-weight'>"));
+        }
+      }
     }
   }
 
@@ -494,9 +588,17 @@ class PlannedWorkoutSessionHtmlTest {
   }
 
   private static PlannedWorkoutFile rpeOnlyWorkoutFile() {
+    return rpeOnlyWorkoutFile(5);
+  }
+
+  private static PlannedWorkoutFile rpeOnlyWorkoutFile(int reps) {
+    return warmupWorkoutFile(reps, null, 6.5f);
+  }
+
+  private static PlannedWorkoutFile warmupWorkoutFile(int reps, Integer percent, Float rpe) {
     PlannedWorkoutFile.PlannedSetTarget squat =
         new PlannedWorkoutFile.PlannedSetTarget(
-            1, "reps", 5, null, null, null, null, null, null, null, 6.5f, "STRAIGHT", false);
+            1, "reps", reps, null, null, null, null, null, null, percent, rpe, "STRAIGHT", false);
     PlannedWorkoutFile.PlannedExercise backSquat =
         new PlannedWorkoutFile.PlannedExercise(
             "Back Squat", "LOWER", "SQUAT", List.of("QUAD"), List.of(squat), "", List.of());

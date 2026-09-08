@@ -121,20 +121,6 @@ public final class WorkoutHistoryFormatter {
     return formatPercentage(base.weightLbs(), targetPercent);
   }
 
-  static String suggestedWeightFractionOfTarget(
-      List<LiftExecution> executions, PlannedWorkoutFile.PlannedSetTarget target, double fraction) {
-    Double targetPercent = targetPercent(target);
-    if (targetPercent == null) {
-      return null;
-    }
-    BestOneRepMax base = trainingMaxValue(executions);
-    if (base == null) {
-      return null;
-    }
-    double workingWeight = roundUpToFivePounds(base.weightLbs() * (targetPercent / 100.0));
-    return formatPercentage(workingWeight, fraction * 100.0);
-  }
-
   private static BestOneRepMax bestOneRepMaxValue(List<LiftExecution> executions) {
     String bestWeight = null;
     double bestWeightLbs = 0.0;

@@ -1,22 +1,24 @@
 package com.lifttrax.cli;
 
+import com.lifttrax.models.WeightText;
 import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutHistory;
-import java.util.ArrayList;
+import com.lifttrax.workout.WorkingSetWarmups;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
-/** Builds non-logging warm-up ramps for the work-along view. */
+/** Adapts working-set warm-ups to the non-logging work-along view. */
 final class PlannedWorkoutWarmups {
-  private static final String OVERHEAD_PRESS = "Overhead Press";
-
   private PlannedWorkoutWarmups() {}
 
   static Map<String, WarmupPlan> forDay(
       PlannedWorkoutFile.PlannedWorkoutDay day, PlannedWorkoutHistory.Snapshot history) {
     Map<String, WarmupPlan> plans = new LinkedHashMap<>();
+    Set<String> warmedExercises = new HashSet<>();
     for (int blockIndex = 0; blockIndex < day.blocks().size(); blockIndex++) {
       PlannedWorkoutFile.PlannedWorkoutBlock block = day.blocks().get(blockIndex);
       if (block.warmup()) {
@@ -24,28 +26,23 @@ final class PlannedWorkoutWarmups {
       }
       for (int exerciseIndex = 0; exerciseIndex < block.exercises().size(); exerciseIndex++) {
         PlannedWorkoutFile.PlannedExercise exercise = block.exercises().get(exerciseIndex);
-        if (isCircuitAccessoryOrConditioning(block, exercise)
-            || isBackoffAfterSingle(day, blockIndex, exerciseIndex, exercise.name())) {
+        if (isCircuitAccessoryOrConditioning(block, exercise)) {
           continue;
         }
-        String key = block.order() + ":" + exerciseIndex;
         PlannedWorkoutFile.PlannedSetTarget target = firstRepTarget(exercise);
-        if (isContinentalCleanAndPress(exercise.name())) {
-          plans.put(key, continentalPlan(target, history));
-          continue;
-        }
         Integer reps = target == null ? null : targetReps(target);
-        if (reps == null || reps < 1) {
+        if (reps == null || reps < 1 || !warmedExercises.add(normalizeName(exercise.name()))) {
           continue;
         }
         plans.put(
-            key, standardPlan(day, blockIndex, exerciseIndex, exercise, target, reps, history));
+            block.order() + ":" + exerciseIndex,
+            plan(day, blockIndex, exerciseIndex, exercise, target, reps, history));
       }
     }
     return Map.copyOf(plans);
   }
 
-  private static WarmupPlan standardPlan(
+  private static WarmupPlan plan(
       PlannedWorkoutFile.PlannedWorkoutDay day,
       int blockIndex,
       int exerciseIndex,
@@ -53,109 +50,65 @@ final class PlannedWorkoutWarmups {
       PlannedWorkoutFile.PlannedSetTarget target,
       int reps,
       PlannedWorkoutHistory.Snapshot history) {
-    String reference = target.loadReference(exercise.name());
-    List<WarmupSet> sets = new ArrayList<>();
-    String intent;
-    if (reps == 1) {
-      sets.add(new WarmupSet(startingLoad(exercise), "8-10", ""));
-      addWorkingPercentageSets(
-          sets,
-          history,
-          exercise.name(),
-          target,
-          new int[] {40, 5},
-          new int[] {55, 3},
-          new int[] {70, 2},
-          new int[] {80, 1});
-      intent = "Arrive ready for the single without fatigue or psyching up.";
-    } else if (reps <= 3) {
-      sets.add(new WarmupSet(startingLoad(exercise), "8", ""));
-      addWorkingPercentageSets(
-          sets,
-          history,
-          exercise.name(),
-          target,
-          new int[] {40, 5},
-          new int[] {55, 3},
-          new int[] {70, 2});
-      if (history.targetAtLeast(target, 80)) {
-        addWorkingPercentageSets(sets, history, exercise.name(), target, new int[] {75, 1});
+    String workingWeight = history.suggestedWeight(exercise.name(), target);
+    double pounds = WeightText.toPounds(workingWeight);
+    List<WarmupSet> sets;
+    String loadWarning = "";
+    if (Double.isFinite(pounds) && pounds > 0) {
+      WorkingSetWarmups.Result generated = WorkingSetWarmups.generate(pounds, reps, 5, 0, false);
+      sets =
+          generated.sets().stream()
+              .map(
+                  set ->
+                      new WarmupSet(
+                          generatedLoadLabel(pounds, set),
+                          String.valueOf(set.reps()),
+                          formatPounds(set.load())))
+              .toList();
+      if (!generated.finalGapSatisfied()) {
+        loadWarning =
+            "The available 5 lb increments cannot meet the final warm-up gap while "
+                + "staying at or below 95% of working weight. Use a smaller available increment "
+                + "or review the planned work weight before starting.";
       }
-      intent = "Increase load without accumulating extra repetitions.";
-    } else if (reps <= 6) {
-      sets.add(new WarmupSet(startingLoad(exercise), "8", ""));
-      addWorkingPercentageSets(
-          sets,
-          history,
-          exercise.name(),
-          target,
-          new int[] {40, 5},
-          new int[] {55, 3},
-          new int[] {65, 2});
-      if (history.targetAtLeast(target, 75)) {
-        addWorkingPercentageSets(sets, history, exercise.name(), target, new int[] {70, 1});
-      }
-      intent = "Preserve energy for the work sets; avoid a pump or breathing fatigue.";
     } else {
-      sets.add(new WarmupSet("Very light load", "8-10", ""));
-      sets.add(
-          new WarmupSet(
-              "About 50% of working weight",
-              "5", history.suggestedWeightFractionOfTarget(exercise.name(), target, 0.50)));
-      sets.add(
-          new WarmupSet(
-              "About 70% of working weight",
-              "3", history.suggestedWeightFractionOfTarget(exercise.name(), target, 0.70)));
-      intent = "Confirm the groove and load without pre-fatiguing the target muscle.";
+      workingWeight = "";
+      sets =
+          WorkingSetWarmups.template(reps).stream()
+              .map(
+                  stage ->
+                      new WarmupSet(
+                          percentageLabel(stage.percent()), String.valueOf(stage.reps()), ""))
+              .toList();
     }
     String backoffNote =
         reps == 1 && hasLaterBackoff(day, blockIndex, exerciseIndex, exercise.name())
-            ? backoffNote(history, exercise.name(), target)
+            ? "After the single, rest and go directly to the back-off load; do not warm up again."
             : "";
-    return new WarmupPlan("Warm-up ramp", reference, sets, intent, backoffNote);
-  }
-
-  private static WarmupPlan continentalPlan(
-      PlannedWorkoutFile.PlannedSetTarget target, PlannedWorkoutHistory.Snapshot history) {
-    List<WarmupSet> sets = new ArrayList<>();
-    sets.add(new WarmupSet("Empty/light axle", "3", ""));
-    addWorkingPercentageSets(sets, history, OVERHEAD_PRESS, target, new int[] {40, 2});
-    sets.add(
-        new WarmupSet(
-            "50% of working weight",
-            "1-2", suggestedWorkingPercentage(history, OVERHEAD_PRESS, target, 50)));
     return new WarmupPlan(
-        "Continental Clean and Press warm-up (if needed)",
-        OVERHEAD_PRESS,
+        "Warm-up ramp",
+        target.loadReference(exercise.name()),
         sets,
-        "Make every warm-up clean deliberate; do not test the clean during the ramp.",
-        "");
+        "Prepare for the first working set without fatigue. Subsequent work sets of this "
+            + "exercise do not need another ramp.",
+        backoffNote,
+        reps,
+        workingWeight,
+        loadWarning);
   }
 
-  private static void addWorkingPercentageSets(
-      List<WarmupSet> sets,
-      PlannedWorkoutHistory.Snapshot history,
-      String liftName,
-      PlannedWorkoutFile.PlannedSetTarget target,
-      int[]... percentagesAndReps) {
-    for (int[] entry : percentagesAndReps) {
-      int percent = entry[0];
-      sets.add(
-          new WarmupSet(
-              percent + "% of working weight",
-              String.valueOf(entry[1]),
-              suggestedWorkingPercentage(history, liftName, target, percent)));
-    }
+  private static String percentageLabel(int percent) {
+    return percent + "% of working weight";
   }
 
-  private static String suggestedWorkingPercentage(
-      PlannedWorkoutHistory.Snapshot history,
-      String liftName,
-      PlannedWorkoutFile.PlannedSetTarget target,
-      int percent) {
-    return target == null
-        ? ""
-        : history.suggestedWeightFractionOfTarget(liftName, target, percent / 100.0);
+  private static String generatedLoadLabel(double workingWeight, WorkingSetWarmups.WarmupSet set) {
+    String label = percentageLabel(set.percent());
+    double nearestLoad = Math.round(workingWeight * (set.percent() / 100.0) / 5) * 5;
+    return nearestLoad == set.load() ? label : "Final bridge (adjusted from " + label + ")";
+  }
+
+  private static String formatPounds(double pounds) {
+    return java.math.BigDecimal.valueOf(pounds).stripTrailingZeros().toPlainString() + " lb";
   }
 
   private static PlannedWorkoutFile.PlannedSetTarget firstRepTarget(
@@ -180,15 +133,6 @@ final class PlannedWorkoutWarmups {
     };
   }
 
-  private static String startingLoad(PlannedWorkoutFile.PlannedExercise exercise) {
-    String type = exercise.type() == null ? "" : exercise.type().toUpperCase(Locale.ROOT);
-    return switch (type) {
-      case "BENCH_PRESS" -> "Empty bar";
-      case "SQUAT", "DEADLIFT" -> "Lightest practical load";
-      default -> "Empty bar / lightest practical load";
-    };
-  }
-
   private static boolean isCircuitAccessoryOrConditioning(
       PlannedWorkoutFile.PlannedWorkoutBlock block, PlannedWorkoutFile.PlannedExercise exercise) {
     String exerciseType = exercise.type() == null ? "" : exercise.type();
@@ -199,32 +143,8 @@ final class PlannedWorkoutWarmups {
         || category.contains("circuit");
   }
 
-  private static boolean isBackoffAfterSingle(
-      PlannedWorkoutFile.PlannedWorkoutDay day,
-      int blockIndex,
-      int exerciseIndex,
-      String exerciseName) {
-    for (int earlierBlockIndex = 0; earlierBlockIndex <= blockIndex; earlierBlockIndex++) {
-      List<PlannedWorkoutFile.PlannedExercise> exercises =
-          day.blocks().get(earlierBlockIndex).exercises();
-      int end = earlierBlockIndex == blockIndex ? exerciseIndex : exercises.size();
-      for (int earlierExerciseIndex = 0; earlierExerciseIndex < end; earlierExerciseIndex++) {
-        PlannedWorkoutFile.PlannedExercise earlier = exercises.get(earlierExerciseIndex);
-        if (earlier.name().equalsIgnoreCase(exerciseName)
-            && earlier.plannedSets().stream()
-                .map(PlannedWorkoutWarmups::targetReps)
-                .anyMatch(reps -> reps != null && reps == 1)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  private static boolean isContinentalCleanAndPress(String exerciseName) {
-    String normalized =
-        exerciseName.toLowerCase(Locale.ROOT).replace("&", "and").replaceAll("[^a-z]+", " ").trim();
-    return "continental clean and press".equals(normalized);
+  private static String normalizeName(String name) {
+    return name.trim().toLowerCase(Locale.ROOT);
   }
 
   private static boolean hasLaterBackoff(
@@ -243,14 +163,18 @@ final class PlannedWorkoutWarmups {
     for (int laterBlockIndex = blockIndex;
         laterBlockIndex < day.blocks().size();
         laterBlockIndex++) {
-      List<PlannedWorkoutFile.PlannedExercise> exercises =
-          day.blocks().get(laterBlockIndex).exercises();
+      PlannedWorkoutFile.PlannedWorkoutBlock block = day.blocks().get(laterBlockIndex);
+      if (block.warmup()) {
+        continue;
+      }
+      List<PlannedWorkoutFile.PlannedExercise> exercises = block.exercises();
       int start = laterBlockIndex == blockIndex ? exerciseIndex + 1 : 0;
       for (int laterExerciseIndex = start;
           laterExerciseIndex < exercises.size();
           laterExerciseIndex++) {
         PlannedWorkoutFile.PlannedExercise later = exercises.get(laterExerciseIndex);
-        if (later.name().equalsIgnoreCase(exerciseName)
+        if (normalizeName(later.name()).equals(normalizeName(exerciseName))
+            && !isCircuitAccessoryOrConditioning(block, later)
             && later.plannedSets().stream()
                 .map(PlannedWorkoutWarmups::targetReps)
                 .anyMatch(reps -> reps != null && reps > 1)) {
@@ -261,23 +185,15 @@ final class PlannedWorkoutWarmups {
     return false;
   }
 
-  private static String backoffNote(
-      PlannedWorkoutHistory.Snapshot history,
-      String liftName,
-      PlannedWorkoutFile.PlannedSetTarget target) {
-    String low = suggestedWorkingPercentage(history, liftName, target, 60);
-    String high = suggestedWorkingPercentage(history, liftName, target, 65);
-    String interruptionWeight =
-        low.isBlank() || high.isBlank() ? "" : " (about " + low + " to " + high + ")";
-    return "After the single, rest and go directly to the back-off load; do not warm up again. "
-        + "If setup is interrupted for more than 10 minutes, take one easy single or double at "
-        + "60-65% of the working weight"
-        + interruptionWeight
-        + ".";
-  }
-
   record WarmupPlan(
-      String title, String reference, List<WarmupSet> sets, String intent, String backoffNote) {
+      String title,
+      String reference,
+      List<WarmupSet> sets,
+      String intent,
+      String backoffNote,
+      int workingReps,
+      String workingWeight,
+      String loadWarning) {
     WarmupPlan {
       sets = List.copyOf(sets);
     }

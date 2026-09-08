@@ -582,28 +582,43 @@ final class PlannedWorkoutSessionHtml {
     html.append("<aside class='session-warmup' aria-label='Warm-up ramp'><h4>")
         .append(WebHtml.escapeHtml(warmup.title()))
         .append(
-            "</h4><p class='muted'>Do these before the programmed work. Warm-ups do not count as work sets.</p><ol>");
-    for (PlannedWorkoutWarmups.WarmupSet set : warmup.sets()) {
-      html.append("<li>")
-          .append(WebHtml.escapeHtml(set.load()))
-          .append(" &times; ")
-          .append(WebHtml.escapeHtml(set.reps()));
-      if (!set.suggestedWeight().isBlank()) {
-        html.append(" <strong class='session-warmup-weight'>&mdash; ")
-            .append(WebHtml.escapeHtml(set.suggestedWeight()))
-            .append("</strong>");
+            "</h4><p class='muted'>Do these before the first programmed work set. Warm-ups do not count as work sets. All percentages are of the planned working weight.</p>");
+    if (!warmup.workingWeight().isBlank()) {
+      html.append("<p class='muted'>Planned working weight: <strong>")
+          .append(WebHtml.escapeHtml(warmup.workingWeight()))
+          .append(
+              "</strong>. Warm-up loads use nearest 5 lb rounding; the final bridge may be adjusted to keep the last jump small.</p>");
+    }
+    if (warmup.sets().isEmpty()) {
+      html.append("<p class='muted'>No loaded warm-up sets fit below this working weight.</p>");
+    } else {
+      html.append("<ol>");
+      for (PlannedWorkoutWarmups.WarmupSet set : warmup.sets()) {
+        html.append("<li>")
+            .append(WebHtml.escapeHtml(set.load()))
+            .append(" &times; ")
+            .append(WebHtml.escapeHtml(set.reps()));
+        if (!set.suggestedWeight().isBlank()) {
+          html.append(" <strong class='session-warmup-weight'>&mdash; ")
+              .append(WebHtml.escapeHtml(set.suggestedWeight()))
+              .append("</strong>");
+        }
+        html.append("</li>");
       }
-      html.append("</li>");
+      html.append("</ol>");
     }
-    html.append("</ol>");
-    if (warmup.sets().stream()
-        .map(PlannedWorkoutWarmups.WarmupSet::suggestedWeight)
-        .allMatch(String::isBlank)) {
+    if (warmup.workingWeight().isBlank()) {
       html.append(
-          "<p class='muted'>Suggested weights will appear when this account has a usable max or weighted RPE history for the reference lift.</p>");
+          "<p class='muted'>A working weight could not be calculated from this account's history and planned target. Apply these percentages to the working weight you choose; round to usable loads and check that each step increases while staying below the working weight.</p>");
     }
-    html.append(
-            "<p class='muted'>Keep warm-ups around RPE 5 or lower. Rest 45-60 seconds early and 90-120 seconds for the last one or two ramps.</p><p class='muted'>")
+    if (!warmup.loadWarning().isBlank()) {
+      html.append("<p class='session-warmup-load-warning'>")
+          .append(WebHtml.escapeHtml(warmup.loadWarning()))
+          .append("</p>");
+    }
+    html.append("<p class='muted'>")
+        .append(warmupRest(warmup.workingReps()))
+        .append("</p><p class='muted'>")
         .append(WebHtml.escapeHtml(warmup.intent()))
         .append("</p>");
     if (!warmup.backoffNote().isBlank()) {
@@ -612,7 +627,23 @@ final class PlannedWorkoutSessionHtml {
           .append("</p>");
     }
     html.append(
-        "<p class='session-warmup-caution'>If the final warm-up is unexpectedly slow or above RPE 6, reduce the work weight to honor its RPE cap.</p></aside>");
+        "<p class='session-warmup-caution'>The final warm-up should generally feel like RPE 6-6.5 or lower. If it is unexpectedly slow, technique deteriorates, you feel pain, or effort reaches RPE 7 or higher, adjust the working weight instead of adding more heavy warm-up reps.</p></aside>");
+  }
+
+  private static String warmupRest(int workingReps) {
+    if (workingReps == 1) {
+      return "Rest 60-120 seconds between early warm-ups and 2.5-4 minutes before the work set.";
+    }
+    if (workingReps <= 3) {
+      return "Rest 60-120 seconds between early warm-ups and 2-3 minutes before the work set.";
+    }
+    if (workingReps <= 6) {
+      return "Rest 60-90 seconds between early warm-ups and 90-150 seconds before the work set.";
+    }
+    if (workingReps <= 10) {
+      return "Rest 45-90 seconds between early warm-ups and 60-120 seconds before the work set.";
+    }
+    return "Rest 45-75 seconds between early warm-ups and 60-90 seconds before the work set.";
   }
 
   private static WebUiRenderer.AddExecutionPrefill prefill(
