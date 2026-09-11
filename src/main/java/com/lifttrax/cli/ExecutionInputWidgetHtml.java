@@ -278,10 +278,10 @@ final class ExecutionInputWidgetHtml {
                       <input type='number' inputmode='numeric' min='1' name='setCount' value='%s'/>
                     </label>
                   </div>
-                  %s
                   <details class='session-entry-more'%s>
                     <summary>More set options</summary>
                     <div class='session-entry-options'>
+                      %s
                       <fieldset>
                         <legend>Weight type</legend>
                         <div class='segmented'>
@@ -371,8 +371,8 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(prefill.metricValue()),
             WebHtml.escapeHtml(prefill.rpe()),
             WebHtml.escapeHtml(prefill.setCount()),
-            missedTargetControl(prefill.missed()),
             moreOptionsOpen,
+            missedTargetControl(prefill.missed()),
             weightModeName,
             standardWeightChecked,
             weightModeName,

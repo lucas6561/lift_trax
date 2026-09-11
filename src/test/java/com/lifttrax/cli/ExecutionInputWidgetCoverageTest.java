@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class ExecutionInputWidgetCoverageTest {
 
   @Test
-  void missedTargetIsVisibleInBothWidgetsAndRetainedInIndividualLog() {
+  void missedTargetIsAvailableInBothWidgetsAndRetainedInIndividualLog() {
     WebUiRenderer.AddExecutionPrefill prefill =
         new WebUiRenderer.AddExecutionPrefill(
             "Back Squat", "225 lb", "1", "", "reps", "0", "", "", "", false, false, "", true);
@@ -27,7 +27,7 @@ class ExecutionInputWidgetCoverageTest {
     assertTrue(html.contains("&quot;missed&quot;:true"));
     assertTrue(html.contains("Use 0 reps if none were completed."));
     assertTrue(workAlong.contains("name='missed' class='js-missed-target' checked"));
-    assertTrue(workAlong.indexOf("Missed target") < workAlong.indexOf("More set options"));
+    assertTrue(workAlong.indexOf("Missed target") > workAlong.indexOf("More set options"));
     assertTrue(workAlong.contains("min='0' name='metricValue' value='0'"));
     assertTrue(workAlong.contains("min='0' max='10' name='rpe' value=''"));
   }

@@ -88,7 +88,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("<label class='entry-mode-multiple'>Sets"));
     assertTrue(html.contains("name='missed'"));
     assertTrue(html.contains("Missed target"));
-    assertTrue(html.indexOf("name='missed'") < html.indexOf("More set options"));
+    assertTrue(html.indexOf("name='missed'") > html.indexOf("More set options"));
     assertTrue(html.contains("Use 0 reps if none were completed."));
     assertTrue(html.contains("<details class='session-entry-more'>"));
     assertTrue(html.contains("<summary>More set options</summary>"));
