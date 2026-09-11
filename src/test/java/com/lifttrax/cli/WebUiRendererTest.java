@@ -509,7 +509,7 @@ class WebUiRendererTest {
   }
 
   @Test
-  void plannedWorkoutPageIncludesMatchingLiftHistory() throws Exception {
+  void plannedWorkoutDisplaysShowNewestLiftHistoryFirst() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-planned-history", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {
       db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
@@ -555,7 +555,15 @@ class WebUiRendererTest {
 
       String html = PlannedWorkoutHtml.renderPage(workoutFile, db);
 
-      assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
+      String expectedHistory =
+          "1 sets x 1 reps @ 365 lb | 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth";
+      assertTrue(html.contains("<strong>Last:</strong> " + expectedHistory));
+      assertTrue(PlannedWorkoutPrintHtml.renderPage(workoutFile, db).contains(expectedHistory));
+      assertTrue(
+          String.join(
+                  "\n",
+                  com.lifttrax.workout.PlannedWorkoutMarkdownWriter.createMarkdown(workoutFile, db))
+              .contains("Last: " + expectedHistory));
       assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
       assertTrue(html.contains("<strong>Suggested:</strong> 295 lb"));
     }

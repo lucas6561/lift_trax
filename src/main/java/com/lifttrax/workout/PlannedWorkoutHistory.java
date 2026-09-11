@@ -80,11 +80,7 @@ public final class PlannedWorkoutHistory {
         boolean includeDeload =
             exercise.plannedSets().stream().anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
         String last =
-            WorkoutHistoryFormatter.lastExecutionSummary(
-                executions,
-                block.warmup(),
-                PlannedWorkoutText.historyMetric(block, exercise),
-                includeDeload);
+            WorkoutHistoryFormatter.lastExecutionSummary(executions, block.warmup(), includeDeload);
         String best = WorkoutHistoryFormatter.bestOneRepMax(executions);
         return new Summary(last, best, false);
       } catch (Exception e) {

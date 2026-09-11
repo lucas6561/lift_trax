@@ -6,7 +6,6 @@ import com.lifttrax.models.ExecutionSummaryFormatter;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.models.WeightText;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -27,13 +26,12 @@ public final class WorkoutHistoryFormatter {
   private WorkoutHistoryFormatter() {}
 
   public static String lastExecutionSummary(
-      Database db, String liftName, boolean warmup, SetMetric metric, boolean includeDeload)
-      throws Exception {
-    return lastExecutionSummary(db.getExecutions(liftName), warmup, metric, includeDeload);
+      Database db, String liftName, boolean warmup, boolean includeDeload) throws Exception {
+    return lastExecutionSummary(db.getExecutions(liftName), warmup, includeDeload);
   }
 
   public static String lastExecutionSummary(
-      List<LiftExecution> liftExecutions, boolean warmup, SetMetric metric, boolean includeDeload) {
+      List<LiftExecution> liftExecutions, boolean warmup, boolean includeDeload) {
     List<LiftExecution> executions =
         liftExecutions.stream()
             .filter(e -> e.warmup() == warmup && (includeDeload || !e.deload()))
@@ -41,21 +39,16 @@ public final class WorkoutHistoryFormatter {
                 Comparator.comparing(LiftExecution::date)
                     .thenComparing(e -> e.id() == null ? Integer.MIN_VALUE : e.id())
                     .reversed())
-            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+            .limit(3)
+            .toList();
 
     if (executions.isEmpty()) {
       return null;
     }
 
-    if (metric != null) {
-      prioritizeMetric(executions, metric);
-    }
-
-    List<String> summaries = new ArrayList<>();
-    for (int i = 0; i < Math.min(3, executions.size()); i++) {
-      summaries.add(ExecutionSummaryFormatter.formatCompactSummary(executions.get(i)));
-    }
-    return String.join(" | ", summaries);
+    return executions.stream()
+        .map(ExecutionSummaryFormatter::formatCompactSummary)
+        .collect(java.util.stream.Collectors.joining(" | "));
   }
 
   public static String bestOneRepMax(Database db, String liftName) throws Exception {
@@ -242,60 +235,6 @@ public final class WorkoutHistoryFormatter {
 
   private static long roundUpToFivePounds(double value) {
     return (long) Math.ceil(value / 5.0) * 5L;
-  }
-
-  private static void prioritizeMetric(List<LiftExecution> executions, SetMetric target) {
-    for (int i = 0; i < executions.size(); i++) {
-      ExecutionSet first =
-          executions.get(i).sets().isEmpty() ? null : executions.get(i).sets().get(0);
-      if (first != null && first.metric().equals(target)) {
-        LiftExecution match = executions.remove(i);
-        executions.add(0, match);
-        return;
-      }
-    }
-
-    int bestIdx = -1;
-    int bestDiff = Integer.MAX_VALUE;
-    for (int i = 0; i < executions.size(); i++) {
-      ExecutionSet first =
-          executions.get(i).sets().isEmpty() ? null : executions.get(i).sets().get(0);
-      if (first == null) {
-        continue;
-      }
-      Integer diff = metricDistance(first.metric(), target);
-      if (diff != null && diff < bestDiff) {
-        bestDiff = diff;
-        bestIdx = i;
-      }
-    }
-    if (bestIdx >= 0) {
-      LiftExecution match = executions.remove(bestIdx);
-      executions.add(0, match);
-    }
-  }
-
-  private static Integer metricDistance(SetMetric candidate, SetMetric target) {
-    if (candidate instanceof SetMetric.Reps a && target instanceof SetMetric.Reps b) {
-      return Math.abs(a.reps() - b.reps());
-    }
-    if (candidate instanceof SetMetric.RepsLr a && target instanceof SetMetric.RepsLr b) {
-      return Math.abs(a.left() - b.left()) + Math.abs(a.right() - b.right());
-    }
-    if (candidate instanceof SetMetric.RepsLr a && target instanceof SetMetric.Reps b) {
-      return Math.abs(((a.left() + a.right()) / 2) - b.reps());
-    }
-    if (candidate instanceof SetMetric.Reps a && target instanceof SetMetric.RepsLr b) {
-      return Math.abs(a.reps() - ((b.left() + b.right()) / 2));
-    }
-    if (candidate instanceof SetMetric.TimeSecs a && target instanceof SetMetric.TimeSecs b) {
-      return Math.abs(a.seconds() - b.seconds());
-    }
-    if (candidate instanceof SetMetric.DistanceFeet a
-        && target instanceof SetMetric.DistanceFeet b) {
-      return Math.abs(a.feet() - b.feet());
-    }
-    return null;
   }
 
   private record BestOneRepMax(double weightLbs) {}

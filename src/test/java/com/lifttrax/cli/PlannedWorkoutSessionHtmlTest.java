@@ -335,7 +335,9 @@ class PlannedWorkoutSessionHtmlTest {
       assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='295'"));
       assertTrue(html.contains("name='rpe' value=''"));
       assertTrue(html.contains("class='session-history' aria-label='Exercise history'"));
-      assertTrue(html.contains("<strong>Last:</strong> 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
+      assertTrue(
+          html.contains(
+              "<strong>Last:</strong> 1 sets x 1 reps @ 365 lb | 1 sets x 5 reps @ 275 lb RPE 8.0 - smooth"));
       assertTrue(html.contains("<strong>Best 1RM:</strong> 365 lb"));
     }
   }

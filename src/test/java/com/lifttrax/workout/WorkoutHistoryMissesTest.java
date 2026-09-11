@@ -23,7 +23,7 @@ class WorkoutHistoryMissesTest {
     assertNull(WorkoutHistoryFormatter.bestOneRepMax(missedOnly));
     assertNull(WorkoutHistoryFormatter.suggestedWeight(missedOnly, target));
     assertTrue(
-        WorkoutHistoryFormatter.lastExecutionSummary(missedOnly, false, null, true)
+        WorkoutHistoryFormatter.lastExecutionSummary(missedOnly, false, true)
             .contains("missed target"));
 
     var goodSingle = execution(new ExecutionSet(new SetMetric.Reps(1), "300 lb", 10f));

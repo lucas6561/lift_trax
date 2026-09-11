@@ -64,10 +64,8 @@ public final class WaveMarkdownWriter {
         if (!s.lift().notes().isEmpty()) {
           lines.add("   - Notes: " + s.lift().notes());
         }
-        SetMetric historyMetric = s.metric() instanceof SetMetric.RepsRange ? null : s.metric();
         String last =
-            WorkoutHistoryFormatter.lastExecutionSummary(
-                db, s.lift().name(), false, historyMetric, s.deload());
+            WorkoutHistoryFormatter.lastExecutionSummary(db, s.lift().name(), false, s.deload());
         if (last != null) {
           lines.add("   - Last: " + last);
         }
@@ -91,7 +89,7 @@ public final class WaveMarkdownWriter {
           }
           String last =
               WorkoutHistoryFormatter.lastExecutionSummary(
-                  db, sl.lift().name(), circuit.warmup(), null, sl.deload());
+                  db, sl.lift().name(), circuit.warmup(), sl.deload());
           if (last != null) {
             lines.add("     - Last: " + last);
           }

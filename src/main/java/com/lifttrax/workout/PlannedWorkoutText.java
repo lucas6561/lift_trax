@@ -1,7 +1,6 @@
 package com.lifttrax.workout;
 
 import com.lifttrax.db.Database;
-import com.lifttrax.models.SetMetric;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -134,26 +133,6 @@ public final class PlannedWorkoutText {
       // Load guidance should disappear, not break workout rendering.
       return "";
     }
-  }
-
-  public static SetMetric historyMetric(
-      PlannedWorkoutFile.PlannedWorkoutBlock block, PlannedWorkoutFile.PlannedExercise exercise) {
-    if (block.rounds() != null || exercise.plannedSets().isEmpty()) {
-      return null;
-    }
-    PlannedWorkoutFile.PlannedSetTarget target = exercise.plannedSets().get(0);
-    return switch (target.metricType()) {
-      case "reps" -> target.reps() == null ? null : new SetMetric.Reps(target.reps());
-      case "reps_lr" ->
-          target.repsLeft() == null || target.repsRight() == null
-              ? null
-              : new SetMetric.RepsLr(target.repsLeft(), target.repsRight());
-      case "time_seconds" ->
-          target.seconds() == null ? null : new SetMetric.TimeSecs(target.seconds());
-      case "distance_feet" ->
-          target.distanceFeet() == null ? null : new SetMetric.DistanceFeet(target.distanceFeet());
-      default -> null;
-    };
   }
 
   private static boolean samePlannedTarget(

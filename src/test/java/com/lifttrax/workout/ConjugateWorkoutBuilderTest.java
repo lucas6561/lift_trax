@@ -275,7 +275,7 @@ class ConjugateWorkoutBuilderTest {
   }
 
   @Test
-  void markdownWriterPrioritizesClosestHistoricalMetric() throws Exception {
+  void markdownWriterShowsNewestHistoryRegardlessOfPlannedMetric() throws Exception {
     FakeDb db = new FakeDb();
     db.add("Carry", LiftRegion.LOWER, LiftType.ACCESSORY, List.of());
     db.add("Hold", LiftRegion.UPPER, LiftType.ACCESSORY, List.of());
@@ -299,10 +299,10 @@ class ConjugateWorkoutBuilderTest {
             plannedSingle(db.getLift("Rep Curl"), new SetMetric.RepsLr(10, 10)));
     String markdown = markdownFor(db, planned);
 
-    assertTrue(markdown.contains("- Last: 1 sets x 42 ft"));
-    assertTrue(markdown.contains("- Last: 1 sets x 32 sec"));
-    assertTrue(markdown.contains("- Last: 1 sets x 8 reps"));
-    assertTrue(markdown.contains("- Last: 1 sets x 12|12 reps"));
+    assertTrue(markdown.contains("- Last: 1 sets x 100 ft | 1 sets x 42 ft"));
+    assertTrue(markdown.contains("- Last: 1 sets x 60 sec | 1 sets x 32 sec"));
+    assertTrue(markdown.contains("- Last: 1 sets x 12|12 reps @ 25 | 1 sets x 8 reps @ 20"));
+    assertTrue(markdown.contains("- Last: 1 sets x 8 reps @ 20 | 1 sets x 12|12 reps @ 25"));
   }
 
   @Test
