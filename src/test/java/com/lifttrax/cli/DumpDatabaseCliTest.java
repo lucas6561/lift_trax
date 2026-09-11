@@ -25,6 +25,37 @@ class DumpDatabaseCliTest {
   private static final ObjectMapper JSON = new ObjectMapper();
 
   @Test
+  void exportsMissedTargetAndCompletedWorkInJsonAndHumanFormats() throws Exception {
+    Path dbPath = Files.createTempDirectory("lifttrax-missed-dump").resolve("lifts.db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+      db.addLiftExecution(
+          "Bench",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 9, 8),
+              List.of(
+                  new ExecutionSet(new SetMetric.Reps(0), "225 lb", null, true),
+                  new ExecutionSet(new SetMetric.Reps(3), "185 lb", 8f)),
+              false,
+              false,
+              ""));
+      JsonNode root =
+          JSON.readTree(captureExecutionDump(db, null, null, ExecutionDumpWriter.Format.JSON));
+      JsonNode sets = root.path("executions").path(0).path("sets");
+      assertEquals(2, root.path("schemaVersion").asInt());
+      assertTrue(sets.path(0).path("missed").asBoolean());
+      assertEquals(0, sets.path(0).path("metric").path("reps").asInt());
+      assertTrue(sets.path(0).path("rpe").isNull());
+      assertTrue(sets.path(1).path("missed").isBoolean());
+      assertFalse(sets.path(1).path("missed").asBoolean());
+      assertTrue(
+          captureExecutionDump(db, null, null, ExecutionDumpWriter.Format.HUMAN)
+              .contains("Set 1: 0 reps @ 225 lb (missed target)"));
+    }
+  }
+
+  @Test
   void liftsOnlyOptionPrintsLiftMetadataWithoutExecutions() throws Exception {
     Path tempDir = Files.createTempDirectory("lifttrax-dump-cli");
     Path dbPath = tempDir.resolve("lifts.db");
@@ -126,7 +157,7 @@ class DumpDatabaseCliTest {
       root = JSON.readTree(captureExecutionDump(db, null, null, ExecutionDumpWriter.Format.JSON));
     }
 
-    assertEquals(1, root.path("schemaVersion").asInt());
+    assertEquals(2, root.path("schemaVersion").asInt());
     assertTrue(root.path("dateRange").path("from").isNull());
     assertTrue(root.path("dateRange").path("to").isNull());
     assertEquals(2, root.path("executionCount").asInt());
@@ -210,14 +241,14 @@ class DumpDatabaseCliTest {
     JsonNode versioned =
         JSON.readTree(
             Files.readString(
-                Path.of("shared", "executions", "schema", "execution-dump.schema.v1.json")));
+                Path.of("shared", "executions", "schema", "execution-dump.schema.v2.json")));
     JsonNode latest =
         JSON.readTree(
             Files.readString(
                 Path.of("shared", "executions", "schema", "execution-dump.schema.latest.json")));
 
     assertEquals(versioned, latest);
-    assertEquals(1, versioned.path("properties").path("schemaVersion").path("const").asInt());
+    assertEquals(2, versioned.path("properties").path("schemaVersion").path("const").asInt());
     assertTrue(versioned.path("$defs").path("metric").path("oneOf").isArray());
   }
 

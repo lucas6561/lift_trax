@@ -21,6 +21,86 @@ import org.junit.jupiter.api.Test;
 class PlannedWorkoutSessionServiceTest {
 
   @Test
+  void saveKeepsMissedAttemptsWithZeroOrPartialActualsAndRetriesWithoutDuplicates()
+      throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-missed-session", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      String results =
+          """
+          [{"exerciseKey":"1:0","plannedLift":"Back Squat","performedLift":"Back Squat","state":"complete",
+            "notes":"Could not meet the prescribed load at the RPE cap.","sets":[
+              {"metricType":"reps","metricValue":"0","weight":"225 lb","rpe":"","missed":true},
+              {"metricType":"reps","metricValue":"3","weight":"205 lb","rpe":"9.5","missed":true},
+              {"metricType":"reps","metricValue":"5","weight":"185 lb","rpe":"8"},
+              {"metricType":"reps-lr","metricLeft":"0","metricRight":"2","weight":"40 lb","missed":true},
+              {"metricType":"time","metricValue":"0","weight":"none","missed":true},
+              {"metricType":"distance","metricValue":"0","weight":"90 lb","missed":true}
+            ]}]
+          """;
+      LocalDate date = LocalDate.parse("2026-09-08");
+      PlannedWorkoutSessionService.saveSubmittedResults(
+          db, workoutFile(), 1, "MONDAY", date, results, false, "missed:block:0");
+      PlannedWorkoutSessionService.saveSubmittedResults(
+          db, workoutFile(), 1, "MONDAY", date, results, false, "missed:block:0");
+
+      List<LiftExecution> executions = db.getExecutions("Back Squat");
+      assertEquals(1, executions.size());
+      List<ExecutionSet> sets = executions.get(0).sets();
+      assertEquals(new ExecutionSet(new SetMetric.Reps(0), "225 lb", null, true), sets.get(0));
+      assertEquals(new ExecutionSet(new SetMetric.Reps(3), "205 lb", 9.5f, true), sets.get(1));
+      assertEquals(new ExecutionSet(new SetMetric.Reps(5), "185 lb", 8f), sets.get(2));
+      assertEquals(new ExecutionSet(new SetMetric.RepsLr(0, 2), "40 lb", null, true), sets.get(3));
+      assertEquals(new ExecutionSet(new SetMetric.TimeSecs(0), "none", null, true), sets.get(4));
+      assertEquals(
+          new ExecutionSet(new SetMetric.DistanceFeet(0), "90 lb", null, true), sets.get(5));
+      assertTrue(executions.get(0).notes().contains("RPE cap"));
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              PlannedWorkoutSessionService.saveSubmittedResults(
+                  db,
+                  workoutFile(),
+                  1,
+                  "MONDAY",
+                  date,
+                  results.replace("\"missed\":true", "\"missed\":false"),
+                  false,
+                  "missed:block:0"));
+    }
+  }
+
+  @Test
+  void missesStillRequireNonnegativeActualsAndValidRpe() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-missed-invalid", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      List<String> invalidSets =
+          List.of(
+              "{\"metricValue\":\"0\"}",
+              "{\"metricValue\":\"0\",\"missed\":false}",
+              "{\"metricValue\":\"-1\",\"missed\":true}",
+              "{\"metricValue\":\"\",\"missed\":true}",
+              "{\"metricValue\":\"1.5\",\"missed\":true}",
+              "{\"metricValue\":\"0\",\"missed\":true,\"rpe\":\"11\"}",
+              "{\"metricType\":\"reps-lr\",\"metricLeft\":\"0\",\"metricRight\":\"-1\",\"missed\":true}");
+      for (String set : invalidSets) {
+        String results =
+            "[{\"exerciseKey\":\"1:0\",\"plannedLift\":\"Back Squat\",\"performedLift\":\"Back Squat\",\"state\":\"complete\",\"sets\":["
+                + set
+                + "]}]";
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                PlannedWorkoutSessionService.saveSubmittedResults(
+                    db, workoutFile(), 1, "MONDAY", LocalDate.parse("2026-09-08"), results, false),
+            set);
+      }
+      assertTrue(db.getExecutions("Back Squat").isEmpty());
+    }
+  }
+
+  @Test
   void saveWritesSeededWorkoutMetricsSwapAndNotesToNormalExecutionHistory() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-follow-session", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {

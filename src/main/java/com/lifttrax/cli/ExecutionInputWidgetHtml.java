@@ -121,8 +121,9 @@ final class ExecutionInputWidgetHtml {
                     </div>
                   </fieldset>
                   <div class='stacked-row'>
-                    <label>RPE <input type='number' step='0.1' min='1' max='10' name='rpe' value='%s' placeholder='8.5'/></label>
+                    <label>RPE <input type='number' step='0.1' min='0' max='10' name='rpe' value='%s' placeholder='8.5'/></label>
                   </div>
+                  %s
                   <fieldset>
                     <legend>Metric</legend>
                     <div class='segmented'>
@@ -132,9 +133,9 @@ final class ExecutionInputWidgetHtml {
                       <label><input type='radio' name='%s' value='distance' %s data-control-name='metricType'/> Feet</label>
                     </div>
                     <div class='stacked-row'>
-                      <label class='metric-single'>Value <input type='number' min='1' name='metricValue' value='%s'/></label>
-                      <label class='metric-lr is-hidden'>Left <input type='number' min='1' name='metricLeft' value='%s'/></label>
-                      <label class='metric-lr is-hidden'>Right <input type='number' min='1' name='metricRight' value='%s'/></label>
+                      <label class='metric-single'>Value <input type='number' min='0' name='metricValue' value='%s'/></label>
+                      <label class='metric-lr is-hidden'>Left <input type='number' min='0' name='metricLeft' value='%s'/></label>
+                      <label class='metric-lr is-hidden'>Right <input type='number' min='0' name='metricRight' value='%s'/></label>
                     </div>
                     <details class='individual-sets-details'%s>
                       <summary>Individual set log</summary>
@@ -194,6 +195,7 @@ final class ExecutionInputWidgetHtml {
             setEntryMode.individualChecked(),
             WebHtml.escapeHtml(prefill.setCount()),
             WebHtml.escapeHtml(prefill.rpe()),
+            missedTargetControl(prefill.missed()),
             metricTypeName,
             repsChecked,
             metricTypeName,
@@ -267,15 +269,16 @@ final class ExecutionInputWidgetHtml {
                       </span>
                     </label>
                     <label class='metric-single'><span class='js-session-metric-label'>%s</span>
-                      <input type='number' inputmode='numeric' min='1' name='metricValue' value='%s'/>
+                      <input type='number' inputmode='numeric' min='0' name='metricValue' value='%s'/>
                     </label>
                     <label>RPE
-                      <input type='number' inputmode='decimal' step='0.1' min='1' max='10' name='rpe' value='%s' placeholder='8.5'/>
+                      <input type='number' inputmode='decimal' step='0.1' min='0' max='10' name='rpe' value='%s' placeholder='8.5'/>
                     </label>
                     <label class='entry-mode-multiple'>Sets
                       <input type='number' inputmode='numeric' min='1' name='setCount' value='%s'/>
                     </label>
                   </div>
+                  %s
                   <details class='session-entry-more'%s>
                     <summary>More set options</summary>
                     <div class='session-entry-options'>
@@ -344,8 +347,8 @@ final class ExecutionInputWidgetHtml {
                           <label><input type='radio' name='%s' value='distance' %s data-control-name='metricType'/> Feet</label>
                         </div>
                         <div class='stacked-row session-entry-lr'>
-                          <label class='metric-lr is-hidden'>Left <input type='number' inputmode='numeric' min='1' name='metricLeft' value='%s'/></label>
-                          <label class='metric-lr is-hidden'>Right <input type='number' inputmode='numeric' min='1' name='metricRight' value='%s'/></label>
+                          <label class='metric-lr is-hidden'>Left <input type='number' inputmode='numeric' min='0' name='metricLeft' value='%s'/></label>
+                          <label class='metric-lr is-hidden'>Right <input type='number' inputmode='numeric' min='0' name='metricRight' value='%s'/></label>
                         </div>
                       </fieldset>
                       <div class='stacked-row session-entry-meta'>
@@ -368,6 +371,7 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(prefill.metricValue()),
             WebHtml.escapeHtml(prefill.rpe()),
             WebHtml.escapeHtml(prefill.setCount()),
+            missedTargetControl(prefill.missed()),
             moreOptionsOpen,
             weightModeName,
             standardWeightChecked,
@@ -420,6 +424,15 @@ final class ExecutionInputWidgetHtml {
       return baseName;
     }
     return baseName + "-" + suffix.replaceAll("[^A-Za-z0-9_-]", "-");
+  }
+
+  private static String missedTargetControl(boolean missed) {
+    return "<div class='missed-target-control'>"
+        + "<label class='missed-target-option'><input type='checkbox' name='missed' class='js-missed-target'"
+        + (missed ? " checked" : "")
+        + "/> Missed target</label>"
+        + "<span class='missed-target-help'>Log actual reps, weight, and RPE. Use 0 reps if none were completed.</span>"
+        + "</div>";
   }
 
   private static String quickPresets() {
@@ -487,7 +500,9 @@ final class ExecutionInputWidgetHtml {
               + "\","
               + "\"rpe\":\""
               + jsonEscape(set.rpe())
-              + "\"}";
+              + "\",\"missed\":"
+              + set.missed()
+              + "}";
       items.add(item);
     }
     return "[" + String.join(",", items) + "]";
@@ -503,7 +518,7 @@ final class ExecutionInputWidgetHtml {
         };
     String rpe = set.rpe().isBlank() ? "" : ", rpe " + set.rpe();
     String weight = set.weight().isBlank() ? "none" : set.weight();
-    return metric + " @ " + weight + rpe;
+    return metric + " @ " + weight + rpe + (set.missed() ? " — Missed target" : "");
   }
 
   private static String jsonEscape(String value) {

@@ -61,7 +61,37 @@ final class WebUiRenderer {
       String date,
       boolean warmup,
       boolean deload,
-      String notes) {
+      String notes,
+      boolean missed) {
+    AddExecutionPrefill(
+        String lift,
+        String weight,
+        String setCount,
+        String rpe,
+        String metricType,
+        String metricValue,
+        String metricLeft,
+        String metricRight,
+        String date,
+        boolean warmup,
+        boolean deload,
+        String notes) {
+      this(
+          lift,
+          weight,
+          setCount,
+          rpe,
+          metricType,
+          metricValue,
+          metricLeft,
+          metricRight,
+          date,
+          warmup,
+          deload,
+          notes,
+          false);
+    }
+
     static AddExecutionPrefill empty() {
       return new AddExecutionPrefill("", "", "1", "", "reps", "5", "5", "5", "", false, false, "");
     }
@@ -714,7 +744,7 @@ final class WebUiRenderer {
                       detailedSets.forEach((item, index) => {
                         const li = document.createElement('li');
                         const rpeText = item.rpe ? `, rpe ${item.rpe}` : '';
-                        li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}`;
+                        li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}${item.missed ? ' — Missed target' : ''}`;
                         const remove = document.createElement('button');
                         remove.type = 'button';
                         remove.className = 'secondary';
@@ -781,10 +811,15 @@ final class WebUiRenderer {
                         const payload = {
                           ...metricPayload(),
                           weight: computeWeight(),
-                          rpe: (addExecutionScope.querySelector("input[name='rpe']") || {}).value || ''
+                          rpe: (addExecutionScope.querySelector("input[name='rpe']") || {}).value || '',
+                          missed: (addExecutionScope.querySelector("input[name='missed']") || {}).checked || false
                         };
                         for (let i = 0; i < copies; i++) {
                           detailedSets.push({...payload});
+                        }
+                        const missed = addExecutionScope.querySelector("input[name='missed']");
+                        if (missed) {
+                          missed.checked = false;
                         }
                         renderSetList();
                         focusControl(addSetBtn);
@@ -853,6 +888,7 @@ final class WebUiRenderer {
                         customWeight: addExecutionControlValue(form, 'customWeight'),
                         setCount: addExecutionControlValue(form, 'setCount'),
                         rpe: addExecutionControlValue(form, 'rpe'),
+                        missed: (form.querySelector("input[name='missed']") || {}).checked || false,
                         metricValue: addExecutionControlValue(form, 'metricValue'),
                         metricLeft: addExecutionControlValue(form, 'metricLeft'),
                         metricRight: addExecutionControlValue(form, 'metricRight'),
@@ -898,6 +934,10 @@ final class WebUiRenderer {
                       setCheckedValues(form, 'weightBandColors', draft.weightBandColors);
                       setCheckedValues(form, 'accomBandColors', draft.accomBandColors);
                       const warmup = form.querySelector("input[name='warmup']");
+                      const missed = form.querySelector("input[name='missed']");
+                      if (missed) {
+                        missed.checked = Boolean(draft.missed);
+                      }
                       if (warmup) {
                         warmup.checked = Boolean(draft.warmup);
                       }
@@ -952,6 +992,10 @@ final class WebUiRenderer {
 
                     if (addExecutionForm) {
                       loadAddExecutionDraft(addExecutionForm);
+                      addExecutionForm.addEventListener('execution-set-log-change', (event) => {
+                        detailedSets.splice(0, detailedSets.length, ...event.detail);
+                        saveAddExecutionDraft(addExecutionForm);
+                      });
                       addExecutionForm.addEventListener('change', () => saveAddExecutionDraft(addExecutionForm));
                       addExecutionForm.addEventListener('input', () => saveAddExecutionDraft(addExecutionForm));
                       addExecutionForm.addEventListener('submit', () => {
@@ -1060,11 +1104,12 @@ final class WebUiRenderer {
                             <option value='time'>time</option>
                             <option value='distance'>distance</option>
                           </select>
-                          <input type='number' class='js-set-value' placeholder='value' style='width:90px;' />
-                          <input type='number' class='js-set-left' placeholder='left' style='width:80px;' />
-                          <input type='number' class='js-set-right' placeholder='right' style='width:80px;' />
+                          <input type='number' min='0' class='js-set-value' placeholder='value' style='width:90px;' />
+                          <input type='number' min='0' class='js-set-left' placeholder='left' style='width:80px;' />
+                          <input type='number' min='0' class='js-set-right' placeholder='right' style='width:80px;' />
                           <input type='text' class='js-set-weight' placeholder='weight' style='width:130px;' />
-                          <input type='number' step='0.1' class='js-set-rpe' placeholder='rpe' style='width:80px;' />
+                          <input type='number' step='0.1' min='0' max='10' class='js-set-rpe' placeholder='rpe' style='width:80px;' />
+                          <label class='missed-target-option'><input type='checkbox' class='js-set-missed'/> Missed target</label>
                           <button type='button' class='secondary compact-btn js-remove-set'>Remove</button>
                         `;
                         const metric = row.querySelector('.js-set-metric');
@@ -1079,6 +1124,7 @@ final class WebUiRenderer {
                         right.value = set.metricRight || '';
                         weight.value = set.weight || '';
                         rpe.value = set.rpe || '';
+                        row.querySelector('.js-set-missed').checked = Boolean(set.missed);
                         toggleSetMetricRow(row);
                         container.appendChild(row);
                       });
@@ -1093,7 +1139,8 @@ final class WebUiRenderer {
                         const metricRight = (row.querySelector('.js-set-right') || {}).value || '';
                         const weight = (row.querySelector('.js-set-weight') || {}).value || '';
                         const rpe = (row.querySelector('.js-set-rpe') || {}).value || '';
-                        return { metricType, metricValue, metricLeft, metricRight, weight, rpe };
+                        const missed = (row.querySelector('.js-set-missed') || {}).checked || false;
+                        return { metricType, metricValue, metricLeft, metricRight, weight, rpe, missed };
                       });
                     }
 
@@ -1122,7 +1169,7 @@ final class WebUiRenderer {
                         if (add) {
                           event.preventDefault();
                           const current = collectSetRows(form);
-                          current.push({ metricType: 'reps', metricValue: '5', metricLeft: '', metricRight: '', weight: '', rpe: '' });
+                          current.push({ metricType: 'reps', metricValue: '5', metricLeft: '', metricRight: '', weight: '', rpe: '', missed: false });
                           renderSetRows(form, current);
                           focusControl(form.querySelector('.js-set-row:last-child .js-set-metric'));
                           return;
@@ -1999,7 +2046,7 @@ final class WebUiRenderer {
                       detailedSets.forEach((item, index) => {
                         const li = document.createElement('li');
                         const rpeText = item.rpe ? `, rpe ${item.rpe}` : '';
-                        li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}`;
+                        li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}${item.missed ? ' — Missed target' : ''}`;
                         const remove = document.createElement('button');
                         remove.type = 'button';
                         remove.className = 'secondary';
@@ -2015,6 +2062,7 @@ final class WebUiRenderer {
                       });
                       hidden.value = JSON.stringify(detailedSets);
                       updateStatus();
+                      form.dispatchEvent(new CustomEvent('execution-set-log-change', {detail: detailedSets.map((item) => ({...item}))}));
                     }
 
                     function selectIndividualMode() {
@@ -2035,14 +2083,28 @@ final class WebUiRenderer {
 
                     function addCurrentSet() {
                       selectIndividualMode();
+                      const savedSets = form.querySelector('.js-detailed-sets');
+                      try {
+                        const current = JSON.parse((savedSets && savedSets.value) || '[]');
+                        if (Array.isArray(current)) {
+                          detailedSets.splice(0, detailedSets.length, ...current);
+                        }
+                      } catch (error) {
+                        // Keep the current set log if the hidden value is unavailable.
+                      }
                       const copies = Math.max(1, parseInt(fieldValue('setCopies') || '1', 10) || 1);
                       const payload = {
                         ...metricPayload(),
                         weight: computeWeight(),
-                        rpe: fieldValue('rpe')
+                        rpe: fieldValue('rpe'),
+                        missed: (form.querySelector("input[name='missed']") || {}).checked || false
                       };
                       for (let i = 0; i < copies; i++) {
                         detailedSets.push({...payload});
+                      }
+                      const missed = form.querySelector("input[name='missed']");
+                      if (missed) {
+                        missed.checked = false;
                       }
                       renderSetList();
                     }
@@ -2650,15 +2712,15 @@ final class WebUiRenderer {
           .append(">distance</option>")
           .append("</select>")
           .append(
-              "<input type='number' class='js-set-value' disabled placeholder='value' style='width:90px;' value='")
+              "<input type='number' min='0' class='js-set-value' disabled placeholder='value' style='width:90px;' value='")
           .append(WebHtml.escapeHtml(formValues.metricValue()))
           .append("'/>")
           .append(
-              "<input type='number' class='js-set-left' disabled placeholder='left' style='width:80px;' value='")
+              "<input type='number' min='0' class='js-set-left' disabled placeholder='left' style='width:80px;' value='")
           .append(WebHtml.escapeHtml(formValues.metricLeft()))
           .append("'/>")
           .append(
-              "<input type='number' class='js-set-right' disabled placeholder='right' style='width:80px;' value='")
+              "<input type='number' min='0' class='js-set-right' disabled placeholder='right' style='width:80px;' value='")
           .append(WebHtml.escapeHtml(formValues.metricRight()))
           .append("'/>")
           .append(
@@ -2666,9 +2728,13 @@ final class WebUiRenderer {
           .append(WebHtml.escapeHtml(formValues.weight()))
           .append("'/>")
           .append(
-              "<input type='number' step='0.1' class='js-set-rpe' disabled placeholder='rpe' style='width:80px;' value='")
+              "<input type='number' step='0.1' min='0' max='10' class='js-set-rpe' disabled placeholder='rpe' style='width:80px;' value='")
           .append(WebHtml.escapeHtml(formValues.rpe()))
           .append("'/>")
+          .append(
+              "<label class='missed-target-option'><input type='checkbox' class='js-set-missed' disabled")
+          .append(formValues.missed() ? " checked" : "")
+          .append("/> Missed target</label>")
           .append(
               "<button type='button' class='secondary compact-btn js-remove-set'>Remove</button>")
           .append("</div>");
@@ -2699,7 +2765,9 @@ final class WebUiRenderer {
               + "\","
               + "\"rpe\":\""
               + jsonEscape(formValues.rpe())
-              + "\"}";
+              + "\",\"missed\":"
+              + formValues.missed()
+              + "}";
       items.add(item);
     }
     return "[" + String.join(",", items) + "]";
@@ -2734,6 +2802,9 @@ final class WebUiRenderer {
       String item = formatMetric(set.metric()) + (hasWeight ? " @ " + weight : "");
       if (set.rpe() != null) {
         item += " rpe " + String.format(Locale.ROOT, "%.1f", set.rpe());
+      }
+      if (set.missed()) {
+        item += " — Missed target";
       }
       parts.add(count > 1 ? count + "x" + item : item);
       index += count;

@@ -446,6 +446,7 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
                     metric_b INTEGER,
                     weight TEXT NOT NULL DEFAULT 'none',
                     rpe REAL,
+                    missed INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY(record_id) REFERENCES lift_records(id) ON DELETE CASCADE
                 )
                 """)) {
@@ -513,7 +514,7 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
       Float rpe =
           node.has("rpe") && !node.get("rpe").isNull() ? (float) node.get("rpe").asDouble() : null;
       String weight = node.path("weight").asText("none");
-      sets.add(new ExecutionSet(metric, weight, rpe));
+      sets.add(new ExecutionSet(metric, weight, rpe, node.path("missed").asBoolean(false)));
     }
     return sets;
   }
@@ -581,7 +582,7 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
       throws Exception {
     String sql =
         """
-                SELECT metric_kind, metric_a, metric_b, weight, rpe
+                SELECT metric_kind, metric_a, metric_b, weight, rpe, missed
                 FROM execution_sets
                 WHERE record_id = ?
                 ORDER BY set_index
@@ -596,7 +597,12 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
           Integer metricB = rs.getObject("metric_b") == null ? null : rs.getInt("metric_b");
           String weight = rs.getString("weight");
           Float rpe = rs.getObject("rpe") == null ? null : rs.getFloat("rpe");
-          sets.add(new ExecutionSet(metricFromRow(metricKind, metricA, metricB), weight, rpe));
+          sets.add(
+              new ExecutionSet(
+                  metricFromRow(metricKind, metricA, metricB),
+                  weight,
+                  rpe,
+                  rs.getBoolean("missed")));
         }
       }
     }
@@ -614,8 +620,8 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
     }
     String insert =
         """
-                INSERT INTO execution_sets (record_id, set_index, metric_kind, metric_a, metric_b, weight, rpe)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO execution_sets (record_id, set_index, metric_kind, metric_a, metric_b, weight, rpe, missed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
     try (PreparedStatement statement = connection.prepareStatement(insert)) {
       for (int i = 0; i < sets.size(); i++) {
@@ -637,6 +643,7 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
         } else {
           statement.setFloat(7, set.rpe());
         }
+        statement.setBoolean(8, set.missed());
         statement.addBatch();
       }
       statement.executeBatch();
@@ -747,7 +754,7 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
                 SELECT es.metric_a AS reps, es.weight
                 FROM execution_sets es
                 JOIN lift_records lr ON lr.id = es.record_id
-                WHERE lr.owner_user_id = ? AND lr.lift_id = ? AND es.metric_kind = 'reps'
+                WHERE lr.owner_user_id = ? AND lr.lift_id = ? AND es.metric_kind = 'reps' AND es.missed = 0 AND es.metric_a > 0
                 """;
     Map<Integer, String> bestByReps = new TreeMap<>();
     Map<Integer, Double> bestByRepsWeight = new HashMap<>();

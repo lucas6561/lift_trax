@@ -11,7 +11,18 @@ record ExecutionSetFormValues(
     String metricLeft,
     String metricRight,
     String weight,
-    String rpe) {
+    String rpe,
+    boolean missed) {
+
+  ExecutionSetFormValues(
+      String metricType,
+      String metricValue,
+      String metricLeft,
+      String metricRight,
+      String weight,
+      String rpe) {
+    this(metricType, metricValue, metricLeft, metricRight, weight, rpe, false);
+  }
 
   static ExecutionSetFormValues from(ExecutionSet set) {
     MetricFields metricFields = MetricFields.from(set.metric());
@@ -21,7 +32,8 @@ record ExecutionSetFormValues(
         metricFields.metricLeft(),
         metricFields.metricRight(),
         set.weight() == null ? "" : set.weight(),
-        set.rpe() == null ? "" : String.format(Locale.ROOT, "%s", set.rpe()));
+        set.rpe() == null ? "" : String.format(Locale.ROOT, "%s", set.rpe()),
+        set.missed());
   }
 
   String selectedAttribute(String optionValue) {

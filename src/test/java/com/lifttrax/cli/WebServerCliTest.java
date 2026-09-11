@@ -656,6 +656,119 @@ class WebServerCliTest {
   }
 
   @Test
+  void addAndEditExecutionRetainActualMissedSets() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-missed-sets", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      TestExchange matching =
+          TestExchange.post(
+              "/add-execution",
+              form("lift", "Back Squat", "metricValue", "0", "weight", "225 lb", "missed", "on"));
+      invokeHandler("handleAddExecution", matching, db);
+      assertTrue(matching.location().contains("status=Execution%20saved"));
+      assertEquals(
+          new ExecutionSet(new SetMetric.Reps(0), "225 lb", null, true),
+          db.getExecutions("Back Squat").get(0).sets().get(0));
+
+      TestExchange individual =
+          TestExchange.post(
+              "/add-execution",
+              form(
+                  "lift",
+                  "Back Squat",
+                  "detailedSets",
+                  """
+              [{"metricType":"reps","metricValue":"0","weight":"225 lb","rpe":"","missed":true},
+               {"metricType":"reps","metricValue":"3","weight":"205 lb","rpe":"9.5","missed":true},
+               {"metricType":"reps","metricValue":"5","weight":"185 lb","rpe":"8","missed":false}]
+              """));
+      invokeHandler("handleAddExecution", individual, db);
+      assertTrue(individual.location().contains("status=Execution%20saved"));
+      LiftExecution execution =
+          db.getExecutions("Back Squat").stream()
+              .filter(item -> item.sets().size() == 3)
+              .findFirst()
+              .orElseThrow();
+      assertEquals(
+          List.of(
+              new ExecutionSet(new SetMetric.Reps(0), "225 lb", null, true),
+              new ExecutionSet(new SetMetric.Reps(3), "205 lb", 9.5f, true),
+              new ExecutionSet(new SetMetric.Reps(5), "185 lb", 8f)),
+          execution.sets());
+
+      TestExchange edit =
+          TestExchange.post(
+              "/update-execution",
+              form(
+                  "lift",
+                  "Back Squat",
+                  "executionId",
+                  execution.id().toString(),
+                  "detailedSets",
+                  """
+              [{"metricType":"reps","metricValue":"1","weight":"225 lb","rpe":"9","missed":false},
+               {"metricType":"reps-lr","metricLeft":"0","metricRight":"2","weight":"40 lb","rpe":"0","missed":true}]
+              """));
+      invokeHandler("handleUpdateExecution", edit, db);
+      assertTrue(edit.location().contains("status=Execution+updated"));
+      assertEquals(
+          List.of(
+              new ExecutionSet(new SetMetric.Reps(1), "225 lb", 9f),
+              new ExecutionSet(new SetMetric.RepsLr(0, 2), "40 lb", 0f, true)),
+          db.getExecution("Back Squat", execution.id()).sets());
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
+  void missedSetsRejectNegativeMetricsUnmarkedZeroAndInvalidRpe() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-route-invalid-misses", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      for (String[] values :
+          List.of(
+              new String[] {"0", "false", ""},
+              new String[] {"-1", "true", ""},
+              new String[] {"1", "true", "11"},
+              new String[] {"1", "true", "NaN"},
+              new String[] {"1", "true", "-1"})) {
+        TestExchange matching =
+            TestExchange.post(
+                "/add-execution",
+                form(
+                    "lift",
+                    "Back Squat",
+                    "metricValue",
+                    values[0],
+                    "missed",
+                    values[1],
+                    "rpe",
+                    values[2]));
+        invokeHandler("handleAddExecution", matching, db);
+        assertTrue(matching.location().contains("statusType=error"));
+        String detailed =
+            "[{\"metricValue\":\""
+                + values[0]
+                + "\",\"missed\":"
+                + values[1]
+                + ",\"rpe\":\""
+                + values[2]
+                + "\"}]";
+        TestExchange individual =
+            TestExchange.post(
+                "/add-execution",
+                form("lift", "Back Squat", "metricValue", "5", "detailedSets", detailed));
+        invokeHandler("handleAddExecution", individual, db);
+        assertTrue(individual.location().contains("statusType=error"));
+      }
+      assertTrue(db.getExecutions("Back Squat").isEmpty());
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
   void focusTargetAppendsToRedirectUrls() throws Exception {
     Method method =
         WebServerCli.class.getDeclaredMethod("appendFocusTarget", String.class, String.class);

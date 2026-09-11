@@ -85,6 +85,14 @@ into normal execution history. Planned-set rest ranges appear in preview,
 print, Markdown, and follow-along targets. Workout-file swap choices are
 available when the matching lifts exist locally.
 
+To record a failed attempt or a set that falls short of the prescribed load,
+reps, or RPE target, check **Missed target** in Work Along or Add Execution.
+Enter the actual weight and completed reps (including **0** if none were
+completed), with actual RPE when useful. For a mix of successful sets and misses,
+use **Individual set log** and mark only the affected sets. Misses stay visible
+in history and can be corrected in Edit Execution; they do not establish best
+lifts or raise suggested working weights. Use Notes for the reason or context.
+
 Wave generation can still save markdown. To export a loadable planned workout
 JSON file instead, use a `.json` output name:
 
@@ -190,7 +198,7 @@ For output intended to be read directly, select the human format:
 
 JSON output is chronological and includes lift context, execution flags and
 notes, plus every recorded set. Its versioned contract is
-`shared/executions/schema/execution-dump.schema.v1.json`; use
+`shared/executions/schema/execution-dump.schema.v2.json`; use
 `shared/executions/schema/execution-dump.schema.latest.json` when a consumer
 should follow the newest format. See `docs/execution-dump-format.md` for the
 field layout and metric variants. Use `--user <username-or-id>` to select a

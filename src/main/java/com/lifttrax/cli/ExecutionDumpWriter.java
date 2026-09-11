@@ -17,7 +17,7 @@ import java.util.Map;
 
 /** Writes account-scoped execution history in versioned JSON or readable text. */
 final class ExecutionDumpWriter {
-  static final int SCHEMA_VERSION = 1;
+  static final int SCHEMA_VERSION = 2;
   private static final ObjectWriter JSON = new ObjectMapper().writerWithDefaultPrettyPrinter();
 
   private ExecutionDumpWriter() {}
@@ -178,9 +178,9 @@ final class ExecutionDumpWriter {
     }
   }
 
-  private record JsonSet(JsonMetric metric, String weight, Float rpe) {
+  private record JsonSet(JsonMetric metric, String weight, Float rpe, boolean missed) {
     private static JsonSet from(ExecutionSet set) {
-      return new JsonSet(jsonMetric(set.metric()), set.weight(), set.rpe());
+      return new JsonSet(jsonMetric(set.metric()), set.weight(), set.rpe(), set.missed());
     }
   }
 

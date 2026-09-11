@@ -36,7 +36,7 @@ public final class ExecutionSummaryFormatter {
         set.weight() == null || set.weight().isBlank() || "none".equalsIgnoreCase(set.weight())
             ? ""
             : " @ " + set.weight();
-    return formatMetric(set.metric()) + weight + rpe;
+    return formatMetric(set.metric()) + weight + rpe + (set.missed() ? " (missed target)" : "");
   }
 
   private static String formatTags(LiftExecution execution) {

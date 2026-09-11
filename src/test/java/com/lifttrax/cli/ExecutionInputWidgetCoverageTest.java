@@ -11,6 +11,28 @@ import org.junit.jupiter.api.Test;
 class ExecutionInputWidgetCoverageTest {
 
   @Test
+  void missedTargetIsVisibleInBothWidgetsAndRetainedInIndividualLog() {
+    WebUiRenderer.AddExecutionPrefill prefill =
+        new WebUiRenderer.AddExecutionPrefill(
+            "Back Squat", "225 lb", "1", "", "reps", "0", "", "", "", false, false, "", true);
+    ExecutionSetFormValues missed =
+        ExecutionSetFormValues.from(new ExecutionSet(new SetMetric.Reps(0), "225 lb", null, true));
+
+    String html = ExecutionInputWidgetHtml.render(prefill, List.of(missed), false);
+    String workAlong = ExecutionInputWidgetHtml.renderWorkAlong(prefill, "set-1");
+
+    assertTrue(missed.missed());
+    assertTrue(html.contains("name='missed' class='js-missed-target' checked"));
+    assertTrue(html.contains("0 reps @ 225 lb — Missed target"));
+    assertTrue(html.contains("&quot;missed&quot;:true"));
+    assertTrue(html.contains("Use 0 reps if none were completed."));
+    assertTrue(workAlong.contains("name='missed' class='js-missed-target' checked"));
+    assertTrue(workAlong.indexOf("Missed target") < workAlong.indexOf("More set options"));
+    assertTrue(workAlong.contains("min='0' name='metricValue' value='0'"));
+    assertTrue(workAlong.contains("min='0' max='10' name='rpe' value=''"));
+  }
+
+  @Test
   void individualSetLogRendersEveryMetricSummaryAndEscapedJson() {
     List<ExecutionSetFormValues> sets =
         List.of(

@@ -100,6 +100,9 @@ public record LiftTrendSummary(
       int pounds = (int) Math.round(WeightText.toPounds(set.weight()));
       if (reps > 0 && pounds > 0) {
         tonnagePounds += pounds * reps;
+        if (set.missed()) {
+          return;
+        }
         BestSet candidate = new BestSet(date, set.metric(), set.weight(), pounds, set.rpe());
         if (isBetter(candidate, strongestSet)) {
           strongestSet = candidate;

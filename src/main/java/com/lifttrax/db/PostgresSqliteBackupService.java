@@ -350,7 +350,7 @@ public final class PostgresSqliteBackupService {
     tables.add(
         table(
             "execution_sets",
-            "CREATE TABLE execution_sets (id TEXT PRIMARY KEY, execution_id TEXT NOT NULL, set_index INTEGER NOT NULL, metric_kind TEXT NOT NULL, metric_a INTEGER NOT NULL, metric_b INTEGER, weight TEXT NOT NULL, rpe REAL)",
+            "CREATE TABLE execution_sets (id TEXT PRIMARY KEY, execution_id TEXT NOT NULL, set_index INTEGER NOT NULL, metric_kind TEXT NOT NULL, metric_a INTEGER NOT NULL, metric_b INTEGER, weight TEXT NOT NULL, rpe REAL, missed INTEGER NOT NULL DEFAULT 0)",
             "id",
             "execution_id",
             "set_index",
@@ -358,7 +358,8 @@ public final class PostgresSqliteBackupService {
             "metric_a",
             "metric_b",
             "weight",
-            "rpe"));
+            "rpe",
+            "missed"));
     tables.add(
         table(
             "workout_submission_receipts",

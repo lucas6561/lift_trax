@@ -1,0 +1,1 @@
+ALTER TABLE execution_sets ADD COLUMN missed INTEGER NOT NULL DEFAULT 0;

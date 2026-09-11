@@ -26,6 +26,30 @@ import org.junit.jupiter.api.Test;
 class HostedPostgresTrainingDataStoreTest {
 
   @Test
+  void persistsMissesAcrossReadsAndEditsWithoutCountingThemAsBestLifts() throws Exception {
+    TrainingDataStore store = provider().forUser("missed-target-user");
+    store.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+    List<ExecutionSet> sets =
+        List.of(
+            new ExecutionSet(new SetMetric.Reps(1), "225 lb", 8f),
+            new ExecutionSet(new SetMetric.Reps(1), "245 lb", 10f, true),
+            new ExecutionSet(new SetMetric.Reps(0), "275 lb", null, true));
+    LocalDate date = LocalDate.of(2026, 9, 8);
+    store.addLiftExecution("Bench", new LiftExecution(null, date, sets, false, false, ""));
+    LiftExecution saved = store.getExecutions("Bench").get(0);
+    assertEquals(sets, saved.sets());
+    assertEquals(sets, store.getExecution("Bench", saved.id()).sets());
+    assertEquals(sets, store.getExecutionsBetween(date, date).get(0).execution().sets());
+    assertEquals(sets, store.latestExecutionsByLift().get("Bench").sets());
+    assertEquals(Map.of(1, "225 lb"), store.liftStats("Bench").bestByReps());
+    List<ExecutionSet> corrected = List.of(new ExecutionSet(new SetMetric.Reps(1), "245 lb", 9f));
+    store.updateLiftExecution(
+        saved.id(), new LiftExecution(saved.id(), date, corrected, false, false, "corrected"));
+    assertEquals(corrected, store.getExecution("Bench", saved.id()).sets());
+    assertEquals(Map.of(1, "245 lb"), store.liftStats("Bench").bestByReps());
+  }
+
+  @Test
   void hostedAdapterScopesCoreLiftAndExecutionWorkflowsByUser() throws Exception {
     HostedPostgresTrainingDataStoreProvider provider = provider();
     TrainingDataStore userA = provider.forUser("user-a");
@@ -295,7 +319,7 @@ class HostedPostgresTrainingDataStoreTest {
           new LiftExecution(
               null,
               LocalDate.of(2026, 6, 18),
-              List.of(new ExecutionSet(new SetMetric.Reps(4), "255 lb", 8.5f)),
+              List.of(new ExecutionSet(new SetMetric.Reps(4), "255 lb", 8.5f, true)),
               false,
               false,
               "import me"));
@@ -322,6 +346,9 @@ class HostedPostgresTrainingDataStoreTest {
     assertEquals(0, repeated.insertedExecutions());
     assertFalse(otherUser.duplicate());
     assertEquals("import me", owner.getExecutions("Front Squat").get(0).notes());
+    assertEquals(
+        new ExecutionSet(new SetMetric.Reps(4), "255 lb", 8.5f, true),
+        owner.getExecutions("Front Squat").get(0).sets().get(0));
     assertEquals("import me", other.getExecutions("Front Squat").get(0).notes());
   }
 

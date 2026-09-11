@@ -9,6 +9,24 @@ import org.junit.jupiter.api.Test;
 class ExecutionSummaryFormatterTest {
 
   @Test
+  void marksMissedSetsWithoutMergingThemWithSuccessfulSets() {
+    LiftExecution execution =
+        new LiftExecution(
+            null,
+            LocalDate.of(2026, 9, 8),
+            List.of(
+                new ExecutionSet(new SetMetric.Reps(1), "225 lb", 9f),
+                new ExecutionSet(new SetMetric.Reps(1), "225 lb", 9f, true),
+                new ExecutionSet(new SetMetric.Reps(0), "245 lb", null, true)),
+            false,
+            false,
+            "");
+    assertEquals(
+        "3 sets: 1 reps @ 225 lb RPE 9.0; 1 reps @ 225 lb RPE 9.0 (missed target); 0 reps @ 245 lb (missed target)",
+        ExecutionSummaryFormatter.formatCompactSummary(execution));
+  }
+
+  @Test
   void compactSummaryKeepsMatchingSetDisplay() {
     LiftExecution execution =
         new LiftExecution(

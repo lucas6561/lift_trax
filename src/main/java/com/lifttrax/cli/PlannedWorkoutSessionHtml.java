@@ -983,6 +983,10 @@ final class PlannedWorkoutSessionHtml {
 
             function syncMetricInputs(widget) {
               const metricType = radioValue(widget, 'metricType', 'reps');
+              const missed = (widget.querySelector("input[name='missed']") || {}).checked || false;
+              widget.querySelectorAll("input[name='metricValue'], input[name='metricLeft'], input[name='metricRight']").forEach((input) => {
+                input.min = missed ? '0' : '1';
+              });
               const isLr = metricType === 'reps-lr';
               const single = widget.querySelector('.metric-single');
               const lr = widget.querySelectorAll('.metric-lr');
@@ -1065,7 +1069,7 @@ final class PlannedWorkoutSessionHtml {
 
             function metricPayload(widget) {
               const metricType = radioValue(widget, 'metricType', 'reps');
-              const payload = {metricType};
+              const payload = {metricType, missed: (widget.querySelector("input[name='missed']") || {}).checked || false};
               if (metricType === 'reps-lr') {
                 payload.metricLeft = (widget.querySelector("input[name='metricLeft']") || {}).value || '';
                 payload.metricRight = (widget.querySelector("input[name='metricRight']") || {}).value || '';
@@ -1142,7 +1146,7 @@ final class PlannedWorkoutSessionHtml {
               detailedSets.forEach((item, index) => {
                 const li = document.createElement('li');
                 const rpeText = item.rpe ? `, rpe ${item.rpe}` : '';
-                li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}`;
+                li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}${item.missed ? ' (missed target)' : ''}`;
                 const remove = document.createElement('button');
                 remove.type = 'button';
                 remove.className = 'secondary';
@@ -1199,6 +1203,7 @@ final class PlannedWorkoutSessionHtml {
                 customWeight: widgetControlValue(widget, 'customWeight'),
                 setCount: widgetControlValue(widget, 'setCount'),
                 rpe: widgetControlValue(widget, 'rpe'),
+                missed: (widget.querySelector("input[name='missed']") || {}).checked || false,
                 metricValue: widgetControlValue(widget, 'metricValue'),
                 metricLeft: widgetControlValue(widget, 'metricLeft'),
                 metricRight: widgetControlValue(widget, 'metricRight'),
@@ -1223,6 +1228,11 @@ final class PlannedWorkoutSessionHtml {
               for (let i = 0; i < copies; i++) {
                 detailedSets.push({...payload});
               }
+              const missed = widget.querySelector("input[name='missed']");
+              if (missed) {
+                missed.checked = false;
+              }
+              syncMetricInputs(widget);
               renderSetList(widget);
             }
 
@@ -1271,6 +1281,10 @@ final class PlannedWorkoutSessionHtml {
               const deload = widget.querySelector("input[name='deload']");
               if (deload) {
                 deload.checked = Boolean(draft.deload);
+              }
+              const missed = widget.querySelector("input[name='missed']");
+              if (missed) {
+                missed.checked = draft.missed === true;
               }
               const detailedSets = Array.isArray(draft.detailedSets) ? draft.detailedSets : [];
               widgetSets.set(widget, detailedSets.map((item) => ({...item})));
@@ -1456,6 +1470,10 @@ final class PlannedWorkoutSessionHtml {
                 detailedSets = [];
               }
               widgetSets.set(widget, detailedSets);
+              const missed = widget.querySelector("input[name='missed']");
+              if (missed) {
+                missed.addEventListener('change', () => syncMetricInputs(widget));
+              }
               ['metricType', 'weightMode', 'setEntryMode'].forEach((name) => {
                 const checked = widget.querySelector(`input[data-control-name='${name}']:checked`);
                 if (checked) {

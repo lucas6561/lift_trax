@@ -40,7 +40,9 @@ class PostgresSqliteBackupServiceTest {
         new LiftExecution(
             null,
             LocalDate.of(2026, 7, 18),
-            List.of(new ExecutionSet(new SetMetric.Reps(5), "225 lb", 8.0f)),
+            List.of(
+                new ExecutionSet(new SetMetric.Reps(5), "225 lb", 8.0f),
+                new ExecutionSet(new SetMetric.Reps(0), "245 lb", null, true)),
             false,
             false,
             "snapshot"));
@@ -60,6 +62,18 @@ class PostgresSqliteBackupServiceTest {
     assertEquals(1L, result.validation().rowCounts().get("workout_submission_receipts"));
     assertEquals(0L, result.validation().rowCounts().get("local_imports"));
     assertEquals(result.validation(), PostgresSqliteBackupService.validate(result.backupPath()));
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + result.backupPath());
+        ResultSet resultSet =
+            connection
+                .createStatement()
+                .executeQuery("SELECT metric_a, missed FROM execution_sets ORDER BY set_index")) {
+      assertTrue(resultSet.next());
+      assertEquals(5, resultSet.getInt("metric_a"));
+      assertFalse(resultSet.getBoolean("missed"));
+      assertTrue(resultSet.next());
+      assertEquals(0, resultSet.getInt("metric_a"));
+      assertTrue(resultSet.getBoolean("missed"));
+    }
     try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + result.backupPath());
         ResultSet resultSet =
             connection

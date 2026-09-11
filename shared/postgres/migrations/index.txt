@@ -3,3 +3,4 @@
 0002__account-usernames.sql
 0003__workout-submission-receipts.sql
 0004__secure-public-tables.sql
+0005__execution-set-misses.sql

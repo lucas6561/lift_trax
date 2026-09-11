@@ -4,8 +4,8 @@ LiftTrax can export the configured user's complete execution history as
 versioned JSON or human-readable text. JSON is the default for
 `--executions-only`.
 
-The stable version 1 schema is
-`shared/executions/schema/execution-dump.schema.v1.json`. The matching
+The current version 2 schema is
+`shared/executions/schema/execution-dump.schema.v2.json`. The matching
 `execution-dump.schema.latest.json` path follows the newest version when the
 format evolves.
 
@@ -37,7 +37,7 @@ overrides the machine-local default for one invocation.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "dateRange": {
     "from": null,
     "to": null
@@ -64,7 +64,8 @@ overrides the machine-local default for one invocation.
             "reps": 5
           },
           "weight": "185 lb",
-          "rpe": 8.0
+          "rpe": 8.0,
+          "missed": false
         }
       ]
     }
@@ -87,3 +88,13 @@ Set metrics use one of these shapes:
 The array order is the recorded set order. `weight`, `rpe`, execution notes,
 lift notes, lift main type, and execution ID may be `null` when the stored
 record does not supply them.
+
+Version 2 adds the required boolean `missed` on each set. `true` records a
+missed target, such as being unable to complete prescribed reps at the target
+weight or effort. Record the actual completed reps, time, or distance; use
+zero for an attempt with no completed work. `rpe` remains the actual recorded
+effort and can be null. Completed reps still contribute to volume, while missed
+sets do not establish best lifts or suggested training loads. Historical sets
+without a recorded miss export as `false`.
+
+The version 1 schema remains unchanged for consumers of older exports.

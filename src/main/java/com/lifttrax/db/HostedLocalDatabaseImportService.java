@@ -239,9 +239,9 @@ public final class HostedLocalDatabaseImportService {
         connection.prepareStatement(
             """
                 INSERT INTO execution_sets (
-                    id, execution_id, set_index, metric_kind, metric_a, metric_b, weight, rpe
+                    id, execution_id, set_index, metric_kind, metric_a, metric_b, weight, rpe, missed
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """)) {
       for (int i = 0; i < sets.size(); i++) {
         ExecutionSet set = sets.get(i);
@@ -262,6 +262,7 @@ public final class HostedLocalDatabaseImportService {
         } else {
           statement.setFloat(8, set.rpe());
         }
+        statement.setBoolean(9, set.missed());
         statement.addBatch();
       }
       statement.executeBatch();
@@ -395,10 +396,11 @@ public final class HostedLocalDatabaseImportService {
 
   private static List<ExecutionSet> readExecutionSets(Connection connection, int recordId)
       throws Exception {
+    boolean hasMissed = hasColumn(connection, "execution_sets", "missed");
     try (PreparedStatement statement =
         connection.prepareStatement(
             """
-                    SELECT metric_kind, metric_a, metric_b, weight, rpe
+                    SELECT *
                     FROM execution_sets
                     WHERE record_id = ?
                     ORDER BY set_index
@@ -413,7 +415,8 @@ public final class HostedLocalDatabaseImportService {
               new ExecutionSet(
                   metricFromRow(rs.getString("metric_kind"), rs.getInt("metric_a"), metricB),
                   normalizeWeight(rs.getString("weight")),
-                  rpe));
+                  rpe,
+                  hasMissed && rs.getBoolean("missed")));
         }
         return sets;
       }
@@ -433,7 +436,12 @@ public final class HostedLocalDatabaseImportService {
               : new SetMetric.Reps(node.path("reps").asInt(0));
       Float rpe =
           node.has("rpe") && !node.get("rpe").isNull() ? (float) node.get("rpe").asDouble() : null;
-      sets.add(new ExecutionSet(metric, normalizeWeight(node.path("weight").asText("none")), rpe));
+      sets.add(
+          new ExecutionSet(
+              metric,
+              normalizeWeight(node.path("weight").asText("none")),
+              rpe,
+              node.path("missed").asBoolean(false)));
     }
     return sets;
   }

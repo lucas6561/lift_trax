@@ -290,7 +290,7 @@ final class PlannedWorkoutSessionService {
       SetMetric metric = parseMetric(setResult);
       String weight = setResult.path("weight").asText("").trim();
       Float rpe = parseRpe(setResult.path("rpe").asText(""));
-      sets.add(new ExecutionSet(metric, weight, rpe));
+      sets.add(new ExecutionSet(metric, weight, rpe, setResult.path("missed").asBoolean(false)));
     }
     return new ParsedSets(List.copyOf(sets), skippedSets);
   }
@@ -300,27 +300,32 @@ final class PlannedWorkoutSessionService {
     return switch (metricType) {
       case "reps-lr" ->
           new SetMetric.RepsLr(
-              positiveInt(setResult, "metricLeft", "Left reps"),
-              positiveInt(setResult, "metricRight", "Right reps"));
-      case "time" -> new SetMetric.TimeSecs(positiveInt(setResult, "metricValue", "Seconds"));
-      case "distance" -> new SetMetric.DistanceFeet(positiveInt(setResult, "metricValue", "Feet"));
-      case "reps" -> new SetMetric.Reps(positiveInt(setResult, "metricValue", "Reps"));
+              completedMetricValue(setResult, "metricLeft", "Left reps"),
+              completedMetricValue(setResult, "metricRight", "Right reps"));
+      case "time" ->
+          new SetMetric.TimeSecs(completedMetricValue(setResult, "metricValue", "Seconds"));
+      case "distance" ->
+          new SetMetric.DistanceFeet(completedMetricValue(setResult, "metricValue", "Feet"));
+      case "reps" -> new SetMetric.Reps(completedMetricValue(setResult, "metricValue", "Reps"));
       default ->
           throw new IllegalArgumentException("Unsupported completed set metric: " + metricType);
     };
   }
 
-  private static int positiveInt(JsonNode node, String field, String label) {
+  private static int completedMetricValue(JsonNode node, String field, String label) {
     String value = node.path(field).asText("").trim();
+    boolean missed = node.path("missed").asBoolean(false);
     try {
       int parsed = Integer.parseInt(value);
-      if (parsed > 0) {
+      if (parsed > 0 || (missed && parsed == 0)) {
         return parsed;
       }
     } catch (NumberFormatException ignored) {
       // Report the same actionable validation message for blank and malformed values.
     }
-    throw new IllegalArgumentException(label + " must be greater than 0.");
+    throw new IllegalArgumentException(
+        label
+            + (missed ? " must be 0 or greater for a missed target." : " must be greater than 0."));
   }
 
   private static Float parseRpe(String value) {

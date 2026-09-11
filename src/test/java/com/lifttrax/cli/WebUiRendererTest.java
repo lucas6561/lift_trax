@@ -24,6 +24,34 @@ import org.junit.jupiter.api.Test;
 class WebUiRendererTest {
 
   @Test
+  void executionEditorAndHistoryRetainMissedTarget() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-exec-missed", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      List<ExecutionSet> sets =
+          List.of(
+              new ExecutionSet(new SetMetric.Reps(0), "225 lb", null, true),
+              new ExecutionSet(new SetMetric.Reps(3), "205 lb", 9.0f, true),
+              new ExecutionSet(new SetMetric.Reps(3), "205 lb", 9.0f));
+      db.addLiftExecution(
+          "Back Squat", new LiftExecution(null, LocalDate.of(2026, 9, 8), sets, false, false, ""));
+
+      String html = WebUiRenderer.renderExecutionRows(db, "Back Squat");
+
+      assertTrue(html.contains("class='js-set-missed' disabled checked"));
+      assertTrue(html.contains("&quot;missed&quot;:true"));
+      assertTrue(html.contains("&quot;missed&quot;:false"));
+      assertTrue(html.contains("value='0'"));
+      assertTrue(WebUiRenderer.formatSets(sets).contains("0 reps @ 225 lb — Missed target"));
+      assertTrue(
+          WebUiRenderer.formatSets(sets).contains("3 reps @ 205 lb rpe 9.0 — Missed target"));
+      assertFalse(WebUiRenderer.formatSets(sets).contains("2x"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
   void indexBodyDefaultsToDailyDashboard() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-dashboard-default", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {

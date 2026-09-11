@@ -70,7 +70,8 @@ public final class WorkoutHistoryFormatter {
         continue;
       }
       for (ExecutionSet set : exec.sets()) {
-        if (set.metric() instanceof SetMetric.Reps reps
+        if (!set.missed()
+            && set.metric() instanceof SetMetric.Reps reps
             && reps.reps() == 1
             && set.weight() != null
             && !"none".equalsIgnoreCase(set.weight())) {
@@ -129,7 +130,8 @@ public final class WorkoutHistoryFormatter {
         continue;
       }
       for (ExecutionSet set : exec.sets()) {
-        if (set.metric() instanceof SetMetric.Reps reps
+        if (!set.missed()
+            && set.metric() instanceof SetMetric.Reps reps
             && reps.reps() == 1
             && set.weight() != null
             && !"none".equalsIgnoreCase(set.weight())) {
@@ -156,7 +158,9 @@ public final class WorkoutHistoryFormatter {
         continue;
       }
       for (ExecutionSet set : exec.sets()) {
-        if (!(set.metric() instanceof SetMetric.Reps reps)
+        if (set.missed()
+            || !(set.metric() instanceof SetMetric.Reps reps)
+            || reps.reps() < 1
             || set.weight() == null
             || "none".equalsIgnoreCase(set.weight())) {
           continue;

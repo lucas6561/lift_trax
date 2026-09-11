@@ -362,16 +362,20 @@ public final class WebServerCli {
               .map(LocalDate::parse)
               .orElse(LocalDate.now());
 
-      int setCount = parsePositiveInt(form.getOrDefault("setCount", "1"), "Set count");
-      String weight = form.getOrDefault("weight", "").trim();
-      Float rpe = parseOptionalFloat(form.get("rpe"));
-
-      List<ExecutionSet> sets = parseDetailedSets(form.getOrDefault("detailedSets", "[]"));
+      String detailedSets = form.getOrDefault("detailedSets", "[]").trim();
+      List<ExecutionSet> sets = parseDetailedSets(detailedSets);
       if (sets.isEmpty()) {
+        if (!detailedSets.isBlank() && !detailedSets.matches("\\[\\s*\\]")) {
+          throw new IllegalArgumentException("Detailed sets must contain valid actual values");
+        }
+        int setCount = parsePositiveInt(form.getOrDefault("setCount", "1"), "Set count");
+        String weight = form.getOrDefault("weight", "").trim();
+        Float rpe = parseOptionalFloat(form.get("rpe"));
+        boolean missed = isMissed(form);
         SetMetric metric = parseMetric(form);
         sets = new ArrayList<>();
         for (int i = 0; i < setCount; i++) {
-          sets.add(new ExecutionSet(metric, weight, rpe));
+          sets.add(new ExecutionSet(metric, weight, rpe, missed));
         }
       }
 
@@ -463,6 +467,7 @@ public final class WebServerCli {
       redirectUrl.append("&prefillNotes=").append(WebUiRenderer.urlEncode(safe(last.notes())));
       if (!last.sets().isEmpty()) {
         ExecutionSet first = last.sets().get(0);
+        redirectUrl.append("&prefillMissed=").append(first.missed());
         redirectUrl
             .append("&prefillRpe=")
             .append(
@@ -1071,7 +1076,8 @@ public final class WebServerCli {
         query.getOrDefault("prefillDate", ""),
         Boolean.parseBoolean(query.getOrDefault("prefillWarmup", "false")),
         Boolean.parseBoolean(query.getOrDefault("prefillDeload", "false")),
-        query.getOrDefault("prefillNotes", ""));
+        query.getOrDefault("prefillNotes", ""),
+        Boolean.parseBoolean(query.getOrDefault("prefillMissed", "false")));
   }
 
   private static String buildLoadLastNoPriorRedirect(
@@ -1111,6 +1117,7 @@ public final class WebServerCli {
         .append(WebUiRenderer.urlEncode(query.getOrDefault("metricRight", "5")));
     redirectUrl.append("&prefillWarmup=").append(warmup);
     redirectUrl.append("&prefillDeload=").append(deload);
+    redirectUrl.append("&prefillMissed=").append(isMissed(query));
     redirectUrl
         .append("&prefillNotes=")
         .append(WebUiRenderer.urlEncode(query.getOrDefault("notes", "")));
@@ -1187,7 +1194,11 @@ public final class WebServerCli {
     if (value == null || value.isBlank()) {
       return null;
     }
-    return Float.parseFloat(value.trim());
+    float rpe = Float.parseFloat(value.trim());
+    if (!Float.isFinite(rpe) || rpe < 0 || rpe > 10) {
+      throw new IllegalArgumentException("RPE must be between 0 and 10");
+    }
+    return rpe;
   }
 
   private static int parseBoundedInt(String value, int fallback, int min, int max) {
@@ -1215,18 +1226,39 @@ public final class WebServerCli {
 
   private static SetMetric parseMetric(Map<String, String> form) {
     String metricType = form.getOrDefault("metricType", "reps").trim();
+    boolean missed = isMissed(form);
     return switch (metricType) {
       case "reps-lr" ->
           new SetMetric.RepsLr(
-              parsePositiveInt(form.getOrDefault("metricLeft", ""), "Left reps"),
-              parsePositiveInt(form.getOrDefault("metricRight", ""), "Right reps"));
+              parseActualMetric(form.getOrDefault("metricLeft", ""), "Left reps", missed),
+              parseActualMetric(form.getOrDefault("metricRight", ""), "Right reps", missed));
       case "time" ->
-          new SetMetric.TimeSecs(parsePositiveInt(form.getOrDefault("metricValue", ""), "Seconds"));
+          new SetMetric.TimeSecs(
+              parseActualMetric(form.getOrDefault("metricValue", ""), "Seconds", missed));
       case "distance" ->
           new SetMetric.DistanceFeet(
-              parsePositiveInt(form.getOrDefault("metricValue", ""), "Feet"));
-      default -> new SetMetric.Reps(parsePositiveInt(form.getOrDefault("metricValue", ""), "Reps"));
+              parseActualMetric(form.getOrDefault("metricValue", ""), "Feet", missed));
+      default ->
+          new SetMetric.Reps(
+              parseActualMetric(form.getOrDefault("metricValue", ""), "Reps", missed));
     };
+  }
+
+  private static boolean isMissed(Map<String, String> form) {
+    String value = form.getOrDefault("missed", "false");
+    return "on".equalsIgnoreCase(value) || Boolean.parseBoolean(value);
+  }
+
+  private static int parseActualMetric(String value, String fieldName, boolean missed) {
+    int parsed = Integer.parseInt(value.trim());
+    if (parsed < 0 || (parsed == 0 && !missed)) {
+      throw new IllegalArgumentException(
+          fieldName
+              + (missed
+                  ? " cannot be negative"
+                  : " must be greater than 0 unless marked Missed target"));
+    }
+    return parsed;
   }
 
   private static List<ExecutionSet> parseDetailedSets(String json) {
@@ -1242,10 +1274,11 @@ public final class WebServerCli {
         fields.put("metricValue", node.path("metricValue").asText(""));
         fields.put("metricLeft", node.path("metricLeft").asText(""));
         fields.put("metricRight", node.path("metricRight").asText(""));
+        fields.put("missed", node.path("missed").asText("false"));
         SetMetric metric = parseMetric(fields);
         String weight = node.path("weight").asText("");
         Float rpe = parseOptionalFloat(node.path("rpe").asText(""));
-        result.add(new ExecutionSet(metric, weight, rpe));
+        result.add(new ExecutionSet(metric, weight, rpe, isMissed(fields)));
       }
     } catch (Exception ignored) {
       return List.of();

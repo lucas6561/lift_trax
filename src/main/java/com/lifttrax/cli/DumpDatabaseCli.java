@@ -204,7 +204,7 @@ public final class DumpDatabaseCli {
     String weight =
         set.weight() == null || "none".equalsIgnoreCase(set.weight()) ? "" : " @ " + set.weight();
     String rpe = set.rpe() == null ? "" : " RPE " + set.rpe();
-    return metric + weight + rpe;
+    return metric + weight + rpe + (set.missed() ? " (missed target)" : "");
   }
 
   private static String formatMetric(SetMetric metric) {

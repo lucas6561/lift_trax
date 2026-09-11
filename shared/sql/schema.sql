@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS execution_sets (
     metric_b INTEGER,
     weight TEXT NOT NULL DEFAULT 'none',
     rpe REAL,
+    missed INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY(record_id) REFERENCES lift_records(id) ON DELETE CASCADE
 );
 

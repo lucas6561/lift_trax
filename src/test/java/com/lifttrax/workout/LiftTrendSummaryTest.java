@@ -15,6 +15,27 @@ import org.junit.jupiter.api.Test;
 class LiftTrendSummaryTest {
 
   @Test
+  void missedSetsKeepCompletedVolumeButCannotBecomeBestSet() {
+    LocalDate date = LocalDate.of(2026, 9, 8);
+    LiftExecution execution =
+        new LiftExecution(
+            null,
+            date,
+            List.of(
+                new ExecutionSet(new SetMetric.Reps(1), "225 lb", 8f),
+                new ExecutionSet(new SetMetric.Reps(2), "245 lb", 10f, true),
+                new ExecutionSet(new SetMetric.Reps(0), "275 lb", null, true)),
+            false,
+            false,
+            "");
+    LiftTrendSummary summary = LiftTrendSummary.from(List.of(execution), date);
+    assertEquals(3, summary.recentWorkSets());
+    assertEquals(3, summary.recentRepVolume());
+    assertEquals(715, summary.recentTonnageLbs());
+    assertEquals("225 lb", summary.bestRecentSet().weight());
+  }
+
+  @Test
   void summarizesRecentFrequencyVolumeAndBestWeightedSet() {
     LocalDate today = LocalDate.of(2026, 5, 30);
     LiftExecution oldExecution = execution(1, LocalDate.of(2026, 1, 15), "225 lb", 5, false);

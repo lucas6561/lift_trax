@@ -299,7 +299,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
     String sql =
         """
             SELECT c.name, e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload,
-                e.notes, es.metric_kind, es.metric_a, es.metric_b, es.weight, es.rpe
+                e.notes, es.metric_kind, es.metric_a, es.metric_b, es.weight, es.rpe, es.missed
             FROM executions e
             JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
             LEFT JOIN execution_sets es ON es.execution_id = e.id
@@ -709,7 +709,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
             FROM execution_sets es
             JOIN executions e ON e.id = es.execution_id
             WHERE e.lifter_profile_id = ? AND e.catalog_entry_id = ?
-                AND es.metric_kind = 'reps'
+                AND es.metric_kind = 'reps' AND es.missed = FALSE AND es.metric_a > 0
             """;
     Map<Integer, String> bestByReps = new TreeMap<>();
     Map<Integer, Double> bestWeights = new HashMap<>();
@@ -776,7 +776,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
     try (PreparedStatement statement =
         connection.prepareStatement(
             """
-                SELECT metric_kind, metric_a, metric_b, weight, rpe
+                SELECT metric_kind, metric_a, metric_b, weight, rpe, missed
                 FROM execution_sets
                 WHERE execution_id = ?
                 ORDER BY set_index
@@ -798,7 +798,8 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
     return new ExecutionSet(
         metricFromRow(rs.getString("metric_kind"), rs.getInt("metric_a"), metricB),
         normalizeWeight(rs.getString("weight")),
-        rpe);
+        rpe,
+        rs.getBoolean("missed"));
   }
 
   private void saveExecutionSets(Connection connection, String executionId, List<ExecutionSet> sets)
@@ -811,9 +812,9 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
     String sql =
         """
             INSERT INTO execution_sets (
-                id, execution_id, set_index, metric_kind, metric_a, metric_b, weight, rpe
+                id, execution_id, set_index, metric_kind, metric_a, metric_b, weight, rpe, missed
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       List<ExecutionSet> safeSets = sets == null ? List.of() : sets;
@@ -836,6 +837,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
         } else {
           statement.setFloat(8, set.rpe());
         }
+        statement.setBoolean(9, set.missed());
         statement.addBatch();
       }
       statement.executeBatch();

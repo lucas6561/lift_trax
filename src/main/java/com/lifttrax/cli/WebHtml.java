@@ -225,6 +225,9 @@ final class WebHtml {
                 .session-entry-options { display: grid; gap: 0.45rem; padding-bottom: 0.45rem; }
                 .session-entry-options fieldset { min-width: 0; margin: 0; }
                 .session-entry-meta { align-items: center; }
+                .missed-target-option { display: flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; margin-bottom: 0; cursor: pointer; }
+                .missed-target-option input[type='checkbox'] { flex: 0 0 auto; width: 1.25rem; height: 1.25rem; min-height: 0; margin: 0; }
+                .missed-target-help { display: block; margin: 0 0 0.45rem; color: var(--pico-muted-color); }
                 .save-execution-btn,
                 .save-workout-session-btn { min-height: 2.75rem; }
                 .save-workout-session-btn { position: sticky; bottom: 0.35rem; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
