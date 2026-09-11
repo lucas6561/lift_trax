@@ -40,12 +40,14 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'com.h2database:h2:2.3.232'
+    testImplementation 'com.tngtech.archunit:archunit:1.5.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.0'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
     systemProperty 'java.awt.headless', 'true'
+    systemProperty 'lifttrax.mainClasses', sourceSets.main.output.classesDirs.asPath
     finalizedBy tasks.named('jacocoTestReport')
 
     jacoco {

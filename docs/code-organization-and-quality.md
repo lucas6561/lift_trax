@@ -19,7 +19,33 @@ classes over central classes that accumulate unrelated responsibilities.
 New code should point dependencies toward models and explicit contracts. Domain
 or workout code must not depend on `cli`; models must not depend on `db`,
 `workout`, or `cli`; and HTTP page rendering must not issue SQL directly.
-`LT-0038` will turn the highest-value rules into executable architecture checks.
+`PackageDependencyTest` enforces the highest-value rules through
+[ArchUnit](https://www.archunit.org/userguide/html/000_Index.html) bytecode checks
+as part of the normal JUnit suite and `qualityGate`:
+
+- Models cannot depend on delivery, persistence, workouts, configuration, SQL,
+  or the embedded HTTP server.
+- Workout code cannot depend on the CLI/web layer, HTTP server, or SQL. Its
+  dependencies into `db` are limited to `Database` and `TrainingDataStore`.
+- Program schema classes and planned-workout file, JSON, and version contracts
+  cannot depend on persistence, including datastore interfaces.
+- Persistence cannot depend on delivery, workout logic, or the HTTP server.
+- HTML renderers cannot use JDBC or concrete SQL driver APIs.
+- Configuration cannot depend on application models or product layers.
+
+The checks inspect Gradle's production class directories explicitly because
+this build also compiles main sources into test output. Empty scans fail.
+Violations report the rule, offending classes, and dependency locations.
+Run just these checks with
+`./gradlew.bat test --tests com.lifttrax.architecture.PackageDependencyTest`.
+
+There are no suppressed violations of these rules. Current boundaries still
+allow renderers to read history through `Database`, account rendering to use
+`AccountProfile`, and CLI startup to construct concrete datastores. The legacy
+Swing selectors/editors still live in `workout`; moving desktop presentation
+out of that package is deferred, so this first rule set forbids HTTP delivery
+dependencies there but does not forbid Swing. No broad package relocation is
+required for these checks.
 
 ## Test expectations
 
@@ -36,6 +62,9 @@ or workout code must not depend on `cli`; models must not depend on `db`,
   when JavaScript interaction or responsive layout is materially changed.
 - Schema changes need valid and invalid fixtures, version-dispatch tests, and
   confirmation that the latest alias matches the newest numbered schema.
+- Generated workout changes must also pass `GoldenWorkoutOutputTest`; its
+  reviewed conjugate/hypertrophy outputs and intentional-update workflow live
+  in `src/test/resources/golden/workouts/README.md`.
 
 Tests should assert behavior rather than implementation trivia. Production code
 is subject to the repository-wide 90% instruction-coverage gate; new code is
