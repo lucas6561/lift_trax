@@ -3,14 +3,14 @@ package com.lifttrax.workout;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Builds warm-ups from the actual working weight and repetitions, without a max estimate. */
+/** Implements the v2.0 templates using percentages of the planned working weight, never 1RM. */
 public final class WorkingSetWarmups {
   private WorkingSetWarmups() {}
 
-  public record Stage(int percent, int reps) {}
+  public record Stage(double percent, int reps) {}
 
-  /** A zero percent identifies the optional light entry set. */
-  public record WarmupSet(double load, int reps, int percent) {}
+  /** Percent is the template target, before practical load selection. */
+  public record WarmupSet(double load, int reps, double percent) {}
 
   public record Result(List<WarmupSet> sets, boolean finalGapSatisfied) {
     public Result {
@@ -24,25 +24,36 @@ public final class WorkingSetWarmups {
     }
     if (workingReps == 1) {
       return List.of(
-          new Stage(35, 5), new Stage(50, 3), new Stage(65, 2), new Stage(80, 1), new Stage(90, 1));
+          new Stage(35, 5), new Stage(55, 3), new Stage(70, 2), new Stage(82, 1), new Stage(92, 1));
     }
     if (workingReps <= 3) {
-      return List.of(new Stage(40, 5), new Stage(55, 3), new Stage(70, 2), new Stage(85, 1));
+      return List.of(
+          new Stage(35, 5),
+          new Stage(55, 3),
+          new Stage(70, 2),
+          new Stage(workingReps == 2 ? 87 : 85, workingReps == 2 ? 1 : 2));
     }
     if (workingReps <= 6) {
-      return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(75, 2), new Stage(85, 1));
+      return List.of(
+          new Stage(35, 5),
+          new Stage(55, 4),
+          new Stage(70, 3),
+          new Stage(80, (workingReps + 1) / 2));
     }
     if (workingReps <= 10) {
-      return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(75, 1));
+      return List.of(new Stage(35, 6), new Stage(55, 5), new Stage(75, (workingReps + 1) / 2));
     }
     if (workingReps <= 15) {
-      return List.of(new Stage(40, 5), new Stage(60, 2));
+      return List.of(new Stage(35, 8), new Stage(55, 6), new Stage(70, 5));
     }
-    return List.of(new Stage(35, 5), new Stage(50, 2));
+    if (workingReps <= 20) {
+      return List.of(new Stage(30, 8), new Stage(50, 6), new Stage(65, 5));
+    }
+    return List.of(new Stage(27.5, 10), new Stage(47.5, 6), new Stage(60, 5));
   }
 
   public static Result generate(double workingWeight, int workingReps) {
-    return generate(workingWeight, workingReps, 5, 0, false);
+    return generate(workingWeight, workingReps, WarmupLoading.fixedIncrement(5, 0), false);
   }
 
   public static Result generate(
@@ -51,137 +62,81 @@ public final class WorkingSetWarmups {
       double loadIncrement,
       double minimumLoad,
       boolean alreadyWarm) {
-    validateLoads(workingWeight, loadIncrement, minimumLoad);
+    return generate(
+        workingWeight,
+        workingReps,
+        WarmupLoading.fixedIncrement(loadIncrement, minimumLoad),
+        alreadyWarm);
+  }
+
+  public static Result generate(
+      double workingWeight, int workingReps, WarmupLoading loading, boolean alreadyWarm) {
+    if (!Double.isFinite(workingWeight) || workingWeight <= 0) {
+      throw new IllegalArgumentException("Working weight must be finite and positive.");
+    }
     List<Stage> stages = template(workingReps);
-    double practicalMinimum = Math.ceil(minimumLoad / loadIncrement) * loadIncrement;
     List<WarmupSet> sets = new ArrayList<>();
-    for (Stage stage : stages) {
-      double load =
-          Math.max(
-              practicalMinimum,
-              roundToIncrement(workingWeight * (stage.percent() / 100.0), loadIncrement));
-      if (isSafeWarmup(load, workingWeight)) {
-        appendOrMerge(sets, new WarmupSet(load, stage.reps(), stage.percent()));
+    WarmupLoading.Candidate previous = WarmupLoading.Candidate.empty();
+    double minimumFinalLoad = workingWeight * minimumFinalFraction(workingReps);
+    for (int index = 0; index < stages.size(); index++) {
+      Stage stage = stages.get(index);
+      boolean finalStage = index == stages.size() - 1;
+      WarmupLoading.Candidate chosen =
+          loading.choose(
+              workingWeight, stage.percent(), finalStage ? minimumFinalLoad : 0, previous);
+      if (chosen != null) {
+        // Keep the later stage's reps, including multi-rep bridges when loads collapse.
+        while (!sets.isEmpty() && sets.get(sets.size() - 1).load() >= chosen.load()) {
+          sets.remove(sets.size() - 1);
+        }
+        sets.add(new WarmupSet(chosen.load(), stage.reps(), stage.percent()));
+        previous = chosen;
       }
     }
-
-    double minimumFinalLoad = workingWeight * minimumFinalFraction(workingReps);
-    repairFinalBridge(
-        sets,
-        stages.get(stages.size() - 1),
-        workingWeight,
-        loadIncrement,
-        practicalMinimum,
-        minimumFinalLoad);
-    pruneSmallSteps(sets, loadIncrement);
+    pruneSmallSteps(sets, workingWeight);
     if (alreadyWarm) {
       int removed = 0;
-      while (removed < 2 && sets.size() > 2 && sets.get(0).load() < workingWeight * 0.60) {
+      while (removed < 2 && sets.size() > 2 && sets.get(0).percent() <= 60) {
         sets.remove(0);
         removed++;
       }
     }
-    // Recheck the actual final load after rounding, merging, repair, and shortening.
-    boolean finalGapSatisfied =
-        !sets.isEmpty() && sets.get(sets.size() - 1).load() >= minimumFinalLoad;
-    if (!alreadyWarm
-        && practicalMinimum > 0
-        && !sets.isEmpty()
-        && practicalMinimum <= sets.get(0).load() / 2) {
-      sets.add(0, new WarmupSet(practicalMinimum, 8, 0));
-    }
-    return new Result(sets, finalGapSatisfied);
+    boolean satisfied =
+        !sets.isEmpty() && sets.get(sets.size() - 1).load() + 1e-9 >= minimumFinalLoad;
+    return new Result(sets, satisfied);
   }
 
-  private static void validateLoads(
-      double workingWeight, double loadIncrement, double minimumLoad) {
-    if (!Double.isFinite(workingWeight) || workingWeight <= 0) {
-      throw new IllegalArgumentException("Working weight must be finite and positive.");
-    }
-    if (!Double.isFinite(loadIncrement) || loadIncrement <= 0) {
-      throw new IllegalArgumentException("Load increment must be finite and positive.");
-    }
-    if (!Double.isFinite(minimumLoad) || minimumLoad < 0) {
-      throw new IllegalArgumentException("Minimum load must be finite and nonnegative.");
-    }
-  }
-
-  private static double roundToIncrement(double load, double increment) {
-    return Math.round(load / increment) * increment;
-  }
-
-  private static boolean isSafeWarmup(double load, double workingWeight) {
-    return Double.isFinite(load)
-        && load > 0
-        && load < workingWeight
-        && load <= workingWeight * 0.95;
-  }
-
-  private static void appendOrMerge(List<WarmupSet> sets, WarmupSet next) {
-    if (!sets.isEmpty() && sets.get(sets.size() - 1).load() == next.load()) {
-      WarmupSet previous = sets.get(sets.size() - 1);
-      sets.set(
-          sets.size() - 1,
-          new WarmupSet(next.load(), Math.min(previous.reps(), next.reps()), next.percent()));
-    } else {
-      sets.add(next);
-    }
-  }
-
-  private static void repairFinalBridge(
-      List<WarmupSet> sets,
-      Stage finalStage,
-      double workingWeight,
-      double increment,
-      double practicalMinimum,
-      double minimumFinalLoad) {
-    if (!sets.isEmpty() && sets.get(sets.size() - 1).load() >= minimumFinalLoad) {
-      int finalIndex = sets.size() - 1;
-      WarmupSet retained = sets.get(finalIndex);
-      sets.set(
-          finalIndex,
-          new WarmupSet(
-              retained.load(), Math.min(retained.reps(), finalStage.reps()), retained.percent()));
-      return;
-    }
-    double maximumLoad = Math.floor(workingWeight * 0.95 / increment) * increment;
-    double nominalLoad =
-        roundToIncrement(workingWeight * (finalStage.percent() / 100.0), increment);
-    double requiredLoad = Math.ceil(minimumFinalLoad / increment) * increment;
-    double bridgeLoad =
-        Math.max(practicalMinimum, Math.max(requiredLoad, Math.min(nominalLoad, maximumLoad)));
-    if (isSafeWarmup(bridgeLoad, workingWeight) && bridgeLoad >= minimumFinalLoad) {
-      appendOrMerge(sets, new WarmupSet(bridgeLoad, finalStage.reps(), finalStage.percent()));
-    }
-  }
-
-  private static void pruneSmallSteps(List<WarmupSet> sets, double increment) {
-    int index = 1;
-    while (sets.size() > 2 && index < sets.size() - 1) {
-      if (sets.get(index).load() - sets.get(index - 1).load() < 2 * increment) {
-        sets.remove(index);
-      } else {
-        index++;
+  private static void pruneSmallSteps(List<WarmupSet> sets, double workingWeight) {
+    int index = sets.size() - 1;
+    while (index > 0) {
+      double jump = sets.get(index).load() - sets.get(index - 1).load();
+      if (jump < 10 && jump < workingWeight * 0.05 && sets.size() > 2) {
+        // The final bridge always wins; two remaining exposures are useful even if close.
+        sets.remove(index - 1);
       }
+      index--;
     }
   }
 
-  private static double minimumFinalFraction(int workingReps) {
-    if (workingReps == 1) {
-      return 0.88;
+  private static double minimumFinalFraction(int reps) {
+    if (reps == 1) {
+      return 0.90;
     }
-    if (workingReps <= 3) {
+    if (reps == 2) {
+      return 0.84;
+    }
+    if (reps == 3) {
       return 0.82;
     }
-    if (workingReps <= 6) {
-      return 0.72;
+    if (reps <= 6) {
+      return 0.77;
     }
-    if (workingReps <= 10) {
+    if (reps <= 10) {
+      return 0.70;
+    }
+    if (reps <= 15) {
       return 0.65;
     }
-    if (workingReps <= 15) {
-      return 0.50;
-    }
-    return 0.40;
+    return reps <= 20 ? 0.58 : 0.52;
   }
 }

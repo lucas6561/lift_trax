@@ -40,10 +40,10 @@ class PlannedWorkoutWarmupsTest {
     assertEquals(
         List.of(
             "35% of working weight",
-            "50% of working weight",
-            "65% of working weight",
-            "80% of working weight",
-            "90% of working weight"),
+            "55% of working weight",
+            "70% of working weight",
+            "82% of working weight",
+            "92% of working weight"),
         plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::load).toList());
     assertEquals(
         List.of("5", "3", "2", "1", "1"),
@@ -74,11 +74,11 @@ class PlannedWorkoutWarmupsTest {
                       exercise("Bench Press", "BENCH_PRESS", List.of(target)))));
       assertEquals(
           List.of(
-              "40% of working weight",
-              "60% of working weight", "75% of working weight", "85% of working weight"),
+              "35% of working weight",
+              "55% of working weight", "70% of working weight", "80% of working weight"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::load).toList());
       assertEquals(
-          List.of("5", "3", "2", "1"),
+          List.of("5", "4", "3", "3"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::reps).toList());
     }
   }
@@ -96,10 +96,10 @@ class PlannedWorkoutWarmupsTest {
 
       assertEquals("205 lb", plan.workingWeight());
       assertEquals(
-          List.of("80 lb", "125 lb"),
+          List.of("65 lb", "115 lb", "145 lb"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::suggestedWeight).toList());
       assertEquals(
-          List.of("5", "2"),
+          List.of("8", "6", "5"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::reps).toList());
     }
   }
@@ -121,7 +121,7 @@ class PlannedWorkoutWarmupsTest {
       assertEquals("290 lb", history.suggestedWeight(exercise.name(), target));
       assertEquals("290 lb", plan.workingWeight());
       assertEquals(
-          List.of("115 lb", "175 lb", "220 lb", "245 lb"),
+          List.of("95 lb", "145 lb", "205 lb", "235 lb"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::suggestedWeight).toList());
     }
   }
@@ -142,7 +142,7 @@ class PlannedWorkoutWarmupsTest {
       assertEquals(exercise.name(), plan.reference());
       assertEquals("200 lb", plan.workingWeight());
       assertEquals(
-          List.of("80 lb", "110 lb", "140 lb", "170 lb"),
+          List.of("70 lb", "110 lb", "140 lb", "170 lb"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::suggestedWeight).toList());
     }
   }
@@ -166,7 +166,7 @@ class PlannedWorkoutWarmupsTest {
       PlannedWorkoutWarmups.WarmupSet last = plan.sets().get(plan.sets().size() - 1);
       assertEquals("75 lb", last.suggestedWeight());
       assertEquals("1", last.reps());
-      assertEquals("Final bridge (adjusted from 90% of working weight)", last.load());
+      assertEquals("Target 92% of working weight (practical load)", last.load());
       assertTrue(plan.loadWarning().isBlank());
     }
   }
@@ -265,7 +265,7 @@ class PlannedWorkoutWarmupsTest {
     assertTrue(plans.containsKey("1:0"));
     assertTrue(plans.containsKey("3:0"));
     assertEquals(
-        List.of("5", "3", "1"),
+        List.of("6", "5", "4"),
         plans.get("3:0").sets().stream().map(PlannedWorkoutWarmups.WarmupSet::reps).toList());
   }
 
@@ -362,8 +362,107 @@ class PlannedWorkoutWarmupsTest {
 
     assertEquals(1, plans.size());
     assertEquals(
-        List.of("35% of working weight", "50% of working weight"),
+        List.of("30% of working weight", "50% of working weight", "65% of working weight"),
         plans.get("2:0").sets().stream().map(PlannedWorkoutWarmups.WarmupSet::load).toList());
+  }
+
+  @Test
+  void equipmentAssumptionsReachTheDisplayedRamp() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-warmup-equipment", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      for (String name :
+          List.of(
+              "Bench Press",
+              "Barbell Row",
+              "Dumbbell Bench Press",
+              "Cable Row",
+              "Machine Press",
+              "Unspecified Press")) {
+        addOneRepMax(db, name, LiftType.BENCH_PRESS, 250);
+        var day =
+            day(
+                block(
+                    1,
+                    "Main",
+                    "main",
+                    false,
+                    exercise(name, "BENCH_PRESS", List.of(target(5, 100, null)))));
+        var plan =
+            PlannedWorkoutWarmups.forDay(day, PlannedWorkoutHistory.load(db, day)).get("1:0");
+        boolean barbell = name.equals("Bench Press") || name.equals("Barbell Row");
+        assertEquals(barbell ? "95 lb" : "90 lb", plan.sets().get(0).suggestedWeight());
+        assertTrue(plan.loadingNote().contains(barbell ? "45 lb bar" : "5 lb increments"));
+        assertTrue(plan.sets().get(0).load().startsWith("Target 35% of working weight"));
+        assertFalse(plan.sets().get(0).load().contains("Final bridge"));
+        assertEquals("3", plan.sets().get(plan.sets().size() - 1).reps());
+      }
+    }
+  }
+
+  @Test
+  void relatedVariationShortensOnlyAfterAnImmediatelyPrecedingKnownLoad() throws Exception {
+    var deadlift = exercise("Conventional Deadlift", "DEADLIFT", List.of(target(1, 100, null)));
+    var paused =
+        exercise(
+            "Paused Deadlift",
+            "DEADLIFT",
+            List.of(referencedTarget(5, 80, "Conventional Deadlift")));
+    var main = block(1, "Main", "main", false, deadlift);
+    var variation = block(3, "Variation", "supplemental", false, paused);
+    var adjacent = day(main, variation);
+    Path dbPath = Files.createTempFile("lifttrax-warmup-related", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      addOneRepMax(db, "Conventional Deadlift", LiftType.DEADLIFT, 405);
+      var warm =
+          PlannedWorkoutWarmups.forDay(adjacent, PlannedWorkoutHistory.load(db, adjacent))
+              .get("3:0");
+      var standalone = day(variation);
+      var full =
+          PlannedWorkoutWarmups.forDay(standalone, PlannedWorkoutHistory.load(db, standalone))
+              .get("3:0");
+      assertEquals(2, warm.sets().size());
+      assertEquals(full.sets().get(3), warm.sets().get(1));
+      assertTrue(warm.intent().contains("shortened"));
+      assertEquals(
+          4,
+          PlannedWorkoutWarmups.forDay(adjacent, PlannedWorkoutHistory.load(null, adjacent))
+              .get("3:0")
+              .sets()
+              .size());
+      for (var interruption :
+          List.of(
+              block(
+                  2,
+                  "Other",
+                  "main",
+                  false,
+                  exercise("Bench Press", "BENCH_PRESS", List.of(target(5, 80, null)))),
+              block(2, "Circuit", "circuit", false, deadlift),
+              block(2, "Preparation", "warmup", true, deadlift))) {
+        var interrupted = day(main, interruption, variation);
+        var plan =
+            PlannedWorkoutWarmups.forDay(interrupted, PlannedWorkoutHistory.load(db, interrupted))
+                .get("3:0");
+        assertEquals(4, plan.sets().size());
+        assertFalse(plan.intent().contains("shortened"));
+      }
+    }
+  }
+
+  @Test
+  void highestRepTemplateDisplaysFractionalPercentagesOfWorkingWeight() {
+    var plan =
+        planFor(
+            day(
+                block(
+                    1,
+                    "Main",
+                    "main",
+                    false,
+                    exercise("Bench Press", "BENCH_PRESS", List.of(target(21, null, null))))));
+    assertEquals(
+        List.of("27.5% of working weight", "47.5% of working weight", "60% of working weight"),
+        plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::load).toList());
   }
 
   private static PlannedWorkoutWarmups.WarmupPlan planFor(

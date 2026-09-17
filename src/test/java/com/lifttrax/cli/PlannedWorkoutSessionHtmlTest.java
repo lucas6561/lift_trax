@@ -1,5 +1,6 @@
 package com.lifttrax.cli;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,13 +12,79 @@ import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutJson;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PlannedWorkoutSessionHtmlTest {
+
+  @Test
+  void workAlongHttpRouteDisplaysTheV2SingleBridge() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-warmup-http", ".db");
+    WebAuth auth = WebAuth.localDevelopment(Clock.systemUTC(), false);
+    try (SqliteDb db = new SqliteDb(dbPath.toString());
+        WebServerCli.RunningServer server = WebServerCli.start(0, db, auth)) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+      db.addLiftExecution(
+          "Back Squat",
+          new LiftExecution(
+              null,
+              LocalDate.parse("2026-05-30"),
+              List.of(new ExecutionSet(new SetMetric.Reps(1), "395 lb", null)),
+              false,
+              false,
+              ""));
+      HttpURLConnection request =
+          (HttpURLConnection)
+              URI.create("http://127.0.0.1:" + server.port() + "/planned-workout-session")
+                  .toURL()
+                  .openConnection();
+      try {
+        request.setConnectTimeout(5000);
+        request.setReadTimeout(5000);
+        request.setRequestMethod("POST");
+        request.setDoOutput(true);
+        request.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        request.setRequestProperty(
+            "Cookie",
+            WebAuth.SESSION_COOKIE_NAME
+                + "="
+                + auth.sessionCookieValueForTest(
+                    new WebAuth.User("local-user", "warmup@example.test"), Duration.ofMinutes(5)));
+        String body =
+            "weekNumber=1&dayOfWeek=MONDAY&plannedWorkoutJson="
+                + URLEncoder.encode(
+                    PlannedWorkoutJson.writeString(warmupWorkoutFile(1, 100, null)),
+                    StandardCharsets.UTF_8);
+        try (var output = request.getOutputStream()) {
+          output.write(body.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, request.getResponseCode());
+        String html;
+        try (var input = request.getInputStream()) {
+          html = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(html.contains("Planned working weight: <strong>395 lb</strong>"));
+        assertTrue(html.contains("Target 92% of working weight (practical load) &times; 1"));
+        assertTrue(html.contains("&mdash; 365 lb"));
+        assertTrue(html.contains("Assumes a 45 lb bar"));
+        assertFalse(html.contains("session-warmup-load-warning"));
+      } finally {
+        request.disconnect();
+      }
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
 
   @Test
   void sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps() {
@@ -318,18 +385,18 @@ class PlannedWorkoutSessionHtmlTest {
       assertTrue(html.contains("Target: 5 reps @ 80%"));
       assertTrue(html.contains("Suggested: 295 lb"));
       assertTrue(html.contains("class='session-warmup' aria-label='Warm-up ramp'"));
-      assertTrue(html.contains("40% of working weight &times; 5"));
-      assertTrue(html.contains("&mdash; 120 lb"));
-      assertTrue(html.contains("60% of working weight &times; 3"));
-      assertTrue(html.contains("&mdash; 175 lb"));
-      assertTrue(html.contains("75% of working weight &times; 2"));
-      assertTrue(html.contains("&mdash; 220 lb"));
-      assertTrue(html.contains("85% of working weight &times; 1"));
-      assertTrue(html.contains("&mdash; 250 lb"));
+      assertTrue(html.contains("35% of working weight"));
+      assertTrue(html.contains("&mdash; 95 lb"));
+      assertTrue(html.contains("55% of working weight"));
+      assertTrue(html.contains("&mdash; 165 lb"));
+      assertTrue(html.contains("70% of working weight"));
+      assertTrue(html.contains("&mdash; 205 lb"));
+      assertTrue(html.contains("80% of working weight"));
+      assertTrue(html.contains("&mdash; 235 lb"));
       assertTrue(html.contains("All percentages are of the planned working weight."));
       assertTrue(html.contains("Planned working weight: <strong>295 lb</strong>"));
-      assertTrue(html.contains("Warm-up loads use nearest 5 lb rounding"));
-      assertTrue(html.contains("the final bridge may be adjusted to keep the last jump small"));
+      assertTrue(html.contains("Assumes a 45 lb bar"));
+      assertTrue(html.contains("later loads prioritize the bridge target"));
       assertFalse(html.contains("A working weight could not be calculated"));
       assertTrue(html.contains("class='js-weight-hidden' value='295 lb'"));
       assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='295'"));
@@ -352,13 +419,13 @@ class PlannedWorkoutSessionHtmlTest {
             List.of(lift("Back Squat", LiftType.SQUAT)),
             LocalDate.parse("2026-05-31"));
 
-    assertTrue(html.contains("40% of working weight &times; 5"));
+    assertTrue(html.contains("35% of working weight"));
     assertTrue(html.contains("A working weight could not be calculated"));
     assertTrue(html.contains("Apply these percentages to the working weight you choose"));
     assertTrue(
         html.contains("check that each step increases while staying below the working weight"));
     assertFalse(html.contains("Planned working weight: <strong>"));
-    assertFalse(html.contains("Warm-up loads use nearest 5 lb rounding"));
+    assertFalse(html.contains("Assumes a 45 lb bar"));
     assertTrue(html.contains("RPE 6-6.5 or lower"));
     assertTrue(html.contains("technique deteriorates, you feel pain"));
     assertTrue(html.contains("effort reaches RPE 7 or higher"));
@@ -371,12 +438,12 @@ class PlannedWorkoutSessionHtmlTest {
     int[] reps = {1, 3, 6, 10, 15, 16};
     List<String> expectedRest =
         List.of(
-            "Rest 60-120 seconds between early warm-ups and 2.5-4 minutes before the work set.",
-            "Rest 60-120 seconds between early warm-ups and 2-3 minutes before the work set.",
-            "Rest 60-90 seconds between early warm-ups and 90-150 seconds before the work set.",
-            "Rest 45-90 seconds between early warm-ups and 60-120 seconds before the work set.",
-            "Rest 45-75 seconds between early warm-ups and 60-90 seconds before the work set.",
-            "Rest 45-75 seconds between early warm-ups and 60-90 seconds before the work set.");
+            "Rest 2-4 minutes after the final bridge before the work set.",
+            "Rest 2-4 minutes after the final bridge before the work set.",
+            "Rest 1.5-3 minutes after the final bridge before the work set.",
+            "Rest 1.5-3 minutes after the final bridge before the work set.",
+            "Before high-rep work, rest until ready without cooling down.",
+            "Before high-rep work, rest until ready without cooling down.");
 
     for (int i = 0; i < reps.length; i++) {
       String html =
@@ -419,14 +486,9 @@ class PlannedWorkoutSessionHtmlTest {
         assertTrue(html.contains("class='session-warmup-load-warning'"));
         assertTrue(html.contains("cannot meet the final warm-up gap"));
         assertFalse(html.contains("A working weight could not be calculated"));
-        if (pounds == 20) {
-          assertTrue(html.contains("&mdash; 15 lb"));
-          assertFalse(html.contains("No loaded warm-up sets fit"));
-        } else {
-          assertTrue(html.contains("No loaded warm-up sets fit below this working weight."));
-          assertFalse(html.contains("<ol></ol>"));
-          assertFalse(html.contains("<strong class='session-warmup-weight'>"));
-        }
+        assertTrue(html.contains("No loaded warm-up sets fit below this working weight."));
+        assertFalse(html.contains("<ol></ol>"));
+        assertFalse(html.contains("<strong class='session-warmup-weight'>"));
       }
     }
   }

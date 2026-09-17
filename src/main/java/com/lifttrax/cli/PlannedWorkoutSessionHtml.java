@@ -586,8 +586,9 @@ final class PlannedWorkoutSessionHtml {
     if (!warmup.workingWeight().isBlank()) {
       html.append("<p class='muted'>Planned working weight: <strong>")
           .append(WebHtml.escapeHtml(warmup.workingWeight()))
-          .append(
-              "</strong>. Warm-up loads use nearest 5 lb rounding; the final bridge may be adjusted to keep the last jump small.</p>");
+          .append("</strong>. ")
+          .append(WebHtml.escapeHtml(warmup.loadingNote()))
+          .append("</p>");
     }
     if (warmup.sets().isEmpty()) {
       html.append("<p class='muted'>No loaded warm-up sets fit below this working weight.</p>");
@@ -631,19 +632,15 @@ final class PlannedWorkoutSessionHtml {
   }
 
   private static String warmupRest(int workingReps) {
-    if (workingReps == 1) {
-      return "Rest 60-120 seconds between early warm-ups and 2.5-4 minutes before the work set.";
-    }
+    String early =
+        "Rest 45-90 seconds after early warm-ups and 60-120 seconds after middle stages. ";
     if (workingReps <= 3) {
-      return "Rest 60-120 seconds between early warm-ups and 2-3 minutes before the work set.";
-    }
-    if (workingReps <= 6) {
-      return "Rest 60-90 seconds between early warm-ups and 90-150 seconds before the work set.";
+      return early + "Rest 2-4 minutes after the final bridge before the work set.";
     }
     if (workingReps <= 10) {
-      return "Rest 45-90 seconds between early warm-ups and 60-120 seconds before the work set.";
+      return early + "Rest 1.5-3 minutes after the final bridge before the work set.";
     }
-    return "Rest 45-75 seconds between early warm-ups and 60-90 seconds before the work set.";
+    return early + "Before high-rep work, rest until ready without cooling down.";
   }
 
   private static WebUiRenderer.AddExecutionPrefill prefill(
