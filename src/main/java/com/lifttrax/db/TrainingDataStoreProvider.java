@@ -23,6 +23,10 @@ public interface TrainingDataStoreProvider extends AutoCloseable {
     throw new UnsupportedOperationException("Account usernames require hosted Postgres.");
   }
 
+  default AccountProfile createLocalAccount(String username, String email) throws Exception {
+    throw new UnsupportedOperationException("Local accounts require Postgres.");
+  }
+
   @Override
   default void close() throws Exception {}
 

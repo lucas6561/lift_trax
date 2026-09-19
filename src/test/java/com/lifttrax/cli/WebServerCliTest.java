@@ -467,7 +467,7 @@ class WebServerCliTest {
   }
 
   @Test
-  void localDevelopmentLoginPrefillsConfiguredEmail() throws Exception {
+  void localDevelopmentLoginDoesNotReuseTheOperatorsEmailForOtherUsers() throws Exception {
     String property = "lifttrax.auth.localEmail";
     String previous = System.getProperty(property);
     System.setProperty(property, "local+configured@example.test");
@@ -478,8 +478,9 @@ class WebServerCliTest {
       auth.handleLogin(exchange);
 
       assertEquals(200, exchange.status());
-      assertTrue(
-          exchange.responseBody().contains("name='email' value='local+configured@example.test'"));
+      assertFalse(exchange.responseBody().contains("name='email'"));
+      assertFalse(exchange.responseBody().contains("local+configured@example.test"));
+      assertTrue(exchange.responseBody().contains("href='/auth/local-register'"));
     } finally {
       if (previous == null) {
         System.clearProperty(property);

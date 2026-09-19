@@ -17,6 +17,8 @@ routes:
 - `/auth/login`: starts sign-in;
 - `/auth/dev-login`: creates a local-development session when auth mode is
   `local`;
+- `/auth/local-register`: creates a new local account with a unique username;
+  unavailable in Supabase mode;
 - `/auth/callback`: receives the Supabase PKCE callback in hosted mode;
 - `/auth/logout`: clears the LiftTrax session cookie.
 - `/account`: lets the signed-in user choose a memorable LiftTrax username.
@@ -46,22 +48,43 @@ redirects back to sign-in.
 
 ## Local development mode
 
-Local development mode is the default so the app can still run offline:
+Local development mode is the default. It uses the configured Postgres database:
 
 ```text
 lifttrax.auth.mode=local
 ```
 
-The local sign-in page asks for a username or account ID and optional email,
+The local sign-in page asks for a username or account ID,
 then creates a signed LiftTrax session. The account field defaults to the same
 machine-local `lifttrax.cli.userId` / `LIFTTRAX_CLI_USER_ID` setting used by
-operator commands. The email can be pre-filled with the machine-local
-`lifttrax.auth.localEmail` / `LIFTTRAX_AUTH_LOCAL_EMAIL` setting. A username is
+operator commands. Signing in does not change the account's saved email. The old
+`lifttrax.auth.localEmail` / `LIFTTRAX_AUTH_LOCAL_EMAIL` setting is no longer used.
+A username is
 resolved to the existing immutable auth ID
 before the session is signed, so signing out and back in cannot create a second
 empty identity merely because the friendly username was entered. Local mode
 does not store passwords and must not be used as a hosted authentication
 mechanism.
+
+Choose **Create a local account** to register a new username and optional email.
+Registration assigns a new immutable local identity and creates its account and
+default lifter profile in one transaction. Duplicate or invalid usernames fail
+without creating a partial account or signing into another user's account.
+Unknown usernames on the sign-in form still fail; sign-in never creates accounts.
+New accounts start with an empty lift list and history.
+
+Separate devices or browser profiles can sign in concurrently. Tabs in one
+browser profile share the session cookie. All authenticated POST forms carry an
+account scope; after switching users, an old form is rejected with HTTP 409 before
+it reaches a data handler, even if its CSRF token remains valid. Reopen the page
+under the original account to continue. Work Along keeps its draft when a save
+is rejected, and Resume restores it after signing back in.
+
+Add Execution drafts and dashboard filters use storage keys scoped to the
+immutable account identity. Old unscoped Add Execution drafts are not restored
+automatically because their owner cannot be identified. Existing account-scoped
+Work Along drafts retain their keys. Request identity and CSRF attributes are
+private to each HTTP exchange, including simultaneous requests to the same route.
 
 ## Supabase mode
 

@@ -26,6 +26,45 @@ import org.junit.jupiter.api.Test;
 class HostedPostgresTrainingDataStoreTest {
 
   @Test
+  void localAccountCreationIsAtomicAndDoesNotClaimAnExistingIdentity() throws Exception {
+    var config =
+        new HostedPostgresConfig(
+            "jdbc:h2:mem:local_accounts_"
+                + java.util.UUID.randomUUID()
+                + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+            "",
+            "");
+    var provider = new HostedPostgresTrainingDataStoreProvider(config);
+    var account = provider.createLocalAccount("  New_User  ", "new@example.test");
+    assertEquals("new_user", account.username());
+    assertTrue(account.authUserId().startsWith("local-"));
+    assertEquals(account.authUserId(), provider.resolveAuthUserId("NEW_USER"));
+    assertTrue(provider.forUserIdentifier("new_user").listLifts().isEmpty());
+    assertEquals(account, provider.accountFor(account.authUserId(), ""));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> provider.createLocalAccount("new_USER", "wrong@example.test"));
+    assertThrows(IllegalArgumentException.class, () -> provider.createLocalAccount("bad name", ""));
+    provider.forUser("legacy-user");
+    assertThrows(
+        IllegalArgumentException.class, () -> provider.createLocalAccount("legacy-user", ""));
+    assertEquals("legacy-user", provider.resolveAuthUserId("legacy-user"));
+    assertEquals("new@example.test", provider.accountFor(account.authUserId(), "").email());
+    // Failed registration must not leave an unnamed account or a stray default profile.
+    try (Connection connection = DriverManager.getConnection(config.jdbcUrl());
+        Statement statement = connection.createStatement()) {
+      try (var rows = statement.executeQuery("SELECT COUNT(*) FROM app_users")) {
+        assertTrue(rows.next());
+        assertEquals(2, rows.getInt(1));
+      }
+      try (var rows = statement.executeQuery("SELECT COUNT(*) FROM lifter_profiles")) {
+        assertTrue(rows.next());
+        assertEquals(2, rows.getInt(1));
+      }
+    }
+  }
+
+  @Test
   void persistsMissesAcrossReadsAndEditsWithoutCountingThemAsBestLifts() throws Exception {
     TrainingDataStore store = provider().forUser("missed-target-user");
     store.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");

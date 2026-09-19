@@ -6,12 +6,8 @@ import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutHistory;
 import com.lifttrax.workout.PlannedWorkoutJson;
 import com.lifttrax.workout.PlannedWorkoutText;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.HashMap;
-import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -185,6 +181,7 @@ final class PlannedWorkoutSessionHtml {
                 return;
               }
               const params = new URLSearchParams();
+              params.set('accountScope', document.querySelector('main[data-account-scope]').dataset.accountScope);
               params.set('plannedWorkoutJson', draft.plannedWorkoutJson);
               params.set('weekNumber', String(draft.weekNumber));
               params.set('dayOfWeek', String(draft.dayOfWeek));
@@ -417,14 +414,7 @@ final class PlannedWorkoutSessionHtml {
   }
 
   static String draftPrefix(String ownerUserId) {
-    try {
-      byte[] digest =
-          MessageDigest.getInstance("SHA-256")
-              .digest(String.valueOf(ownerUserId).getBytes(StandardCharsets.UTF_8));
-      return "lifttrax:planned-session:" + HexFormat.of().formatHex(digest, 0, 12) + ":";
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("Could not scope workout drafts to the signed-in user.", e);
-    }
+    return "lifttrax:planned-session:" + BrowserAccountScope.forUser(ownerUserId) + ":";
   }
 
   private static String legacyDraftPrefix(String ownerUserId) {
@@ -1667,6 +1657,9 @@ final class PlannedWorkoutSessionHtml {
                     credentials: 'same-origin'
                   },
                   90000);
+                if (response.status === 409) {
+                  throw new Error(await response.text());
+                }
                 let payload = {};
                 try {
                   payload = await response.json();
@@ -1846,6 +1839,9 @@ final class PlannedWorkoutSessionHtml {
                     },
                     90000);
                   const responseHtml = await response.text();
+                  if (response.status === 409) {
+                    throw new Error(responseHtml);
+                  }
                   if (!response.ok || !responseHtml.includes('Workout Saved')) {
                     const responseDocument = new DOMParser().parseFromString(responseHtml, 'text/html');
                     const serverError = responseDocument.querySelector('.status.error');

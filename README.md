@@ -108,7 +108,6 @@ machine-specific config. Copy
 ```properties
 lifttrax.config.include=lifttrax-hosted.properties
 lifttrax.cli.userId=your-username
-lifttrax.auth.localEmail=you@example.com
 ```
 
 The override file is ignored by Git and layered over
@@ -117,8 +116,24 @@ and password from the existing ignored `config/lifttrax-hosted.properties`, so
 credentials are not duplicated. The value can be a LiftTrax username or the
 underlying authentication ID. Passing `--user <username-or-id>` or setting
 `LIFTTRAX_CLI_USER_ID` still overrides the local default.
-The optional email pre-fills the local-development sign-in form and can also
-be supplied with `LIFTTRAX_AUTH_LOCAL_EMAIL`.
+
+### More than one local user
+
+Open `/auth/login` and choose **Create a local account** for each new user.
+Choose a unique username and optional email. Each account has its own lifts,
+execution history, and saved browser drafts. A new account starts with an empty
+lift list; use **Add Execution → New Lift** to add exercises.
+
+Users on separate phones or browser profiles can stay signed in at the same
+time. In one shared browser profile, use **Sign Out**, then sign in with the
+other username. Tabs share that sign-in; a form left open for the previous user
+cannot save into the new account. Sign back into the original account to resume
+its drafts. Refresh any pages left open before this update.
+
+Local accounts have no passwords and are intended for a trusted household or
+development server. Use Supabase authentication for accounts that need access
+protection. Local mode still uses the configured Postgres database. See
+[account authentication](docs/account-authentication.md).
 
 ## Database schema migrations
 

@@ -3,6 +3,8 @@ package com.lifttrax.cli;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.config.LiftTraxConfig;
+import com.lifttrax.db.AccountProfile;
+import com.lifttrax.db.TrainingDataStoreProvider;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
@@ -118,6 +120,13 @@ final class WebAuth {
         return;
       }
       exchange.setAttribute(USER_ATTRIBUTE, user.get());
+      exchange
+          .getResponseHeaders()
+          .set("X-LiftTrax-Account", BrowserAccountScope.forUser(user.get().id()));
+      exchange.getResponseHeaders().set("Cache-Control", "no-store");
+      if (!WebRequestSecurity.checkAccountScope(exchange, user.get().id())) {
+        return;
+      }
       handler.handle(exchange);
     };
   }
@@ -146,7 +155,12 @@ final class WebAuth {
             + WebHtml.escapeHtml(label)
             + "</a><form method='post' action='/auth/logout'>"
             + "<button type='submit' class='secondary compact-btn'>Sign Out</button></form></section>";
-    return html.replace("<main class='container'>", "<main class='container'>" + accountBar);
+    return html.replace(
+        "<main class='container'>",
+        "<main class='container' data-account-scope='"
+            + BrowserAccountScope.forUser(user.get().id())
+            + "'>"
+            + accountBar);
   }
 
   void handleLogin(HttpExchange exchange) throws IOException {
@@ -158,29 +172,76 @@ final class WebAuth {
     String returnTo = safeReturnTo(query.getOrDefault("returnTo", "/"));
     String defaultUser =
         LiftTraxConfig.setting("lifttrax.cli.userId", "LIFTTRAX_CLI_USER_ID", "local-user");
-    String defaultEmail =
-        LiftTraxConfig.setting(
-            "lifttrax.auth.localEmail", "LIFTTRAX_AUTH_LOCAL_EMAIL", "local@lifttrax.test");
     String body =
         """
             <h1>Sign In</h1>
-            <p class='muted'>Local development sign-in. Hosted builds should use Supabase Auth.</p>
+            <p class='muted'>For trusted users on this local server. Local accounts do not use passwords.</p>
             <form method='post' action='/auth/dev-login' class='query-form' style='display:block;'>
               <label>Username or account ID <input name='userId' value='%s' required></label>
-              <label>Email <input name='email' value='%s'></label>
               <input type='hidden' name='returnTo' value='%s'>
               <button type='submit'>Sign In</button>
             </form>
+            <p>New here? <a href='/auth/local-register'>Create a local account</a>.</p>
             """
-            .formatted(
-                WebHtml.escapeHtml(defaultUser),
-                WebHtml.escapeHtml(defaultEmail),
-                WebHtml.escapeHtml(returnTo));
+            .formatted(WebHtml.escapeHtml(defaultUser), WebHtml.escapeHtml(returnTo));
     WebServerCli.sendHtml(exchange, WebHtml.wrapPage("Sign In", body));
   }
 
   void handleDevLogin(HttpExchange exchange) throws IOException {
     handleDevLogin(exchange, value -> value);
+  }
+
+  void handleLocalRegistration(HttpExchange exchange, TrainingDataStoreProvider db)
+      throws IOException {
+    if (config.mode() != AuthMode.LOCAL) {
+      sendText(exchange, 404, "Not Found");
+      return;
+    }
+    Map<String, String> form =
+        "POST".equalsIgnoreCase(exchange.getRequestMethod()) ? parseForm(exchange) : Map.of();
+    String username = form.getOrDefault("username", "").trim();
+    String email = form.getOrDefault("email", "").trim();
+    String error = "";
+    if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      try {
+        AccountProfile account = db.createLocalAccount(username, email);
+        setSessionCookie(
+            exchange,
+            new User(account.authUserId(), account.email(), account.username()),
+            config.clock().instant().plus(LOCAL_SESSION_DURATION));
+        redirect(
+            exchange,
+            "/?tab=add-execution&statusType=success&status="
+                + urlEncode(
+                    "Account created. Add your first lift below to start logging workouts."));
+        return;
+      } catch (IllegalArgumentException e) {
+        error = e.getMessage();
+      } catch (Exception e) {
+        error = "Could not create your account. Please try again.";
+      }
+    }
+    String body =
+        """
+        <h1>Create a Local Account</h1>
+        <p>Choose a username for your own lifts and workout history.</p>
+        <p class='muted'>Local accounts do not use passwords. Anyone with access to this server can sign in as a local user.</p>
+        %s
+        <form method='post' action='/auth/local-register' class='query-form' style='display:block;'>
+          <label>Username <input name='username' value='%s' minlength='3' maxlength='30' required autocomplete='username'></label>
+          <p class='muted'>Use 3–30 letters, numbers, underscores, or hyphens, starting with a letter or number.</p>
+          <label>Email (optional) <input type='email' name='email' value='%s' autocomplete='email'></label>
+          <button type='submit'>Create Account</button>
+        </form>
+        <p><a href='/auth/login'>Back to sign in</a></p>
+        """
+            .formatted(
+                error.isEmpty()
+                    ? ""
+                    : "<p class='status error'>" + WebHtml.escapeHtml(error) + "</p>",
+                WebHtml.escapeHtml(username),
+                WebHtml.escapeHtml(email));
+    WebServerCli.sendHtml(exchange, WebHtml.wrapPage("Create a Local Account", body));
   }
 
   void handleDevLogin(HttpExchange exchange, UserIdResolver userIdResolver) throws IOException {
@@ -209,9 +270,8 @@ final class WebAuth {
               "<h1>Sign In Error</h1><p class='status error'>No existing LiftTrax account matches that username or account ID.</p><p><a href='/auth/login'>Back to sign in</a></p>"));
       return;
     }
-    String email = form.getOrDefault("email", "").trim();
     Instant expiresAt = config.clock().instant().plus(LOCAL_SESSION_DURATION);
-    setSessionCookie(exchange, new User(userId, email, accountIdentifier), expiresAt);
+    setSessionCookie(exchange, new User(userId, "", accountIdentifier), expiresAt);
     redirect(exchange, safeReturnTo(form.getOrDefault("returnTo", "/")));
   }
 

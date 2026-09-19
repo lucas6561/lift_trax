@@ -110,6 +110,44 @@ public final class HostedPostgresTrainingDataStoreProvider implements TrainingDa
   }
 
   @Override
+  public AccountProfile createLocalAccount(String username, String email) throws SQLException {
+    String normalized = normalizeUsername(username);
+    String normalizedEmail = email == null ? "" : email.trim();
+    String authUserId = "local-" + java.util.UUID.randomUUID();
+    try (Connection connection = openConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        if (findAppUserId(connection, normalized) != null) {
+          throw new IllegalArgumentException("That username is already in use.");
+        }
+        String appUserId = ensureAppUser(connection, authUserId);
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                "UPDATE app_users SET username = ?, email = ? WHERE id = ?")) {
+          statement.setString(1, normalized);
+          statement.setString(2, normalizedEmail);
+          statement.setString(3, appUserId);
+          statement.executeUpdate();
+        }
+        ensureDefaultLifterProfile(connection, appUserId, authUserId);
+        connection.commit();
+      } catch (SQLException e) {
+        connection.rollback();
+        if ("23505".equals(e.getSQLState())) {
+          throw new IllegalArgumentException("That username is already in use.", e);
+        }
+        throw e;
+      } catch (RuntimeException e) {
+        connection.rollback();
+        throw e;
+      }
+    }
+    AccountProfile account = new AccountProfile(authUserId, normalized, normalizedEmail);
+    accountsByUser.put(authUserId, account);
+    return account;
+  }
+
+  @Override
   public String resolveAuthUserId(String identifier) throws SQLException {
     String required = requireUserId(identifier);
     String normalized = required.toLowerCase(Locale.ROOT);

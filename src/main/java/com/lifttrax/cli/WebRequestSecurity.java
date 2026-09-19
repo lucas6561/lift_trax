@@ -18,8 +18,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,6 +32,7 @@ final class WebRequestSecurity {
   static final String CSRF_COOKIE_NAME = "lt_csrf";
   static final String CSRF_FORM_FIELD = "csrfToken";
   static final String CSRF_HEADER_NAME = "X-CSRF-Token";
+  static final String ACCOUNT_SCOPE_FIELD = "accountScope";
 
   private static final String CSRF_ATTRIBUTE = "lifttrax.csrfToken";
   private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -112,7 +115,32 @@ final class WebRequestSecurity {
     String escapedToken = WebHtml.escapeHtml(csrfToken);
     String replacement =
         "$1<input type='hidden' name='" + CSRF_FORM_FIELD + "' value='" + escapedToken + "'>";
+    var user = WebAuth.currentUser(exchange);
+    if (user.isPresent()) {
+      replacement +=
+          "<input type='hidden' name='"
+              + ACCOUNT_SCOPE_FIELD
+              + "' value='"
+              + BrowserAccountScope.forUser(user.get().id())
+              + "'>";
+    }
     return matcher.replaceAll(replacement);
+  }
+
+  /** Applies to secured HTTP requests; direct handler calls do not run request middleware. */
+  static boolean checkAccountScope(HttpExchange exchange, String userId) throws IOException {
+    Object scope = exchange.getAttribute(ACCOUNT_SCOPE_FIELD);
+    if (scope instanceof String submitted
+        && requiresCsrf(exchange.getRequestMethod())
+        && !BrowserAccountScope.forUser(userId).equals(submitted)) {
+      sendText(
+          exchange,
+          409,
+          "Your signed-in account changed or this page is out of date. Nothing was saved. "
+              + "Sign back in to the original account and reopen the page or resume your workout.");
+      return false;
+    }
+    return true;
   }
 
   static void exposeCsrfToken(HttpExchange exchange) {
@@ -232,12 +260,14 @@ final class WebRequestSecurity {
     private final HttpExchange delegate;
     private final byte[] requestBytes;
     private final String csrfToken;
+    private final Map<String, Object> attributes = new HashMap<>();
 
     private SecureExchange(HttpExchange delegate, byte[] requestBytes, String csrfToken) {
       this.delegate = delegate;
       this.requestBytes = requestBytes.clone();
       this.csrfToken = csrfToken;
       setAttribute(CSRF_ATTRIBUTE, csrfToken);
+      setAttribute(ACCOUNT_SCOPE_FIELD, formValue(requestBytes, ACCOUNT_SCOPE_FIELD));
     }
 
     private void setCsrfCookie() {
@@ -319,12 +349,12 @@ final class WebRequestSecurity {
 
     @Override
     public Object getAttribute(String name) {
-      return delegate.getAttribute(name);
+      return attributes.get(name);
     }
 
     @Override
     public void setAttribute(String name, Object value) {
-      delegate.setAttribute(name, value);
+      attributes.put(name, value);
     }
 
     @Override

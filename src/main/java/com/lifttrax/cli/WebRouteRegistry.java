@@ -21,6 +21,11 @@ final class WebRouteRegistry {
     WebRequestSecurity.register(server, "/auth/login", Set.of("GET"), auth::handleLogin);
     WebRequestSecurity.register(
         server,
+        "/auth/local-register",
+        Set.of("GET", "POST"),
+        exchange -> auth.handleLocalRegistration(exchange, db));
+    WebRequestSecurity.register(
+        server,
         "/auth/dev-login",
         Set.of("POST"),
         exchange -> auth.handleDevLogin(exchange, db::resolveAuthUserId));

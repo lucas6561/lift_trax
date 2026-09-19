@@ -61,7 +61,9 @@ class PlannedWorkoutSessionHtmlTest {
                 + auth.sessionCookieValueForTest(
                     new WebAuth.User("local-user", "warmup@example.test"), Duration.ofMinutes(5)));
         String body =
-            "weekNumber=1&dayOfWeek=MONDAY&plannedWorkoutJson="
+            "accountScope="
+                + BrowserAccountScope.forUser("local-user")
+                + "&weekNumber=1&dayOfWeek=MONDAY&plannedWorkoutJson="
                 + URLEncoder.encode(
                     PlannedWorkoutJson.writeString(warmupWorkoutFile(1, 100, null)),
                     StandardCharsets.UTF_8);

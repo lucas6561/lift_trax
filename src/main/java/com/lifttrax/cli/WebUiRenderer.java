@@ -385,7 +385,8 @@ final class WebUiRenderer {
                       focusControl(control);
                     }
 
-                    const FILTER_STORAGE_PREFIX = 'lifttrax.filters.';
+                    const accountScope = (document.querySelector('main[data-account-scope]') || {}).dataset?.accountScope;
+                    const FILTER_STORAGE_PREFIX = accountScope ? `lifttrax.filters.v2.${accountScope}.` : null;
 
                     function syncWaveTypeVisibility() {
                       const waveType = document.querySelector("select[name='waveType']");
@@ -429,7 +430,7 @@ final class WebUiRenderer {
                       };
 
                       try {
-                        localStorage.setItem(FILTER_STORAGE_PREFIX + panel.dataset.panel, JSON.stringify(state));
+                        if (FILTER_STORAGE_PREFIX) localStorage.setItem(FILTER_STORAGE_PREFIX + panel.dataset.panel, JSON.stringify(state));
                       } catch (error) {
                         // Ignore storage issues and continue with in-memory filters.
                       }
@@ -440,7 +441,7 @@ final class WebUiRenderer {
                         return;
                       }
                       try {
-                        const raw = localStorage.getItem(FILTER_STORAGE_PREFIX + panel.dataset.panel);
+                        const raw = FILTER_STORAGE_PREFIX && localStorage.getItem(FILTER_STORAGE_PREFIX + panel.dataset.panel);
                         if (!raw) {
                           return;
                         }
@@ -835,7 +836,7 @@ final class WebUiRenderer {
                       });
                     }
 
-                    const ADD_EXECUTION_DRAFT_KEY = 'lifttrax.addExecutionDraft.v1';
+                    const ADD_EXECUTION_DRAFT_KEY = accountScope ? `lifttrax.addExecutionDraft.v2.${accountScope}` : null;
                     let restoringAddExecutionDraft = false;
 
                     function addExecutionParams() {
@@ -961,6 +962,7 @@ final class WebUiRenderer {
                     }
 
                     function loadAddExecutionDraft(form) {
+                      if (!ADD_EXECUTION_DRAFT_KEY) return;
                       try {
                         if (shouldClearAddExecutionDraft()) {
                           localStorage.removeItem(ADD_EXECUTION_DRAFT_KEY);
@@ -980,7 +982,7 @@ final class WebUiRenderer {
                     }
 
                     function saveAddExecutionDraft(form) {
-                      if (!form || restoringAddExecutionDraft) {
+                      if (!form || restoringAddExecutionDraft || !ADD_EXECUTION_DRAFT_KEY) {
                         return;
                       }
                       try {
@@ -1281,6 +1283,9 @@ final class WebUiRenderer {
                         body.innerHTML = "<p>Loading...</p>";
                         try {
                           const response = await fetch('/executions-fragment?lift=' + encodeURIComponent(lift));
+                          if (response.headers.get('X-LiftTrax-Account') !== accountScope) {
+                            throw new Error('Your signed-in account changed. Reload this page before viewing history.');
+                          }
                           const html = await response.text();
                           body.innerHTML = html;
                           body.dataset.loaded = 'true';
