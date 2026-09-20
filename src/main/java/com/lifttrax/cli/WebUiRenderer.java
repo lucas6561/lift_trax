@@ -1889,6 +1889,7 @@ final class WebUiRenderer {
     return """
                 %s
                 <div class='add-actions'>
+                  <p><a href='/import-lifts'>Import lifts from another user</a></p>
                   <details class='new-lift-details'>
                     <summary>New Lift</summary>
                     <form method='post' action='/add-lift' class='new-lift-form'>

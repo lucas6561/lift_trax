@@ -33,6 +33,7 @@ class PostgresSqliteBackupServiceTest {
     TrainingDataStore first = provider.forUser("owner-a");
     TrainingDataStore second = provider.forUser("owner-b");
     provider.updateUsername("owner-a", "backup-user");
+    provider.setLiftCatalogShared("owner-a", true);
     first.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
     second.addLift("Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
     first.addLiftExecution(
@@ -87,9 +88,11 @@ class PostgresSqliteBackupServiceTest {
         ResultSet resultSet =
             connection
                 .createStatement()
-                .executeQuery("SELECT username FROM app_users WHERE auth_user_id = 'owner-a'")) {
+                .executeQuery(
+                    "SELECT username, share_lift_catalog FROM app_users WHERE auth_user_id = 'owner-a'")) {
       assertTrue(resultSet.next());
       assertEquals("backup-user", resultSet.getString(1));
+      assertTrue(resultSet.getBoolean(2));
     }
   }
 

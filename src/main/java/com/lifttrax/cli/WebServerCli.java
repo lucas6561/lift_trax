@@ -238,21 +238,93 @@ public final class WebServerCli {
       if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
         Map<String, String> form = parseForm(exchange.getRequestBody());
         try {
-          account = db.updateUsername(user.id(), form.getOrDefault("username", ""));
-          message = "Username saved.";
+          if ("lift-sharing".equals(form.get("action"))) {
+            db.setLiftCatalogShared(user.id(), "true".equals(form.get("shareLifts")));
+            message = "Lift sharing saved.";
+          } else {
+            account = db.updateUsername(user.id(), form.getOrDefault("username", ""));
+            message = "Username saved.";
+          }
         } catch (IllegalArgumentException e) {
           message = e.getMessage();
           messageType = "error";
         }
       }
       WebAuth.setAccountLabel(exchange, account.displayLabel());
-      sendHtml(exchange, AccountPageHtml.render(account, user, message, messageType));
+      sendHtml(
+          exchange,
+          AccountPageHtml.render(
+              account, user, message, messageType, db.isLiftCatalogShared(user.id())));
     } catch (Exception e) {
       sendHtml(
           exchange,
           WebHtml.wrapPage(
               "Account Error",
               "<h1>Account Error</h1><p class='status error'>Account settings are temporarily unavailable.</p>"));
+    }
+  }
+
+  static void handleImportLifts(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
+    String userId = WebAuth.currentUser(exchange).orElseThrow().id();
+    try {
+      TrainingDataStore db = databaseFor(exchange, rootDb);
+      Map<String, String> values =
+          "POST".equalsIgnoreCase(exchange.getRequestMethod())
+              ? parseForm(exchange.getRequestBody())
+              : parseQuery(exchange.getRequestURI());
+      String source = values.getOrDefault("source", "").trim().toLowerCase(Locale.ROOT);
+      String message = "";
+      String messageType = "success";
+      if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+        List<String> names =
+            values.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith("lift_"))
+                .map(Map.Entry::getValue)
+                .distinct()
+                .toList();
+        try {
+          int imported = rootDb.importSharedLifts(userId, source, names);
+          redirect(
+              exchange,
+              "/?tab=add-execution&statusType=success&status="
+                  + WebUiRenderer.urlEncode(
+                      "Imported "
+                          + imported
+                          + " lifts. Skipped "
+                          + (names.size() - imported)
+                          + " already in your list."));
+          return;
+        } catch (IllegalArgumentException e) {
+          message = e.getMessage();
+          messageType = "error";
+        }
+      }
+      List<Lift> shared = List.of();
+      if (!source.isBlank()) {
+        try {
+          shared = rootDb.sharedLifts(userId, source);
+        } catch (IllegalArgumentException e) {
+          message = e.getMessage();
+          messageType = "error";
+        }
+      }
+      sendHtml(
+          exchange,
+          LiftImportHtml.render(
+              rootDb.sharedLiftUsers(userId),
+              source,
+              shared,
+              db.listLifts(),
+              message,
+              messageType));
+    } catch (Exception e) {
+      sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Import Lifts",
+              "<h1>Import Lifts</h1><p class='status error'>Could not import lifts. Please try again.</p>"
+                  + "<p><a href='/import-lifts'>Back to import</a></p>"));
     }
   }
 

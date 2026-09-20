@@ -9,6 +9,15 @@ final class AccountPageHtml {
 
   static String render(
       AccountProfile account, WebAuth.User user, String message, String messageType) {
+    return render(account, user, message, messageType, false);
+  }
+
+  static String render(
+      AccountProfile account,
+      WebAuth.User user,
+      String message,
+      String messageType,
+      boolean shareLifts) {
     String value =
         account.username().isBlank()
             ? suggestedUsername(user.suggestedUsername())
@@ -31,9 +40,18 @@ final class AccountPageHtml {
               <p class='muted'>3-30 letters, numbers, underscores, or hyphens. Usernames are stored in lowercase.</p>
               <button type='submit'>Save Username</button>
             </form>
+            <h2>Lift sharing</h2>
+            <p>Let other signed-in users copy your enabled lifts, including their names, regions, types, muscles, and lift notes. Workout history stays private. Copies already imported remain in the other user's list when sharing is turned off.</p>
+            <form method='post' action='/account' class='query-form' style='display:block;'>
+              <input type='hidden' name='action' value='lift-sharing'>
+              <label><input type='checkbox' name='shareLifts' value='true' style='width:auto;' %s> Share my lift list</label>
+              <p class='muted'>Save a username first so others can find your list.</p>
+              <button type='submit'>Save Sharing</button>
+            </form>
+            <p><a href='/import-lifts'>Import lifts from another user</a></p>
             <p><a href='/'>Back to LiftTrax</a></p>
             """
-            .formatted(status, WebHtml.escapeHtml(value));
+            .formatted(status, WebHtml.escapeHtml(value), shareLifts ? "checked" : "");
     return WebHtml.wrapPage("Account", body);
   }
 

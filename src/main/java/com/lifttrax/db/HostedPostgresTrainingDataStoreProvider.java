@@ -1,10 +1,12 @@
 package com.lifttrax.db;
 
+import com.lifttrax.models.Lift;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -29,6 +31,33 @@ public final class HostedPostgresTrainingDataStoreProvider implements TrainingDa
 
   public static HostedPostgresTrainingDataStoreProvider fromEnvironment() throws Exception {
     return new HostedPostgresTrainingDataStoreProvider(HostedPostgresConfig.fromEnvironment());
+  }
+
+  @Override
+  public boolean isLiftCatalogShared(String authUserId) throws Exception {
+    return new HostedLiftSharing(config).isShared(authUserId);
+  }
+
+  @Override
+  public void setLiftCatalogShared(String authUserId, boolean shared) throws Exception {
+    new HostedLiftSharing(config).setShared(authUserId, shared);
+  }
+
+  @Override
+  public List<String> sharedLiftUsers(String authUserId) throws Exception {
+    return new HostedLiftSharing(config).users(authUserId);
+  }
+
+  @Override
+  public List<Lift> sharedLifts(String authUserId, String username) throws Exception {
+    return new HostedLiftSharing(config).lifts(authUserId, username);
+  }
+
+  @Override
+  public int importSharedLifts(String authUserId, String username, List<String> names)
+      throws Exception {
+    forUser(authUserId);
+    return new HostedLiftSharing(config).copy(authUserId, username, names);
   }
 
   @Override

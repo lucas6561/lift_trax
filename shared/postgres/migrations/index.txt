@@ -4,3 +4,4 @@
 0003__workout-submission-receipts.sql
 0004__secure-public-tables.sql
 0005__execution-set-misses.sql
+0006__lift-catalog-sharing.sql

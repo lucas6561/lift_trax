@@ -52,6 +52,29 @@ subject from the signed server session, and applies the existing owner
 predicates to every query. RLS therefore closes accidental Data API exposure
 without replacing the Java authorization boundary.
 
+## Shared lift lists
+
+Lift catalogs are private by default. In **Account → Lift sharing**, a user with a
+saved username can opt in to sharing their enabled lift definitions with other
+signed-in users. The shared list includes names, regions, main types, muscles,
+and lift notes; it never includes executions, performance history, email
+addresses, or authentication IDs.
+
+From **Add Execution → Import lifts from another user**, choose a sharing user,
+show their lifts, and select the definitions to copy. Imports create independent,
+enabled lifts in the signed-in account. Existing names (ignoring case and outer
+whitespace), including disabled lifts, are skipped without overwriting or
+reenabling them. Disabled source lifts are unavailable. The selection is validated
+and copied in one transaction; an unavailable selection saves nothing.
+
+Both browsing and importing enforce the source account's sharing setting.
+Turning sharing off prevents subsequent imports, including from an already-open
+picker, but does not remove copies previously imported by other users. Import
+POSTs use the existing CSRF and signed-in account-scope checks.
+
+Postgres migration `0006__lift-catalog-sharing.sql` adds the default-off setting;
+all-user SQLite snapshots preserve it.
+
 ## Current limits
 
 The first hosted account slice does not implement every future sharing feature

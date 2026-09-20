@@ -1,0 +1,1 @@
+ALTER TABLE app_users ADD COLUMN share_lift_catalog BOOLEAN NOT NULL DEFAULT FALSE;

@@ -305,11 +305,12 @@ public final class PostgresSqliteBackupService {
     tables.add(
         table(
             "app_users",
-            "CREATE TABLE app_users (id TEXT PRIMARY KEY, auth_user_id TEXT NOT NULL, email TEXT, username TEXT, created_at TEXT NOT NULL)",
+            "CREATE TABLE app_users (id TEXT PRIMARY KEY, auth_user_id TEXT NOT NULL, email TEXT, username TEXT, share_lift_catalog INTEGER NOT NULL, created_at TEXT NOT NULL)",
             "id",
             "auth_user_id",
             "email",
             "username",
+            "share_lift_catalog",
             "created_at"));
     tables.add(
         table(

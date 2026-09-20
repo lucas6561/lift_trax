@@ -29,6 +29,58 @@ import org.junit.jupiter.api.Test;
 
 class LocalMultiUserTest {
   @Test
+  void usersCanOptInBrowseAndImportWithoutCrossingTheHistoryBoundary() throws Exception {
+    try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+      Browser alice = fixture.browser();
+      Browser bob = fixture.browser();
+      assertEquals(303, bob.get("/import-lifts").statusCode());
+      register(alice, "alice", "alice@example.test");
+      register(bob, "bob", "bob@example.test");
+      String alicePage = alice.get("/?tab=add-execution").body();
+      assertTrue(alicePage.contains("href='/import-lifts'"));
+      alice.post(
+          "/add-lift", fields(alicePage, "name", "Bench", "main", "BENCH PRESS", "notes", "Pause"));
+      assertTrue(bob.get("/import-lifts").body().contains("No other users are sharing"));
+      String accountPage = alice.get("/account").body();
+      assertTrue(
+          alice
+              .post("/account", fields(accountPage, "action", "lift-sharing", "shareLifts", "true"))
+              .body()
+              .contains("Lift sharing saved"));
+      String picker = bob.get("/import-lifts?source=alice").body();
+      assertTrue(picker.contains("value='alice' selected"));
+      assertTrue(picker.contains("value='Bench'"));
+      assertTrue(picker.contains("Pause"));
+      assertFalse(picker.contains("alice@example.test"));
+      assertEquals(
+          403,
+          bob.post("/import-lifts", Map.of("source", "alice", "lift_0", "Bench")).statusCode());
+      assertTrue(
+          bob.post("/import-lifts", fields(picker, "source", "alice"))
+              .body()
+              .contains("Choose at least one lift"));
+      assertTrue(
+          bob.post("/import-lifts", fields(picker, "source", "alice", "lift_0", "Forged"))
+              .body()
+              .contains("no longer available"));
+      var imported =
+          bob.post("/import-lifts", fields(picker, "source", "alice", "lift_0", "Bench"));
+      assertEquals(303, imported.statusCode());
+      assertTrue(
+          imported.headers().firstValue("Location").orElseThrow().contains("Imported+1+lifts"));
+      assertTrue(bob.get("/import-lifts?source=alice").body().contains("Already in your list"));
+      assertEquals("Pause", fixture.provider.forUserIdentifier("bob").getLift("Bench").notes());
+      assertTrue(fixture.provider.forUserIdentifier("bob").getExecutions("Bench").isEmpty());
+      alice.post("/account", fields(accountPage, "action", "lift-sharing"));
+      assertTrue(
+          bob.post("/import-lifts", fields(picker, "source", "alice", "lift_0", "Bench"))
+              .body()
+              .contains("no longer shared"));
+      assertEquals(1, fixture.provider.forUserIdentifier("bob").listLifts().size());
+    }
+  }
+
+  @Test
   void twoLocalAccountsCanRegisterLogIndependentlyAndSwitchWithoutSavingAnOldForm()
       throws Exception {
     try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
@@ -115,6 +167,7 @@ class LocalMultiUserTest {
               "/delete-lift",
               "/update-execution",
               "/delete-execution",
+              "/import-lifts",
               "/account")) {
         assertEquals(409, alice.post(route, fields(alicePage)).statusCode(), route);
       }

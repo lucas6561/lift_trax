@@ -1,10 +1,33 @@
 package com.lifttrax.db;
 
 import com.lifttrax.config.LiftTraxConfig;
+import com.lifttrax.models.Lift;
+import java.util.List;
 
 /** Creates user-scoped training data stores for authenticated web requests. */
 public interface TrainingDataStoreProvider extends AutoCloseable {
   TrainingDataStore forUser(String ownerUserId) throws Exception;
+
+  default boolean isLiftCatalogShared(String authUserId) throws Exception {
+    return false;
+  }
+
+  default void setLiftCatalogShared(String authUserId, boolean shared) throws Exception {
+    throw new UnsupportedOperationException("Lift sharing requires Postgres.");
+  }
+
+  default List<String> sharedLiftUsers(String authUserId) throws Exception {
+    return List.of();
+  }
+
+  default List<Lift> sharedLifts(String authUserId, String username) throws Exception {
+    throw new IllegalArgumentException("This lift list is no longer shared.");
+  }
+
+  default int importSharedLifts(String authUserId, String username, List<String> names)
+      throws Exception {
+    throw new UnsupportedOperationException("Lift sharing requires Postgres.");
+  }
 
   default TrainingDataStore forUserIdentifier(String identifier) throws Exception {
     return forUser(resolveAuthUserId(identifier));

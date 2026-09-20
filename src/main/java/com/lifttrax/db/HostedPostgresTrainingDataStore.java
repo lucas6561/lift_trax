@@ -844,7 +844,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
     }
   }
 
-  private static Lift mapLift(ResultSet rs) throws Exception {
+  static Lift mapLift(ResultSet rs) throws Exception {
     return new Lift(
         rs.getString("name"),
         LiftRegion.fromString(rs.getString("region")),
