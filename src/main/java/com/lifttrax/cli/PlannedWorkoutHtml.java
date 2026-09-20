@@ -260,6 +260,7 @@ final class PlannedWorkoutHtml {
     String disabledAttribute = disabled ? " disabled" : "";
     return """
         <div class='stacked-row planned-output-buttons'>
+          <button type='submit' class='compact-btn js-planned-output' formaction='/save-workout'%s>Save Workout</button>
           <button type='submit' class='compact-btn js-planned-output' formaction='/planned-workout-work-along'%s>Work Along</button>
           <button type='submit' class='compact-btn js-planned-output' formaction='/planned-workout-preview'%s>App Preview</button>
           <button type='submit' class='secondary compact-btn js-planned-output' formaction='/planned-workout-print' formtarget='_blank'%s>Print View</button>
@@ -268,6 +269,7 @@ final class PlannedWorkoutHtml {
         </div>
         """
         .formatted(
+            disabledAttribute,
             disabledAttribute,
             disabledAttribute,
             disabledAttribute,

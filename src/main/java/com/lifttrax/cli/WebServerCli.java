@@ -718,6 +718,67 @@ public final class WebServerCli {
     }
   }
 
+  static void handleSaveWorkout(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
+    try {
+      TrainingDataStore db = databaseFor(exchange, rootDb);
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      // Validate with the same versioned reader used by preview and Work Along before persisting.
+      PlannedWorkoutFile workout =
+          PlannedWorkoutJson.readString(form.getOrDefault("plannedWorkoutJson", ""));
+      db.saveWorkout(workout.metadata().name(), PlannedWorkoutJson.writeString(workout));
+      savedWorkoutRedirect(exchange, "success", "Workout saved. Open it below whenever you train.");
+    } catch (Exception e) {
+      savedWorkoutRedirect(exchange, "error", "Could not save workout: " + e.getMessage());
+    }
+  }
+
+  static void handleSavedWorkout(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
+    try {
+      TrainingDataStore db = databaseFor(exchange, rootDb);
+      Map<String, String> query = parseQuery(exchange.getRequestURI());
+      PlannedWorkoutFile workout =
+          PlannedWorkoutJson.readString(db.getSavedWorkoutJson(query.getOrDefault("id", "")));
+      String body =
+          "work-along".equals(query.get("view"))
+              ? PlannedWorkoutHtml.renderWorkAlongPage(workout)
+              : PlannedWorkoutHtml.renderPage(workout, db);
+      sendHtml(exchange, WebHtml.wrapPage(workout.metadata().name(), body));
+    } catch (Exception e) {
+      savedWorkoutRedirect(exchange, "error", "Could not load workout: " + e.getMessage());
+    }
+  }
+
+  static void handleManageSavedWorkout(
+      HttpExchange exchange, TrainingDataStoreProvider rootDb, boolean delete) throws IOException {
+    try {
+      TrainingDataStore db = databaseFor(exchange, rootDb);
+      Map<String, String> form = parseForm(exchange.getRequestBody());
+      String id = form.getOrDefault("savedWorkoutId", "");
+      if (delete) {
+        db.deleteSavedWorkout(id);
+      } else {
+        db.renameSavedWorkout(id, form.getOrDefault("name", ""));
+      }
+      savedWorkoutRedirect(
+          exchange,
+          "success",
+          delete
+              ? "Saved workout deleted. Your logged training results were kept."
+              : "Workout renamed.");
+    } catch (Exception e) {
+      savedWorkoutRedirect(exchange, "error", "Could not update saved workout: " + e.getMessage());
+    }
+  }
+
+  private static void savedWorkoutRedirect(HttpExchange exchange, String type, String message)
+      throws IOException {
+    redirect(
+        exchange,
+        "/?tab=import-workout&statusType=" + type + "&status=" + WebUiRenderer.urlEncode(message));
+  }
+
   static void handlePlannedWorkoutPreview(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     String method = exchange.getRequestMethod();

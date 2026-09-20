@@ -24,6 +24,17 @@ class PostgresSchemaMigratorTest {
           "lifttrax_schema_migrations");
 
   @Test
+  void savedWorkoutSecurityMigrationProtectsTheNewPrivateTable() throws Exception {
+    String sql = resourceText("postgres/migrations/0008__secure-saved-workouts.sql");
+    assertTrue(sql.contains("ALTER TABLE public.saved_workouts ENABLE ROW LEVEL SECURITY;"));
+    assertTrue(
+        sql.contains(
+            "REVOKE ALL PRIVILEGES ON TABLE public.saved_workouts FROM anon, authenticated;"));
+    assertFalse(PostgresSchemaMigrator.shouldExecuteMigration("H2", sql));
+    assertTrue(PostgresSchemaMigrator.shouldExecuteMigration("PostgreSQL", sql));
+  }
+
+  @Test
   void securityMigrationProtectsEveryApplicationTableAndFutureObjects() throws Exception {
     String sql = resourceText("postgres/migrations/0004__secure-public-tables.sql");
 

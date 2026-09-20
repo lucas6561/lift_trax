@@ -156,6 +156,10 @@ final class WebHtml {
                 .planned-import-actions .error { color: #fca5a5; }
                 .planned-output-form { margin: 0.45rem 0 0.65rem; }
                 .planned-output-buttons { align-items: stretch; }
+                .saved-workout { max-width: 760px; }
+                .saved-workout h3 { overflow-wrap: anywhere; }
+                .saved-workout details { margin-top: 0.6rem; }
+                .saved-workout summary { min-height: 44px; padding-top: 0.5rem; }
                 .planned-output-buttons .compact-btn,
                 .planned-file-picker { min-height: 48px; padding: 0.6rem 0.75rem; }
                 .planned-workalong-form { max-width: 620px; display: flex; flex-direction: column; gap: 0.55rem; }

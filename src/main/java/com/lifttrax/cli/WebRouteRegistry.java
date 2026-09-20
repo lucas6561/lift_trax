@@ -73,6 +73,26 @@ final class WebRouteRegistry {
         auth.protect(exchange -> WebServerCli.handleUpdateLift(exchange, db)));
     WebRequestSecurity.register(
         server,
+        "/saved-workout",
+        Set.of("GET"),
+        auth.protect(exchange -> WebServerCli.handleSavedWorkout(exchange, db)));
+    WebRequestSecurity.register(
+        server,
+        "/save-workout",
+        Set.of("POST"),
+        auth.protect(exchange -> WebServerCli.handleSaveWorkout(exchange, db)));
+    WebRequestSecurity.register(
+        server,
+        "/rename-saved-workout",
+        Set.of("POST"),
+        auth.protect(exchange -> WebServerCli.handleManageSavedWorkout(exchange, db, false)));
+    WebRequestSecurity.register(
+        server,
+        "/delete-saved-workout",
+        Set.of("POST"),
+        auth.protect(exchange -> WebServerCli.handleManageSavedWorkout(exchange, db, true)));
+    WebRequestSecurity.register(
+        server,
         "/planned-workout-preview",
         Set.of("GET", "POST"),
         auth.protect(exchange -> WebServerCli.handlePlannedWorkoutPreview(exchange, db)));

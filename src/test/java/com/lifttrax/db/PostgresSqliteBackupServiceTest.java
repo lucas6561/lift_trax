@@ -34,6 +34,10 @@ class PostgresSqliteBackupServiceTest {
     TrainingDataStore second = provider.forUser("owner-b");
     provider.updateUsername("owner-a", "backup-user");
     provider.setLiftCatalogShared("owner-a", true);
+    String savedDocument =
+        Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
+    first.saveWorkout("Private program", savedDocument);
+    second.saveWorkout("Other program", savedDocument);
     first.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
     second.addLift("Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
     first.addLiftExecution(
@@ -62,7 +66,17 @@ class PostgresSqliteBackupServiceTest {
     assertEquals(1L, result.validation().rowCounts().get("executions"));
     assertEquals(1L, result.validation().rowCounts().get("workout_submission_receipts"));
     assertEquals(0L, result.validation().rowCounts().get("local_imports"));
+    assertEquals(2L, result.validation().rowCounts().get("saved_workouts"));
     assertEquals(result.validation(), PostgresSqliteBackupService.validate(result.backupPath()));
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + result.backupPath());
+        ResultSet rows =
+            connection
+                .createStatement()
+                .executeQuery(
+                    "SELECT name, workout_json FROM saved_workouts WHERE name = 'Private program'")) {
+      assertTrue(rows.next());
+      assertEquals(savedDocument, rows.getString("workout_json"));
+    }
     try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + result.backupPath());
         ResultSet resultSet =
             connection

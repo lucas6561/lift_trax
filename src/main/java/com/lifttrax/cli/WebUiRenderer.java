@@ -134,7 +134,7 @@ final class WebUiRenderer {
             : deferredTabContent("Workout Waves");
     String importWorkoutContent =
         "import-workout".equals(normalizedTab)
-            ? PlannedWorkoutHtml.renderImportPanel()
+            ? SavedWorkoutHtml.renderLibrary(db)
             : deferredTabContent("Import Workout");
     return renderTabbedLayout(
         lifts,
@@ -257,7 +257,7 @@ final class WebUiRenderer {
                     <button class='%s' role='tab' type='button' data-tab='dashboard' aria-selected='%s'>Dashboard</button>
                     <button class='%s' role='tab' type='button' data-tab='add-execution' aria-selected='%s'>Add Execution</button>
                     <button class='%s' role='tab' type='button' data-tab='waves' aria-selected='%s'>Workout Waves</button>
-                    <button class='%s' role='tab' type='button' data-tab='import-workout' aria-selected='%s'>Import Workout</button>
+                    <button class='%s' role='tab' type='button' data-tab='import-workout' aria-selected='%s'>Saved / Import Workouts</button>
                     <button class='%s' role='tab' type='button' data-tab='executions' aria-selected='%s'>Executions</button>
                     <button class='%s' role='tab' type='button' data-tab='query' aria-selected='%s'>Query</button>
                     <button class='%s' role='tab' type='button' data-tab='last-week' aria-selected='%s'>Last Week</button>
@@ -279,7 +279,7 @@ final class WebUiRenderer {
                     %s
                   </section>
                   <section class='%s' data-panel='import-workout' data-loaded='%s' role='tabpanel'>
-                    <h2>Import Workout</h2>
+                    <h2>Workouts</h2>
                     %s
                   </section>
                   <section class='%s' data-panel='query' data-loaded='%s' role='tabpanel'>

@@ -7,6 +7,26 @@ import java.util.Map;
 
 /** Database operations needed by the web training surfaces. */
 public interface TrainingDataStore extends Database {
+  default List<SavedWorkout> listSavedWorkouts() throws Exception {
+    return List.of();
+  }
+
+  default String saveWorkout(String name, String workoutJson) throws Exception {
+    throw new UnsupportedOperationException("Saved workouts require Postgres.");
+  }
+
+  default String getSavedWorkoutJson(String id) throws Exception {
+    throw new IllegalArgumentException("Saved workout not found.");
+  }
+
+  default void renameSavedWorkout(String id, String name) throws Exception {
+    throw new UnsupportedOperationException("Saved workouts require Postgres.");
+  }
+
+  default void deleteSavedWorkout(String id) throws Exception {
+    throw new UnsupportedOperationException("Saved workouts require Postgres.");
+  }
+
   List<LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end) throws Exception;
 
   ExecutionHistorySummary executionHistorySummary(LocalDate start, LocalDate end) throws Exception;

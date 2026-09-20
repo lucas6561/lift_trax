@@ -26,6 +26,65 @@ import org.junit.jupiter.api.Test;
 class HostedPostgresTrainingDataStoreTest {
 
   @Test
+  void savedWorkoutsPersistAcrossProvidersAndStayPrivateWithoutAffectingHistory() throws Exception {
+    var config =
+        new HostedPostgresConfig(
+            "jdbc:h2:mem:saved_"
+                + java.util.UUID.randomUUID()
+                + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+            "",
+            "");
+    var provider = new HostedPostgresTrainingDataStoreProvider(config);
+    TrainingDataStore owner = provider.forUser("owner");
+    TrainingDataStore other = provider.forUser("other");
+    String document = Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
+    String first = owner.saveWorkout(" First ", document);
+    String second = owner.saveWorkout("Second", document);
+    // Pin timestamps so ordering does not depend on the database clock resolution.
+    try (Connection connection = DriverManager.getConnection(config.jdbcUrl());
+        var statement =
+            connection.prepareStatement("UPDATE saved_workouts SET created_at = ? WHERE id = ?")) {
+      statement.setObject(1, java.time.LocalDateTime.of(2026, 1, 1, 0, 0));
+      statement.setString(2, first);
+      statement.executeUpdate();
+    }
+    TrainingDataStore reopened =
+        new HostedPostgresTrainingDataStoreProvider(config).forUser("owner");
+    assertEquals(
+        List.of(second, first),
+        reopened.listSavedWorkouts().stream().map(SavedWorkout::id).toList());
+    assertEquals(document, reopened.getSavedWorkoutJson(first));
+    assertEquals("First", reopened.listSavedWorkouts().get(1).name());
+    assertTrue(other.listSavedWorkouts().isEmpty());
+    assertThrows(IllegalArgumentException.class, () -> other.getSavedWorkoutJson(first));
+    assertThrows(IllegalArgumentException.class, () -> other.renameSavedWorkout(first, "Stolen"));
+    assertThrows(IllegalArgumentException.class, () -> other.deleteSavedWorkout(first));
+    reopened.renameSavedWorkout(first, " Renamed ");
+    assertEquals("Renamed", reopened.listSavedWorkouts().get(1).name());
+    assertEquals(document, reopened.getSavedWorkoutJson(first));
+    assertThrows(IllegalArgumentException.class, () -> owner.renameSavedWorkout(first, " "));
+    assertThrows(
+        IllegalArgumentException.class, () -> owner.saveWorkout("x".repeat(201), document));
+    assertThrows(IllegalArgumentException.class, () -> owner.saveWorkout(null, document));
+    assertThrows(IllegalArgumentException.class, () -> owner.saveWorkout("Valid", ""));
+    assertThrows(IllegalArgumentException.class, () -> owner.saveWorkout("Valid", null));
+    owner.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+    owner.addLiftExecution(
+        "Bench",
+        new LiftExecution(
+            null,
+            LocalDate.of(2026, 9, 20),
+            List.of(new ExecutionSet(new SetMetric.Reps(5), "100 lb", null)),
+            false,
+            false,
+            "kept"));
+    reopened.deleteSavedWorkout(first);
+    assertThrows(IllegalArgumentException.class, () -> owner.getSavedWorkoutJson(first));
+    assertEquals(1, owner.listSavedWorkouts().size());
+    assertEquals("kept", owner.getExecutions("Bench").get(0).notes());
+  }
+
+  @Test
   void localAccountCreationIsAtomicAndDoesNotClaimAnExistingIdentity() throws Exception {
     var config =
         new HostedPostgresConfig(

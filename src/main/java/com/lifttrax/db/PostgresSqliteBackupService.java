@@ -374,6 +374,15 @@ public final class PostgresSqliteBackupService {
             "created_at"));
     tables.add(
         table(
+            "saved_workouts",
+            "CREATE TABLE saved_workouts (id TEXT PRIMARY KEY, lifter_profile_id TEXT NOT NULL, name TEXT NOT NULL, workout_json TEXT NOT NULL, created_at TEXT NOT NULL)",
+            "id",
+            "lifter_profile_id",
+            "name",
+            "workout_json",
+            "created_at"));
+    tables.add(
+        table(
             "local_imports",
             "CREATE TABLE local_imports (id TEXT PRIMARY KEY, target_app_user_id TEXT NOT NULL, target_lifter_profile_id TEXT NOT NULL, source_kind TEXT NOT NULL, source_fingerprint TEXT NOT NULL, source_schema_version INTEGER NOT NULL, lift_count INTEGER NOT NULL, execution_count INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)",
             "id",
