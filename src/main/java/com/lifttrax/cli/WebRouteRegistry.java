@@ -9,6 +9,7 @@ final class WebRouteRegistry {
   private WebRouteRegistry() {}
 
   static void register(HttpServer server, TrainingDataStoreProvider db, WebAuth auth) {
+    auth.useAccounts(db);
     WebRequestSecurity.register(
         server, "/manifest.webmanifest", Set.of("GET"), WebServerCli::handleManifest);
     WebRequestSecurity.register(
@@ -25,17 +26,19 @@ final class WebRouteRegistry {
         Set.of("GET", "POST"),
         exchange -> auth.handleLocalRegistration(exchange, db));
     WebRequestSecurity.register(
+        server, "/auth/dev-login", Set.of("POST"), exchange -> auth.handleDevLogin(exchange, db));
+    WebRequestSecurity.register(
         server,
-        "/auth/dev-login",
+        "/auth/change-password",
         Set.of("POST"),
-        exchange -> auth.handleDevLogin(exchange, db::resolveAuthUserId));
+        auth.protect(exchange -> auth.handlePasswordChange(exchange, db)));
     WebRequestSecurity.register(server, "/auth/callback", Set.of("GET"), auth::handleCallback);
     WebRequestSecurity.register(server, "/auth/logout", Set.of("POST"), auth::handleLogout);
     WebRequestSecurity.register(
         server,
         "/account",
         Set.of("GET", "POST"),
-        auth.protect(exchange -> WebServerCli.handleAccount(exchange, db)));
+        auth.protect(exchange -> WebServerCli.handleAccount(exchange, db, auth.localPasswords())));
     WebRequestSecurity.register(
         server,
         "/",

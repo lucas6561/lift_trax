@@ -442,6 +442,35 @@ class WebServerCliTest {
   }
 
   @Test
+  void localSessionsRejectTheOldSharedSecretAndDoNotSurviveRestart() throws Exception {
+    WebAuth auth = fixedAuth(false);
+    TestExchange restarted = TestExchange.get("/");
+    addSessionCookie(restarted, fixedAuth(false), "local-user", "", Duration.ofHours(1));
+    auth.protect(exchange -> fail("Previous server session accepted")).handle(restarted);
+    assertEquals(303, restarted.status());
+    String expires = Long.toString(Instant.parse("2099-01-01T00:00:00Z").getEpochSecond());
+    for (String payload :
+        List.of(
+            "local-user\n\nlocal-user\n" + expires, "v2\nlocal-user\n\nlocal-user\n\n" + expires)) {
+      var charset = java.nio.charset.StandardCharsets.UTF_8;
+      String encoded =
+          Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(charset));
+      var mac = javax.crypto.Mac.getInstance("HmacSHA256");
+      mac.init(
+          new javax.crypto.spec.SecretKeySpec(
+              "lifttrax-local-development-session-secret".getBytes(charset), "HmacSHA256"));
+      String signature =
+          Base64.getUrlEncoder()
+              .withoutPadding()
+              .encodeToString(mac.doFinal(encoded.getBytes(charset)));
+      TestExchange forged = TestExchange.get("/");
+      forged.requestHeaders.add("Cookie", "lt_session=" + encoded + "." + signature);
+      auth.protect(exchange -> fail("Old shared signing secret accepted")).handle(forged);
+      assertEquals(303, forged.status());
+    }
+  }
+
+  @Test
   void localDevelopmentLoginSetsSecureHttpOnlySameSiteSessionCookie() throws Exception {
     WebAuth auth = fixedAuth(true);
     TestExchange exchange =
@@ -455,7 +484,7 @@ class WebServerCliTest {
                 "returnTo",
                 "/lift?name=Bench+Press"));
 
-    auth.handleDevLogin(exchange);
+    auth.handleDevLogin(exchange, loginProvider("local-user", "local-user"));
 
     assertEquals(303, exchange.status());
     assertEquals("/lift?name=Bench+Press", exchange.location());
@@ -498,12 +527,7 @@ class WebServerCliTest {
             "/auth/dev-login",
             form("userId", "lucas", "email", "local@example.test", "returnTo", "/"));
 
-    auth.handleDevLogin(
-        login,
-        identifier -> {
-          assertEquals("lucas", identifier);
-          return "0efba538-3f28-45c4-9bde-0b5f4c02d006";
-        });
+    auth.handleDevLogin(login, loginProvider("lucas", "0efba538-3f28-45c4-9bde-0b5f4c02d006"));
 
     String setCookie = login.responseHeaders.getFirst("Set-Cookie");
     TestExchange authenticated = TestExchange.get("/");
@@ -535,7 +559,7 @@ class WebServerCliTest {
 
   @Test
   void callbackFailureDoesNotExposeProviderDetails() throws Exception {
-    WebAuth auth = fixedAuth(false);
+    WebAuth auth = WebAuth.supabaseForTest(Clock.systemUTC());
     TestExchange exchange =
         TestExchange.get("/auth/callback?error=access_denied&error_description=client-secret-leak");
 
@@ -2347,6 +2371,24 @@ class WebServerCliTest {
       body.append(URLEncoder.encode(pairs[i + 1], java.nio.charset.StandardCharsets.UTF_8));
     }
     return body.toString();
+  }
+
+  private static TrainingDataStoreProvider loginProvider(String identifier, String id) {
+    return new TrainingDataStoreProvider() {
+      public TrainingDataStore forUser(String userId) {
+        return null;
+      }
+
+      public java.util.Optional<com.lifttrax.db.LocalAuthentication> authenticateLocal(
+          String input, String password) {
+        assertEquals(identifier, input);
+        return java.util.Optional.of(new com.lifttrax.db.LocalAuthentication(id, "test-version"));
+      }
+
+      public AccountProfile accountFor(String userId, String email) {
+        return new AccountProfile(userId, identifier, "");
+      }
+    };
   }
 
   private static WebAuth fixedAuth(boolean secureCookies) {

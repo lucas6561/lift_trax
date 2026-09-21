@@ -7,3 +7,4 @@
 0006__lift-catalog-sharing.sql
 0007__saved-workouts.sql
 0008__secure-saved-workouts.sql
+0009__local-passwords.sql

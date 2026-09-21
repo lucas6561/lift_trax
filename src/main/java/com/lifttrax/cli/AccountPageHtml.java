@@ -18,6 +18,16 @@ final class AccountPageHtml {
       String message,
       String messageType,
       boolean shareLifts) {
+    return render(account, user, message, messageType, shareLifts, false);
+  }
+
+  static String render(
+      AccountProfile account,
+      WebAuth.User user,
+      String message,
+      String messageType,
+      boolean shareLifts,
+      boolean localPasswords) {
     String value =
         account.username().isBlank()
             ? suggestedUsername(user.suggestedUsername())
@@ -52,6 +62,19 @@ final class AccountPageHtml {
             <p><a href='/'>Back to LiftTrax</a></p>
             """
             .formatted(status, WebHtml.escapeHtml(value), shareLifts ? "checked" : "");
+    if (localPasswords) {
+      body +=
+          """
+          <h2>Change password</h2>
+          <form method='post' action='/auth/change-password' class='query-form' style='display:block;'>
+            <label>Current password <input type='password' name='currentPassword' required autocomplete='current-password'></label>
+            <label>New password <input type='password' name='password' required minlength='1' autocomplete='new-password'></label>
+            <p class='muted'>Use at least one character. Changing your password signs out all your sessions.</p>
+            <label>Confirm new password <input type='password' name='confirmPassword' required autocomplete='new-password'></label>
+            <button type='submit'>Change Password</button>
+          </form>
+          """;
+    }
     return WebHtml.wrapPage("Account", body);
   }
 

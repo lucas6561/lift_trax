@@ -50,6 +50,30 @@ public interface TrainingDataStoreProvider extends AutoCloseable {
     throw new UnsupportedOperationException("Local accounts require Postgres.");
   }
 
+  default AccountProfile createLocalAccount(String username, String email, String password)
+      throws Exception {
+    throw new UnsupportedOperationException("Local passwords require Postgres.");
+  }
+
+  default java.util.Optional<LocalAuthentication> authenticateLocal(
+      String identifier, String password) throws Exception {
+    return java.util.Optional.empty();
+  }
+
+  default String localPasswordVersion(String authUserId) throws Exception {
+    return "";
+  }
+
+  default void changeLocalPassword(String authUserId, String currentPassword, String newPassword)
+      throws Exception {
+    throw new UnsupportedOperationException("Local passwords require Postgres.");
+  }
+
+  /** Operator-only bootstrap/recovery; never expose this operation through an HTTP route. */
+  default void resetLocalPassword(String authUserId, String password) throws Exception {
+    throw new UnsupportedOperationException("Local passwords require Postgres.");
+  }
+
   @Override
   default void close() throws Exception {}
 

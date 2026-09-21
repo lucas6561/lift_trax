@@ -230,6 +230,12 @@ public final class WebServerCli {
 
   static void handleAccount(HttpExchange exchange, TrainingDataStoreProvider db)
       throws IOException {
+    handleAccount(exchange, db, false);
+  }
+
+  static void handleAccount(
+      HttpExchange exchange, TrainingDataStoreProvider db, boolean localPasswords)
+      throws IOException {
     WebAuth.User user = WebAuth.currentUser(exchange).orElseThrow();
     try {
       AccountProfile account = db.accountFor(user.id(), user.email());
@@ -254,7 +260,12 @@ public final class WebServerCli {
       sendHtml(
           exchange,
           AccountPageHtml.render(
-              account, user, message, messageType, db.isLiftCatalogShared(user.id())));
+              account,
+              user,
+              message,
+              messageType,
+              db.isLiftCatalogShared(user.id()),
+              localPasswords));
     } catch (Exception e) {
       sendHtml(
           exchange,

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.config.LiftTraxConfig;
 import com.lifttrax.db.AccountProfile;
+import com.lifttrax.db.LocalAuthentication;
 import com.lifttrax.db.TrainingDataStoreProvider;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -41,6 +42,17 @@ final class WebAuth {
 
   private final Config config;
   private final TokenExchanger tokenExchanger;
+  private final String localSessionSecret = randomToken();
+  private final AuthAttemptLimiter attempts = new AuthAttemptLimiter();
+  private TrainingDataStoreProvider accounts;
+
+  void useAccounts(TrainingDataStoreProvider accounts) {
+    this.accounts = accounts;
+  }
+
+  boolean localPasswords() {
+    return config.mode() == AuthMode.LOCAL;
+  }
 
   private WebAuth(Config config, TokenExchanger tokenExchanger) {
     this.config = config;
@@ -54,8 +66,8 @@ final class WebAuth {
         LiftTraxConfig.setting(
             "lifttrax.auth.sessionSecret",
             "LIFTTRAX_AUTH_SESSION_SECRET",
-            supabaseMode ? "" : "lifttrax-local-development-session-secret");
-    if (sessionSecret.isBlank()) {
+            supabaseMode ? "" : randomToken());
+    if (supabaseMode && sessionSecret.isBlank()) {
       throw new IllegalStateException("Hosted auth requires lifttrax.auth.sessionSecret.");
     }
     String redirectUri =
@@ -84,7 +96,7 @@ final class WebAuth {
     return new WebAuth(
         new Config(
             AuthMode.LOCAL,
-            "lifttrax-local-development-session-secret",
+            randomToken(),
             secureCookies,
             "",
             "",
@@ -164,6 +176,7 @@ final class WebAuth {
   }
 
   void handleLogin(HttpExchange exchange) throws IOException {
+    exchange.getResponseHeaders().set("Cache-Control", "no-store");
     if (config.mode() == AuthMode.SUPABASE) {
       redirectToSupabase(exchange);
       return;
@@ -175,24 +188,22 @@ final class WebAuth {
     String body =
         """
             <h1>Sign In</h1>
-            <p class='muted'>For trusted users on this local server. Local accounts do not use passwords.</p>
             <form method='post' action='/auth/dev-login' class='query-form' style='display:block;'>
-              <label>Username or account ID <input name='userId' value='%s' required></label>
+              <label>Username or account ID <input name='userId' value='%s' required autocomplete='username'></label>
+              <label>Password <input type='password' name='password' required autocomplete='current-password'></label>
               <input type='hidden' name='returnTo' value='%s'>
               <button type='submit'>Sign In</button>
             </form>
             <p>New here? <a href='/auth/local-register'>Create a local account</a>.</p>
+            <p class='muted'>Need your first password or forgot it? Ask the server owner to set a password for your existing account.</p>
             """
             .formatted(WebHtml.escapeHtml(defaultUser), WebHtml.escapeHtml(returnTo));
     WebServerCli.sendHtml(exchange, WebHtml.wrapPage("Sign In", body));
   }
 
-  void handleDevLogin(HttpExchange exchange) throws IOException {
-    handleDevLogin(exchange, value -> value);
-  }
-
   void handleLocalRegistration(HttpExchange exchange, TrainingDataStoreProvider db)
       throws IOException {
+    exchange.getResponseHeaders().set("Cache-Control", "no-store");
     if (config.mode() != AuthMode.LOCAL) {
       sendText(exchange, 404, "Not Found");
       return;
@@ -203,11 +214,21 @@ final class WebAuth {
     String email = form.getOrDefault("email", "").trim();
     String error = "";
     if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+      if (!allowAttempt(exchange)) {
+        return;
+      }
       try {
-        AccountProfile account = db.createLocalAccount(username, email);
+        String password = confirmedPassword(form);
+        AccountProfile account = db.createLocalAccount(username, email, password);
+        LocalAuthentication verified =
+            db.authenticateLocal(account.authUserId(), password).orElseThrow();
         setSessionCookie(
             exchange,
-            new User(account.authUserId(), account.email(), account.username()),
+            new User(
+                account.authUserId(),
+                account.email(),
+                account.username(),
+                verified.passwordVersion()),
             config.clock().instant().plus(LOCAL_SESSION_DURATION));
         redirect(
             exchange,
@@ -225,12 +246,14 @@ final class WebAuth {
         """
         <h1>Create a Local Account</h1>
         <p>Choose a username for your own lifts and workout history.</p>
-        <p class='muted'>Local accounts do not use passwords. Anyone with access to this server can sign in as a local user.</p>
         %s
         <form method='post' action='/auth/local-register' class='query-form' style='display:block;'>
           <label>Username <input name='username' value='%s' minlength='3' maxlength='30' required autocomplete='username'></label>
           <p class='muted'>Use 3–30 letters, numbers, underscores, or hyphens, starting with a letter or number.</p>
           <label>Email (optional) <input type='email' name='email' value='%s' autocomplete='email'></label>
+          <label>Password <input type='password' name='password' required minlength='1' autocomplete='new-password'></label>
+          <p class='muted'>Use at least one character.</p>
+          <label>Confirm password <input type='password' name='confirmPassword' required autocomplete='new-password'></label>
           <button type='submit'>Create Account</button>
         </form>
         <p><a href='/auth/login'>Back to sign in</a></p>
@@ -244,38 +267,111 @@ final class WebAuth {
     WebServerCli.sendHtml(exchange, WebHtml.wrapPage("Create a Local Account", body));
   }
 
-  void handleDevLogin(HttpExchange exchange, UserIdResolver userIdResolver) throws IOException {
+  void handleDevLogin(HttpExchange exchange, TrainingDataStoreProvider db) throws IOException {
     if (config.mode() != AuthMode.LOCAL) {
       sendText(exchange, 404, "Not Found");
       return;
     }
+    if (!allowAttempt(exchange)) {
+      return;
+    }
     Map<String, String> form = parseForm(exchange);
     String accountIdentifier = form.getOrDefault("userId", "").trim();
-    if (accountIdentifier.isBlank()) {
-      WebServerCli.sendHtml(
-          exchange,
-          WebHtml.wrapPage(
-              "Sign In Error",
-              "<h1>Sign In Error</h1><p class='status error'>User ID is required.</p>"));
-      return;
-    }
-    String userId;
     try {
-      userId = userIdResolver.resolve(accountIdentifier);
+      Optional<LocalAuthentication> verified =
+          db.authenticateLocal(accountIdentifier, form.getOrDefault("password", ""));
+      if (verified.isEmpty()) {
+        sendLoginFailure(exchange, safeReturnTo(form.getOrDefault("returnTo", "/")));
+        return;
+      }
+      AccountProfile account = db.accountFor(verified.get().authUserId(), "");
+      setSessionCookie(
+          exchange,
+          new User(
+              account.authUserId(),
+              account.email(),
+              account.username(),
+              verified.get().passwordVersion()),
+          config.clock().instant().plus(LOCAL_SESSION_DURATION));
+      redirect(exchange, safeReturnTo(form.getOrDefault("returnTo", "/")));
     } catch (Exception e) {
+      sendText(exchange, 503, "Sign in is temporarily unavailable. Please try again.");
+    }
+  }
+
+  private static String confirmedPassword(Map<String, String> form) {
+    String password = form.getOrDefault("password", "");
+    if (!password.equals(form.getOrDefault("confirmPassword", ""))) {
+      throw new IllegalArgumentException("Passwords do not match.");
+    }
+    return password;
+  }
+
+  void handlePasswordChange(HttpExchange exchange, TrainingDataStoreProvider db)
+      throws IOException {
+    if (!localPasswords()) {
+      sendText(exchange, 404, "Not Found");
+      return;
+    }
+    if (!allowAttempt(exchange)) {
+      return;
+    }
+    Map<String, String> form = parseForm(exchange);
+    try {
+      db.changeLocalPassword(
+          currentUser(exchange).orElseThrow().id(),
+          form.getOrDefault("currentPassword", ""),
+          confirmedPassword(form));
+      clearCookie(exchange, SESSION_COOKIE_NAME);
+      exchange.setAttribute(USER_ATTRIBUTE, null);
       WebServerCli.sendHtml(
           exchange,
           WebHtml.wrapPage(
-              "Sign In Error",
-              "<h1>Sign In Error</h1><p class='status error'>No existing LiftTrax account matches that username or account ID.</p><p><a href='/auth/login'>Back to sign in</a></p>"));
-      return;
+              "Password changed",
+              "<h1>Password changed</h1><p>Sign in again with your new password. Other sessions have been signed out.</p><p><a href='/auth/login'>Sign in</a></p>"));
+    } catch (IllegalArgumentException e) {
+      WebServerCli.sendHtml(
+          exchange,
+          WebHtml.wrapPage(
+              "Password change",
+              "<h1>Password change</h1><p class='status error'>"
+                  + WebHtml.escapeHtml(e.getMessage())
+                  + "</p><p><a href='/account'>Back to Account</a></p>"));
+    } catch (Exception e) {
+      sendText(exchange, 503, "Password changes are temporarily unavailable. Please try again.");
     }
-    Instant expiresAt = config.clock().instant().plus(LOCAL_SESSION_DURATION);
-    setSessionCookie(exchange, new User(userId, "", accountIdentifier), expiresAt);
-    redirect(exchange, safeReturnTo(form.getOrDefault("returnTo", "/")));
+  }
+
+  private boolean allowAttempt(HttpExchange exchange) throws IOException {
+    exchange.getResponseHeaders().set("Cache-Control", "no-store");
+    String address = exchange.getRemoteAddress().getAddress().getHostAddress();
+    if (attempts.allow(address, config.clock().instant())) {
+      return true;
+    }
+    exchange.getResponseHeaders().set("Retry-After", "60");
+    sendText(exchange, 429, "Too many attempts. Wait a minute, then try again.");
+    return false;
+  }
+
+  private static void sendLoginFailure(HttpExchange exchange, String returnTo) throws IOException {
+    String body =
+        "<h1>Sign in failed</h1><p class='status error'>Username or password is incorrect.</p>"
+            + "<p><a href='/auth/login?returnTo="
+            + WebHtml.escapeHtml(urlEncode(returnTo))
+            + "'>Try again</a></p><p>Need your first password or forgot it? Ask the server owner to reset it.</p>";
+    byte[] bytes = WebHtml.wrapPage("Sign in failed", body).getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(401, bytes.length);
+    try (OutputStream output = exchange.getResponseBody()) {
+      output.write(bytes);
+    }
   }
 
   void handleCallback(HttpExchange exchange) throws IOException {
+    if (localPasswords()) {
+      sendText(exchange, 404, "Not Found");
+      return;
+    }
     Map<String, String> query = parseQuery(exchange.getRequestURI());
     if (query.containsKey("error")) {
       sendAuthFailure(exchange, 400);
@@ -318,6 +414,15 @@ final class WebAuth {
       return Optional.empty();
     }
     Optional<User> user = verifySession(value);
+    if (user.isPresent() && localPasswords() && accounts != null) {
+      try {
+        if (!user.get().passwordVersion().equals(accounts.localPasswordVersion(user.get().id()))) {
+          user = Optional.empty();
+        }
+      } catch (Exception e) {
+        user = Optional.empty();
+      }
+    }
     if (user.isEmpty()) {
       clearCookie(exchange, SESSION_COOKIE_NAME);
     }
@@ -375,7 +480,7 @@ final class WebAuth {
       }
       String payload = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
       String[] fields = payload.split("\n", -1);
-      if (fields.length != 3 && fields.length != 4) {
+      if (fields.length != 6 || !"v2".equals(fields[0])) {
         return Optional.empty();
       }
       int expiresIndex = fields.length - 1;
@@ -383,7 +488,7 @@ final class WebAuth {
       if (!expiresAt.isAfter(config.clock().instant())) {
         return Optional.empty();
       }
-      return Optional.of(new User(fields[0], fields[1], fields.length == 4 ? fields[2] : ""));
+      return Optional.of(new User(fields[1], fields[2], fields[3], fields[4]));
     } catch (RuntimeException ignored) {
       return Optional.empty();
     }
@@ -397,11 +502,14 @@ final class WebAuth {
 
   private String signSession(User user, Instant expiresAt) {
     String payload =
-        user.id()
+        "v2\n"
+            + user.id()
             + "\n"
             + user.email()
             + "\n"
             + user.suggestedUsername()
+            + "\n"
+            + user.passwordVersion()
             + "\n"
             + expiresAt.getEpochSecond();
     String encoded =
@@ -415,7 +523,10 @@ final class WebAuth {
     try {
       Mac mac = Mac.getInstance("HmacSHA256");
       mac.init(
-          new SecretKeySpec(config.sessionSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+          new SecretKeySpec(
+              (localPasswords() ? localSessionSecret : config.sessionSecret())
+                  .getBytes(StandardCharsets.UTF_8),
+              "HmacSHA256"));
       return Base64.getUrlEncoder()
           .withoutPadding()
           .encodeToString(mac.doFinal(encodedPayload.getBytes(StandardCharsets.UTF_8)));
@@ -553,7 +664,11 @@ final class WebAuth {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 
-  record User(String id, String email, String suggestedUsername) {
+  record User(String id, String email, String suggestedUsername, String passwordVersion) {
+    User(String id, String email, String suggestedUsername) {
+      this(id, email, suggestedUsername, "");
+    }
+
     User(String id, String email) {
       this(id, email, "");
     }
@@ -564,11 +679,6 @@ final class WebAuth {
   }
 
   record SupabaseTokens(String accessToken, String refreshToken, long expiresIn) {}
-
-  @FunctionalInterface
-  interface UserIdResolver {
-    String resolve(String identifier) throws Exception;
-  }
 
   private record Config(
       AuthMode mode,

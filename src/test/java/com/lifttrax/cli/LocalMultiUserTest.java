@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -28,6 +29,179 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class LocalMultiUserTest {
+  @Test
+  void registrationAndSignInAcceptOneCharacterAndLongPasswords() throws Exception {
+    for (String password : List.of("x", "x".repeat(129))) {
+      try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+        Browser browser = fixture.browser();
+        String registration = browser.get("/auth/local-register").body();
+        assertFalse(registration.contains("maxlength='128'"));
+        assertTrue(registration.contains("minlength='1'"));
+        assertEquals(
+            303,
+            browser
+                .post(
+                    "/auth/local-register",
+                    fields(
+                        registration,
+                        "username",
+                        "minimal",
+                        "password",
+                        password,
+                        "confirmPassword",
+                        password))
+                .statusCode());
+        String account = browser.get("/account").body();
+        assertFalse(account.contains("maxlength='128'"));
+        assertTrue(account.contains("minlength='1'"));
+        browser.post("/auth/logout", fields(account));
+        String login = browser.get("/auth/login").body();
+        assertFalse(login.contains("maxlength='128'"));
+        assertEquals(
+            303,
+            browser
+                .post("/auth/dev-login", fields(login, "userId", "minimal", "password", password))
+                .statusCode());
+        assertTrue(browser.get("/").body().contains("Signed in as minimal"));
+      }
+    }
+  }
+
+  @Test
+  void passwordsAreRequiredAndChangesRevokeOtherSessions() throws Exception {
+    try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+      Browser alice = fixture.browser();
+      register(alice, "alice", "");
+      Browser other = fixture.browser();
+      String page = other.get("/auth/login").body();
+      assertTrue(page.contains("autocomplete='current-password'"));
+      assertEquals(
+          403,
+          other
+              .post(
+                  "/auth/dev-login",
+                  Map.of("userId", "alice", "password", "correct horse battery staple"))
+              .statusCode());
+      var missing = fields(page, "userId", "alice");
+      missing.remove("password");
+      assertEquals(401, other.post("/auth/dev-login", missing).statusCode());
+      var wrong =
+          other.post("/auth/dev-login", fields(page, "userId", "alice", "password", "wrong"));
+      var unknown =
+          other.post("/auth/dev-login", fields(page, "userId", "unknown", "password", "wrong"));
+      assertEquals(401, wrong.statusCode());
+      assertEquals(wrong.body(), unknown.body());
+      assertTrue(wrong.headers().allValues("Set-Cookie").isEmpty());
+      assertEquals(303, other.get("/").statusCode());
+      assertEquals(
+          303, other.post("/auth/dev-login", fields(page, "userId", "alice")).statusCode());
+      String account = alice.get("/account").body();
+      assertTrue(account.contains("action='/auth/change-password'"));
+      assertEquals(403, alice.post("/auth/change-password", Map.of()).statusCode());
+      assertTrue(
+          alice
+              .post("/auth/change-password", fields(account, "currentPassword", "wrong"))
+              .body()
+              .contains("Current password is incorrect"));
+      assertTrue(
+          alice
+              .post(
+                  "/auth/change-password",
+                  fields(
+                      account,
+                      "currentPassword",
+                      "correct horse battery staple",
+                      "confirmPassword",
+                      "mismatch"))
+              .body()
+              .contains("Passwords do not match"));
+      var changed =
+          alice.post(
+              "/auth/change-password",
+              fields(
+                  account,
+                  "currentPassword",
+                  "correct horse battery staple",
+                  "password",
+                  "x",
+                  "confirmPassword",
+                  "x"));
+      assertTrue(changed.body().contains("Password changed"));
+      assertEquals(303, alice.get("/").statusCode());
+      assertEquals(303, other.get("/").statusCode());
+      assertTrue(
+          fixture.provider.authenticateLocal("alice", "correct horse battery staple").isEmpty());
+      assertTrue(fixture.provider.authenticateLocal("alice", "x").isPresent());
+    }
+  }
+
+  @Test
+  void legacyAccountsRequireOperatorSetupAndResetRevokesSessions() throws Exception {
+    try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+      fixture.provider.forUser("legacy-id");
+      fixture.provider.updateUsername("legacy-id", "legacy");
+      Browser browser = fixture.browser();
+      String login = browser.get("/auth/login").body();
+      assertEquals(
+          401, browser.post("/auth/dev-login", fields(login, "userId", "legacy")).statusCode());
+      fixture.provider.resetLocalPassword("legacy-id", "correct horse battery staple");
+      assertEquals(
+          303, browser.post("/auth/dev-login", fields(login, "userId", "legacy")).statusCode());
+      assertTrue(browser.get("/").body().contains("Signed in as legacy"));
+      fixture.provider.resetLocalPassword("legacy-id", "replacement long password");
+      assertEquals(303, browser.get("/").statusCode());
+      assertEquals(404, browser.get("/auth/callback?code=fake").statusCode());
+      assertEquals(405, browser.get("/auth/dev-login").statusCode());
+    }
+  }
+
+  @Test
+  void registrationRejectsEmptyAndMismatchedPasswordsWithoutEchoingThem() throws Exception {
+    try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+      Browser browser = fixture.browser();
+      String page = browser.get("/auth/local-register").body();
+      for (String password : List.of("")) {
+        var response =
+            browser.post(
+                "/auth/local-register",
+                fields(
+                    page,
+                    "username",
+                    "new-user",
+                    "password",
+                    password,
+                    "confirmPassword",
+                    password));
+        assertTrue(response.body().contains("at least one character"));
+        assertTrue(response.headers().allValues("Set-Cookie").isEmpty());
+      }
+      var mismatch =
+          browser.post(
+              "/auth/local-register",
+              fields(page, "username", "new-user", "confirmPassword", "mismatch"));
+      assertTrue(mismatch.body().contains("Passwords do not match"));
+      assertFalse(mismatch.body().contains("correct horse battery staple"));
+      assertThrows(
+          IllegalArgumentException.class, () -> fixture.provider.resolveAuthUserId("new-user"));
+    }
+  }
+
+  @Test
+  void repeatedLoginAttemptsAreThrottledEvenWithDifferentUsernames() throws Exception {
+    try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+      Browser browser = fixture.browser();
+      String page = browser.get("/auth/login").body();
+      for (int i = 0; i < 10; i++) {
+        assertEquals(
+            401,
+            browser.post("/auth/dev-login", fields(page, "userId", "unknown-" + i)).statusCode());
+      }
+      var limited = browser.post("/auth/dev-login", fields(page, "userId", "unknown"));
+      assertEquals(429, limited.statusCode());
+      assertEquals("60", limited.headers().firstValue("Retry-After").orElseThrow());
+    }
+  }
+
   @Test
   void usersCanOptInBrowseAndImportWithoutCrossingTheHistoryBoundary() throws Exception {
     try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
@@ -222,7 +396,7 @@ class LocalMultiUserTest {
       register(first, "alice", "original@example.test");
       Browser second = fixture.browser();
       String page = second.get("/auth/local-register").body();
-      assertTrue(page.contains("Local accounts do not use passwords"));
+      assertTrue(page.contains("autocomplete='new-password'"));
       assertEquals(
           403, second.post("/auth/local-register", Map.of("username", "new-user")).statusCode());
       var duplicate =
@@ -241,7 +415,7 @@ class LocalMultiUserTest {
           second
               .post("/auth/dev-login", fields(page, "userId", "unknown-account"))
               .body()
-              .contains("No existing LiftTrax account"));
+              .contains("Username or password is incorrect"));
       assertThrows(
           IllegalArgumentException.class,
           () -> fixture.provider.resolveAuthUserId("unknown-account"));
@@ -349,6 +523,8 @@ class LocalMultiUserTest {
   private static Map<String, String> fields(String page, String... values) {
     Map<String, String> fields = new LinkedHashMap<>();
     fields.put("csrfToken", field(page, "csrfToken"));
+    fields.put("password", "correct horse battery staple");
+    fields.put("confirmPassword", "correct horse battery staple");
     if (page.contains("name='accountScope'"))
       fields.put("accountScope", field(page, "accountScope"));
     for (int i = 0; i < values.length; i += 2) fields.put(values[i], values[i + 1]);

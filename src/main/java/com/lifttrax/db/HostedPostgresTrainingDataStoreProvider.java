@@ -140,6 +140,17 @@ public final class HostedPostgresTrainingDataStoreProvider implements TrainingDa
 
   @Override
   public AccountProfile createLocalAccount(String username, String email) throws SQLException {
+    return createLocalAccountWithHash(username, email, null);
+  }
+
+  @Override
+  public AccountProfile createLocalAccount(String username, String email, String password)
+      throws SQLException {
+    return createLocalAccountWithHash(username, email, LocalPasswords.hash(password));
+  }
+
+  private AccountProfile createLocalAccountWithHash(String username, String email, String hash)
+      throws SQLException {
     String normalized = normalizeUsername(username);
     String normalizedEmail = email == null ? "" : email.trim();
     String authUserId = "local-" + java.util.UUID.randomUUID();
@@ -152,10 +163,12 @@ public final class HostedPostgresTrainingDataStoreProvider implements TrainingDa
         String appUserId = ensureAppUser(connection, authUserId);
         try (PreparedStatement statement =
             connection.prepareStatement(
-                "UPDATE app_users SET username = ?, email = ? WHERE id = ?")) {
+                "UPDATE app_users SET username = ?, email = ?, password_hash = ?, password_version = ? WHERE id = ?")) {
           statement.setString(1, normalized);
           statement.setString(2, normalizedEmail);
-          statement.setString(3, appUserId);
+          statement.setString(3, hash);
+          statement.setString(4, hash == null ? "" : java.util.UUID.randomUUID().toString());
+          statement.setString(5, appUserId);
           statement.executeUpdate();
         }
         ensureDefaultLifterProfile(connection, appUserId, authUserId);
@@ -174,6 +187,96 @@ public final class HostedPostgresTrainingDataStoreProvider implements TrainingDa
     AccountProfile account = new AccountProfile(authUserId, normalized, normalizedEmail);
     accountsByUser.put(authUserId, account);
     return account;
+  }
+
+  @Override
+  public java.util.Optional<LocalAuthentication> authenticateLocal(
+      String identifier, String password) throws SQLException {
+    String userId;
+    try {
+      userId = resolveAuthUserId(identifier);
+    } catch (IllegalArgumentException e) {
+      LocalPasswords.matches(password, null);
+      return java.util.Optional.empty();
+    }
+    try (Connection connection = openConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT password_hash, password_version FROM app_users WHERE auth_user_id = ?")) {
+      statement.setString(1, userId);
+      try (var rows = statement.executeQuery()) {
+        if (rows.next() && LocalPasswords.matches(password, rows.getString(1))) {
+          return java.util.Optional.of(new LocalAuthentication(userId, rows.getString(2)));
+        }
+      }
+    }
+    return java.util.Optional.empty();
+  }
+
+  @Override
+  public String localPasswordVersion(String authUserId) throws SQLException {
+    try (Connection connection = openConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT password_version FROM app_users WHERE auth_user_id = ?")) {
+      statement.setString(1, authUserId);
+      try (var rows = statement.executeQuery()) {
+        return rows.next() ? rows.getString(1) : "";
+      }
+    }
+  }
+
+  @Override
+  public void resetLocalPassword(String authUserId, String password) throws SQLException {
+    updateLocalPassword(requireUserId(authUserId), LocalPasswords.hash(password), null);
+  }
+
+  @Override
+  public void changeLocalPassword(String authUserId, String currentPassword, String newPassword)
+      throws SQLException {
+    // Resolve by immutable ID only: another account's username may resemble this ID.
+    String version = localPasswordVersion(authUserId);
+    boolean valid;
+    try (Connection connection = openConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT password_hash FROM app_users WHERE auth_user_id = ? AND password_version = ?")) {
+      statement.setString(1, authUserId);
+      statement.setString(2, version);
+      try (var rows = statement.executeQuery()) {
+        if (rows.next()) {
+          valid = LocalPasswords.matches(currentPassword, rows.getString(1));
+        } else {
+          valid = false;
+        }
+      }
+    }
+    if (!valid) {
+      throw new IllegalArgumentException("Current password is incorrect.");
+    }
+    updateLocalPassword(authUserId, LocalPasswords.hash(newPassword), version);
+  }
+
+  private void updateLocalPassword(String userId, String hash, String expectedVersion)
+      throws SQLException {
+    try (Connection connection = openConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "UPDATE app_users SET password_hash = ?, password_version = ? WHERE auth_user_id = ?"
+                    + (expectedVersion == null ? "" : " AND password_version = ?"))) {
+      statement.setString(1, hash);
+      statement.setString(2, java.util.UUID.randomUUID().toString());
+      statement.setString(3, userId);
+      if (expectedVersion != null) {
+        statement.setString(4, expectedVersion);
+      }
+      if (statement.executeUpdate() != 1) {
+        throw new IllegalArgumentException(
+            expectedVersion == null
+                ? "No existing LiftTrax account matches that account ID."
+                : "Password changed elsewhere. Sign in again and retry.");
+      }
+    }
   }
 
   @Override

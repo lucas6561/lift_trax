@@ -33,6 +33,7 @@ class PostgresSqliteBackupServiceTest {
     TrainingDataStore first = provider.forUser("owner-a");
     TrainingDataStore second = provider.forUser("owner-b");
     provider.updateUsername("owner-a", "backup-user");
+    provider.resetLocalPassword("owner-a", "private backup password");
     provider.setLiftCatalogShared("owner-a", true);
     String savedDocument =
         Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
@@ -103,10 +104,12 @@ class PostgresSqliteBackupServiceTest {
             connection
                 .createStatement()
                 .executeQuery(
-                    "SELECT username, share_lift_catalog FROM app_users WHERE auth_user_id = 'owner-a'")) {
+                    "SELECT username, share_lift_catalog, password_hash, password_version FROM app_users WHERE auth_user_id = 'owner-a'")) {
       assertTrue(resultSet.next());
       assertEquals("backup-user", resultSet.getString(1));
       assertTrue(resultSet.getBoolean(2));
+      assertTrue(LocalPasswords.matches("private backup password", resultSet.getString(3)));
+      assertEquals(provider.localPasswordVersion("owner-a"), resultSet.getString(4));
     }
   }
 

@@ -120,7 +120,7 @@ underlying authentication ID. Passing `--user <username-or-id>` or setting
 ### More than one local user
 
 Open `/auth/login` and choose **Create a local account** for each new user.
-Choose a unique username and optional email. Each account has its own lifts,
+Choose a unique username, a password of at least one character, and an optional email. Each account has its own lifts,
 execution history, and saved browser drafts. A new account starts with an empty
 lift list; use **Add Execution → New Lift** to add exercises.
 
@@ -130,9 +130,13 @@ other username. Tabs share that sign-in; a form left open for the previous user
 cannot save into the new account. Sign back into the original account to resume
 its drafts. Refresh any pages left open before this update.
 
-Local accounts have no passwords and are intended for a trusted household or
-development server. Use Supabase authentication for accounts that need access
-protection. Local mode still uses the configured Postgres database. See
+Local accounts require passwords. Existing users need a first password set by the
+server owner with `./set-local-password.bat --user <username-or-account-id>`; the
+command prompts for a hidden password and preserves the existing account and data.
+It also resets forgotten passwords. Signed-in users can change passwords under
+**Account**. Password changes sign out existing sessions. Use HTTPS and secure
+cookies when accessing the server across a network. Local mode still uses the
+configured Postgres database. See
 [account authentication](docs/account-authentication.md).
 
 ## Database schema migrations
