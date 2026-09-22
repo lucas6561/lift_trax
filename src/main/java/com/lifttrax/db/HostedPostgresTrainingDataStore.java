@@ -39,6 +39,13 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   }
 
   @Override
+  public DashboardSnapshot dashboardSnapshot(LocalDate today) throws Exception {
+    try (Connection connection = openConnection()) {
+      return new HostedDashboardReader(connection, appUserId, lifterProfileId).load(today);
+    }
+  }
+
+  @Override
   public List<SavedWorkout> listSavedWorkouts() throws Exception {
     try (Connection connection = openConnection();
         PreparedStatement statement =
@@ -697,39 +704,6 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   }
 
   @Override
-  public Map<String, LiftExecution> latestExecutionsByLift() throws Exception {
-    String sql =
-        """
-            SELECT c.name, e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes
-            FROM exercise_catalog_entries c
-            JOIN executions e ON e.catalog_entry_id = c.id
-            WHERE c.owner_user_id = ? AND c.lifter_profile_id = ? AND e.lifter_profile_id = ?
-                AND e.web_execution_id = (
-                    SELECT e2.web_execution_id
-                    FROM executions e2
-                    WHERE e2.lifter_profile_id = ? AND e2.catalog_entry_id = c.id
-                    ORDER BY e2.performed_on DESC, e2.web_execution_id DESC
-                    LIMIT 1
-                )
-            ORDER BY c.name
-            """;
-    Map<String, LiftExecution> latest = new HashMap<>();
-    try (Connection connection = openConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, appUserId);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, lifterProfileId);
-      statement.setString(4, lifterProfileId);
-      try (ResultSet rs = statement.executeQuery()) {
-        while (rs.next()) {
-          latest.put(rs.getString("name"), mapExecution(connection, rs));
-        }
-      }
-    }
-    return latest;
-  }
-
-  @Override
   public Map<String, Boolean> liftEnabledStatuses() throws Exception {
     try (Connection connection = openConnection();
         PreparedStatement statement =
@@ -886,7 +860,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
     }
   }
 
-  private static ExecutionSet mapExecutionSet(ResultSet rs) throws Exception {
+  static ExecutionSet mapExecutionSet(ResultSet rs) throws Exception {
     Integer metricB = rs.getObject("metric_b") == null ? null : rs.getInt("metric_b");
     Float rpe = rs.getObject("rpe") == null ? null : rs.getFloat("rpe");
     return new ExecutionSet(

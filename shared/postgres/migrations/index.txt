@@ -8,3 +8,4 @@
 0007__saved-workouts.sql
 0008__secure-saved-workouts.sql
 0009__local-passwords.sql
+0010__dashboard-latest-index.sql

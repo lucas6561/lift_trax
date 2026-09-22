@@ -114,7 +114,7 @@ final class WebUiRenderer {
     String normalizedTab = normalizeTab(activeTab);
     String dashboardContent =
         "dashboard".equals(normalizedTab)
-            ? renderDailyDashboard(db, lifts, LocalDate.now())
+            ? renderDailyDashboard(db, LocalDate.now())
             : deferredTabContent("Dashboard");
     String executionContent =
         "executions".equals(normalizedTab)
@@ -156,7 +156,14 @@ final class WebUiRenderer {
         waveWeeks);
   }
 
-  private static String normalizeTab(String activeTab) {
+  static List<Lift> loadIndexLifts(TrainingDataStore db, String activeTab) throws Exception {
+    return switch (activeTab) {
+      case "dashboard", "import-workout" -> List.of();
+      default -> db.listLifts();
+    };
+  }
+
+  static String normalizeTab(String activeTab) {
     return switch (activeTab == null ? "" : activeTab.trim()) {
       case "dashboard",
           "add-execution",
@@ -226,9 +233,17 @@ final class WebUiRenderer {
       LocalDate lastWeekStart,
       LocalDate lastWeekEnd,
       int waveWeeks) {
-    String filterControls = renderFilterControls(lifts, search);
-    String addExecutionContent = renderAddExecutionForm(lifts, statusMessage, statusType, prefill);
-    String queryControls = renderQueryControls(lifts, queryLift);
+    String filterControls =
+        switch (activeTab) {
+          case "add-execution", "executions", "query", "last-week" ->
+              renderFilterControls(lifts, search);
+          default -> "";
+        };
+    String addExecutionContent =
+        "add-execution".equals(activeTab)
+            ? renderAddExecutionForm(lifts, statusMessage, statusType, prefill)
+            : deferredTabContent("Add Execution");
+    String queryControls = "query".equals(activeTab) ? renderQueryControls(lifts, queryLift) : "";
     String dashboardTabClass = tabClass(activeTab, "dashboard");
     String addExecutionTabClass = tabClass(activeTab, "add-execution");
     String wavesTabClass = tabClass(activeTab, "waves");
@@ -244,7 +259,7 @@ final class WebUiRenderer {
     String queryPanelClass = panelClass(activeTab, "query");
     String lastWeekPanelClass = panelClass(activeTab, "last-week");
     String dashboardLoaded = loaded(activeTab, "dashboard");
-    String addExecutionLoaded = "true";
+    String addExecutionLoaded = loaded(activeTab, "add-execution");
     String executionsLoaded = loaded(activeTab, "executions");
     String wavesLoaded = loaded(activeTab, "waves");
     String importWorkoutLoaded = loaded(activeTab, "import-workout");
@@ -1324,11 +1339,11 @@ final class WebUiRenderer {
             tabContent.dashboardContent(),
             addExecutionPanelClass,
             addExecutionLoaded,
-            filterControls,
+            "add-execution".equals(activeTab) ? filterControls : "",
             addExecutionContent,
             executionsPanelClass,
             executionsLoaded,
-            filterControls,
+            "executions".equals(activeTab) ? filterControls : "",
             tabContent.executionContent(),
             wavesPanelClass,
             wavesLoaded,
@@ -1338,14 +1353,14 @@ final class WebUiRenderer {
             tabContent.importWorkoutContent(),
             queryPanelClass,
             queryLoaded,
-            filterControls,
+            "query".equals(activeTab) ? filterControls : "",
             queryControls,
             tabContent.queryContent(),
             lastWeekPanelClass,
             lastWeekLoaded,
             WebHtml.escapeHtml(lastWeekStart.toString()),
             WebHtml.escapeHtml(lastWeekEnd.toString()),
-            filterControls,
+            "last-week".equals(activeTab) ? filterControls : "",
             tabContent.lastWeekContent());
   }
 
@@ -1373,8 +1388,8 @@ final class WebUiRenderer {
     return Boolean.toString(tab.equals(activeTab));
   }
 
-  static String renderDailyDashboard(TrainingDataStore db, List<Lift> lifts, LocalDate today) {
-    return DailyDashboardRenderer.render(db, lifts, today);
+  static String renderDailyDashboard(TrainingDataStore db, LocalDate today) {
+    return DailyDashboardRenderer.render(db, today);
   }
 
   static String renderWaveContent(TrainingDataStore db, int weeks, Map<String, String> waveInput) {

@@ -21,6 +21,11 @@ final class UserScopedDatabase implements TrainingDataStore {
   }
 
   @Override
+  public DashboardSnapshot dashboardSnapshot(LocalDate today) throws Exception {
+    return DashboardFixture.load(this, today, latestExecutionsByLift());
+  }
+
+  @Override
   public void addLift(
       String name, LiftRegion region, LiftType main, List<Muscle> muscles, String notes)
       throws Exception {
@@ -138,7 +143,6 @@ final class UserScopedDatabase implements TrainingDataStore {
     return db.getExecutionForUser(ownerUserId, liftName, executionId);
   }
 
-  @Override
   public Map<String, LiftExecution> latestExecutionsByLift() throws Exception {
     return db.latestExecutionsByLiftForUser(ownerUserId);
   }

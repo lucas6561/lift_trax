@@ -74,6 +74,11 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
   }
 
   @Override
+  public DashboardSnapshot dashboardSnapshot(LocalDate today) throws Exception {
+    return DashboardFixture.load(this, today, latestExecutionsByLift());
+  }
+
+  @Override
   public TrainingDataStore forUser(String ownerUserId) {
     return new UserScopedDatabase(this, requireOwnerUserId(ownerUserId));
   }
@@ -341,7 +346,6 @@ public class SqliteDb implements TrainingDataStore, TrainingDataStoreProvider {
     }
   }
 
-  @Override
   public Map<String, LiftExecution> latestExecutionsByLift() throws Exception {
     return latestExecutionsByLiftForUser(LEGACY_OWNER_USER_ID);
   }

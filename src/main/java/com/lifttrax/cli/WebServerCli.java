@@ -351,7 +351,7 @@ public final class WebServerCli {
       Map<String, String> query = parseQuery(exchange.getRequestURI());
       String search = query.getOrDefault("q", "").trim().toLowerCase(Locale.ROOT);
       String queryLift = query.getOrDefault("queryLift", "").trim();
-      String activeTab = query.getOrDefault("tab", "dashboard").trim();
+      String activeTab = WebUiRenderer.normalizeTab(query.getOrDefault("tab", "dashboard"));
       String statusMessage = query.getOrDefault("status", "").trim();
       String statusType = query.getOrDefault("statusType", "").trim();
       int waveWeeks = parseBoundedInt(query.get("waveWeeks"), 7, 1, 24);
@@ -384,7 +384,7 @@ public final class WebServerCli {
 
       List<Lift> lifts;
       try {
-        lifts = new ArrayList<>(db.listLifts());
+        lifts = new ArrayList<>(WebUiRenderer.loadIndexLifts(db, activeTab));
         lifts.sort(Comparator.comparing(Lift::name));
       } catch (Exception listError) {
         lifts = List.of();

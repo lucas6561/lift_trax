@@ -110,7 +110,7 @@ class WebUiRendererTest {
       db.addLiftExecution("Back Squat", execution(today.minusDays(5), false));
       db.addLiftExecution("Bench Press", execution(today.minusDays(1), false));
 
-      String html = WebUiRenderer.renderDailyDashboard(db, db.listLifts(), today);
+      String html = WebUiRenderer.renderDailyDashboard(db, today);
 
       assertTrue(html.contains("Today's Training"));
       assertTrue(html.contains("Suggested Work"));
@@ -135,7 +135,7 @@ class WebUiRendererTest {
       db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
       db.addLiftExecution("Back Squat", execution(today.minusDays(30), false));
 
-      String html = WebUiRenderer.renderDailyDashboard(db, db.listLifts(), today);
+      String html = WebUiRenderer.renderDailyDashboard(db, today);
 
       assertTrue(html.contains("Last: 2026-04-30 - 1 sets x 5 reps @ 225 lb RPE 8.0"));
       assertTrue(html.contains("No executions in the last 14 days."));
@@ -147,7 +147,7 @@ class WebUiRendererTest {
     LocalDate today = LocalDate.of(2026, 5, 30);
     Path dbPath = Files.createTempFile("lifttrax-dashboard-empty", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {
-      String html = WebUiRenderer.renderDailyDashboard(db, db.listLifts(), today);
+      String html = WebUiRenderer.renderDailyDashboard(db, today);
 
       assertTrue(html.contains("No lifts yet"));
       assertTrue(html.contains("Add First Lift"));

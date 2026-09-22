@@ -50,6 +50,34 @@ import org.junit.jupiter.api.Test;
 class WebServerCliTest {
 
   @Test
+  void initialDashboardRetrievesOnlyItsSnapshotAndDefersHiddenForms() throws Exception {
+    var calls = new java.util.ArrayList<String>();
+    TrainingDataStore store =
+        (TrainingDataStore)
+            java.lang.reflect.Proxy.newProxyInstance(
+                TrainingDataStore.class.getClassLoader(),
+                new Class<?>[] {TrainingDataStore.class},
+                (proxy, method, args) -> {
+                  calls.add(method.getName());
+                  if (method.getName().equals("dashboardSnapshot")) {
+                    return new com.lifttrax.db.DashboardSnapshot(false, 0, List.of(), List.of());
+                  }
+                  throw new AssertionError("Unexpected startup read: " + method.getName());
+                });
+    for (String path : List.of("/", "/?tab=unknown")) {
+      var exchange = TestExchange.get(path);
+      WebServerCli.handleIndex(exchange, user -> store);
+      String html = exchange.responseBody();
+      assertTrue(html.contains("Today's Training"));
+      assertTrue(html.contains("data-panel='add-execution' data-loaded='false'"));
+      assertFalse(html.contains("action='/add-execution'"));
+      assertFalse(html.contains("select name='queryLift'"));
+      assertFalse(html.contains("<option data-filter-option"));
+    }
+    assertEquals(List.of("dashboardSnapshot", "dashboardSnapshot"), calls);
+  }
+
+  @Test
   void extractedRouteRegistryStartsACompleteServerAndStopsCleanly() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-route-registry", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString());
@@ -927,6 +955,25 @@ class WebServerCliTest {
     assertTrue(html.contains("<option value='QUAD'>QUAD</option>"));
     assertTrue(html.contains("Hold Ctrl/Cmd to select multiple"));
     assertTrue(html.contains("Back Squat"));
+    assertFalse(html.contains("action='/add-execution'"));
+    assertTrue(html.contains("data-panel='add-execution' data-loaded='false'"));
+    html =
+        WebUiRenderer.renderTabbedLayout(
+            lifts,
+            "",
+            "Back Squat",
+            "add-execution",
+            "<p>execution result</p>",
+            "",
+            "",
+            "",
+            "",
+            "Saved",
+            "success",
+            WebUiRenderer.AddExecutionPrefill.empty(),
+            LocalDate.parse("2026-01-01"),
+            LocalDate.parse("2026-01-07"),
+            6);
     assertTrue(html.contains("Save Execution"));
     assertTrue(html.contains("action='/add-execution'"));
     assertTrue(html.contains("Load Last"));

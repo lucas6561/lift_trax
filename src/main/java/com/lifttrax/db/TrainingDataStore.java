@@ -7,6 +7,8 @@ import java.util.Map;
 
 /** Database operations needed by the web training surfaces. */
 public interface TrainingDataStore extends Database {
+  DashboardSnapshot dashboardSnapshot(LocalDate today) throws Exception;
+
   default List<SavedWorkout> listSavedWorkouts() throws Exception {
     return List.of();
   }
@@ -34,8 +36,6 @@ public interface TrainingDataStore extends Database {
   LiftExecution getLastExecution(String liftName, boolean warmup, boolean deload) throws Exception;
 
   LiftExecution getExecution(String liftName, int executionId) throws Exception;
-
-  Map<String, LiftExecution> latestExecutionsByLift() throws Exception;
 
   Map<String, Boolean> liftEnabledStatuses() throws Exception;
 

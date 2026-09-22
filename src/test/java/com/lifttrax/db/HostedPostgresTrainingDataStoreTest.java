@@ -138,7 +138,7 @@ class HostedPostgresTrainingDataStoreTest {
     assertEquals(sets, saved.sets());
     assertEquals(sets, store.getExecution("Bench", saved.id()).sets());
     assertEquals(sets, store.getExecutionsBetween(date, date).get(0).execution().sets());
-    assertEquals(sets, store.latestExecutionsByLift().get("Bench").sets());
+    assertEquals(sets, store.dashboardSnapshot(date).suggestions().get(0).execution().sets());
     assertEquals(Map.of(1, "225 lb"), store.liftStats("Bench").bestByReps());
     List<ExecutionSet> corrected = List.of(new ExecutionSet(new SetMetric.Reps(1), "245 lb", 9f));
     store.updateLiftExecution(
@@ -176,7 +176,7 @@ class HostedPostgresTrainingDataStoreTest {
     assertEquals(1, userAExecutions.size());
     assertEquals("private", userAExecutions.get(0).notes());
     assertTrue(userB.getExecutions("Bench Press").isEmpty());
-    assertEquals(1, userA.latestExecutionsByLift().size());
+    assertEquals(1, userA.dashboardSnapshot(LocalDate.of(2026, 6, 16)).suggestions().size());
     assertEquals(
         1,
         userA
