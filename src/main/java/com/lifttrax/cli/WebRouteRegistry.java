@@ -147,7 +147,7 @@ final class WebRouteRegistry {
         server,
         "/load-last-execution",
         Set.of("GET"),
-        auth.protect(exchange -> WebServerCli.handleLoadLastExecution(exchange, db)));
+        auth.protect(exchange -> LastExecutionResponse.handle(exchange, db)));
     WebRequestSecurity.register(
         server,
         "/add-lift",

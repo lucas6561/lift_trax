@@ -560,6 +560,9 @@ final class PlannedWorkoutSessionHtml {
     html.append(
             "<div class='add-execution-form session-execution-widget js-session-execution-input'>")
         .append(
+            "<div class='stacked-row'><button type='button' class='secondary compact-btn js-session-load-last'>Load last</button>"
+                + "<span class='muted js-session-load-last-status' role='status'></span></div>")
+        .append(
             ExecutionInputWidgetHtml.renderWorkAlong(
                 prefill(block, exercise, seed, plannedSets, date), key))
         .append("</div></article>");
@@ -1449,7 +1452,85 @@ final class PlannedWorkoutSessionHtml {
               restoringDraft = false;
             }
 
+            function applyLastExecution(widget, payload) {
+              const first = payload.sets[0];
+              const weight = payload.weight;
+              const matching = payload.sets.every((set) =>
+                Object.keys(first).every((key) => set[key] === first[key]));
+              applyWidgetDraft(widget, {
+                ...collectWidgetDraft(widget),
+                ...first,
+                weightMode: weight.mode,
+                weightValue: weight.weightValue,
+                weightUnit: weight.weightUnit,
+                weightLeft: weight.leftValue,
+                weightRight: weight.rightValue,
+                weightUnitLr: weight.lrUnit,
+                weightBandColors: weight.bands,
+                accomBar: weight.accomBar,
+                accomUnit: weight.accomUnit,
+                accomMode: weight.accomMode,
+                accomChain: weight.accomChain,
+                accomBandColors: weight.accomBands,
+                customWeight: weight.customWeight,
+                setCount: String(payload.sets.length),
+                setEntryMode: matching ? 'multiple' : 'individual',
+                detailedSets: matching ? [] : payload.sets,
+                notes: payload.notes
+              });
+              if (!matching || weight.mode !== 'weight' || first.metricType === 'reps-lr' || first.missed) {
+                widget.querySelector('.session-entry-more').open = true;
+              }
+              persistDraft();
+            }
+
+            async function loadLastExecution(widget) {
+              const card = widget.closest('.session-exercise');
+              const block = card.closest('.session-block');
+              const button = widget.querySelector('.js-session-load-last');
+              const status = widget.querySelector('.js-session-load-last-status');
+              const lift = card.querySelector('.js-session-performed-lift').value;
+              const before = JSON.stringify(collectWidgetDraft(widget));
+              const params = new URLSearchParams({format: 'json', lift});
+              ['warmup', 'deload'].forEach((name) => {
+                if (widget.querySelector(`input[name='${name}']`).checked) {
+                  params.set(name, '1');
+                }
+              });
+              button.disabled = true;
+              status.textContent = 'Loading last execution...';
+              status.classList.remove('error');
+              try {
+                const response = await fetchWithTimeout(`/load-last-execution?${params}`, {
+                  method: 'GET', cache: 'no-store', credentials: 'same-origin'
+                }, 30000);
+                const accountScope = document.querySelector('main[data-account-scope]').dataset.accountScope;
+                if (response.headers.get('X-LiftTrax-Account') !== accountScope) {
+                  throw new Error('Your signed-in account changed. Resume this workout with the original account.');
+                }
+                const payload = await response.json();
+                if (!response.ok) {
+                  throw new Error(payload.error || 'Could not load the last execution.');
+                }
+                if (block.dataset.sessionBlockSaved === 'true'
+                    || card.querySelector('.js-session-exercise-state').value === 'skipped'
+                    || card.querySelector('.js-session-performed-lift').value !== lift
+                    || JSON.stringify(collectWidgetDraft(widget)) !== before) {
+                  throw new Error('This entry changed while loading. Tap Load last again if needed.');
+                }
+                applyLastExecution(widget, payload);
+                status.textContent = `Loaded execution from ${payload.date}. Review before submitting.`;
+              } catch (error) {
+                status.textContent = error.message || 'Could not load the last execution. Try again.';
+                status.classList.add('error');
+              } finally {
+                button.disabled = block.dataset.sessionBlockSaved === 'true'
+                  || card.querySelector('.js-session-exercise-state').value === 'skipped';
+              }
+            }
+
             function bindExecutionWidget(widget) {
+              widget.querySelector('.js-session-load-last').addEventListener('click', () => loadLastExecution(widget));
               let detailedSets = [];
               try {
                 detailedSets = JSON.parse((widget.querySelector('.js-detailed-sets') || {}).value || '[]');

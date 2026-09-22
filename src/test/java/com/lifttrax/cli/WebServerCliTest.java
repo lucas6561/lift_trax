@@ -2040,6 +2040,63 @@ class WebServerCliTest {
   }
 
   @Test
+  void loadLastJsonReturnsEverySetAndRespectsTrainingFlags() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-load-last-json", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "");
+      TestExchange missingLift = TestExchange.get("/load-last-execution?format=json");
+      LastExecutionResponse.handle(missingLift, db);
+      assertEquals(400, missingLift.status());
+      TestExchange noPrior = TestExchange.get("/load-last-execution?format=json&lift=Carry");
+      LastExecutionResponse.handle(noPrior, db);
+      assertEquals(404, noPrior.status());
+      assertTrue(noPrior.responseBody().contains("No prior execution"));
+
+      List<ExecutionSet> sets =
+          List.of(
+              new ExecutionSet(new SetMetric.RepsLr(4, 3), "40|45 kg", 8.0f),
+              new ExecutionSet(new SetMetric.Reps(0), "90 lb", 9.5f, true),
+              new ExecutionSet(new SetMetric.TimeSecs(45), "red+blue", null),
+              new ExecutionSet(new SetMetric.DistanceFeet(100), "none", null));
+      db.addLiftExecution(
+          "Carry",
+          new LiftExecution(null, LocalDate.of(2026, 7, 20), sets, false, false, "Previous notes"));
+      db.addLiftExecution(
+          "Carry",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 7, 21),
+              List.of(new ExecutionSet(new SetMetric.Reps(5), "50 lb", null)),
+              true,
+              true,
+              "Warm-up deload"));
+      TestExchange loaded = TestExchange.get("/load-last-execution?format=json&lift=Carry");
+      LastExecutionResponse.handle(loaded, db);
+      assertEquals(200, loaded.status());
+      var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(loaded.responseBody());
+      assertEquals(4, json.path("sets").size());
+      assertEquals("reps-lr", json.path("sets").get(0).path("metricType").asText());
+      assertEquals("3", json.path("sets").get(0).path("metricRight").asText());
+      assertTrue(json.path("sets").get(1).path("missed").asBoolean());
+      assertEquals("0", json.path("sets").get(1).path("metricValue").asText());
+      assertEquals("9.5", json.path("sets").get(1).path("rpe").asText());
+      assertEquals("time", json.path("sets").get(2).path("metricType").asText());
+      assertEquals("distance", json.path("sets").get(3).path("metricType").asText());
+      assertEquals("lr", json.path("weight").path("mode").asText());
+      assertEquals("kg", json.path("weight").path("lrUnit").asText());
+      assertEquals("Previous notes", json.path("notes").asText());
+      assertEquals("2026-07-20", json.path("date").asText());
+      TestExchange warmup =
+          TestExchange.get("/load-last-execution?format=json&lift=Carry&warmup=1&deload=1");
+      LastExecutionResponse.handle(warmup, db);
+      assertEquals(200, warmup.status());
+      assertTrue(warmup.responseBody().contains("Warm-up deload"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
+  }
+
+  @Test
   void loadLastRouteCoversMissingPriorAndEveryMetricPrefill() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-route-load-last-coverage", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {

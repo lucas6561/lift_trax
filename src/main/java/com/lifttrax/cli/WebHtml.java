@@ -111,6 +111,7 @@ final class WebHtml {
                 .individual-sets-details[open] > summary { margin-bottom: 0.42rem; }
                 .segmented { display: flex; flex-wrap: wrap; gap: 0.4rem; }
                 .stacked-row { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+                .js-session-load-last { min-height: 44px; padding: 0.5rem 0.75rem; font-size: 0.9rem; }
                 .add-actions { display: flex; justify-content: flex-end; margin-bottom: 0.35rem; }
                 .new-lift-details { width: min(820px, 100%); }
                 .new-lift-details > summary { cursor: pointer; color: var(--pico-primary); margin-bottom: 0.5rem; }

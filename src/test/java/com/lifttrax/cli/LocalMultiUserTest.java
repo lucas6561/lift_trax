@@ -4,6 +4,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.lifttrax.db.HostedPostgresConfig;
 import com.lifttrax.db.HostedPostgresTrainingDataStoreProvider;
+import com.lifttrax.models.ExecutionSet;
+import com.lifttrax.models.LiftExecution;
+import com.lifttrax.models.LiftRegion;
+import com.lifttrax.models.LiftType;
+import com.lifttrax.models.SetMetric;
 import com.sun.net.httpserver.HttpServer;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -16,6 +21,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -199,6 +205,36 @@ class LocalMultiUserTest {
       var limited = browser.post("/auth/dev-login", fields(page, "userId", "unknown"));
       assertEquals(429, limited.statusCode());
       assertEquals("60", limited.headers().firstValue("Retry-After").orElseThrow());
+    }
+  }
+
+  @Test
+  void loadLastExecutionJsonIsPrivateToTheSignedInAccount() throws Exception {
+    try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+      Browser alice = fixture.browser();
+      Browser bob = fixture.browser();
+      assertEquals(303, alice.get("/load-last-execution?format=json&lift=Bench").statusCode());
+      register(alice, "alice", "alice@example.test");
+      register(bob, "bob", "bob@example.test");
+      var db = fixture.provider.forUserIdentifier("alice");
+      db.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+      db.addLiftExecution(
+          "Bench",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 7, 20),
+              List.of(new ExecutionSet(new SetMetric.Reps(5), "135 lb", null)),
+              false,
+              false,
+              "Private history"));
+      var loaded = alice.get("/load-last-execution?format=json&lift=Bench");
+      assertEquals(200, loaded.statusCode());
+      assertTrue(loaded.body().contains("Private history"));
+      assertTrue(loaded.headers().firstValue("X-LiftTrax-Account").isPresent());
+      assertEquals("no-store", loaded.headers().firstValue("Cache-Control").orElseThrow());
+      var other = bob.get("/load-last-execution?format=json&lift=Bench");
+      assertEquals(404, other.statusCode());
+      assertFalse(other.body().contains("Private history"));
     }
   }
 

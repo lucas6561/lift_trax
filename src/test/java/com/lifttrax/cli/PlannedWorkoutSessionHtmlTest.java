@@ -102,6 +102,8 @@ class PlannedWorkoutSessionHtmlTest {
             LocalDate.parse("2026-05-31"));
 
     assertTrue(html.contains("Train Monday"));
+    assertTrue(html.contains("js-session-load-last'>Load last</button>"));
+    assertTrue(html.contains("js-session-load-last-status' role='status'"));
     assertTrue(html.contains("aria-label='Workout block navigation'"));
     assertTrue(html.contains("Block 1 of 2"));
     assertTrue(html.contains("data-session-block-index='0'"));

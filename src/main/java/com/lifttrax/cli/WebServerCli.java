@@ -206,7 +206,7 @@ public final class WebServerCli {
     return WebAuth.currentUser(exchange).map(WebAuth.User::id).orElse("local-user");
   }
 
-  private static TrainingDataStore databaseFor(HttpExchange exchange, TrainingDataStoreProvider db)
+  static TrainingDataStore databaseFor(HttpExchange exchange, TrainingDataStoreProvider db)
       throws Exception {
     Optional<WebAuth.User> currentUser = WebAuth.currentUser(exchange);
     if (currentUser.isEmpty()) {
@@ -1508,7 +1508,7 @@ public final class WebServerCli {
     }
   }
 
-  private static Map<String, String> parseQuery(URI uri) {
+  static Map<String, String> parseQuery(URI uri) {
     Map<String, String> result = new HashMap<>();
     String query = uri.getRawQuery();
     if (query == null || query.isBlank()) {
@@ -1556,8 +1556,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void sendJson(HttpExchange exchange, int status, Object payload)
-      throws IOException {
+  static void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
     byte[] bytes = OBJECT_MAPPER.writeValueAsBytes(payload);
     exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
     exchange.sendResponseHeaders(status, bytes.length);
