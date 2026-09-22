@@ -58,6 +58,9 @@ required for these checks.
 - Web handlers need route tests covering the HTTP method, response status,
   meaningful content or redirect state, authorization, and writes against
   isolated data.
+- Dashboard and workout preview changes also run `RoutePerformanceSmokeTest`
+  through the normal suite. See [route performance smoke tests](route-performance-smoke-tests.md)
+  for the synthetic workload, response budgets, and failure triage.
 - HTML renderers need focused string/structure tests; use a browser smoke check
   when JavaScript interaction or responsive layout is materially changed.
 - Schema changes need valid and invalid fixtures, version-dispatch tests, and
