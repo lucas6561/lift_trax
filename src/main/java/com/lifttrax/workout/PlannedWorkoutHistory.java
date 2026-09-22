@@ -33,7 +33,14 @@ public final class PlannedWorkoutHistory {
   }
 
   public static Snapshot load(Database db, PlannedWorkoutFile.PlannedWorkoutDay day) {
-    Set<String> liftNames = new LinkedHashSet<>();
+    return load(db, day, List.of());
+  }
+
+  public static Snapshot load(
+      Database db,
+      PlannedWorkoutFile.PlannedWorkoutDay day,
+      Collection<String> additionalLiftNames) {
+    Set<String> liftNames = new LinkedHashSet<>(additionalLiftNames);
     addLiftNames(liftNames, day);
     return load(db, liftNames);
   }
@@ -72,15 +79,19 @@ public final class PlannedWorkoutHistory {
 
     public Summary lookup(
         PlannedWorkoutFile.PlannedWorkoutBlock block, PlannedWorkoutFile.PlannedExercise exercise) {
+      boolean includeDeload =
+          exercise.plannedSets().stream().anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
+      return lookup(exercise.name(), block.warmup(), includeDeload, 3);
+    }
+
+    public Summary lookup(String liftName, boolean warmup, boolean includeDeload, int limit) {
       if (unavailable) {
         return new Summary(null, null, true);
       }
       try {
-        List<LiftExecution> executions = executionsByLift.getOrDefault(exercise.name(), List.of());
-        boolean includeDeload =
-            exercise.plannedSets().stream().anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
+        List<LiftExecution> executions = executionsByLift.getOrDefault(liftName, List.of());
         String last =
-            WorkoutHistoryFormatter.lastExecutionSummary(executions, block.warmup(), includeDeload);
+            WorkoutHistoryFormatter.lastExecutionSummary(executions, warmup, includeDeload, limit);
         String best = WorkoutHistoryFormatter.bestOneRepMax(executions);
         return new Summary(last, best, false);
       } catch (Exception e) {

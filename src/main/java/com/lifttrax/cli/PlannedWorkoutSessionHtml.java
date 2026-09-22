@@ -241,7 +241,8 @@ final class PlannedWorkoutSessionHtml {
       String ownerUserId) {
     PlannedWorkoutFile.PlannedWorkoutDay day =
         PlannedWorkoutSessionService.findDay(workoutFile, weekNumber, dayOfWeek);
-    PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, day);
+    PlannedWorkoutHistory.Snapshot history =
+        PlannedWorkoutHistory.load(db, day, localLifts.stream().map(Lift::name).toList());
     Map<String, PlannedWorkoutWarmups.WarmupPlan> warmups =
         PlannedWorkoutWarmups.forDay(day, history);
     StringBuilder html = new StringBuilder();
@@ -535,13 +536,22 @@ final class PlannedWorkoutSessionHtml {
         .append("<label>Performed lift <select class='js-session-performed-lift' required>")
         .append("<optgroup label='Planned and recommended'>");
     Set<String> recommendedNames = PlannedWorkoutSessionService.recommendedLiftNames(exercise);
-    appendLiftOptions(html, recommendedNames, localLiftNames, localLiftNotes, true);
+    Set<String> selectableNames = new LinkedHashSet<>(localLiftNames);
+    selectableNames.addAll(recommendedNames);
+    boolean includeDeload =
+        exercise.plannedSets().stream().anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
+    Map<String, PlannedWorkoutHistory.Summary> liftHistory = new HashMap<>();
+    for (String name : selectableNames) {
+      liftHistory.put(name, history.lookup(name, block.warmup(), includeDeload, 6));
+    }
+    appendLiftOptions(html, recommendedNames, localLiftNames, localLiftNotes, liftHistory, true);
     html.append("</optgroup>");
     Set<String> otherLocalLiftNames = new LinkedHashSet<>(localLiftNames);
     otherLocalLiftNames.removeAll(recommendedNames);
     if (!otherLocalLiftNames.isEmpty()) {
       html.append("<optgroup label='Other lifts in your library'>");
-      appendLiftOptions(html, otherLocalLiftNames, localLiftNames, localLiftNotes, false);
+      appendLiftOptions(
+          html, otherLocalLiftNames, localLiftNames, localLiftNotes, liftHistory, false);
       html.append("</optgroup>");
     }
     html.append(
@@ -552,7 +562,7 @@ final class PlannedWorkoutSessionHtml {
           .append(WebHtml.escapeHtml(exercise.notes()))
           .append("</p>");
     }
-    appendHistory(html, history, block, exercise);
+    appendHistory(html, liftHistory.get(exercise.name()));
     appendWarmup(html, warmup);
     List<PlannedWorkoutFile.PlannedSetTarget> plannedSets = exercise.plannedSets();
     appendTargets(html, plannedSets, exercise.name(), history);
@@ -707,20 +717,16 @@ final class PlannedWorkoutSessionHtml {
     return " <span class='muted'>Suggested: " + WebHtml.escapeHtml(suggested) + "</span>";
   }
 
-  private static void appendHistory(
-      StringBuilder html,
-      PlannedWorkoutHistory.Snapshot history,
-      PlannedWorkoutFile.PlannedWorkoutBlock block,
-      PlannedWorkoutFile.PlannedExercise exercise) {
-    PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
+  private static void appendHistory(StringBuilder html, PlannedWorkoutHistory.Summary summary) {
+    html.append("<div class='session-history' aria-label='Exercise history' aria-live='polite'>");
     if (summary.unavailable()) {
-      html.append("<div class='session-history muted'>History unavailable.</div>");
+      html.append("History unavailable.</div>");
       return;
     }
     if (summary.isEmpty()) {
+      html.append("No history for this lift.</div>");
       return;
     }
-    html.append("<div class='session-history' aria-label='Exercise history'>");
     if (summary.last() != null) {
       html.append("<span><strong>Last:</strong> ")
           .append(WebHtml.escapeHtml(summary.last()))
@@ -739,13 +745,22 @@ final class PlannedWorkoutSessionHtml {
       Set<String> names,
       Set<String> localLiftNames,
       Map<String, String> localLiftNotes,
+      Map<String, PlannedWorkoutHistory.Summary> liftHistory,
       boolean markUnavailable) {
     for (String name : names) {
       String notes = localLiftNotes.getOrDefault(name, "");
+      PlannedWorkoutHistory.Summary summary = liftHistory.get(name);
       html.append("<option value='")
           .append(WebHtml.escapeHtml(name))
           .append("' data-lift-note='")
           .append(WebHtml.escapeHtml(notes))
+          .append("' data-history-last='")
+          .append(WebHtml.escapeHtml(summary.last() == null ? "" : summary.last()))
+          .append("' data-history-best='")
+          .append(
+              WebHtml.escapeHtml(summary.bestOneRepMax() == null ? "" : summary.bestOneRepMax()))
+          .append("' data-history-unavailable='")
+          .append(summary.unavailable())
           .append("'")
           .append(markUnavailable && !localLiftNames.contains(name) ? " disabled" : "")
           .append(">")
@@ -1341,6 +1356,7 @@ final class PlannedWorkoutSessionHtml {
                 swapToggle.textContent = swapped ? `Changed to: ${performedLift.value}` : 'Change lift';
               }
               updateLiftNote(card);
+              updateLiftHistory(card);
               toggleExercise(card);
             }
 
@@ -1665,6 +1681,32 @@ final class PlannedWorkoutSessionHtml {
               note.classList.toggle('is-hidden', !text.trim());
             }
 
+            function updateLiftHistory(card) {
+              const selected = card.querySelector('.js-session-performed-lift').selectedOptions[0];
+              const history = card.querySelector('.session-history');
+              history.replaceChildren();
+              if (!selected || selected.dataset.historyUnavailable === 'true') {
+                history.textContent = 'History unavailable.';
+                return;
+              }
+              const entries = [
+                ['Last:', selected.dataset.historyLast],
+                ['Best 1RM:', selected.dataset.historyBest]
+              ];
+              entries.forEach(([label, value]) => {
+                if (value) {
+                  const entry = document.createElement('span');
+                  const title = document.createElement('strong');
+                  title.textContent = label;
+                  entry.append(title, document.createTextNode(` ${value}`));
+                  history.append(entry);
+                }
+              });
+              if (!history.hasChildNodes()) {
+                history.textContent = 'No history for this lift.';
+              }
+            }
+
             function toggleExercise(card) {
               const skipped = card.querySelector('.js-session-exercise-state').value === 'skipped';
               card.classList.toggle('is-skipped', skipped);
@@ -1829,10 +1871,15 @@ final class PlannedWorkoutSessionHtml {
                   card.classList.toggle('is-swapped', swapped);
                   swapToggle.textContent = swapped ? `Changed to: ${performedLift.value}` : 'Change lift';
                   updateLiftNote(card);
+                  updateLiftHistory(card);
+                  const loadStatus = card.querySelector('.js-session-load-last-status');
+                  loadStatus.textContent = '';
+                  loadStatus.classList.remove('error');
                   persistDraft();
                 });
               }
               updateLiftNote(card);
+              updateLiftHistory(card);
               toggleExercise(card);
             });
             initializingForm = false;

@@ -140,7 +140,7 @@ class PlannedWorkoutSessionHtmlTest {
             "Choose any lift from your library. Workout-approved alternatives are listed first."));
     assertTrue(
         html.contains(
-            "<option value='Front Squat' data-lift-note='Keep elbows high.'>Front Squat</option>"));
+            "<option value='Front Squat' data-lift-note='Keep elbows high.' data-history-last='' data-history-best='' data-history-unavailable='false'>Front Squat</option>"));
     assertTrue(html.contains("data-lift-note='Brace hard and sit between the hips.'"));
     assertTrue(
         html.contains(
@@ -148,7 +148,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("selected.dataset.liftNote"));
     assertTrue(
         html.contains(
-            "<option value='Safety Bar Squat' data-lift-note='' disabled>Safety Bar Squat (not in local lifts)</option>"));
+            "<option value='Safety Bar Squat' data-lift-note='' data-history-last='' data-history-best='' data-history-unavailable='false' disabled>Safety Bar Squat (not in local lifts)</option>"));
     assertTrue(html.contains("Changed to: ${performedLift.value}"));
     assertTrue(html.contains("Target: 5 reps @ 80%"));
     assertTrue(html.contains("Target: 5 reps @ 80% rest 2-3 min"));
@@ -255,7 +255,53 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("Check the device-backup status above."));
     assertFalse(html.contains("name='notes' value='Stay fast.'"));
     assertFalse(html.contains("name='rpe' value='8.0'"));
-    assertFalse(html.contains("class='session-history'"));
+    assertTrue(html.contains("No history for this lift.</div>"));
+  }
+
+  @Test
+  void sessionHistoryIncludesSixExecutionsForPlannedAndLibrarySwapLifts() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-session-swap-history", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      for (String name : List.of("Back Squat", "Library Squat")) {
+        db.addLift(name, LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+        for (int day = 1; day <= 7; day++) {
+          db.addLiftExecution(
+              name,
+              new LiftExecution(
+                  null,
+                  LocalDate.of(2026, 5, day),
+                  List.of(new ExecutionSet(new SetMetric.Reps(1), day * 10 + " lb", null)),
+                  false,
+                  false,
+                  name + " entry " + day));
+        }
+      }
+      String html =
+          PlannedWorkoutSessionHtml.renderPage(
+              workoutFile(),
+              1,
+              "MONDAY",
+              List.of(lift("Back Squat", LiftType.SQUAT), lift("Library Squat", LiftType.SQUAT)),
+              LocalDate.of(2026, 5, 31),
+              db);
+      for (String name : List.of("Back Squat", "Library Squat")) {
+        int start = html.indexOf("<option value='" + name + "'");
+        String option = html.substring(start, html.indexOf("</option>", start));
+        assertFalse(option.contains(name + " entry 1"));
+        for (int day = 2; day <= 7; day++) {
+          assertTrue(option.contains(name + " entry " + day));
+        }
+        assertTrue(option.indexOf("entry 7") < option.indexOf("entry 6"));
+        assertTrue(option.contains("data-history-best='70 lb'"));
+      }
+      int start = html.indexOf("<div class='session-history'");
+      String initialHistory = html.substring(start, html.indexOf("</div>", start));
+      assertTrue(initialHistory.contains("Back Squat entry 2"));
+      assertFalse(initialHistory.contains("Back Squat entry 1"));
+      assertFalse(initialHistory.contains("Library Squat"));
+    } finally {
+      Files.deleteIfExists(dbPath);
+    }
   }
 
   @Test

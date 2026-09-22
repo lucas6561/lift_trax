@@ -32,6 +32,11 @@ public final class WorkoutHistoryFormatter {
 
   public static String lastExecutionSummary(
       List<LiftExecution> liftExecutions, boolean warmup, boolean includeDeload) {
+    return lastExecutionSummary(liftExecutions, warmup, includeDeload, 3);
+  }
+
+  public static String lastExecutionSummary(
+      List<LiftExecution> liftExecutions, boolean warmup, boolean includeDeload, int limit) {
     List<LiftExecution> executions =
         liftExecutions.stream()
             .filter(e -> e.warmup() == warmup && (includeDeload || !e.deload()))
@@ -39,7 +44,7 @@ public final class WorkoutHistoryFormatter {
                 Comparator.comparing(LiftExecution::date)
                     .thenComparing(e -> e.id() == null ? Integer.MIN_VALUE : e.id())
                     .reversed())
-            .limit(3)
+            .limit(limit)
             .toList();
 
     if (executions.isEmpty()) {
