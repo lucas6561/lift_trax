@@ -14,7 +14,8 @@ public final class ProgramSchemaVersions {
       new SchemaVersionCatalog(
           Map.of(
               1, "/programs/schema/program.schema.v1.json",
-              2, "/programs/schema/program.schema.v2.json"));
+              2, "/programs/schema/program.schema.v2.json",
+              3, "/programs/schema/program.schema.v3.json"));
 
   private ProgramSchemaVersions() {}
 

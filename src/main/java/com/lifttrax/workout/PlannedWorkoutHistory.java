@@ -1,6 +1,7 @@
 package com.lifttrax.workout;
 
 import com.lifttrax.db.Database;
+import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -50,9 +51,19 @@ public final class PlannedWorkoutHistory {
       return Snapshot.empty();
     }
     try {
-      return new Snapshot(db.getExecutionsByLift(liftNames), false);
+      Map<String, List<LiftExecution>> executionsByLift = db.getExecutionsByLift(liftNames);
+      try {
+        Set<String> knownLiftNames = new LinkedHashSet<>();
+        for (Lift lift : db.listLifts()) {
+          knownLiftNames.add(lift.name());
+        }
+        return new Snapshot(executionsByLift, Set.copyOf(knownLiftNames), true, false);
+      } catch (Exception ignored) {
+        // Keep history-based suggestions available even if the catalog cannot be inspected.
+        return new Snapshot(executionsByLift, Set.of(), false, false);
+      }
     } catch (Exception e) {
-      return new Snapshot(Map.of(), true);
+      return new Snapshot(Map.of(), Set.of(), false, true);
     }
   }
 
@@ -70,10 +81,18 @@ public final class PlannedWorkoutHistory {
 
   public static final class Snapshot {
     private final Map<String, List<LiftExecution>> executionsByLift;
+    private final Set<String> knownLiftNames;
+    private final boolean catalogAvailable;
     private final boolean unavailable;
 
-    private Snapshot(Map<String, List<LiftExecution>> executionsByLift, boolean unavailable) {
+    private Snapshot(
+        Map<String, List<LiftExecution>> executionsByLift,
+        Set<String> knownLiftNames,
+        boolean catalogAvailable,
+        boolean unavailable) {
       this.executionsByLift = executionsByLift;
+      this.knownLiftNames = knownLiftNames;
+      this.catalogAvailable = catalogAvailable;
       this.unavailable = unavailable;
     }
 
@@ -100,22 +119,67 @@ public final class PlannedWorkoutHistory {
     }
 
     public String suggestedWeight(String liftName, PlannedWorkoutFile.PlannedSetTarget target) {
+      return resolveWeight(liftName, target).weight();
+    }
+
+    public WeightResolution resolveWeight(
+        String liftName, PlannedWorkoutFile.PlannedSetTarget target) {
       if (unavailable) {
-        return "";
+        return WeightResolution.empty();
       }
       try {
         String referenceLiftName = target.loadReference(liftName);
+        boolean explicitReference =
+            target.percent() != null && target.percentOf() != null && !target.percentOf().isBlank();
+        if (explicitReference && catalogAvailable && !knownLiftNames.contains(referenceLiftName)) {
+          return WeightResolution.error(
+              "Referenced lift \""
+                  + referenceLiftName
+                  + "\" does not exist in this account. Add or import that lift, or correct percentOf.");
+        }
         String suggested =
             WorkoutHistoryFormatter.suggestedWeight(
                 executionsByLift.getOrDefault(referenceLiftName, List.of()), target);
-        return suggested == null ? "" : suggested;
+        if (suggested != null) {
+          return WeightResolution.weight(suggested);
+        }
+        if (explicitReference) {
+          return WeightResolution.error(
+              "Referenced lift \""
+                  + referenceLiftName
+                  + "\" has no usable max/reference weight. Log a weighted rep set for that lift before using this percentage.");
+        }
+        return WeightResolution.empty();
       } catch (Exception e) {
-        return "";
+        return WeightResolution.empty();
       }
     }
 
     private static Snapshot empty() {
-      return new Snapshot(Map.of(), false);
+      return new Snapshot(Map.of(), Set.of(), false, false);
+    }
+  }
+
+  public record WeightResolution(String weight, String error) {
+    public WeightResolution {
+      weight = weight == null ? "" : weight;
+      error = error == null ? "" : error;
+    }
+
+    public static WeightResolution empty() {
+      return new WeightResolution("", "");
+    }
+
+    public static WeightResolution weight(String weight) {
+      return new WeightResolution(weight, "");
+    }
+
+    public static WeightResolution error(String error) {
+      return new WeightResolution("", error);
+    }
+
+    public boolean hasError() {
+      return !error.isBlank();
     }
   }
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lifttrax.local/schemas/workout.schema.v5.json",
-  "title": "LiftTrax Planned Workout Schema v5",
+  "$id": "https://lifttrax.local/schemas/workout.schema.v6.json",
+  "title": "LiftTrax Planned Workout Schema v6",
   "description": "A versioned contract for generated planned workouts that can be loaded without rerunning the original generator.",
   "type": "object",
   "additionalProperties": false,
@@ -14,7 +14,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 5
+      "const": 6
     },
     "metadata": {
       "$ref": "#/$defs/metadata"
@@ -429,6 +429,28 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "required": [
+              "percentOf"
+            ],
+            "properties": {
+              "percentOf": {
+                "type": "string"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "percent"
+            ],
+            "properties": {
+              "percent": {
+                "type": "integer"
+              }
+            }
+          }
         }
       ],
       "properties": {
@@ -510,7 +532,9 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1,
+          "description": "Exact LiftTrax lift name whose max/reference weight supplies the percentage base. Null or omitted means the performed exercise."
         },
         "rpe": {
           "type": [

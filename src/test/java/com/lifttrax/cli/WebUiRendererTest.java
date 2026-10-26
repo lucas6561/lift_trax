@@ -570,6 +570,32 @@ class WebUiRendererTest {
   }
 
   @Test
+  void plannedWorkoutDisplaysSurfaceCrossLiftReferenceErrors() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        com.lifttrax.workout.PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v6.json"));
+    Path dbPath = Files.createTempFile("lifttrax-planned-cross-lift-error", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("1\" Paused Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of(), "");
+      db.addLift("Conventional Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of(), "");
+
+      String preview = PlannedWorkoutHtml.renderPage(workoutFile, db);
+      String print = PlannedWorkoutPrintHtml.renderPage(workoutFile, db);
+      String markdown =
+          String.join(
+              "\n",
+              com.lifttrax.workout.PlannedWorkoutMarkdownWriter.createMarkdown(workoutFile, db));
+
+      assertTrue(preview.contains("70% of Conventional Deadlift"));
+      assertTrue(preview.contains("<strong>Load error:</strong>"));
+      assertTrue(preview.contains("has no usable max/reference weight"));
+      assertTrue(print.contains("<strong>Load error:</strong>"));
+      assertTrue(print.contains("has no usable max/reference weight"));
+      assertTrue(markdown.contains("Load error: Referenced lift \"Conventional Deadlift\""));
+    }
+  }
+
+  @Test
   void plannedWorkoutPrintViewIsCompactAndPrintFriendly() throws Exception {
     PlannedWorkoutFile workoutFile =
         com.lifttrax.workout.PlannedWorkoutJson.readPath(

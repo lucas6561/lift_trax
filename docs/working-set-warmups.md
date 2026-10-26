@@ -63,6 +63,12 @@ including an explicit `percentOf` reference. Existing working-weight calculation
 are unchanged. The workout format has no equipment field, so the view explicitly
 states its assumptions:
 
+If that referenced lift is absent from the account or has no usable weighted-rep
+history, Work Along shows a specific working-weight error and does not substitute
+the performed exercise's max. Once the working weight resolves, every warm-up
+stage is still calculated from that resulting working weight, never directly
+from either lift's max.
+
 - Names containing `barbell`, or the exact standard names Bench Press, Back Squat,
   Front Squat, Overhead Press, Deadlift, Conventional Deadlift, Sumo Deadlift,
   Romanian Deadlift, and Paused Deadlift use the default barbell.

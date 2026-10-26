@@ -2,9 +2,11 @@ package com.lifttrax.workout;
 
 import com.lifttrax.db.Database;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 /** Shared human-readable formatting for planned-workout display formats. */
@@ -72,6 +74,23 @@ public final class PlannedWorkoutText {
       return "";
     }
     return loadSuggestions(sets, target -> history.suggestedWeight(liftName, target));
+  }
+
+  public static List<String> loadErrors(
+      PlannedWorkoutHistory.Snapshot history,
+      String liftName,
+      List<PlannedWorkoutFile.PlannedSetTarget> sets) {
+    if (history == null || sets.isEmpty()) {
+      return List.of();
+    }
+    Set<String> errors = new LinkedHashSet<>();
+    for (PlannedWorkoutFile.PlannedSetTarget target : sets) {
+      PlannedWorkoutHistory.WeightResolution resolution = history.resolveWeight(liftName, target);
+      if (resolution.hasError()) {
+        errors.add(resolution.error());
+      }
+    }
+    return List.copyOf(errors);
   }
 
   private static String loadSuggestions(

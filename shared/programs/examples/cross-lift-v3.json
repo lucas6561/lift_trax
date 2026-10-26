@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 3,
+  "program": {
+    "name": "Cross-Lift Percentage Example",
+    "goal": "strength",
+    "durationWeeks": 1,
+    "daysPerWeek": 1
+  },
+  "exercisePools": {
+    "presses": {
+      "description": "Pressing lifts used by this program.",
+      "exercises": [
+        {
+          "name": "Push Press",
+          "region": "UPPER",
+          "type": "OVERHEAD_PRESS"
+        },
+        {
+          "name": "Overhead Press",
+          "region": "UPPER",
+          "type": "OVERHEAD_PRESS"
+        }
+      ]
+    }
+  },
+  "progressionRules": {
+    "crossLiftPress": {
+      "type": "fixed",
+      "pattern": [
+        {
+          "week": 1,
+          "percent": 97,
+          "percentOf": "Overhead Press"
+        }
+      ]
+    }
+  },
+  "substitutionRules": {
+    "pressVariation": {
+      "description": "Use another press only when explicitly selected.",
+      "allowedPoolRefs": [
+        "presses"
+      ],
+      "allowCoachChoice": true
+    }
+  },
+  "dayTemplates": {
+    "pressDay": {
+      "name": "Press Day",
+      "focus": "UPPER_MAX_EFFORT",
+      "blocks": [
+        {
+          "id": "main",
+          "name": "Main Press",
+          "type": "single",
+          "slots": [
+            {
+              "target": {
+                "kind": "exercise",
+                "exerciseName": "Push Press"
+              },
+              "setScheme": {
+                "sets": 1,
+                "metric": {
+                  "kind": "reps",
+                  "reps": 3
+                },
+                "percent": 97,
+                "percentOf": "Overhead Press"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "templateRef": "pressDay"
+        }
+      ]
+    }
+  ]
+}

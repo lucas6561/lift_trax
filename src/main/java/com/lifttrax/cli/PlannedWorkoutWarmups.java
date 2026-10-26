@@ -66,7 +66,9 @@ final class PlannedWorkoutWarmups {
       int reps,
       PlannedWorkoutHistory.Snapshot history,
       boolean alreadyWarm) {
-    String workingWeight = history.suggestedWeight(exercise.name(), target);
+    PlannedWorkoutHistory.WeightResolution resolution =
+        history.resolveWeight(exercise.name(), target);
+    String workingWeight = resolution.weight();
     double pounds = WeightText.toPounds(workingWeight);
     boolean shortened = alreadyWarm && Double.isFinite(pounds) && pounds > 0;
     List<WarmupSet> sets;
@@ -114,6 +116,7 @@ final class PlannedWorkoutWarmups {
         backoffNote,
         reps,
         workingWeight,
+        resolution.error(),
         loadWarning,
         loading.system() == WarmupLoading.LoadingSystem.BARBELL
             ? "Assumes a 45 lb bar with 45, 25, 10, 5 and 2.5 lb plates. Early loads favor simple plates; later loads prioritize the bridge target. Adjust for your equipment."
@@ -265,6 +268,7 @@ final class PlannedWorkoutWarmups {
       String backoffNote,
       int workingReps,
       String workingWeight,
+      String workingWeightError,
       String loadWarning,
       String loadingNote) {
     WarmupPlan {

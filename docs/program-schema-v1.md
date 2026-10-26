@@ -7,6 +7,13 @@ app-generated templates.
 This snapshot remains supported for older files. New files should use the
 latest snapshot documented in `docs/schema-versioning.md`.
 
+The latest program schema is version `3`. It adds optional `percentOf` to a
+percentage-bearing set scheme or progression step. The value is the exact
+LiftTrax lift name whose max/reference weight should supply the percentage
+base; omit it to use the exercise being performed. See
+`shared/programs/examples/cross-lift-v3.json` for a Push Press target based on
+the Overhead Press reference.
+
 ## Files
 
 - Schema: `shared/programs/schema/program.schema.v1.json`

@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 class SchemaVersionsTest {
   @Test
   void programSchemaCatalogKeepsEveryPublishedSnapshotAvailable() {
-    assertEquals(List.of(1, 2), ProgramSchemaVersions.supported());
-    assertEquals(2, ProgramSchemaVersions.latest());
+    assertEquals(List.of(1, 2, 3), ProgramSchemaVersions.supported());
+    assertEquals(3, ProgramSchemaVersions.latest());
 
     for (int schemaVersion : ProgramSchemaVersions.supported()) {
       assertNotNull(
@@ -25,8 +25,8 @@ class SchemaVersionsTest {
 
   @Test
   void plannedWorkoutCatalogKeepsEveryPublishedSnapshotAvailable() {
-    assertEquals(List.of(1, 2, 3, 4, 5), PlannedWorkoutSchemaVersions.supported());
-    assertEquals(5, PlannedWorkoutSchemaVersions.latest());
+    assertEquals(List.of(1, 2, 3, 4, 5, 6), PlannedWorkoutSchemaVersions.supported());
+    assertEquals(6, PlannedWorkoutSchemaVersions.latest());
 
     for (int schemaVersion : PlannedWorkoutSchemaVersions.supported()) {
       assertNotNull(

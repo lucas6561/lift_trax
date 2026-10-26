@@ -612,8 +612,15 @@ final class PlannedWorkoutSessionHtml {
       html.append("</ol>");
     }
     if (warmup.workingWeight().isBlank()) {
-      html.append(
-          "<p class='muted'>A working weight could not be calculated from this account's history and planned target. Apply these percentages to the working weight you choose; round to usable loads and check that each step increases while staying below the working weight.</p>");
+      if (warmup.workingWeightError().isBlank()) {
+        html.append(
+            "<p class='muted'>A working weight could not be calculated from this account's history and planned target. Apply these percentages to the working weight you choose; round to usable loads and check that each step increases while staying below the working weight.</p>");
+      } else {
+        html.append(
+                "<p class='status error planned-load-error'><strong>Working weight error:</strong> ")
+            .append(WebHtml.escapeHtml(warmup.workingWeightError()))
+            .append(" Do not substitute the performed exercise's max for the referenced lift.</p>");
+      }
     }
     if (!warmup.loadWarning().isBlank()) {
       html.append("<p class='session-warmup-load-warning'>")
@@ -710,11 +717,16 @@ final class PlannedWorkoutSessionHtml {
       PlannedWorkoutHistory.Snapshot history,
       String liftName,
       PlannedWorkoutFile.PlannedSetTarget target) {
-    String suggested = history.suggestedWeight(liftName, target);
-    if (suggested.isBlank()) {
+    PlannedWorkoutHistory.WeightResolution resolution = history.resolveWeight(liftName, target);
+    if (resolution.hasError()) {
+      return " <span class='status error planned-load-error'><strong>Cannot calculate:</strong> "
+          + WebHtml.escapeHtml(resolution.error())
+          + "</span>";
+    }
+    if (resolution.weight().isBlank()) {
       return "";
     }
-    return " <span class='muted'>Suggested: " + WebHtml.escapeHtml(suggested) + "</span>";
+    return " <span class='muted'>Suggested: " + WebHtml.escapeHtml(resolution.weight()) + "</span>";
   }
 
   private static void appendHistory(StringBuilder html, PlannedWorkoutHistory.Summary summary) {

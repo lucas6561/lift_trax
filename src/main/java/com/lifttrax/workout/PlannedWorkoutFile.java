@@ -28,6 +28,7 @@ public record PlannedWorkoutFile(
     }
     validateRestRangeVersion(schemaVersion, weeks);
     validateLoadGuidanceVersion(schemaVersion, weeks);
+    validateLoadReference(schemaVersion, weeks);
   }
 
   public record PlannedWorkoutMetadata(
@@ -363,6 +364,33 @@ public record PlannedWorkoutFile(
               if (set.percentOf() != null || set.rpeCap() != null) {
                 throw new IllegalArgumentException(
                     "plannedSet.percentOf and plannedSet.rpeCap require workout schemaVersion 5 or later");
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  static void validateLoadReference(int schemaVersion, List<PlannedWorkoutWeek> weeks) {
+    if (schemaVersion < 6) {
+      return;
+    }
+    for (PlannedWorkoutWeek week : weeks) {
+      for (PlannedWorkoutDay day : week.days()) {
+        for (PlannedWorkoutBlock block : day.blocks()) {
+          for (PlannedExercise exercise : block.exercises()) {
+            for (PlannedSetTarget set : exercise.plannedSets()) {
+              if (set.percentOf() == null) {
+                continue;
+              }
+              if (set.percentOf().isBlank()) {
+                throw new IllegalArgumentException(
+                    "plannedSet.percentOf must name a lift when present");
+              }
+              if (set.percent() == null) {
+                throw new IllegalArgumentException(
+                    "plannedSet.percentOf requires plannedSet.percent");
               }
             }
           }

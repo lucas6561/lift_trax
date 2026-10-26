@@ -320,6 +320,12 @@ final class PlannedWorkoutHtml {
           .append(WebHtml.escapeHtml(suggestions))
           .append("</div>");
     }
+    for (String error :
+        PlannedWorkoutText.loadErrors(history, exercise.name(), exercise.plannedSets())) {
+      html.append("<div class='status error planned-load-error'><strong>Load error:</strong> ")
+          .append(WebHtml.escapeHtml(error))
+          .append("</div>");
+    }
     if (!exercise.notes().isBlank()) {
       html.append("<div class='muted'>Notes: ")
           .append(WebHtml.escapeHtml(exercise.notes()))

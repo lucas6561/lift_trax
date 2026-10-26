@@ -67,6 +67,10 @@ public final class PlannedWorkoutMarkdownWriter {
       if (!suggestions.isBlank()) {
         lines.add("  - Suggested: " + suggestions);
       }
+      for (String error :
+          PlannedWorkoutText.loadErrors(history, exercise.name(), exercise.plannedSets())) {
+        lines.add("  - Load error: " + error);
+      }
       PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
       if (summary.last() != null) {
         lines.add("  - Last: " + summary.last());

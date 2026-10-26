@@ -21,7 +21,8 @@ public final class ProgramSchemaValidator {
   private static final Map<Integer, ProgramSchemaRules> RULES_BY_VERSION =
       Map.of(
           1, ProgramSchemaValidator::validateCompatibleShape,
-          2, ProgramSchemaValidator::validateCompatibleShape);
+          2, ProgramSchemaValidator::validateCompatibleShape,
+          3, ProgramSchemaValidator::validateCompatibleShape);
 
   public ProgramSchemaValidationResult validate(Path programFile) {
     try (Reader reader = Files.newBufferedReader(programFile, StandardCharsets.UTF_8)) {
@@ -84,6 +85,7 @@ public final class ProgramSchemaValidator {
     validateBlockReferences(root, errors);
     validateProgressions(root, durationWeeks, errors);
     validateRangePairs(root, "$", errors);
+    validatePercentageReferences(root, errors);
   }
 
   private static ProgramSchemaValidationResult invalid(String path, String message) {
@@ -445,6 +447,50 @@ public final class ProgramSchemaValidator {
     if (node.isArray()) {
       for (int index = 0; index < node.size(); index++) {
         validateRangePairs(node.get(index), path + "[" + index + "]", errors);
+      }
+    }
+  }
+
+  private static void validatePercentageReferences(
+      JsonNode node, List<ProgramSchemaValidationError> errors) {
+    validatePercentageReferences(node, "$", node.path("schemaVersion").asInt(), errors);
+  }
+
+  private static void validatePercentageReferences(
+      JsonNode node, String path, int schemaVersion, List<ProgramSchemaValidationError> errors) {
+    if (node.isObject()) {
+      JsonNode reference = node.path("percentOf");
+      if (!reference.isMissingNode()) {
+        if (schemaVersion < 3) {
+          addError(errors, path + ".percentOf", "percentOf requires program schemaVersion 3.");
+        }
+        if (!reference.isTextual() || reference.asText().isBlank()) {
+          addError(errors, path + ".percentOf", "percentOf must name a lift when present.");
+        }
+        boolean hasPercentage =
+            node.path("percent").isNumber()
+                || node.path("percentMin").isNumber()
+                || node.path("percentMax").isNumber();
+        if (!hasPercentage) {
+          addError(
+              errors,
+              path + ".percentOf",
+              "percentOf requires percent, percentMin, or percentMax on the same object.");
+        }
+      }
+
+      Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+      while (fields.hasNext()) {
+        Map.Entry<String, JsonNode> field = fields.next();
+        validatePercentageReferences(
+            field.getValue(), path + "." + field.getKey(), schemaVersion, errors);
+      }
+      return;
+    }
+    if (node.isArray()) {
+      for (int index = 0; index < node.size(); index++) {
+        validatePercentageReferences(
+            node.get(index), path + "[" + index + "]", schemaVersion, errors);
       }
     }
   }

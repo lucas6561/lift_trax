@@ -576,6 +576,84 @@ class PlannedWorkoutSessionHtmlTest {
   }
 
   @Test
+  void sessionPageCalculatesAndLabelsCrossLiftPercentages() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-cross-lift-percent", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Push Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of(), "");
+      db.addLift("Overhead Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of(), "");
+      addOneRepMax(db, "Push Press", 225);
+      addOneRepMax(db, "Overhead Press", 180);
+
+      String html =
+          PlannedWorkoutSessionHtml.renderPage(
+              crossLiftWorkoutFile(),
+              1,
+              "MONDAY",
+              List.of(
+                  lift("Push Press", LiftType.OVERHEAD_PRESS),
+                  lift("Overhead Press", LiftType.OVERHEAD_PRESS)),
+              LocalDate.parse("2026-05-31"),
+              db);
+
+      assertTrue(html.contains("Target: 3 reps @ 97% of Overhead Press RPE cap 8.0"));
+      assertTrue(html.contains("Suggested: 175 lb"));
+      assertTrue(html.contains("Planned working weight: <strong>175 lb</strong>"));
+      assertTrue(html.contains("class='js-weight-hidden' value='175 lb'"));
+      assertFalse(html.contains("Suggested: 220 lb"));
+    }
+  }
+
+  @Test
+  void sessionPageReportsMissingCrossLiftReferenceWithoutFallingBack() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-missing-cross-lift", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Push Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of(), "");
+      addOneRepMax(db, "Push Press", 225);
+
+      String html =
+          PlannedWorkoutSessionHtml.renderPage(
+              crossLiftWorkoutFile(),
+              1,
+              "MONDAY",
+              List.of(lift("Push Press", LiftType.OVERHEAD_PRESS)),
+              LocalDate.parse("2026-05-31"),
+              db);
+
+      assertTrue(html.contains("Referenced lift &quot;Overhead Press&quot; does not exist"));
+      assertTrue(html.contains("Do not substitute the performed exercise's max"));
+      assertFalse(html.contains("Suggested: 220 lb"));
+      assertFalse(html.contains("class='js-weight-hidden' value='220 lb'"));
+    }
+  }
+
+  @Test
+  void sessionPageReportsCrossLiftReferenceWithoutUsableMax() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-cross-lift-no-max", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Push Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of(), "");
+      db.addLift("Overhead Press", LiftRegion.UPPER, LiftType.OVERHEAD_PRESS, List.of(), "");
+      addOneRepMax(db, "Push Press", 225);
+
+      String html =
+          PlannedWorkoutSessionHtml.renderPage(
+              crossLiftWorkoutFile(),
+              1,
+              "MONDAY",
+              List.of(
+                  lift("Push Press", LiftType.OVERHEAD_PRESS),
+                  lift("Overhead Press", LiftType.OVERHEAD_PRESS)),
+              LocalDate.parse("2026-05-31"),
+              db);
+
+      assertTrue(
+          html.contains(
+              "Referenced lift &quot;Overhead Press&quot; has no usable max/reference weight"));
+      assertFalse(html.contains("Suggested: 220 lb"));
+      assertFalse(html.contains("class='js-weight-hidden' value='220 lb'"));
+    }
+  }
+
+  @Test
   void savedPageSummarizesLoggedSwappedAndSkippedWork() {
     String html =
         PlannedWorkoutSessionHtml.renderSavedPage(
@@ -703,6 +781,72 @@ class PlannedWorkoutSessionHtmlTest {
                                 List.of())),
                         List.of())))),
         List.of());
+  }
+
+  private static PlannedWorkoutFile crossLiftWorkoutFile() {
+    PlannedWorkoutFile.PlannedSetTarget target =
+        new PlannedWorkoutFile.PlannedSetTarget(
+            1,
+            "reps",
+            3,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            97,
+            "Overhead Press",
+            null,
+            8.0f,
+            "STRAIGHT",
+            null,
+            false);
+    PlannedWorkoutFile.PlannedExercise pushPress =
+        new PlannedWorkoutFile.PlannedExercise(
+            "Push Press",
+            "UPPER",
+            "OVERHEAD_PRESS",
+            List.of("SHOULDER"),
+            List.of(target),
+            "",
+            List.of());
+    return new PlannedWorkoutFile(
+        6,
+        new PlannedWorkoutFile.PlannedWorkoutMetadata(
+            "Cross-Lift Press", "Push Press from strict press reference.", 1, List.of()),
+        new PlannedWorkoutFile.PlannedWorkoutSource(
+            "manual", "test", "Cross-Lift Press", 3, "2026-05-31T00:00:00Z"),
+        List.of(
+            new PlannedWorkoutFile.PlannedWorkoutWeek(
+                1,
+                List.of(
+                    new PlannedWorkoutFile.PlannedWorkoutDay(
+                        "MONDAY",
+                        "Press Day",
+                        List.of(
+                            new PlannedWorkoutFile.PlannedWorkoutBlock(
+                                1,
+                                "Main Press",
+                                "main",
+                                null,
+                                false,
+                                List.of(pushPress),
+                                List.of())),
+                        List.of())))),
+        List.of());
+  }
+
+  private static void addOneRepMax(SqliteDb db, String liftName, int pounds) throws Exception {
+    db.addLiftExecution(
+        liftName,
+        new LiftExecution(
+            null,
+            LocalDate.parse("2026-05-30"),
+            List.of(new ExecutionSet(new SetMetric.Reps(1), pounds + " lb", null)),
+            false,
+            false,
+            ""));
   }
 
   private static PlannedWorkoutFile rpeOnlyWorkoutFile() {

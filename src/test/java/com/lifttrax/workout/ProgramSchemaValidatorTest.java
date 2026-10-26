@@ -14,7 +14,8 @@ class ProgramSchemaValidatorTest {
           Path.of("shared", "programs", "examples", "conjugate-v1.json"),
           Path.of("shared", "programs", "examples", "hypertrophy-v1.json"),
           Path.of("shared", "programs", "examples", "conjugate-v2.json"),
-          Path.of("shared", "programs", "examples", "hypertrophy-v2.json"));
+          Path.of("shared", "programs", "examples", "hypertrophy-v2.json"),
+          Path.of("shared", "programs", "examples", "cross-lift-v3.json"));
 
   @Test
   void validExamplesPassValidation() {
@@ -66,6 +67,22 @@ class ProgramSchemaValidatorTest {
   }
 
   @Test
+  void percentageReferenceRequiresAPercentageOnTheSameProgramObject() throws Exception {
+    String invalid =
+        java.nio.file.Files.readString(
+                Path.of("shared", "programs", "examples", "cross-lift-v3.json"))
+            .replace("\"percent\": 97,", "");
+
+    ProgramSchemaValidationResult result = VALIDATOR.validate(invalid);
+
+    assertFalse(result.isValid());
+    assertErrorContains(
+        result,
+        "$.dayTemplates.pressDay.blocks[0].slots[0].setScheme.percentOf",
+        "percentOf requires percent, percentMin, or percentMax");
+  }
+
+  @Test
   void unsupportedSchemaVersionReportsFieldLevelError() {
     ProgramSchemaValidationResult result =
         VALIDATOR.validate(
@@ -76,7 +93,7 @@ class ProgramSchemaValidatorTest {
     assertErrorContains(
         result,
         "$.schemaVersion",
-        "Unsupported program schemaVersion 99; supported versions: [1, 2].");
+        "Unsupported program schemaVersion 99; supported versions: [1, 2, 3].");
   }
 
   @Test

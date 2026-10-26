@@ -132,6 +132,11 @@ final class PlannedWorkoutPrintHtml {
         extra,
         "Suggested",
         PlannedWorkoutText.loadSuggestions(history, exercise.name(), exercise.plannedSets()));
+    appendExtra(
+        extra,
+        "Load error",
+        String.join(
+            " ", PlannedWorkoutText.loadErrors(history, exercise.name(), exercise.plannedSets())));
     appendExtra(extra, "Last", summary.last());
     appendExtra(extra, "Best 1RM", summary.bestOneRepMax());
     appendExtra(extra, "Swap options", String.join(", ", exercise.substitutionOptions()));

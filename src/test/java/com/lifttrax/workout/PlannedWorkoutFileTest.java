@@ -561,7 +561,7 @@ class PlannedWorkoutFileTest {
         exception
             .getOriginalMessage()
             .contains(
-                "Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4, 5]."));
+                "Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4, 5, 6]."));
   }
 
   @Test
@@ -611,7 +611,7 @@ class PlannedWorkoutFileTest {
         assertEquals(300, rest.path("maximumSeconds").asInt());
         assertTrue(JSON.readTree(schema.toFile()).path("$defs").has("restRange"));
       }
-      if (schemaVersion == 5) {
+      if (schemaVersion >= 5) {
         JsonNode plannedSetProperties =
             JSON.readTree(schema.toFile()).path("$defs").path("plannedSet").path("properties");
         assertEquals(0, plannedSetProperties.path("rpeCap").path("minimum").asInt());
@@ -633,5 +633,70 @@ class PlannedWorkoutFileTest {
         assertEquals(8, plannedSet.path("rpeCap").asInt());
       }
     }
+  }
+
+  @Test
+  void nullAndOmittedPercentageReferencesKeepSameLiftBehavior() throws Exception {
+    JsonNode root =
+        JSON.readTree(Path.of("shared", "workouts", "examples", "conjugate-wave-v6.json").toFile());
+    ObjectNode plannedSet =
+        (ObjectNode)
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets")
+                .get(0);
+    plannedSet.putNull("percentOf");
+    PlannedWorkoutFile explicitNull = PlannedWorkoutJson.readString(root.toString());
+    PlannedWorkoutFile.PlannedExercise explicitNullExercise =
+        explicitNull.weeks().get(0).days().get(0).blocks().get(0).exercises().get(0);
+    assertEquals(
+        explicitNullExercise.name(),
+        explicitNullExercise.plannedSets().get(0).loadReference(explicitNullExercise.name()));
+
+    plannedSet.remove("percentOf");
+    PlannedWorkoutFile omitted = PlannedWorkoutJson.readString(root.toString());
+    PlannedWorkoutFile.PlannedExercise omittedExercise =
+        omitted.weeks().get(0).days().get(0).blocks().get(0).exercises().get(0);
+    assertEquals(
+        omittedExercise.name(),
+        omittedExercise.plannedSets().get(0).loadReference(omittedExercise.name()));
+    assertFalse(PlannedWorkoutJson.writeString(omitted).contains("\"percentOf\""));
+  }
+
+  @Test
+  void latestWorkoutSchemaRejectsBlankOrUnpairedPercentageReferences() throws Exception {
+    JsonNode root =
+        JSON.readTree(Path.of("shared", "workouts", "examples", "conjugate-wave-v6.json").toFile());
+    ObjectNode plannedSet =
+        (ObjectNode)
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets")
+                .get(0);
+
+    plannedSet.put("percentOf", " ");
+    JsonProcessingException blank =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(blank.getOriginalMessage().contains("percentOf must name a lift"));
+
+    plannedSet.put("percentOf", "Overhead Press");
+    plannedSet.remove("percent");
+    JsonProcessingException unpaired =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(unpaired.getOriginalMessage().contains("percentOf requires plannedSet.percent"));
   }
 }

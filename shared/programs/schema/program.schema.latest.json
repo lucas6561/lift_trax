@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lifttrax.local/schemas/program.schema.v2.json",
-  "title": "LiftTrax Program Schema v2",
+  "$id": "https://lifttrax.local/schemas/program.schema.v3.json",
+  "title": "LiftTrax Program Schema v3",
   "description": "A versioned contract for coach-authored, AI-authored, and app-authored training programs.",
   "type": "object",
   "additionalProperties": false,
@@ -13,7 +13,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 2
+      "const": 3
     },
     "program": {
       "$ref": "#/$defs/programMetadata"
@@ -272,6 +272,34 @@
     "progressionStep": {
       "type": "object",
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "percentOf"
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "percent"
+                ]
+              },
+              {
+                "required": [
+                  "percentMin"
+                ]
+              },
+              {
+                "required": [
+                  "percentMax"
+                ]
+              }
+            ]
+          }
+        }
+      ],
       "properties": {
         "week": {
           "type": "integer",
@@ -299,6 +327,11 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 100
+        },
+        "percentOf": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact LiftTrax lift name whose max/reference weight supplies the percentage base. Omit to use the performed exercise."
         },
         "rpe": {
           "type": "number",
@@ -582,6 +615,34 @@
         "sets",
         "metric"
       ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "percentOf"
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "percent"
+                ]
+              },
+              {
+                "required": [
+                  "percentMin"
+                ]
+              },
+              {
+                "required": [
+                  "percentMax"
+                ]
+              }
+            ]
+          }
+        }
+      ],
       "properties": {
         "sets": {
           "type": "integer",
@@ -604,6 +665,11 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 100
+        },
+        "percentOf": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact LiftTrax lift name whose max/reference weight supplies the percentage base. Omit to use the performed exercise."
         },
         "rpe": {
           "type": "number",

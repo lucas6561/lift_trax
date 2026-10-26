@@ -113,7 +113,7 @@ same schema instead of manually editing large sections by hand.
 
 A valid planned-workout example lives at:
 
-- `shared/workouts/examples/conjugate-wave-v5.json`
+- `shared/workouts/examples/conjugate-wave-v6.json`
 
 That example shows the same importable planned-workout shape: metadata, source,
 weeks, days, blocks, exercise details, planned set targets with percentage

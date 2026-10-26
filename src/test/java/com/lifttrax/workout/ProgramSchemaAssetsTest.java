@@ -20,13 +20,15 @@ class ProgramSchemaAssetsTest {
   private static final List<Path> SCHEMAS =
       List.of(
           Path.of("shared", "programs", "schema", "program.schema.v1.json"),
-          Path.of("shared", "programs", "schema", "program.schema.v2.json"));
+          Path.of("shared", "programs", "schema", "program.schema.v2.json"),
+          Path.of("shared", "programs", "schema", "program.schema.v3.json"));
   private static final List<Path> EXAMPLES =
       List.of(
           Path.of("shared", "programs", "examples", "conjugate-v1.json"),
           Path.of("shared", "programs", "examples", "hypertrophy-v1.json"),
           Path.of("shared", "programs", "examples", "conjugate-v2.json"),
-          Path.of("shared", "programs", "examples", "hypertrophy-v2.json"));
+          Path.of("shared", "programs", "examples", "hypertrophy-v2.json"),
+          Path.of("shared", "programs", "examples", "cross-lift-v3.json"));
   private static final Path LATEST_CONJUGATE_EXAMPLE =
       Path.of("shared", "programs", "examples", "conjugate-v2.json");
   private static final Path LATEST_HYPERTROPHY_EXAMPLE =
@@ -88,6 +90,26 @@ class ProgramSchemaAssetsTest {
     assertTrue(hasTextValue(hypertrophy, "Secondary Hypertrophy"));
     assertTrue(hasTextValue(hypertrophy, "Accessory"));
     assertTrue(hasTextValue(hypertrophy, "Core"));
+  }
+
+  @Test
+  void latestProgramSchemaAndExampleCarryCrossLiftPercentageReferences() throws IOException {
+    JsonNode schema = read(Path.of("shared", "programs", "schema", "program.schema.v3.json"));
+    assertTrue(schema.path("$defs").path("setScheme").path("properties").has("percentOf"));
+    assertTrue(schema.path("$defs").path("progressionStep").path("properties").has("percentOf"));
+
+    JsonNode example = read(Path.of("shared", "programs", "examples", "cross-lift-v3.json"));
+    JsonNode setScheme =
+        example
+            .path("dayTemplates")
+            .path("pressDay")
+            .path("blocks")
+            .get(0)
+            .path("slots")
+            .get(0)
+            .path("setScheme");
+    assertEquals(97, setScheme.path("percent").asInt());
+    assertEquals("Overhead Press", setScheme.path("percentOf").asText());
   }
 
   private static List<Path> allJsonAssets() {

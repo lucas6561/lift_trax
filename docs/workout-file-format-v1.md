@@ -48,6 +48,10 @@ objective starting point but the load should be reduced to stay below an RPE
 ceiling. It also supports a machine-readable `rest` range on each planned set,
 using inclusive `minimumSeconds` and `maximumSeconds` values; equal values
 represent an exact rest duration. Version `1` remains unchanged and loadable.
+When `percentOf` is null or omitted, the performed exercise remains the load
+reference. A named reference is never replaced with the performed exercise if
+the named lift is missing or lacks a usable max/reference weight; the UI shows
+an actionable load error instead.
 
 ## Import Boundary
 

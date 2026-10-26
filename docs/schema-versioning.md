@@ -7,8 +7,8 @@ new versions ship. New files should always use the latest schema snapshot.
 
 | Contract | Latest version | Supported versions |
 | --- | --- | --- |
-| Program schema | `2` | `1`, `2` |
-| Planned workout format | `5` | `1`, `2`, `3`, `4`, `5` |
+| Program schema | `3` | `1`, `2`, `3` |
+| Planned workout format | `6` | `1`, `2`, `3`, `4`, `5`, `6` |
 
 Planned-workout version `3` keeps the version `2` payload shape but tightens
 new planned-set intensity authoring: a set can specify `percent` or `rpe`, but
@@ -26,6 +26,16 @@ guidance. `rpeCap` can accompany a percentage target without changing `rpe`
 from its existing role as the prescribed intensity mode. `percentOf` names the
 exercise whose max or history supplies the percentage base. Versions `1`
 through `4` remain loadable without these fields.
+
+Planned-workout version `6` makes the `percentOf` relationship explicit in the
+contract: a non-null value must be a nonblank lift name and must accompany
+`percent`. Null or omitted `percentOf` continues to mean the exercise being
+performed. Versions `1` through `5` remain loadable unchanged.
+
+Program schema version `3` adds the same optional `percentOf` field to fixed set
+schemes and progression steps. It may accompany `percent`, `percentMin`, or
+`percentMax`; omitting it keeps same-exercise percentage behavior. Program
+versions `1` and `2` remain supported without migration.
 
 ## Numbered Snapshots and Latest Entrypoints
 
