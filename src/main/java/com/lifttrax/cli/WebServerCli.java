@@ -1542,7 +1542,7 @@ public final class WebServerCli {
     }
   }
 
-  private static void sendDownload(
+  static void sendDownload(
       HttpExchange exchange, String contentType, String fileName, String content)
       throws IOException {
     byte[] bytes = content.getBytes(StandardCharsets.UTF_8);

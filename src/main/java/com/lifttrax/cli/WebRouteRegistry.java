@@ -41,6 +41,11 @@ final class WebRouteRegistry {
         auth.protect(exchange -> WebServerCli.handleAccount(exchange, db, auth.localPasswords())));
     WebRequestSecurity.register(
         server,
+        "/account/export",
+        Set.of("GET"),
+        auth.protect(exchange -> AccountExportResponse.handle(exchange, db)));
+    WebRequestSecurity.register(
+        server,
         "/",
         Set.of("GET"),
         auth.protect(exchange -> WebServerCli.handleIndex(exchange, db)));

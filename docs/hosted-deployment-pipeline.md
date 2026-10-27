@@ -3,9 +3,9 @@
 The first hosted LiftTrax beta should deploy the existing Java web service to
 Render while Supabase owns authentication and durable Postgres data.
 
-Public exposure remains blocked until the deployment pipeline, import path, and
-backup/export expectations are complete. User-scoped authorization and the core
-hosted persistence adapter are now available for deployment smoke checks.
+The deployment pipeline, import path, user-scoped export, and hosted recovery
+expectations are now documented. User-scoped authorization and the core hosted
+persistence adapter are available for deployment smoke checks.
 
 ## Environments
 
@@ -88,6 +88,10 @@ If migrations fail, stop before deploying code that depends on them. If smoke
 checks fail after deployment, roll back the Render service and keep the previous
 database backup available for inspection.
 
+The required provider/off-provider checks and recovery procedure are in
+`docs/account-data-export-and-recovery.md`. A successful account JSON download
+does not replace the all-account operator snapshot or provider restore point.
+
 ## Smoke Checks
 
 Minimum hosted smoke checks:
@@ -99,7 +103,9 @@ Minimum hosted smoke checks:
 - secure `lt_session` cookie flags are present in hosted mode;
 - authenticated core logging can create a lift execution through the hosted
   persistence adapter;
-- authenticated history and lift detail pages show only the current user's data.
+- authenticated history and lift detail pages show only the current user's data;
+- authenticated account export contains only the current user's catalog,
+  executions, and saved planned workouts.
 
 `scripts/hosted-smoke.ps1` always verifies the anonymous redirect and invalid
 callback failure behavior. When `LIFTTRAX_HOSTED_SMOKE_SESSION_COOKIE` is

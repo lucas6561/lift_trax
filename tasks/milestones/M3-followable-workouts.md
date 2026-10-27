@@ -22,5 +22,8 @@ Let a lifter load a planned workout, follow it during training, and save complet
 - `LT-0026`: Add exercise swap rules.
 - `LT-0027`: Persist planned versus completed workout data.
 - `LT-0030`: Add exercise equipment requirements.
-- `LT-0064`: Add active workout draft and resume.
+- `LT-0044`: Add configurable rest timer.
 - `LT-0007`: Improve mobile workout logging flow.
+
+`LT-0095` delivered same-device, account-scoped active workout draft recovery;
+the duplicate `LT-0064` card is retired.

@@ -146,8 +146,9 @@ Hosted `executions` are the Postgres counterpart to local `lift_records`.
 | `updated_at timestamptz not null` | Last edit time. |
 
 Snapshot fields are required so history survives a renamed, disabled, deleted,
-or reclassified catalog entry. This coordinates with `LT-0076`, `LT-0077`,
-`LT-0078`, and `LT-0079`.
+or reclassified catalog entry. `LT-0076` defines this logical Postgres
+boundary, `LT-0077` implements the snapshots, and `LT-0079` makes catalog
+mutations history-safe. `LT-0078` separately adds portable catalog provenance.
 
 Indexes:
 
@@ -332,7 +333,7 @@ First hosted migrations should prioritize these indexes:
 - `LT-0088` should implement `local_imports` and the local `lifts.db` mapping.
 - `LT-0092` turned the implemented Postgres core into the primary ordered
   runtime migration and retired SQLite runtime mode.
-- `LT-0076` through `LT-0079` remain relevant locally; hosted execution
-  snapshots should not wait until a local catalog split is fully complete.
-- `LT-0091` should export account-scoped rows through lifter ownership and coach
-  relationship permissions, never by raw table dump.
+- `LT-0076` through `LT-0079` are Postgres catalog/history lifecycle work. They
+  must not introduce a second runtime database.
+- `LT-0091` exports account-scoped rows through the signed-in user's scoped
+  store, never by raw all-user table dump.

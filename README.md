@@ -139,6 +139,16 @@ cookies when accessing the server across a network. Local mode still uses the
 configured Postgres database. See
 [account authentication](docs/account-authentication.md).
 
+### Export account data
+
+Open **Account** and choose **Download my data** to download a versioned JSON
+export containing the signed-in account's complete lift catalog, execution
+history, and saved planned workouts. The route does not accept another account
+identifier, and exports never include authentication IDs, emails, passwords,
+tokens, or another user's records. See
+[account data export and hosted recovery](docs/account-data-export-and-recovery.md)
+for the format contract and operator recovery runbook.
+
 ## Database schema migrations
 
 Runtime Postgres migrations live in `shared/postgres/migrations/`. LiftTrax
@@ -267,3 +277,6 @@ The snapshot is read from one repeatable-read Postgres transaction, written to
 a temporary SQLite file, validated by expected tables and per-table row counts,
 then atomically published. Failed snapshots remove the temporary artifact.
 Provider-level Postgres restoration remains an operator/provider procedure.
+Provider expectations, off-provider snapshot checks, and the account/whole-
+service recovery runbooks are documented in
+[account data export and hosted recovery](docs/account-data-export-and-recovery.md).

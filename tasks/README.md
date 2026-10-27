@@ -15,7 +15,7 @@ tasks/
     M1-quality-baseline.md
   backlog/
     LT-0003-workout-plan-model.md
-  completed/
+  completed/ # implemented or intentionally closed
     LT-0002-execution-edit-delete.md
 ```
 
@@ -28,7 +28,8 @@ tasks/
 5. Use `schema.md` as the shape for every task file.
 6. Keep tasks small enough that "done" is testable.
 7. Move status forward in the task file as work becomes clearer.
-8. Move `done` task files from `backlog/` to `completed/`.
+8. Move `done` or intentionally `dropped` task files from `backlog/` to
+   `completed/`, preserving the task ID and a closure note.
 
 ## Task ID format
 

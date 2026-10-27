@@ -18,12 +18,16 @@ Define the contracts that separate program authoring, generated plans, workout o
 - `LT-0023`: Define the workout file format v1.
 - `LT-0005`: Add schema migration tracking.
 - `LT-0061`: Add schema version compatibility.
-- `LT-0076`: Document execution and catalog database boundary.
-- `LT-0077`: Add exercise snapshots to execution history.
-- `LT-0078`: Add exercise catalog database foundation.
-- `LT-0079`: Move exercise catalog to catalog database.
+- `LT-0076`: Define the Postgres catalog and history boundary.
+- `LT-0077`: Add exercise snapshots to Postgres execution history.
+- `LT-0078`: Add portable identity and provenance to the exercise catalog.
+- `LT-0079`: Make catalog changes history-safe.
+- `LT-0080`: Drill catalog and history recovery.
 - `LT-0093`: Import exercise catalog files.
 
 ## Notes
 
-This milestone is mostly design and thin validation. It should create enough clarity to implement the generic builder without guessing.
+The plan/workout contracts are delivered. Remaining work makes completed
+history independent of mutable catalog metadata inside the single Postgres
+runtime, then creates enough portable catalog identity to implement imports
+without guessing.

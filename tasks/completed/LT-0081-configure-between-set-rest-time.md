@@ -1,12 +1,12 @@
 ---
 id: LT-0081
 title: Configure between-set rest time
-status: ready
+status: dropped
 track: interface
 priority: high
 effort: small
 created: 2026-06-07
-updated: 2026-06-07
+updated: 2026-10-27
 owner: unassigned
 depends_on: [LT-0044]
 ---
@@ -37,4 +37,6 @@ The active workout rest timer can use a user-selected between-set rest duration,
 
 ## Notes
 
-This is a focused follow-up to `LT-0044`. If `LT-0044` is implemented later as a larger slice, this card can be satisfied by including configurable reset/rest duration in that implementation.
+Retired on 2026-10-27 after its configurable-duration requirements were merged
+into `LT-0044`. The stable ID remains here as the historical record; implement
+and verify the combined rest-timer behavior under `LT-0044`.

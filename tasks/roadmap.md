@@ -19,16 +19,12 @@ LiftTrax should be readable, documented, tested, and safe to change. A build sho
 
 Key tasks:
 
-- `LT-0011`: Raise coverage gate to 90 percent.
-- `LT-0012`: Add a single quality gate command.
-- `LT-0031`: Add mutation testing for core training logic.
 - `LT-0073`: Expand mutation testing to planned workout files.
-- `LT-0074`: Expand mutation testing to active workout logging.
 - `LT-0075`: Add mutation testing ratchet.
-- `LT-0013`: Document package boundaries and coding standards.
-- `LT-0014`: Add CI quality checks.
-- `LT-0097`: Enforce whole-code unit test coverage.
-- `LT-0098`: Decompose web server boundaries.
+
+The 90 percent whole-code coverage gate, CI quality command, core/active-workout
+mutation testing, package-boundary documentation, and first web-server
+decomposition are delivered foundations rather than open roadmap work.
 
 ### 2. Cross-device application
 
@@ -36,20 +32,11 @@ The app should work comfortably from a desktop browser and a phone. The near-ter
 
 Key tasks:
 
-- `LT-0001`: Define the daily training dashboard.
-- `LT-0002`: Add execution editing and deletion.
-- `LT-0007`: Improve mobile workout logging flow.
-- `LT-0069`: Fix phone execution tab weight visibility.
-- `LT-0015`: Choose the web, mobile, and distribution architecture.
-- `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
-- `LT-0082`: Select hosted auth and data platform.
-- `LT-0084`: Add public web security baseline.
-- `LT-0085`: Implement account authentication.
-- `LT-0086`: Enforce user-scoped authorization.
-- `LT-0089`: Define PWA and offline boundaries.
-- `LT-0076`: Document execution and catalog database boundary.
-- `LT-0080`: Update backup and restore for split databases.
+
+The authenticated Postgres web app, PWA shell, account-scoped device drafts,
+mobile logging fixes, user ownership, account export, and hosted recovery
+runbook are delivered. Packaging and release/update policy remains open.
 
 ### 3. Schema-driven workout building
 
@@ -57,15 +44,13 @@ The wave builder should accept a program schema instead of depending only on spe
 
 Key tasks:
 
-- `LT-0003`: Design the workout plan model.
-- `LT-0018`: Define the program schema v1.
-- `LT-0019`: Build a schema validation layer.
-- `LT-0061`: Add schema version compatibility.
-- `LT-0070`: Add latest schema entrypoints.
-- `LT-0071`: Publish AI workout schema guide.
 - `LT-0020`: Create a generic schema-to-wave builder.
 - `LT-0021`: Convert existing conjugate and hypertrophy builders to schema output.
 - `LT-0022`: Design the coach program editor.
+
+The plan model, versioned schemas, validation, latest aliases, and AI authoring
+guide are complete; the remaining work is using those contracts as the normal
+builder and authoring path.
 
 ### 4. Followable workout output
 
@@ -73,20 +58,21 @@ Generated workouts should be saved in a stable format that the application can l
 
 Key tasks:
 
-- `LT-0023`: Define the workout file format v1.
-- `LT-0024`: Load planned workouts into the app.
-- `LT-0025`: Build the follow-along workout session.
-- `LT-0048`: Show history in active workout.
-- `LT-0062`: Unify planned workout output formats.
 - `LT-0063`: Add planned workout visual regression checks.
 - `LT-0026`: Add exercise swap rules.
 - `LT-0027`: Persist planned versus completed workout data.
 - `LT-0030`: Add exercise equipment requirements.
-- `LT-0077`: Add exercise snapshots to execution history.
-- `LT-0078`: Add exercise catalog database foundation.
-- `LT-0079`: Move exercise catalog to catalog database.
+- `LT-0044`: Add configurable rest timer.
+- `LT-0076`: Define the Postgres catalog and history boundary.
+- `LT-0077`: Add exercise snapshots to Postgres execution history.
+- `LT-0078`: Add portable identity and provenance to the exercise catalog.
+- `LT-0079`: Make catalog changes history-safe.
+- `LT-0080`: Drill catalog and history recovery.
 - `LT-0093`: Import exercise catalog files.
-- `LT-0064`: Add active workout draft and resume.
+
+Loading, previewing, printing, saving, following, and device-resuming planned
+workouts are delivered. The next data work makes completed history independent
+from later catalog edits while retaining the single Postgres runtime.
 
 ## Roadmap tracks
 
@@ -110,7 +96,7 @@ Improve the web UI so it feels dense, fast, and usable during an actual lifting 
 
 Prepare the application for multiple users, deployable releases, and eventual mobile app packaging without forcing that jump too early.
 
-Hosted web app path:
+Hosted web app foundation (delivered):
 
 1. `LT-0016`: Add user and ownership model design.
 2. `LT-0082`: Select hosted auth and data platform.
@@ -124,22 +110,22 @@ Hosted web app path:
    Postgres-to-SQLite operator backup.
 10. `LT-0089`: Define PWA and offline boundaries.
 11. `LT-0090`: Create hosted deployment pipeline.
-12. `LT-0091`: Add hosted backup and export controls.
+12. `LT-0091`: Add account-scoped export and hosted recovery controls.
 13. `LT-0094`: Add PWA installability shell.
 14. `LT-0095`: Add offline workout-session drafts.
 15. `LT-0096`: Add friendly account usernames and automatic account selection.
 
-`docs/user-ownership-model.md` defines the user, lifter, coach, and ownership
-rules for this path. `docs/adr/0003-hosted-auth-data-platform.md` selects
-Supabase Auth, Supabase Postgres, and a Render-hosted Java web service for the
-first hosted beta. The sequence still keeps security, authentication,
-authorization, and hosted persistence ahead of public exposure.
+All fifteen foundation cards above are complete. `docs/user-ownership-model.md`
+defines the user, lifter, coach, and ownership rules for this path.
+`docs/adr/0003-hosted-auth-data-platform.md` selects Supabase Auth, Supabase
+Postgres, and a Render-hosted Java web service for the first hosted beta.
 `docs/hosted-user-data-schema.md` maps that direction into the first hosted
 Postgres schema shape, and `docs/hosted-persistence-adapter.md` documents the
 first hosted JDBC/Postgres adapter for core logging. `docs/pwa-offline-boundaries.md`
 keeps first-pass PWA work limited to installability and user-neutral caching,
 while `docs/hosted-deployment-pipeline.md` records the Render/Supabase
-deployment shape for the now-ready deployment pipeline task.
+deployment shape. `docs/account-data-export-and-recovery.md` separates
+user-owned exports from operator backups and records the recovery runbook.
 
 ### Quality and maintainability
 
@@ -157,9 +143,16 @@ See `tasks/milestones/` for the working sequence.
 
 ## Near-term sequence
 
-1. Finish `M1-quality-baseline` so every future change has a reliable safety net.
-2. Complete the day-to-day logging loop: dashboard, create lift, log execution, view history, edit mistakes.
-3. Design the plan model, program schema v1, and workout file format v1 before changing persistence aggressively.
-4. Build a generic schema-to-wave path and convert existing specific builders to emit that schema.
-5. Load generated workouts into the app and support a follow-along session with data entry and exercise swaps.
-6. Move the platform track through the hosted web app path before exposing LiftTrax beyond local-network use.
+1. Define the single-Postgres catalog/history lifecycle in `LT-0076`, then add
+   immutable performed-exercise snapshots in `LT-0077`.
+2. Add portable catalog provenance (`LT-0078`), make catalog mutations
+   history-safe (`LT-0079`), and prove recovery with `LT-0080`.
+3. Make the generic schema-to-wave path normal (`LT-0020`, `LT-0021`) before
+   expanding coach authoring (`LT-0022`).
+4. Finish the workout loop with swaps, planned-versus-completed data,
+   equipment-aware choices, and the configurable rest timer (`LT-0026`,
+   `LT-0027`, `LT-0030`, `LT-0044`).
+5. Add planned-workout visual regression coverage and finish the mutation
+   ratchet (`LT-0063`, `LT-0073`, `LT-0075`).
+6. Define release/update policy (`LT-0017`) and build catalog-file import on the
+   new provenance rules (`LT-0093`).

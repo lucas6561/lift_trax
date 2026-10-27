@@ -59,6 +59,9 @@ final class AccountPageHtml {
               <button type='submit'>Save Sharing</button>
             </form>
             <p><a href='/import-lifts'>Import lifts from another user</a></p>
+            <h2>Data export</h2>
+            <p>Download a private JSON copy of your lift catalog, execution history, and saved planned workouts. The export contains only this signed-in account's data.</p>
+            <p><a href='/account/export?format=json' download>Download my data</a></p>
             <p><a href='/'>Back to LiftTrax</a></p>
             """
             .formatted(status, WebHtml.escapeHtml(value), shareLifts ? "checked" : "");

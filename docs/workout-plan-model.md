@@ -173,9 +173,12 @@ Existing implementation tasks cover the next slices:
 - `LT-0021`: Convert existing builders to schema output.
 - `LT-0022`: Design the coach program editor.
 - `LT-0027`: Persist planned versus completed workout data.
-- `LT-0064`: Add active workout draft and resume.
-- `LT-0076`: Document execution and catalog database boundary.
-- `LT-0077`: Add exercise snapshots to execution history.
+- `LT-0044`: Add configurable rest timer.
+- `LT-0076`: Define the Postgres catalog and history boundary.
+- `LT-0077`: Add exercise snapshots to Postgres execution history.
+
+`LT-0095` delivered account-scoped same-device workout draft recovery and
+superseded `LT-0064`.
 
 These tasks should use this model as the naming boundary: templates are authored
 inputs, generated planned workouts are immutable followable outputs, sessions

@@ -1,12 +1,12 @@
 ---
 id: LT-0064
 title: Add active workout draft and resume
-status: idea
+status: dropped
 track: product
 priority: high
 effort: large
 created: 2026-06-05
-updated: 2026-06-05
+updated: 2026-10-27
 owner: unassigned
 depends_on: [LT-0025, LT-0027]
 ---
@@ -39,6 +39,8 @@ Follow-along workout sessions can save partial progress and resume later without
 
 This is the usability bridge between the current follow-along session and the durable planned-versus-completed storage in `LT-0027`.
 
-The phone/browser recovery slice is being delivered by `LT-0095`. Keep this
-card for a future server-owned draft lifecycle or cross-device resume instead
-of duplicating the same-device acceptance criteria.
+Retired on 2026-10-27. `LT-0095` delivered the same-device browser-draft,
+account isolation, resume, discard, conflict, and exactly-once submission
+requirements. A future server-owned or cross-device draft lifecycle should get
+a new card with explicit multi-device conflict semantics rather than retaining
+this duplicate scope.

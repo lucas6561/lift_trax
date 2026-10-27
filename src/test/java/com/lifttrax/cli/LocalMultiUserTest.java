@@ -2,6 +2,8 @@ package com.lifttrax.cli;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.db.HostedPostgresConfig;
 import com.lifttrax.db.HostedPostgresTrainingDataStoreProvider;
 import com.lifttrax.models.ExecutionSet;
@@ -235,6 +237,98 @@ class LocalMultiUserTest {
       var other = bob.get("/load-last-execution?format=json&lift=Bench");
       assertEquals(404, other.statusCode());
       assertFalse(other.body().contains("Private history"));
+    }
+  }
+
+  @Test
+  void accountExportIncludesOwnedDataAndRejectsCrossAccountSelectors() throws Exception {
+    try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
+      Browser anonymous = fixture.browser();
+      Browser alice = fixture.browser();
+      Browser bob = fixture.browser();
+      assertEquals(303, anonymous.get("/account/export?format=json").statusCode());
+      register(alice, "alice", "alice@example.test");
+      register(bob, "bob", "bob@example.test");
+
+      var aliceStore = fixture.provider.forUserIdentifier("alice");
+      aliceStore.addLift(
+          "Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "Alice catalog note");
+      aliceStore.setLiftEnabled("Bench", false);
+      aliceStore.addLiftExecution(
+          "Bench",
+          new LiftExecution(
+              null,
+              LocalDate.of(2026, 10, 27),
+              List.of(
+                  new ExecutionSet(new SetMetric.Reps(5), "135 lb", 7.5f),
+                  new ExecutionSet(new SetMetric.RepsLr(4, 3), "40 lb", null),
+                  new ExecutionSet(new SetMetric.RepsRange(8, 12), "25 lb", null),
+                  new ExecutionSet(new SetMetric.TimeSecs(30), "none", null),
+                  new ExecutionSet(new SetMetric.DistanceFeet(100), "90 lb", 8.0f, true)),
+              false,
+              false,
+              "Alice private execution"));
+      aliceStore.saveWorkout(
+          "Alice plan", "{\"schemaVersion\":6,\"metadata\":{\"name\":\"Alice plan\"}}");
+
+      var bobStore = fixture.provider.forUserIdentifier("bob");
+      bobStore.addLift("Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "Bob only");
+      bobStore.saveWorkout(
+          "Bob plan", "{\"schemaVersion\":6,\"metadata\":{\"name\":\"Bob plan\"}}");
+
+      String accountPage = alice.get("/account").body();
+      assertTrue(accountPage.contains("href='/account/export?format=json'"));
+      var response = alice.get("/account/export?format=json");
+      assertEquals(200, response.statusCode());
+      assertEquals(
+          "application/json; charset=utf-8",
+          response.headers().firstValue("Content-Type").orElseThrow());
+      assertTrue(
+          response
+              .headers()
+              .firstValue("Content-Disposition")
+              .orElseThrow()
+              .matches("attachment; filename=\"lifttrax-account-\\d{8}-\\d{6}Z.json\""));
+      assertEquals("no-store", response.headers().firstValue("Cache-Control").orElseThrow());
+
+      JsonNode export = new ObjectMapper().readTree(response.body());
+      assertEquals(1, export.path("schemaVersion").asInt());
+      assertEquals("alice", export.path("account").path("username").asText());
+      assertEquals(1, export.path("catalog").size());
+      assertEquals("Bench", export.path("catalog").get(0).path("name").asText());
+      assertFalse(export.path("catalog").get(0).path("enabled").asBoolean());
+      assertEquals(1, export.path("executions").size());
+      assertEquals(
+          "Alice private execution", export.path("executions").get(0).path("notes").asText());
+      assertEquals(5, export.path("executions").get(0).path("sets").size());
+      assertEquals(1, export.path("plannedWorkouts").size());
+      assertEquals(
+          "Alice plan",
+          export
+              .path("plannedWorkouts")
+              .get(0)
+              .path("document")
+              .path("metadata")
+              .path("name")
+              .asText());
+      assertFalse(response.body().contains("Bob only"));
+      assertFalse(response.body().contains("Bob plan"));
+      assertFalse(response.body().contains("alice@example.test"));
+
+      var bobExport = bob.get("/account/export");
+      assertEquals(200, bobExport.statusCode());
+      assertTrue(bobExport.body().contains("Bob only"));
+      assertFalse(bobExport.body().contains("Alice private execution"));
+
+      for (String malformed :
+          List.of(
+              "/account/export?format=csv",
+              "/account/export?format=json&user=bob",
+              "/account/export?account=alice")) {
+        var rejected = alice.get(malformed);
+        assertEquals(400, rejected.statusCode(), malformed);
+        assertTrue(rejected.body().contains("Invalid account export request"));
+      }
     }
   }
 

@@ -17,8 +17,8 @@ Prepare LiftTrax for use beyond one local database on one machine.
 - `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
 - `LT-0006`: Define backup and restore flow.
-- `LT-0076`: Document execution and catalog database boundary.
-- `LT-0080`: Update backup and restore for split databases.
+- `LT-0076`: Define the Postgres catalog and history boundary.
+- `LT-0080`: Drill catalog and history recovery.
 - `LT-0082`: Select hosted auth and data platform.
 - `LT-0083`: Design hosted user data schema.
 - `LT-0084`: Add public web security baseline.
@@ -44,10 +44,10 @@ Prepare LiftTrax for use beyond one local database on one machine.
 6. `LT-0086`: Enforce authorization on every hosted data path.
 7. `LT-0087`: Introduce the Supabase Postgres persistence adapter for core logging.
 8. `LT-0088`: Migrate/import existing local databases into hosted accounts.
-9. `LT-0092`: Port primary persistence to Postgres.
+9. `LT-0092`: Make Postgres the sole runtime database.
 10. `LT-0089`: Define PWA installability and offline boundaries.
 11. `LT-0090`: Create the repeatable hosted deployment pipeline.
-12. `LT-0091`: Add hosted backup and user export controls.
+12. `LT-0091`: Add account-scoped export and hosted recovery controls.
 13. `LT-0094`: Add the installable PWA shell without offline writes.
 14. `LT-0095`: Add user-scoped offline workout-session drafts.
 15. `LT-0096`: Add friendly account usernames without exposing auth UUIDs.
@@ -66,3 +66,8 @@ Planning decisions now recorded:
   network-only authenticated data, and deferred offline writes.
 - `docs/hosted-deployment-pipeline.md`: Render/Supabase environment, secret,
   migration, smoke-check, and rollback expectations.
+- `docs/account-data-export-and-recovery.md`: account-scoped export contract,
+  provider/off-provider backup expectations, and recovery runbook.
+
+The hosted web sequence is delivered. Remaining M5 work is release/update
+policy (`LT-0017`) and a demonstrated catalog/history recovery drill (`LT-0080`).
