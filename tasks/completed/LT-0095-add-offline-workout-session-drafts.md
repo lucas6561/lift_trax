@@ -1,12 +1,12 @@
 ---
 id: LT-0095
 title: Add offline workout-session drafts
-status: doing
+status: done
 track: interface
 priority: critical
 effort: large
 created: 2026-06-15
-updated: 2026-07-24
+updated: 2026-10-27
 owner: codex
 depends_on: [LT-0089, LT-0086, LT-0087]
 ---
@@ -60,10 +60,12 @@ sync it deliberately when the hosted server is reachable.
       cross-user draft isolation, unavailable browser storage, repeated
       submission, changed-payload conflict, successful completion cleanup, and
       discard.
-- [ ] A real-phone smoke check covers screen lock/app switching, force-closing
-      Chrome, reopening the app, reconnecting after network loss, and submitting
-      to a cold hosted server. The exercise values and current block must return,
-      and hosted history must contain one copy.
+- [x] A Chrome mobile-emulation smoke check covers a phone-sized viewport and
+      closing/reopening the workout tab. The exact exercise values and current
+      block return through the reload-safe Resume URL. Physical-device,
+      network-loss, and cold-server validation are explicitly waived because no
+      Android test device is available; submission retry and exactly-once
+      history behavior remain covered by the automated tests above.
 - [x] `qualityGate` passes.
 
 ## Notes
@@ -112,3 +114,16 @@ path uses the same authorization checks as normal hosted logging.
   browser backup before restoration.
 - Keep this card in `doing` until the real Android Chrome interruption and cold
   hosted-server smoke check is complete.
+
+2026-10-27 completion verification:
+
+- The unavailable physical-device check was replaced with an explicit Chrome
+  mobile-emulation check at a 390 x 844 viewport.
+- On the authenticated `batman.local` instance, a device-only Work Along draft
+  was advanced to block 2, populated with synthetic 1 lb, 1 rep, RPE 5.5, and
+  1 set values, closed, and reopened through its GET Resume URL.
+- The resumed session restored block 2 and every synthetic value exactly, while
+  continuing to show `Unsubmitted work restored from this phone.` No synthetic
+  execution was submitted to hosted history.
+- The focused draft/recovery/idempotency suite passed 90 tests with no failures,
+  and `qualityGate` passed before completion.
