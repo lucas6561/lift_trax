@@ -1,5 +1,6 @@
 package com.lifttrax.db;
 
+import com.lifttrax.models.CatalogEntry;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
@@ -25,117 +26,36 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /** User-scoped hosted JDBC/Postgres implementation for core web training data. */
-final class HostedPostgresTrainingDataStore implements TrainingDataStore {
-  private final HostedPostgresConfig config;
+final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
   private final String appUserId;
-  private final String lifterProfileId;
 
   HostedPostgresTrainingDataStore(
       HostedPostgresConfig config, String authUserId, String appUserId, String lifterProfileId) {
-    this.config = config;
+    super(config, lifterProfileId);
     requireUserId(authUserId);
     this.appUserId = appUserId;
-    this.lifterProfileId = lifterProfileId;
+  }
+
+  @Override
+  public List<CatalogEntry> listCatalogEntries() throws Exception {
+    try (Connection connection = openConnection()) {
+      return new HostedCatalogImport(connection, appUserId, lifterProfileId).list(false);
+    }
+  }
+
+  @Override
+  public int importCatalog(List<CatalogEntry> entries, String expectedFingerprint)
+      throws Exception {
+    try (Connection connection = openConnection()) {
+      return new HostedCatalogImport(connection, appUserId, lifterProfileId)
+          .save(entries, expectedFingerprint);
+    }
   }
 
   @Override
   public DashboardSnapshot dashboardSnapshot(LocalDate today) throws Exception {
     try (Connection connection = openConnection()) {
       return new HostedDashboardReader(connection, appUserId, lifterProfileId).load(today);
-    }
-  }
-
-  @Override
-  public List<SavedWorkout> listSavedWorkouts() throws Exception {
-    try (Connection connection = openConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                """
-            SELECT id, name, created_at FROM saved_workouts
-            WHERE lifter_profile_id = ? ORDER BY created_at DESC, id DESC
-            """)) {
-      statement.setString(1, lifterProfileId);
-      List<SavedWorkout> workouts = new ArrayList<>();
-      try (ResultSet rows = statement.executeQuery()) {
-        while (rows.next()) {
-          workouts.add(
-              new SavedWorkout(
-                  rows.getString("id"),
-                  rows.getString("name"),
-                  rows.getTimestamp("created_at").toLocalDateTime()));
-        }
-      }
-      return workouts;
-    }
-  }
-
-  @Override
-  public String saveWorkout(String name, String workoutJson) throws Exception {
-    String cleanedName = SavedWorkout.validateName(name);
-    if (workoutJson == null || workoutJson.isBlank()) {
-      throw new IllegalArgumentException("Workout document is required.");
-    }
-    String id = newId();
-    try (Connection connection = openConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                """
-            INSERT INTO saved_workouts (id, lifter_profile_id, name, workout_json)
-            VALUES (?, ?, ?, ?)
-            """)) {
-      statement.setString(1, id);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, cleanedName);
-      statement.setString(4, workoutJson);
-      statement.executeUpdate();
-    }
-    return id;
-  }
-
-  @Override
-  public String getSavedWorkoutJson(String id) throws Exception {
-    try (Connection connection = openConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT workout_json FROM saved_workouts WHERE lifter_profile_id = ? AND id = ?")) {
-      statement.setString(1, lifterProfileId);
-      statement.setString(2, id);
-      try (ResultSet rows = statement.executeQuery()) {
-        if (!rows.next()) {
-          throw new IllegalArgumentException("Saved workout not found.");
-        }
-        return rows.getString("workout_json");
-      }
-    }
-  }
-
-  @Override
-  public void renameSavedWorkout(String id, String name) throws Exception {
-    String cleanedName = SavedWorkout.validateName(name);
-    try (Connection connection = openConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "UPDATE saved_workouts SET name = ? WHERE lifter_profile_id = ? AND id = ?")) {
-      statement.setString(1, cleanedName);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, id);
-      if (statement.executeUpdate() != 1) {
-        throw new IllegalArgumentException("Saved workout not found.");
-      }
-    }
-  }
-
-  @Override
-  public void deleteSavedWorkout(String id) throws Exception {
-    try (Connection connection = openConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "DELETE FROM saved_workouts WHERE lifter_profile_id = ? AND id = ?")) {
-      statement.setString(1, lifterProfileId);
-      statement.setString(2, id);
-      if (statement.executeUpdate() != 1) {
-        throw new IllegalArgumentException("Saved workout not found.");
-      }
     }
   }
 
@@ -149,9 +69,9 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
                 """
                     INSERT INTO exercise_catalog_entries (
                         id, owner_user_id, lifter_profile_id, name, region, main_lift,
-                        muscles, notes, enabled
+                        muscles, notes, enabled, origin
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'user_created')
                     """)) {
       statement.setString(1, newId());
       statement.setString(2, appUserId);
@@ -168,40 +88,46 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   @Override
   public void addLiftExecution(String name, LiftExecution execution) throws Exception {
     try (Connection connection = openConnection()) {
-      String catalogEntryId = findCatalogEntryId(connection, name);
-      if (catalogEntryId == null) {
-        throw new IllegalArgumentException("Lift not found: " + name);
-      }
-      String executionId = newId();
-      int webExecutionId;
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              """
+      connection.setAutoCommit(false);
+      try {
+        String catalogEntryId = lockEnabledCatalogEntry(connection, name);
+        String executionId = newId();
+        int webExecutionId;
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                """
                   INSERT INTO executions (
                       id, lifter_profile_id, catalog_entry_id, performed_on,
-                      warmup, deload, notes
+                      warmup, deload, notes, performed_catalog_id, performed_exercise_name,
+                      performed_region, performed_main_lift, performed_muscles, performed_catalog_notes
                   )
-                  VALUES (?, ?, ?, ?, ?, ?, ?)
+                  SELECT ?, ?, id, ?, ?, ?, ?, id, name, region, main_lift, muscles, notes
+                  FROM exercise_catalog_entries WHERE id = ?
                   """,
-              new String[] {"web_execution_id"})) {
-        statement.setString(1, executionId);
-        statement.setString(2, lifterProfileId);
-        statement.setString(3, catalogEntryId);
-        statement.setObject(4, execution.date());
-        statement.setBoolean(5, execution.warmup());
-        statement.setBoolean(6, execution.deload());
-        statement.setString(7, execution.notes() == null ? "" : execution.notes());
-        statement.executeUpdate();
-        try (ResultSet keys = statement.getGeneratedKeys()) {
-          if (!keys.next()) {
-            throw new IllegalStateException("Hosted execution ID was not generated.");
+                new String[] {"web_execution_id"})) {
+          statement.setString(1, executionId);
+          statement.setString(2, lifterProfileId);
+          statement.setObject(3, execution.date());
+          statement.setBoolean(4, execution.warmup());
+          statement.setBoolean(5, execution.deload());
+          statement.setString(6, execution.notes() == null ? "" : execution.notes());
+          statement.setString(7, catalogEntryId);
+          statement.executeUpdate();
+          try (ResultSet keys = statement.getGeneratedKeys()) {
+            if (!keys.next()) {
+              throw new IllegalStateException("Hosted execution ID was not generated.");
+            }
+            webExecutionId = keys.getInt(1);
           }
-          webExecutionId = keys.getInt(1);
         }
-      }
-      saveExecutionSets(connection, executionId, execution.sets());
-      if (webExecutionId <= 0) {
-        throw new IllegalStateException("Hosted execution ID was invalid.");
+        saveExecutionSets(connection, executionId, execution.sets());
+        if (webExecutionId <= 0) {
+          throw new IllegalStateException("Hosted execution ID was invalid.");
+        }
+        connection.commit();
+      } catch (Exception e) {
+        connection.rollback();
+        throw e;
       }
     }
   }
@@ -294,46 +220,54 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
       if (statement.executeUpdate() == 0) {
         throw new IllegalArgumentException("Lift not found.");
       }
+    } catch (SQLException e) {
+      if ("23505".equals(e.getSQLState())) {
+        throw new IllegalArgumentException(
+            "A catalog entry already uses that name. Choose a distinct name or disable the duplicate; completed histories cannot be merged by renaming.",
+            e);
+      }
+      throw e;
     }
   }
 
   @Override
   public void deleteLift(String name) throws Exception {
     try (Connection connection = openConnection()) {
-      String catalogEntryId = findCatalogEntryId(connection, name);
-      if (catalogEntryId == null) {
-        throw new IllegalArgumentException("Lift not found.");
-      }
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              """
-                  DELETE FROM execution_sets
-                  WHERE execution_id IN (
-                      SELECT id FROM executions
-                      WHERE lifter_profile_id = ? AND catalog_entry_id = ?
-                  )
-                  """)) {
-        statement.setString(1, lifterProfileId);
-        statement.setString(2, catalogEntryId);
-        statement.executeUpdate();
-      }
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              "DELETE FROM executions WHERE lifter_profile_id = ? AND catalog_entry_id = ?")) {
-        statement.setString(1, lifterProfileId);
-        statement.setString(2, catalogEntryId);
-        statement.executeUpdate();
-      }
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              """
-                  DELETE FROM exercise_catalog_entries
-                  WHERE owner_user_id = ? AND lifter_profile_id = ? AND id = ?
-                  """)) {
-        statement.setString(1, appUserId);
-        statement.setString(2, lifterProfileId);
-        statement.setString(3, catalogEntryId);
-        statement.executeUpdate();
+      connection.setAutoCommit(false);
+      try {
+        String catalogEntryId = findCatalogEntryId(connection, name);
+        if (catalogEntryId == null) {
+          throw new IllegalArgumentException("Lift not found.");
+        }
+        try (PreparedStatement lock =
+            connection.prepareStatement(
+                "SELECT id FROM exercise_catalog_entries WHERE id = ? FOR UPDATE")) {
+          lock.setString(1, catalogEntryId);
+          try (ResultSet rows = lock.executeQuery()) {
+            if (!rows.next()) {
+              throw new IllegalArgumentException("Lift not found.");
+            }
+          }
+        }
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                "UPDATE executions SET catalog_entry_id = NULL WHERE lifter_profile_id = ? AND catalog_entry_id = ?")) {
+          statement.setString(1, lifterProfileId);
+          statement.setString(2, catalogEntryId);
+          statement.executeUpdate();
+        }
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                "DELETE FROM exercise_catalog_entries WHERE owner_user_id = ? AND lifter_profile_id = ? AND id = ?")) {
+          statement.setString(1, appUserId);
+          statement.setString(2, lifterProfileId);
+          statement.setString(3, catalogEntryId);
+          statement.executeUpdate();
+        }
+        connection.commit();
+      } catch (Exception e) {
+        connection.rollback();
+        throw e;
       }
     }
   }
@@ -453,51 +387,65 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   @Override
   public void updateLiftExecution(int execId, LiftExecution execution) throws Exception {
     try (Connection connection = openConnection()) {
-      String hostedExecutionId = findHostedExecutionId(connection, execId);
-      if (hostedExecutionId == null) {
-        throw new IllegalArgumentException("Execution not found.");
-      }
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              """
+      connection.setAutoCommit(false);
+      try {
+        String hostedExecutionId = findHostedExecutionId(connection, execId);
+        if (hostedExecutionId == null) {
+          throw new IllegalArgumentException("Execution not found.");
+        }
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                """
                   UPDATE executions
                   SET performed_on = ?, warmup = ?, deload = ?, notes = ?
                   WHERE lifter_profile_id = ? AND web_execution_id = ?
                   """)) {
-        statement.setObject(1, execution.date());
-        statement.setBoolean(2, execution.warmup());
-        statement.setBoolean(3, execution.deload());
-        statement.setString(4, execution.notes() == null ? "" : execution.notes());
-        statement.setString(5, lifterProfileId);
-        statement.setInt(6, execId);
-        if (statement.executeUpdate() == 0) {
-          throw new IllegalArgumentException("Execution not found.");
+          statement.setObject(1, execution.date());
+          statement.setBoolean(2, execution.warmup());
+          statement.setBoolean(3, execution.deload());
+          statement.setString(4, execution.notes() == null ? "" : execution.notes());
+          statement.setString(5, lifterProfileId);
+          statement.setInt(6, execId);
+          if (statement.executeUpdate() == 0) {
+            throw new IllegalArgumentException("Execution not found.");
+          }
         }
+        saveExecutionSets(connection, hostedExecutionId, execution.sets());
+        connection.commit();
+      } catch (Exception e) {
+        connection.rollback();
+        throw e;
       }
-      saveExecutionSets(connection, hostedExecutionId, execution.sets());
     }
   }
 
   @Override
   public void deleteLiftExecution(int execId) throws Exception {
     try (Connection connection = openConnection()) {
-      String hostedExecutionId = findHostedExecutionId(connection, execId);
-      if (hostedExecutionId == null) {
-        throw new IllegalArgumentException("Execution not found.");
-      }
-      try (PreparedStatement statement =
-          connection.prepareStatement("DELETE FROM execution_sets WHERE execution_id = ?")) {
-        statement.setString(1, hostedExecutionId);
-        statement.executeUpdate();
-      }
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              "DELETE FROM executions WHERE lifter_profile_id = ? AND web_execution_id = ?")) {
-        statement.setString(1, lifterProfileId);
-        statement.setInt(2, execId);
-        if (statement.executeUpdate() == 0) {
+      connection.setAutoCommit(false);
+      try {
+        String hostedExecutionId = findHostedExecutionId(connection, execId);
+        if (hostedExecutionId == null) {
           throw new IllegalArgumentException("Execution not found.");
         }
+        try (PreparedStatement statement =
+            connection.prepareStatement("DELETE FROM execution_sets WHERE execution_id = ?")) {
+          statement.setString(1, hostedExecutionId);
+          statement.executeUpdate();
+        }
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                "DELETE FROM executions WHERE lifter_profile_id = ? AND web_execution_id = ?")) {
+          statement.setString(1, lifterProfileId);
+          statement.setInt(2, execId);
+          if (statement.executeUpdate() == 0) {
+            throw new IllegalArgumentException("Execution not found.");
+          }
+        }
+        connection.commit();
+      } catch (Exception e) {
+        connection.rollback();
+        throw e;
       }
     }
   }
@@ -507,7 +455,22 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
     try (Connection connection = openConnection()) {
       String catalogEntryId = findCatalogEntryId(connection, name);
       if (catalogEntryId == null) {
-        throw new IllegalArgumentException("Lift not found: " + name);
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT DISTINCT performed_catalog_id FROM executions WHERE lifter_profile_id = ? AND performed_exercise_name = ?")) {
+          statement.setString(1, lifterProfileId);
+          statement.setString(2, name);
+          try (ResultSet rows = statement.executeQuery()) {
+            if (!rows.next()) {
+              throw new IllegalArgumentException("Lift not found: " + name);
+            }
+            catalogEntryId = rows.getString(1);
+            if (rows.next()) {
+              throw new IllegalArgumentException(
+                  "Multiple historical exercises share this name. Use the dated History view to inspect their records.");
+            }
+          }
+        }
       }
       return new LiftStats(
           getLastExecution(connection, catalogEntryId),
@@ -584,24 +547,69 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
   @Override
   public List<LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
       throws Exception {
+    try (Connection connection = openConnection()) {
+      return readSnapshots(connection, start, end, null, null);
+    }
+  }
+
+  @Override
+  public List<LiftExecutionRow> liftHistory(String name) throws Exception {
+    try (Connection connection = openConnection()) {
+      String identity = findCatalogEntryId(connection, name);
+      return readSnapshots(
+          connection,
+          LocalDate.of(1, 1, 1),
+          LocalDate.of(9999, 12, 31),
+          identity == null ? "performed_exercise_name" : "performed_catalog_id",
+          identity == null ? name : identity);
+    }
+  }
+
+  @Override
+  public List<LiftExecutionRow> historyForExecution(int executionId) throws Exception {
     try (Connection connection = openConnection();
         PreparedStatement statement =
             connection.prepareStatement(
-                """
-                    SELECT
-                        c.name, c.region, c.main_lift, c.muscles, c.notes AS lift_notes,
-                        e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes
-                    FROM executions e
-                    JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
-                    WHERE e.lifter_profile_id = ? AND c.lifter_profile_id = ?
-                        AND c.owner_user_id = ? AND e.performed_on BETWEEN ? AND ?
-                    ORDER BY e.performed_on ASC, c.name ASC, e.web_execution_id ASC
-                    """)) {
+                "SELECT performed_catalog_id FROM executions WHERE lifter_profile_id = ? AND web_execution_id = ?")) {
       statement.setString(1, lifterProfileId);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, appUserId);
-      statement.setObject(4, start);
-      statement.setObject(5, end);
+      statement.setInt(2, executionId);
+      try (ResultSet rows = statement.executeQuery()) {
+        return rows.next()
+            ? readSnapshots(
+                connection,
+                LocalDate.of(1, 1, 1),
+                LocalDate.of(9999, 12, 31),
+                "performed_catalog_id",
+                rows.getString(1))
+            : List.of();
+      }
+    }
+  }
+
+  private List<LiftExecutionRow> readSnapshots(
+      Connection connection,
+      LocalDate start,
+      LocalDate end,
+      String filterColumn,
+      String filterValue)
+      throws Exception {
+    String sql =
+        """
+        SELECT e.performed_exercise_name AS name, e.performed_region AS region,
+          e.performed_main_lift AS main_lift, e.performed_muscles AS muscles,
+          e.performed_catalog_notes AS lift_notes,
+          e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes
+        FROM executions e WHERE e.lifter_profile_id = ? AND e.performed_on BETWEEN ? AND ?
+        """
+            + (filterColumn == null ? "" : " AND e." + filterColumn + " = ?")
+            + " ORDER BY e.performed_on ASC, e.performed_exercise_name ASC, e.web_execution_id ASC";
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, lifterProfileId);
+      statement.setObject(2, start);
+      statement.setObject(3, end);
+      if (filterColumn != null) {
+        statement.setString(4, filterValue);
+      }
       try (ResultSet rs = statement.executeQuery()) {
         List<LiftExecutionRow> rows = new ArrayList<>();
         while (rs.next()) {
@@ -688,15 +696,16 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
                 """
                     SELECT e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes
                     FROM executions e
-                    JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
-                    WHERE e.lifter_profile_id = ? AND c.lifter_profile_id = ?
-                        AND c.owner_user_id = ? AND c.name = ? AND e.web_execution_id = ?
+                    LEFT JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
+                        AND c.lifter_profile_id = e.lifter_profile_id
+                    WHERE e.lifter_profile_id = ?
+                        AND (e.performed_exercise_name = ? OR c.name = ?)
+                        AND e.web_execution_id = ?
                     """)) {
       statement.setString(1, lifterProfileId);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, appUserId);
-      statement.setString(4, liftName);
-      statement.setInt(5, executionId);
+      statement.setString(2, liftName);
+      statement.setString(3, liftName);
+      statement.setInt(4, executionId);
       try (ResultSet rs = statement.executeQuery()) {
         return rs.next() ? mapExecution(connection, rs) : null;
       }
@@ -757,7 +766,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
             """
                 SELECT web_execution_id, id, performed_on, warmup, deload, notes
                 FROM executions
-                WHERE lifter_profile_id = ? AND catalog_entry_id = ?
+                WHERE lifter_profile_id = ? AND performed_catalog_id = ?
                 ORDER BY performed_on DESC, web_execution_id DESC
                 LIMIT 1
                 """)) {
@@ -776,7 +785,7 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
             SELECT es.metric_a AS reps, es.weight
             FROM execution_sets es
             JOIN executions e ON e.id = es.execution_id
-            WHERE e.lifter_profile_id = ? AND e.catalog_entry_id = ?
+            WHERE e.lifter_profile_id = ? AND e.performed_catalog_id = ?
                 AND es.metric_kind = 'reps' AND es.missed = FALSE AND es.metric_a > 0
             """;
     Map<Integer, String> bestByReps = new TreeMap<>();
@@ -798,6 +807,26 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
       }
     }
     return bestByReps;
+  }
+
+  private String lockEnabledCatalogEntry(Connection connection, String name) throws Exception {
+    try (PreparedStatement statement =
+        connection.prepareStatement(
+            "SELECT id, enabled FROM exercise_catalog_entries WHERE owner_user_id = ? AND lifter_profile_id = ? AND name = ? FOR UPDATE")) {
+      statement.setString(1, appUserId);
+      statement.setString(2, lifterProfileId);
+      statement.setString(3, name);
+      try (ResultSet rows = statement.executeQuery()) {
+        if (!rows.next()) {
+          throw new IllegalArgumentException("Lift not found: " + name);
+        }
+        if (!rows.getBoolean("enabled")) {
+          throw new IllegalArgumentException(
+              "Lift is disabled: " + name + ". Enable it before logging new executions.");
+        }
+        return rows.getString("id");
+      }
+    }
   }
 
   private String findCatalogEntryId(Connection connection, String name) throws Exception {
@@ -997,10 +1026,6 @@ final class HostedPostgresTrainingDataStore implements TrainingDataStore {
       throw new IllegalArgumentException("Authenticated user is required.");
     }
     return userId.trim();
-  }
-
-  private Connection openConnection() throws Exception {
-    return HostedPostgresTrainingDataStoreProvider.openConnection(config);
   }
 
   HostedPostgresConfig hostedConfig() {

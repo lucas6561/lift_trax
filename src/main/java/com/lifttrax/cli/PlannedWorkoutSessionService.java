@@ -148,6 +148,10 @@ final class PlannedWorkoutSessionService {
       }
       String performedLift = requiredText(exerciseResult, "performedLift", "Performed lift");
       db.getLift(performedLift);
+      if (!db.isLiftEnabled(performedLift)) {
+        throw new IllegalArgumentException(
+            "Lift is disabled: " + performedLift + ". Enable it before logging new executions.");
+      }
       boolean warmup = exerciseResult.path("warmup").asBoolean(planned.block().warmup());
       boolean deload =
           exerciseResult

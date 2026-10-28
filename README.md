@@ -53,6 +53,15 @@ then run the command above. Neither web command accepts a SQLite path.
 
 See `JAVA_PROJECT.md` for detailed package and feature documentation.
 
+## Exercise catalog import
+
+Use **Add Execution → Import exercise catalog file** to validate and preview a
+standalone exercise-catalog JSON file, then confirm changes to your own catalog.
+Source identities make reimports deterministic, and completed history retains
+the exercise metadata captured when it was logged. See the
+[catalog import guide](docs/exercise-catalog-import.md) for the schema, examples,
+matching rules, and how this differs from program and workout imports.
+
 ## Program schema
 
 The stable latest program schema is available at
@@ -255,8 +264,8 @@ Use `--user <username-or-id>` to select a different account for one invocation.
 
 LiftTrax can create a complete point-in-time SQLite `.db` artifact from the
 configured Postgres database. This is an operator snapshot of every
-LiftTrax-owned table and every user's rows; it is not a live database, restore
-command, or synchronization mode. The supplied destination is a base filename;
+LiftTrax-owned table and every user's rows. It is an operator recovery artifact;
+the runtime continues to use Postgres. The supplied destination is a base filename;
 the published file always includes its UTC creation date and time, for example
 `lifttrax-snapshot-20260718-143522Z.db`.
 

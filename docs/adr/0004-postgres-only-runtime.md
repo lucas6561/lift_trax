@@ -38,3 +38,10 @@ remain outside the application migration and snapshot boundary.
 
 This decision supersedes ADR-0001's SQLite runtime choice and the transitional
 local-SQLite language in ADR-0003.
+
+## Subsequent operator recovery support
+
+ADR-0005 and LT-0080 add a deliberate, validated operator snapshot restore into
+a new isolated Postgres target. This extends the inspection snapshot's recovery
+use; SQLite remains outside normal runtime paths and there is no ongoing
+synchronization mode. See [the recovery runbook](../account-data-export-and-recovery.md).

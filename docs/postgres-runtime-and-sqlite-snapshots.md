@@ -16,7 +16,8 @@ completed executions through the same Postgres store as manual logging.
 
 The legacy SQLite schema remains readable only for an explicit one-way local
 database import and for tests. No normal executable accepts a SQLite path as a
-live store, and there is no SQLite restore or synchronization mode.
+live store. A validated operator artifact can be restored into a new isolated
+Postgres target; SQLite is never a runtime or synchronization store.
 
 ## Executable inventory
 
@@ -55,6 +56,7 @@ application schema contains:
 - `exercise_catalog_entries`;
 - `executions` and `execution_sets`;
 - `local_imports` and `local_import_records`;
+- `saved_workouts` and `workout_submission_receipts`;
 - `lifttrax_schema_migrations`.
 
 Supabase `auth`, storage, and provider-internal schemas are not LiftTrax-owned
@@ -98,4 +100,15 @@ On failure it rolls back the Postgres read transaction, removes the temporary
 artifact, leaves any existing destination untouched, and exits nonzero with the
 destination and underlying cause. The SQLite file is a point-in-time inspection
 and recovery artifact, not an application database. Restoring Postgres remains
-a deliberate provider/operator recovery procedure.
+a deliberate provider/operator recovery procedure. The explicit `postgresRecovery`
+command accepts a validated current-version snapshot and a separately configured
+new isolated target. See [the recovery runbook](account-data-export-and-recovery.md).
+
+## Catalog and history lifecycle
+
+Migrations 0011 and 0012 separate mutable catalog definitions from performed
+exercise snapshots and add optional portable source identity/provenance.
+History and account exports use snapshots; deletion detaches current catalog
+references without deleting completed records. Normal logging requires an
+enabled owned catalog entry. See [ADR-0005](adr/0005-catalog-history-lifecycle.md)
+and the [catalog file guide](exercise-catalog-import.md).

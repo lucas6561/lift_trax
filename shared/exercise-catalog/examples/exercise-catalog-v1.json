@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "exercises": [
+    {
+      "name": "Paused Bench Press",
+      "enabled": true,
+      "region": "UPPER",
+      "main": "BENCH_PRESS",
+      "muscles": [
+        "CHEST",
+        "TRICEP"
+      ],
+      "notes": "Pause on the chest.",
+      "source": {
+        "namespace": "example:coach-catalog",
+        "key": "paused-bench",
+        "revision": "1"
+      }
+    },
+    {
+      "name": "Farmer Carry",
+      "enabled": true,
+      "region": "LOWER",
+      "main": "CONDITIONING",
+      "muscles": [
+        "FOREARM",
+        "CORE"
+      ],
+      "notes": "Dumbbells or farmer handles. Equipment is described in notes until structured equipment metadata exists.",
+      "source": {
+        "namespace": "example:coach-catalog",
+        "key": "farmer-carry",
+        "revision": "1"
+      }
+    },
+    {
+      "name": "Retired Curl",
+      "enabled": false,
+      "region": "UPPER",
+      "main": "ACCESSORY",
+      "muscles": [
+        "BICEP"
+      ],
+      "notes": "Retained for catalog reference."
+    }
+  ]
+}

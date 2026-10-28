@@ -43,7 +43,7 @@ validated before writes occur.
 ## Versioned JSON contract
 
 The current contract is
-`shared/account-export/schema/account-export.schema.v1.json`.
+`shared/account-export/schema/account-export.schema.v2.json`.
 Consumers that intentionally follow the newest contract can use
 `shared/account-export/schema/account-export.schema.latest.json`; the latest
 file is byte-for-byte identical to the newest numbered schema.
@@ -58,6 +58,13 @@ Top-level fields are:
 | `catalog` | Account-owned lift definitions, ordered by name. |
 | `executions` | Training history, ordered by date, lift name, and execution ID. |
 | `plannedWorkouts` | Saved planned-workout documents, ordered by creation time and ID. |
+
+Version 2 adds catalog `provenance` (origin, optional source namespace/key and
+revision, and optional shared-source public label) and execution
+`performedExercise` (name, region, main type, muscles, and catalog notes).
+`liftName` remains the performed name. Deleted catalog entries do not remove
+executions from the export. The frozen v1 schema remains available for older
+exports; full-account import remains a reviewed operator operation.
 
 Each object in `plannedWorkouts` has an export record ID, display name,
 creation time, and `document`. The document remains governed by its own
@@ -155,3 +162,65 @@ script or provider support and retain its exact SQL, row counts, and reviewer.
 
 Document the selected restore point, observed data-loss window, validation
 results, and any user communication after every recovery.
+
+## Validated operator snapshot restore
+
+The catalog/history lifecycle is implemented in migrations 0011 (performed
+snapshots) and 0012 (portable provenance). See
+[ADR-0005](adr/0005-catalog-history-lifecycle.md). Use a snapshot taken after
+those migrations; the restore command requires an exact application schema
+version. To investigate an older snapshot, use its matching release in an
+isolated environment before advancing migrations.
+
+Create a new isolated Postgres database. Its cluster must provide the `anon`
+and `authenticated` roles used by the security migrations (Supabase normally
+provides them). For a standalone disposable cluster, create those non-login
+roles first if absent; the automated real-Postgres drill does this itself.
+Configure its dedicated connection
+with `LIFTTRAX_RECOVERY_JDBC_URL`, `LIFTTRAX_RECOVERY_JDBC_USER`, and
+`LIFTTRAX_RECOVERY_JDBC_PASSWORD`, then run:
+
+```powershell
+.\gradlew.bat postgresRecovery --args="data/backups/verified-snapshot.db --confirm-isolated-target"
+```
+
+The recovery command does not read the normal hosted connection configuration.
+It rejects an initialized destination, even if its application tables are empty.
+It validates the artifact before initializing the destination: SQLite integrity,
+format and schema versions, migration order and names, exact table counts,
+ownership, live-reference integrity, catalog provenance, performed metadata,
+ordered set indices, saved-workout JSON, and import/receipt relationships.
+It then restores every application table in dependency order, checks those
+invariants again, resets the next execution identity, and commits. Failed
+restores must never receive traffic. Use a new empty database for another
+attempt and retain the failed target for investigation as needed.
+
+The command reports the UTC recovery point, elapsed restoration time, and
+restored table counts. Before reopening traffic, compare both fixture/affected
+account exports, check account isolation, and run authenticated logging and
+saved-workout smoke checks. Provider auth, storage, secrets, redirects, and
+service configuration remain separate manual recovery steps. Partial-account
+production repair still requires a reviewed incident script.
+
+The repeatable drill is `CatalogRecoveryDrillTest`. Its normal run covers a
+compatibility database; the real Postgres run is enabled explicitly with
+`LIFTTRAX_TEST_POSTGRES_ADMIN_URL` pointing to a disposable loopback cluster
+(`jdbc:postgresql://127.0.0.1:<port>/postgres`, test-only postgres user). It creates
+and drops uniquely named source and destination databases. It never reads the
+hosted connection. Run:
+
+```powershell
+.\gradlew.bat test --tests '*CatalogRecoveryDrillTest'
+```
+
+Reports are written under `build/reports/recovery-drill-*.md`. They record the
+engine, point, elapsed time, observed snapshot window, counts, and manual steps
+without connection secrets. The fixture includes two accounts with overlapping
+exercise names, changed and deleted definitions, portable provenance, legacy
+imports, all ordered sets, receipts, and saved workouts. Account exports before
+backup and after restore must match byte-for-byte at the same export timestamp;
+a deliberately later execution must be absent. Missing, corrupt, unsupported,
+and incomplete artifacts must fail before destination initialization.
+
+See the [recorded October 27 drill](recovery-drill-2026-10-27.md) for measured
+results and the limits of this application-data test.

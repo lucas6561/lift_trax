@@ -63,16 +63,13 @@ Key tasks:
 - `LT-0027`: Persist planned versus completed workout data.
 - `LT-0030`: Add exercise equipment requirements.
 - `LT-0044`: Add configurable rest timer.
-- `LT-0076`: Define the Postgres catalog and history boundary.
-- `LT-0077`: Add exercise snapshots to Postgres execution history.
-- `LT-0078`: Add portable identity and provenance to the exercise catalog.
-- `LT-0079`: Make catalog changes history-safe.
-- `LT-0080`: Drill catalog and history recovery.
-- `LT-0093`: Import exercise catalog files.
 
 Loading, previewing, printing, saving, following, and device-resuming planned
-workouts are delivered. The next data work makes completed history independent
-from later catalog edits while retaining the single Postgres runtime.
+workouts are delivered. The LT-0076 through LT-0080 and LT-0093 sequence is also
+complete: immutable performed history, safe catalog lifecycle and provenance,
+confirmed catalog-file import, and a measured isolated Postgres recovery drill.
+See [the lifecycle decision](../docs/adr/0005-catalog-history-lifecycle.md) and
+[recovery evidence](../docs/recovery-drill-2026-10-27.md).
 
 ## Roadmap tracks
 

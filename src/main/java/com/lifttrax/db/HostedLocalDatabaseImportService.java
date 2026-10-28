@@ -75,7 +75,8 @@ public final class HostedLocalDatabaseImportService {
               skippedExecutions++;
               continue;
             }
-            String executionId = insertExecution(target, hostedStore, catalogEntry.id(), execution);
+            String executionId =
+                insertExecution(target, hostedStore, catalogEntry.id(), lift, execution);
             insertExecutionSets(target, executionId, execution.sets());
             createImportRecord(
                 target,
@@ -210,6 +211,7 @@ public final class HostedLocalDatabaseImportService {
       Connection connection,
       HostedPostgresTrainingDataStore store,
       String catalogEntryId,
+      SourceLift lift,
       SourceExecution execution)
       throws Exception {
     String executionId = newId();
@@ -217,9 +219,11 @@ public final class HostedLocalDatabaseImportService {
         connection.prepareStatement(
             """
                 INSERT INTO executions (
-                    id, lifter_profile_id, catalog_entry_id, performed_on, warmup, deload, notes
+                    id, lifter_profile_id, catalog_entry_id, performed_on, warmup, deload, notes,
+                  performed_catalog_id, performed_exercise_name, performed_region,
+                  performed_main_lift, performed_muscles, performed_catalog_notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """)) {
       statement.setString(1, executionId);
       statement.setString(2, store.defaultLifterProfileId());
@@ -228,6 +232,12 @@ public final class HostedLocalDatabaseImportService {
       statement.setBoolean(5, execution.warmup());
       statement.setBoolean(6, execution.deload());
       statement.setString(7, execution.notes() == null ? "" : execution.notes());
+      statement.setString(8, catalogEntryId);
+      statement.setString(9, lift.name());
+      statement.setString(10, lift.region().name());
+      statement.setString(11, lift.main() == null ? null : lift.main().toDbValue());
+      statement.setString(12, String.join(",", lift.muscles().stream().map(Enum::name).toList()));
+      statement.setString(13, lift.notes() == null ? "" : lift.notes());
       statement.executeUpdate();
       return executionId;
     }

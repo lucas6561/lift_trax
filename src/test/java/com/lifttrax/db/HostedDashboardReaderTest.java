@@ -57,7 +57,6 @@ class HostedDashboardReaderTest {
         List.of("A unused", "B old", "C current", "D current", "E extra", "Disabled")) {
       store.addLift(name, LiftRegion.LOWER, LiftType.SQUAT, List.of(), "lift notes");
     }
-    store.setLiftEnabled("Disabled", false);
     var sets =
         List.of(
             new ExecutionSet(new SetMetric.Reps(5), "100 lb", 8f),
@@ -71,6 +70,7 @@ class HostedDashboardReaderTest {
     }
     store.addLiftExecution(
         "E extra", new LiftExecution(null, today.plusDays(1), sets, false, false, "future"));
+    store.setLiftEnabled("Disabled", false);
     other.addLift("Private", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
     other.addLiftExecution("Private", new LiftExecution(null, today, sets, false, false, "secret"));
     var sql = new ArrayList<String>();
@@ -133,11 +133,11 @@ class HostedDashboardReaderTest {
     var store = new HostedPostgresTrainingDataStoreProvider(config).forUser("owner");
     LocalDate today = LocalDate.of(2026, 9, 22);
     store.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
-    store.setLiftEnabled("Bench", false);
     for (int days : List.of(13, 14, -1)) {
       store.addLiftExecution(
           "Bench", new LiftExecution(null, today.minusDays(days), List.of(), false, false, ""));
     }
+    store.setLiftEnabled("Bench", false);
     var snapshot = store.dashboardSnapshot(today);
     assertTrue(snapshot.hasLifts());
     assertTrue(snapshot.suggestions().isEmpty());

@@ -35,8 +35,8 @@ final class HostedDashboardReader {
           EXISTS(SELECT 1 FROM exercise_catalog_entries
             WHERE owner_user_id = ? AND lifter_profile_id = ?) AS has_lifts,
           (SELECT COUNT(*) FROM executions e
-            JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
-            WHERE c.owner_user_id = ? AND c.lifter_profile_id = ?
+            JOIN lifter_profiles p ON p.id = e.lifter_profile_id
+            WHERE p.owner_user_id = ? AND p.id = ?
               AND e.lifter_profile_id = ? AND e.performed_on = ?) AS today_count
         """)) {
       statement.setString(1, owner);
@@ -75,10 +75,12 @@ final class HostedDashboardReader {
     List<PendingRow> recent =
         readRows(
             """
-        SELECT c.name, c.region, c.main_lift, c.muscles, c.notes,
+        SELECT e.performed_exercise_name AS name, e.performed_region AS region,
+          e.performed_main_lift AS main_lift, e.performed_muscles AS muscles,
+          e.performed_catalog_notes AS notes,
           e.id, e.web_execution_id, e.performed_on, e.warmup, e.deload, e.notes AS execution_notes
-        FROM executions e JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
-        WHERE e.lifter_profile_id = ? AND c.owner_user_id = ? AND c.lifter_profile_id = ?
+        FROM executions e JOIN lifter_profiles p ON p.id = e.lifter_profile_id
+        WHERE e.lifter_profile_id = ? AND p.owner_user_id = ? AND p.id = ?
           AND e.performed_on BETWEEN ? AND ?
         ORDER BY e.performed_on DESC, e.web_execution_id DESC LIMIT 6
         """,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lifttrax.local/schemas/account-export.schema.v1.json",
+  "$id": "https://lifttrax.local/schemas/account-export.schema.v2.json",
   "title": "LiftTrax account data export",
   "description": "A complete export of one LiftTrax account's persisted training data.",
   "type": "object",
@@ -15,7 +15,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "const": 2
     },
     "exportedAt": {
       "type": "string",
@@ -75,7 +75,8 @@
         "main",
         "muscles",
         "notes",
-        "enabled"
+        "enabled",
+        "provenance"
       ],
       "properties": {
         "name": {
@@ -103,6 +104,52 @@
         },
         "enabled": {
           "type": "boolean"
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "origin",
+            "sourceNamespace",
+            "sourceKey",
+            "sourceRevision",
+            "copiedFromLabel"
+          ],
+          "properties": {
+            "origin": {
+              "enum": [
+                "unknown",
+                "user_created",
+                "starter",
+                "shared_copy",
+                "file_import"
+              ]
+            },
+            "sourceNamespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sourceKey": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sourceRevision": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "copiedFromLabel": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
         }
       }
     },
@@ -116,7 +163,8 @@
         "warmup",
         "deload",
         "notes",
-        "sets"
+        "sets",
+        "performedExercise"
       ],
       "properties": {
         "id": {
@@ -148,6 +196,9 @@
           "items": {
             "$ref": "#/$defs/set"
           }
+        },
+        "performedExercise": {
+          "$ref": "#/$defs/performedExercise"
         }
       }
     },
@@ -304,6 +355,42 @@
           "description": "The complete saved document governed by its own planned-workout schemaVersion."
         }
       }
+    },
+    "performedExercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "enum": [
+            "UPPER",
+            "LOWER"
+          ]
+        },
+        "main": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        }
+      },
+      "required": [
+        "name",
+        "region",
+        "main",
+        "muscles",
+        "notes"
+      ]
     }
   }
 }

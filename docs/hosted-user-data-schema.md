@@ -87,75 +87,76 @@ Indexes and constraints:
 
 ## Exercise catalog and execution history
 
-The current local SQLite database stores editable exercises in `lifts` and
-completed history in `lift_records` plus `execution_sets`. Hosted Postgres
-should keep those concepts but make the lifecycle boundary explicit.
+The implemented tables below live together in the sole Postgres runtime.
+Legacy SQLite is an explicit import source and operator snapshot format only.
+[ADR-0005](adr/0005-catalog-history-lifecycle.md) defines their lifecycle.
 
 ### `exercise_catalog_entries`
 
 | Column | Notes |
 | --- | --- |
-| `id uuid primary key` | Hosted catalog entry ID. |
-| `scope text not null` | `system`, `user`, or `lifter`. |
-| `owner_user_id uuid references app_users(id)` | Required for user-scoped entries. |
-| `lifter_profile_id uuid references lifter_profiles(id)` | Optional for lifter-specific entries. |
-| `name text not null` | Current exercise name. |
-| `region text not null` | Current LiftTrax region value. |
-| `main_lift text` | Current LiftTrax main-lift value. |
-| `muscles text not null default ''` | Current muscle tags until normalized. |
-| `notes text not null default ''` | Catalog notes. |
-| `enabled boolean not null default true` | Whether it appears in active selectors. |
-| `created_at timestamptz not null` | Creation time. |
-| `updated_at timestamptz not null` | Last edit time. |
+| `id varchar(36) primary key` | Account-owned internal catalog UUID. |
+| `owner_user_id varchar(36) not null` | References `app_users`. |
+| `lifter_profile_id varchar(36) not null` | References the owning lifter profile. |
+| `name text not null` | Current exercise name, unique within the profile. |
+| `region text not null` | Current region. |
+| `main_lift text` | Current main classification; null when unclassified. |
+| `muscles text not null` | Comma-separated current muscle tags. |
+| `notes text not null` | Current catalog notes. |
+| `enabled boolean not null` | Active selector and new-logging eligibility. |
+| `origin varchar(20) not null` | `unknown`, `user_created`, `starter`, `shared_copy`, or `file_import`. |
+| `source_namespace`, `source_key` | Optional portable identity pair, unique within the profile. |
+| `source_revision` | Optional source revision label. |
+| `copied_from_label` | Optional public sharing username, never a private owner ID. |
+| `created_at timestamp not null` | Creation time. |
 
-Visibility rules:
-
-- `system` entries are globally readable starter catalog records.
-- `user` entries are readable by the owner and by relationships only if a later
-  permission grants catalog sharing.
-- `lifter` entries are visible to the profile owner and permitted coaches.
-
-Indexes and constraints:
-
-- index on `(scope, enabled, name)`;
-- index on `owner_user_id`;
-- index on `lifter_profile_id`;
-- check constraint requiring an owner for `user` scope and no owner for
-  `system` scope.
+All implemented rows are account-owned. Starter catalog files are explicitly
+imported into owned rows. Sharing is opt-in catalog-only copying; it grants no
+access to another user's executions. There is no globally writable system
+catalog. Row IDs and portable source identities serve different purposes.
 
 ### `executions`
 
-Hosted `executions` are the Postgres counterpart to local `lift_records`.
-
 | Column | Notes |
 | --- | --- |
-| `id uuid primary key` | Hosted execution ID. |
-| `lifter_profile_id uuid not null references lifter_profiles(id)` | Owner of the completed training result. |
-| `catalog_entry_id uuid references exercise_catalog_entries(id)` | Optional live catalog reference for new records. |
-| `performed_exercise_name text not null` | Snapshot used for history display. |
-| `performed_region text not null` | Snapshot of exercise region. |
-| `performed_main_lift text` | Snapshot of main-lift value. |
-| `performed_muscles text not null default ''` | Snapshot of tags. |
-| `date date not null` | Training date. |
-| `warmup boolean not null default false` | Current local flag. |
-| `deload boolean not null default false` | Current local flag. |
-| `notes text not null default ''` | Execution notes. |
-| `source_import_id uuid references local_imports(id)` | Import batch, when applicable. |
-| `source_local_record_id bigint` | Original `lift_records.id`, used only for import traceability. |
-| `created_at timestamptz not null` | Creation time. |
-| `updated_at timestamptz not null` | Last edit time. |
+| `web_execution_id integer identity primary key` | Numeric handle used by existing web routes. |
+| `id varchar(36) unique not null` | Internal execution UUID. |
+| `lifter_profile_id varchar(36) not null` | Owner of completed training. |
+| `catalog_entry_id varchar(36)` | Optional live reference; deletion detaches it. |
+| `performed_catalog_id varchar(36) not null` | Immutable original identity; deliberately not a foreign key. |
+| `performed_exercise_name text not null` | Performed name snapshot. |
+| `performed_region text not null` | Performed region snapshot. |
+| `performed_main_lift text` | Performed classification snapshot. |
+| `performed_muscles text not null` | Performed muscle tags snapshot. |
+| `performed_catalog_notes text not null` | Performed catalog notes snapshot. |
+| `performed_on date not null` | Training date. |
+| `warmup`, `deload` | Execution flags. |
+| `notes text not null` | Editable training notes, distinct from catalog notes. |
+| `created_at timestamp not null` | Creation time. |
 
-Snapshot fields are required so history survives a renamed, disabled, deleted,
-or reclassified catalog entry. `LT-0076` defines this logical Postgres
-boundary, `LT-0077` implements the snapshots, and `LT-0079` makes catalog
-mutations history-safe. `LT-0078` separately adds portable catalog provenance.
+Migration 0011 validates every legacy execution's account/profile match,
+backfills the snapshot from the still-available catalog, verifies row counts,
+and makes required fields non-null. Corrupt metadata aborts the migration;
+pre-migration catalog edits cannot be reconstructed. New logging locks an
+enabled owned definition and writes the snapshot and ordered sets atomically.
+Legacy SQLite imports snapshot their source metadata even when linking to an
+existing catalog entry. Editing execution sets/dates/flags/notes preserves its
+exercise snapshot.
 
-Indexes:
+Historical views, filters, recent activity, and exports render snapshots.
+Current lift detail and planned-workout history hints can follow the live row
+across a rename. Historical name detail remains accessible after deletion.
+New catalog rows with reused names have distinct identities and do not inherit
+detached history. Delete never cascades completed executions; conflicting
+rename/implicit merge is refused. Source import traceability remains in
+`local_imports` and `local_import_records`, rather than execution columns.
 
-- `(lifter_profile_id, date desc)`;
-- `(lifter_profile_id, performed_exercise_name, date desc)`;
-- `(catalog_entry_id)` for live catalog joins when available;
-- `(source_import_id, source_local_record_id)` for duplicate import detection.
+Indexes cover `(lifter_profile_id, performed_on)`,
+`(lifter_profile_id, performed_exercise_name, performed_on)`, and the current
+catalog latest-execution lookup. Migration 0012 adds portable provenance and
+profile-scoped source uniqueness. See the
+[catalog file guide](exercise-catalog-import.md) and the
+[account export/recovery runbook](account-data-export-and-recovery.md).
 
 ### `execution_sets`
 

@@ -1,0 +1,396 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifttrax.local/schemas/account-export.schema.v2.json",
+  "title": "LiftTrax account data export",
+  "description": "A complete export of one LiftTrax account's persisted training data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "exportedAt",
+    "account",
+    "catalog",
+    "executions",
+    "plannedWorkouts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "account": {
+      "$ref": "#/$defs/account"
+    },
+    "catalog": {
+      "type": "array",
+      "description": "Every account-owned catalog entry, including disabled entries, ordered by name.",
+      "items": {
+        "$ref": "#/$defs/catalogEntry"
+      }
+    },
+    "executions": {
+      "type": "array",
+      "description": "Executions ordered by date, lift name, and account-scoped execution ID.",
+      "items": {
+        "$ref": "#/$defs/execution"
+      }
+    },
+    "plannedWorkouts": {
+      "type": "array",
+      "description": "Saved planned-workout documents ordered by creation time and ID.",
+      "items": {
+        "$ref": "#/$defs/plannedWorkout"
+      }
+    }
+  },
+  "$defs": {
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "account": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "username"
+      ],
+      "properties": {
+        "username": {
+          "$ref": "#/$defs/nullableString",
+          "description": "The account's optional public LiftTrax username. Authentication IDs, email, passwords, and tokens are excluded."
+        }
+      }
+    },
+    "catalogEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "region",
+        "main",
+        "muscles",
+        "notes",
+        "enabled",
+        "provenance"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "enum": [
+            "UPPER",
+            "LOWER"
+          ]
+        },
+        "main": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "origin",
+            "sourceNamespace",
+            "sourceKey",
+            "sourceRevision",
+            "copiedFromLabel"
+          ],
+          "properties": {
+            "origin": {
+              "enum": [
+                "unknown",
+                "user_created",
+                "starter",
+                "shared_copy",
+                "file_import"
+              ]
+            },
+            "sourceNamespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sourceKey": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sourceRevision": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "copiedFromLabel": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "liftName",
+        "date",
+        "warmup",
+        "deload",
+        "notes",
+        "sets",
+        "performedExercise"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "liftName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "warmup": {
+          "type": "boolean"
+        },
+        "deload": {
+          "type": "boolean"
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/set"
+          }
+        },
+        "performedExercise": {
+          "$ref": "#/$defs/performedExercise"
+        }
+      }
+    },
+    "set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "weight",
+        "rpe",
+        "missed"
+      ],
+      "properties": {
+        "metric": {
+          "$ref": "#/$defs/metric"
+        },
+        "weight": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "rpe": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "missed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "metric": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "reps"
+          ],
+          "properties": {
+            "kind": {
+              "const": "reps"
+            },
+            "reps": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "left",
+            "right"
+          ],
+          "properties": {
+            "kind": {
+              "const": "reps_lr"
+            },
+            "left": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "right": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "min",
+            "max"
+          ],
+          "properties": {
+            "kind": {
+              "const": "reps_range"
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "seconds"
+          ],
+          "properties": {
+            "kind": {
+              "const": "time_seconds"
+            },
+            "seconds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "feet"
+          ],
+          "properties": {
+            "kind": {
+              "const": "distance_feet"
+            },
+            "feet": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "plannedWorkout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "createdAt",
+        "document"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "document": {
+          "type": "object",
+          "description": "The complete saved document governed by its own planned-workout schemaVersion."
+        }
+      }
+    },
+    "performedExercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "enum": [
+            "UPPER",
+            "LOWER"
+          ]
+        },
+        "main": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        }
+      },
+      "required": [
+        "name",
+        "region",
+        "main",
+        "muscles",
+        "notes"
+      ]
+    }
+  }
+}

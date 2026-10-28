@@ -48,6 +48,151 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class WebServerCliTest {
+  @Test
+  void historicalDetailFollowsExecutionIdentityWhenADeletedNameIsReused() throws Exception {
+    var config =
+        new com.lifttrax.db.HostedPostgresConfig(
+            "jdbc:h2:mem:historical_detail_"
+                + java.util.UUID.randomUUID()
+                + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+            "",
+            "");
+    var provider = new com.lifttrax.db.HostedPostgresTrainingDataStoreProvider(config);
+    var owner = provider.forUser("local-user");
+    owner.addLift(
+        "Bench",
+        LiftRegion.UPPER,
+        LiftType.BENCH_PRESS,
+        List.of(Muscle.CHEST),
+        "original definition");
+    var day = LocalDate.of(2026, 10, 27);
+    owner.addLiftExecution(
+        "Bench",
+        new LiftExecution(
+            null,
+            day,
+            List.of(new ExecutionSet(new SetMetric.Reps(5), "100 lb", null)),
+            false,
+            false,
+            "original performance"));
+    int id = owner.getExecutions("Bench").get(0).id();
+    owner.deleteLift("Bench");
+    owner.addLift(
+        "Bench", LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), "replacement definition");
+    TestExchange historical = TestExchange.get("/lift?name=Bench&historyExecutionId=" + id);
+    WebServerCli.handleLift(historical, provider);
+    assertTrue(historical.responseBody().contains("original definition"));
+    assertTrue(historical.responseBody().contains("original performance"));
+    assertFalse(historical.responseBody().contains("replacement definition"));
+    TestExchange current = TestExchange.get("/lift?name=Bench");
+    WebServerCli.handleLift(current, provider);
+    assertTrue(current.responseBody().contains("replacement definition"));
+    assertFalse(current.responseBody().contains("original performance"));
+    String history = WebUiRenderer.renderLastWeekContent(owner, owner.listLifts(), day, day);
+    assertTrue(history.contains("data-region='UPPER'"));
+    assertTrue(history.contains("<option value='UPPER'>UPPER</option>"));
+    assertFalse(history.contains("data-region='LOWER'"));
+    assertTrue(DailyDashboardRenderer.render(owner, day).contains("historyExecutionId=" + id));
+    var other = provider.forUser("other");
+    TestExchange privateHistory = TestExchange.get("/lift?name=Bench&historyExecutionId=" + id);
+    WebServerCli.handleLift(privateHistory, user -> other);
+    assertTrue(privateHistory.responseBody().contains("Historical execution not found"));
+    assertFalse(privateHistory.responseBody().contains("original performance"));
+  }
+
+  @Test
+  void catalogFileRouteRequiresPreviewConfirmationAndKeepsWorkoutImportsSeparate()
+      throws Exception {
+    var config =
+        new com.lifttrax.db.HostedPostgresConfig(
+            "jdbc:h2:mem:catalog_route_"
+                + java.util.UUID.randomUUID()
+                + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+            "",
+            "");
+    var provider = new com.lifttrax.db.HostedPostgresTrainingDataStoreProvider(config);
+    var owner = provider.forUser("local-user");
+    var other = provider.forUser("other-user");
+    String document =
+        Files.readString(Path.of("shared/exercise-catalog/examples/exercise-catalog-v1.json"));
+    TestExchange get = TestExchange.get("/import-exercise-catalog");
+    WebServerCli.handleExerciseCatalogImport(get, provider);
+    assertTrue(get.responseBody().contains("type='file'"));
+    assertFalse(get.responseBody().contains("Confirm and save catalog"));
+    TestExchange preview =
+        TestExchange.post(
+            "/import-exercise-catalog", form("action", "preview", "catalogJson", document));
+    WebServerCli.handleExerciseCatalogImport(preview, provider);
+    assertTrue(preview.responseBody().contains("Confirm and save catalog"));
+    assertTrue(owner.listLifts().isEmpty());
+    var entries = com.lifttrax.catalog.ExerciseCatalogFile.parse(document);
+    String fingerprint =
+        com.lifttrax.catalog.CatalogImportPlan.preview(entries, owner.listCatalogEntries())
+            .fingerprint();
+    TestExchange badConfirm =
+        TestExchange.post(
+            "/import-exercise-catalog",
+            form("action", "confirm", "catalogJson", document, "fingerprint", "wrong"));
+    WebServerCli.handleExerciseCatalogImport(badConfirm, provider);
+    assertTrue(badConfirm.responseBody().contains("Catalog changed since preview"));
+    assertTrue(owner.listLifts().isEmpty());
+    TestExchange confirm =
+        TestExchange.post(
+            "/import-exercise-catalog",
+            form("action", "confirm", "catalogJson", document, "fingerprint", fingerprint));
+    WebServerCli.handleExerciseCatalogImport(confirm, provider);
+    assertTrue(confirm.responseBody().contains("Saved 3 catalog changes"));
+    assertEquals(3, owner.listLifts().size());
+    assertFalse(owner.isLiftEnabled("Retired Curl"));
+    assertTrue(other.listLifts().isEmpty());
+    TestExchange unchanged =
+        TestExchange.post(
+            "/import-exercise-catalog", form("action", "preview", "catalogJson", document));
+    WebServerCli.handleExerciseCatalogImport(unchanged, provider);
+    assertTrue(unchanged.responseBody().contains("unchanged"));
+    assertTrue(unchanged.responseBody().contains("skipped"));
+    String conflictDocument = document.replace("paused-bench", "new-source");
+    TestExchange conflict =
+        TestExchange.post(
+            "/import-exercise-catalog", form("action", "preview", "catalogJson", conflictDocument));
+    WebServerCli.handleExerciseCatalogImport(conflict, provider);
+    assertTrue(conflict.responseBody().contains("conflict"));
+    assertFalse(conflict.responseBody().contains("Confirm and save catalog"));
+    for (String invalid : List.of("{", "{\"schemaVersion\":99}", "{}")) {
+      TestExchange error =
+          TestExchange.post(
+              "/import-exercise-catalog", form("action", "preview", "catalogJson", invalid));
+      WebServerCli.handleExerciseCatalogImport(error, provider);
+      assertTrue(error.responseBody().contains("status error"));
+    }
+    TestExchange unknownAction =
+        TestExchange.post(
+            "/import-exercise-catalog", form("action", "overwrite", "catalogJson", document));
+    WebServerCli.handleExerciseCatalogImport(unknownAction, provider);
+    assertTrue(unknownAction.responseBody().contains("Choose Preview catalog"));
+    TrainingDataStoreProvider failed =
+        user -> {
+          throw new java.sql.SQLException("private connection details");
+        };
+    TestExchange failure = TestExchange.get("/import-exercise-catalog");
+    WebServerCli.handleExerciseCatalogImport(failure, failed);
+    assertTrue(failure.responseBody().contains("Database write or read failed"));
+    assertFalse(failure.responseBody().contains("private connection details"));
+    String workout = Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
+    TestExchange workoutPreview =
+        TestExchange.post(
+            "/planned-workout-preview",
+            form("plannedWorkoutJson", workout.replace("Bench Press", "Unknown catalog bench")));
+    WebServerCli.handlePlannedWorkoutPreview(workoutPreview, provider);
+    assertEquals(200, workoutPreview.status());
+    assertEquals(3, owner.listLifts().size());
+    String program = Files.readString(Path.of("shared/programs/examples/conjugate-v1.json"));
+    assertTrue(
+        new com.lifttrax.workout.ProgramSchemaValidator()
+            .validate(program.replace("Back Squat", "Unknown catalog squat"))
+            .isValid());
+    assertEquals(3, owner.listLifts().size());
+  }
 
   @Test
   void initialDashboardRetrievesOnlyItsSnapshotAndDefersHiddenForms() throws Exception {
@@ -2071,7 +2216,7 @@ class WebServerCliTest {
           TestExchange.post("/delete-lift", form("lift", "SSB Squat", "tab", "executions"));
       invokeHandler("handleDeleteLift", delete, db);
       assertEquals(303, delete.status());
-      assertTrue(delete.location().contains("Deleted+lift"));
+      assertTrue(delete.location().contains("Deleted+catalog+lift"));
 
       TestExchange missingName =
           TestExchange.post("/add-lift", form("name", "", "region", "UPPER"));

@@ -1,7 +1,7 @@
 ---
 id: LT-0078
 title: Add portable identity and provenance to the exercise catalog
-status: idea
+status: done
 track: data
 priority: medium
 effort: medium
@@ -37,22 +37,43 @@ file-imported definitions.
 
 ## Acceptance criteria
 
-- [ ] The model distinguishes the account-owned catalog row ID from an optional
+- [x] The model distinguishes the account-owned catalog row ID from an optional
       portable source identity.
-- [ ] User-created, starter, shared-copy, and file-imported origins have
+- [x] User-created, starter, shared-copy, and file-imported origins have
       documented provenance rules that do not expose another user's private ID.
-- [ ] Reimport matching uses source identity when present and a documented
+- [x] Reimport matching uses source identity when present and a documented
       conflict path when it is absent; name-only overwrite is never silent.
-- [ ] Existing catalog rows migrate safely as user-created or unknown-origin
+- [x] Existing catalog rows migrate safely as user-created or unknown-origin
       rows without changing their names, enabled state, or history links.
-- [ ] Account export includes portable provenance needed to audit or later
+- [x] Account export includes portable provenance needed to audit or later
       reimport an owned catalog without leaking server-only ownership keys.
-- [ ] Tests cover existing rows, renamed rows, shared copies, duplicate source
+- [x] Tests cover existing rows, renamed rows, shared copies, duplicate source
       keys, and cross-account isolation.
-- [ ] `qualityGate` passes.
+- [x] `qualityGate` passes.
 
 ## Notes
 
 This replaces the obsolete catalog-database-foundation task. Postgres table
 `exercise_catalog_entries` is the durable catalog foundation; the remaining
-remaining gap is portable identity and provenance.
+gap is portable identity and provenance.
+
+## Completion - 2026-10-27
+
+Migration 0012 adds acquisition origin, optional portable source namespace/key
+and revision, and an optional public shared-source label. Source identity is
+unique per profile and is separate from owned row identity. Existing rows retain
+their names, active state, and links with unknown origin. New manual rows record
+user-created origin; explicit starter files, shared copies, and file imports have
+specified provenance.
+
+Shared copies use a digest of a random source exercise identity, never another
+account's raw user/profile/auth/catalog ID. Renames retain source identity;
+confirmed source updates retain acquisition origin and public copy labels.
+Account export v2 carries the portable provenance. Tests cover migration,
+renamed sources and targets, duplicate sources, preserved labels, and isolation.
+
+See [the catalog guide](../../docs/exercise-catalog-import.md).
+
+Validation: `./gradlew.bat qualityGate` passed with 337 tests, zero failures or
+skips, and 92.34% instruction coverage. The run included the real Postgres
+backfill and recovery tests against disposable loopback databases.

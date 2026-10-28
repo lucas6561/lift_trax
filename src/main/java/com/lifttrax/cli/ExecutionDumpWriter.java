@@ -13,7 +13,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 /** Writes account-scoped execution history in versioned JSON or readable text. */
 final class ExecutionDumpWriter {
@@ -35,26 +34,16 @@ final class ExecutionDumpWriter {
 
   private static List<LiftExecutionRow> loadRows(TrainingDataStore db, LocalDate from, LocalDate to)
       throws Exception {
-    List<Lift> lifts = db.listLifts();
-    Map<String, List<LiftExecution>> executionsByLift =
-        db.getExecutionsByLift(lifts.stream().map(Lift::name).toList());
-    List<LiftExecutionRow> rows = new ArrayList<>();
-    for (Lift lift : lifts) {
-      for (LiftExecution execution : executionsByLift.getOrDefault(lift.name(), List.of())) {
-        if (withinRange(execution.date(), from, to)) {
-          rows.add(new LiftExecutionRow(lift, execution));
-        }
-      }
-    }
+    List<LiftExecutionRow> rows =
+        new ArrayList<>(
+            db.getExecutionsBetween(
+                from == null ? LocalDate.of(1, 1, 1) : from,
+                to == null ? LocalDate.of(9999, 12, 31) : to));
     rows.sort(
         Comparator.comparing((LiftExecutionRow row) -> row.execution().date())
             .thenComparing(row -> row.lift().name())
             .thenComparing(row -> row.execution().id(), Comparator.nullsLast(Integer::compareTo)));
     return rows;
-  }
-
-  private static boolean withinRange(LocalDate date, LocalDate from, LocalDate to) {
-    return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
   }
 
   private static void writeJson(

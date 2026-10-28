@@ -9,6 +9,8 @@ new versions ship. New files should always use the latest schema snapshot.
 | --- | --- | --- |
 | Program schema | `3` | `1`, `2`, `3` |
 | Planned workout format | `6` | `1`, `2`, `3`, `4`, `5`, `6` |
+| Exercise catalog import | `1` | `1` |
+| Account export | `2` | Frozen v1 and v2 schemas; new exports use v2 |
 
 Planned-workout version `3` keeps the version `2` payload shape but tightens
 new planned-set intensity authoring: a set can specify `percent` or `rpe`, but
@@ -49,6 +51,8 @@ Stable latest entrypoints are copies of the currently latest numbered snapshot:
 
 - `shared/programs/schema/program.schema.latest.json`
 - `shared/workouts/schema/workout.schema.latest.json`
+- `shared/exercise-catalog/schema/exercise-catalog.schema.latest.json`
+- `shared/account-export/schema/account-export.schema.latest.json`
 
 Use these stable latest paths for public guidance, including raw GitHub links.
 Guard tests compare each latest entrypoint with the latest version registered in

@@ -126,7 +126,7 @@ final class WebUiRenderer {
             : deferredTabContent("Query");
     String lastWeekContent =
         "last-week".equals(normalizedTab)
-            ? renderLastWeekContent(db, lifts, lastWeekStart, lastWeekEnd)
+            ? renderLastWeekContent(db, lastWeekStart, lastWeekEnd, search)
             : deferredTabContent("Last Week");
     String waveContent =
         "waves".equals(normalizedTab)
@@ -235,8 +235,7 @@ final class WebUiRenderer {
       int waveWeeks) {
     String filterControls =
         switch (activeTab) {
-          case "add-execution", "executions", "query", "last-week" ->
-              renderFilterControls(lifts, search);
+          case "add-execution", "executions", "query" -> renderFilterControls(lifts, search);
           default -> "";
         };
     String addExecutionContent =
@@ -1664,6 +1663,11 @@ final class WebUiRenderer {
 
   static String renderLastWeekContent(
       TrainingDataStore db, List<Lift> lifts, LocalDate start, LocalDate end) {
+    return renderLastWeekContent(db, start, end, "");
+  }
+
+  private static String renderLastWeekContent(
+      TrainingDataStore db, LocalDate start, LocalDate end, String search) {
     LocalDate normalizedStart = start.isAfter(end) ? end : start;
     LocalDate normalizedEnd = end.isBefore(start) ? start : end;
     StringBuilder html = new StringBuilder();
@@ -1674,14 +1678,14 @@ final class WebUiRenderer {
         .append("</p>");
 
     Map<LocalDate, List<LastWeekExecutionRow>> rowsByDate = new LinkedHashMap<>();
-    Map<String, Lift> liftsByName =
-        lifts.stream().collect(Collectors.toMap(Lift::name, lift -> lift, (left, right) -> left));
+    List<Lift> performedLifts = new ArrayList<>();
     com.lifttrax.db.ExecutionHistorySummary history;
     try {
       history = db.executionHistorySummary(normalizedStart, normalizedEnd);
       for (com.lifttrax.db.LiftExecutionRow row :
           db.getExecutionsBetween(normalizedStart, normalizedEnd)) {
-        Lift lift = liftsByName.getOrDefault(row.lift().name(), row.lift());
+        Lift lift = row.lift();
+        performedLifts.add(lift);
         LiftExecution execution = row.execution();
         if (execution.id() == null) {
           continue;
@@ -1699,6 +1703,7 @@ final class WebUiRenderer {
           + WebHtml.escapeHtml(e.getMessage())
           + "</p>";
     }
+    html.insert(0, renderFilterControls(performedLifts, search));
     if (history.minDate() != null && history.maxDate() != null) {
       html.append("<p class='muted'>History available: ")
           .append(history.count())
@@ -1904,7 +1909,7 @@ final class WebUiRenderer {
     return """
                 %s
                 <div class='add-actions'>
-                  <p><a href='/import-lifts'>Import lifts from another user</a></p>
+                  <p><a href='/import-exercise-catalog'>Import exercise catalog file</a> | <a href='/import-lifts'>Import lifts from another user</a></p>
                   <details class='new-lift-details'>
                     <summary>New Lift</summary>
                     <form method='post' action='/add-lift' class='new-lift-form'>
@@ -2199,7 +2204,8 @@ final class WebUiRenderer {
     try {
       LocalDate oneYearAgo = LocalDate.now().minusDays(365);
       List<LiftExecution> recentExecutions =
-          db.getExecutions(liftName).stream()
+          db.liftHistory(liftName).stream()
+              .map(com.lifttrax.db.LiftExecutionRow::execution)
               .filter(exec -> !exec.date().isBefore(oneYearAgo))
               .toList();
 
@@ -2543,7 +2549,7 @@ final class WebUiRenderer {
       html.append(
               "<form method='post' action='/delete-lift' class='query-form compact-actions' style='margin:8px 0;' ")
           .append(
-              "onsubmit=\"return window.confirm('Delete this lift and all its executions?');\">")
+              "onsubmit=\"return window.confirm('Delete this catalog lift? Completed executions and sets will be retained in history.');\">")
           .append("<input type='hidden' name='tab' value='executions'/>")
           .append("<input type='hidden' name='lift' value='")
           .append(WebHtml.escapeHtml(lift.name()))
@@ -2607,7 +2613,19 @@ final class WebUiRenderer {
 
   static String renderExecutionRows(TrainingDataStore db, String liftName) {
     try {
-      List<LiftExecution> executions = db.getExecutions(liftName);
+      List<com.lifttrax.db.LiftExecutionRow> history = db.liftHistory(liftName);
+      List<LiftExecution> executions =
+          history.stream()
+              .map(com.lifttrax.db.LiftExecutionRow::execution)
+              .sorted(
+                  java.util.Comparator.comparing(LiftExecution::date)
+                      .thenComparing(LiftExecution::id, Comparator.nullsLast(Integer::compareTo))
+                      .reversed())
+              .toList();
+      Map<Integer, String> performedNames = new java.util.HashMap<>();
+      for (com.lifttrax.db.LiftExecutionRow row : history) {
+        performedNames.put(row.execution().id(), row.lift().name());
+      }
       boolean liftEnabled = true;
       try {
         liftEnabled = db.isLiftEnabled(liftName);
@@ -2630,7 +2648,9 @@ final class WebUiRenderer {
             "<div class='js-exec-view' style='display:flex;align-items:center;gap:8px;flex-wrap:nowrap;'>");
         html.append(
                 "<span class='execution-text' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;'>")
-            .append(WebHtml.escapeHtml(formatExecution(execution)))
+            .append(
+                WebHtml.escapeHtml(
+                    performedNames.get(execution.id()) + " · " + formatExecution(execution)))
             .append("</span>");
         if (execution.id() == null) {
           html.append(

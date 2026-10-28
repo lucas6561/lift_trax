@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Test;
 class AccountExportWriterTest {
 
   @Test
-  void latestSchemaMatchesVersionOneAndFilenameUsesUtcExportTime() throws Exception {
+  void latestSchemaMatchesVersionTwoAndFilenameUsesUtcExportTime() throws Exception {
     Path schemas = Path.of("shared", "account-export", "schema");
-    String versioned = Files.readString(schemas.resolve("account-export.schema.v1.json"));
+    String versioned = Files.readString(schemas.resolve("account-export.schema.v2.json"));
     String latest = Files.readString(schemas.resolve("account-export.schema.latest.json"));
     JsonNode schema = new ObjectMapper().readTree(versioned);
 

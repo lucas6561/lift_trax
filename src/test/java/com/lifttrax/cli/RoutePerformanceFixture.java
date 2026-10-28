@@ -46,8 +46,8 @@ final class RoutePerformanceFixture {
                     + "VALUES (?, ?, ?, ?, 'LOWER', 'SQUAT')");
         var executions =
             connection.prepareStatement(
-                "INSERT INTO executions (id, lifter_profile_id, catalog_entry_id, performed_on, warmup, deload) "
-                    + "VALUES (?, ?, ?, ?, ?, ?)");
+                "INSERT INTO executions (id, lifter_profile_id, catalog_entry_id, performed_on, warmup, deload, performed_catalog_id, performed_exercise_name, performed_region, performed_main_lift, performed_muscles, performed_catalog_notes) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'LOWER', 'SQUAT', '', '')");
         var sets =
             connection.prepareStatement(
                 "INSERT INTO execution_sets (id, execution_id, set_index, metric_kind, metric_a, weight, rpe) "
@@ -71,6 +71,8 @@ final class RoutePerformanceFixture {
           executions.setDate(4, Date.valueOf(today.minusDays(visit * 7L + lift % 7)));
           executions.setBoolean(5, visit % 10 == 9);
           executions.setBoolean(6, visit % 12 == 11);
+          executions.setString(7, "perf-lift-" + lift);
+          executions.setString(8, liftName(lift));
           executions.addBatch();
           for (int set = 0; set < SETS_PER_EXECUTION; set++) {
             sets.setString(1, "perf-set-" + lift + "-" + visit + "-" + set);

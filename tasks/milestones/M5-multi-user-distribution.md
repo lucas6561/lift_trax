@@ -17,8 +17,8 @@ Prepare LiftTrax for use beyond one local database on one machine.
 - `LT-0016`: Add user and ownership model design.
 - `LT-0017`: Define install, update, and release strategy.
 - `LT-0006`: Define backup and restore flow.
-- `LT-0076`: Define the Postgres catalog and history boundary.
-- `LT-0080`: Drill catalog and history recovery.
+- `LT-0076`: Define the Postgres catalog and history boundary. (done)
+- `LT-0080`: Drill catalog and history recovery. (done)
 - `LT-0082`: Select hosted auth and data platform.
 - `LT-0083`: Design hosted user data schema.
 - `LT-0084`: Add public web security baseline.
@@ -71,3 +71,7 @@ Planning decisions now recorded:
 
 The hosted web sequence is delivered. Remaining M5 work is release/update
 policy (`LT-0017`) and a demonstrated catalog/history recovery drill (`LT-0080`).
+
+The catalog/history boundary and application-data recovery drill were completed
+on 2026-10-27. See [the measured drill](../../docs/recovery-drill-2026-10-27.md)
+for validation evidence and the remaining provider/operator steps.

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.lifttrax.db.AccountProfile;
 import com.lifttrax.db.SavedWorkout;
 import com.lifttrax.db.TrainingDataStore;
+import com.lifttrax.models.CatalogEntry;
+import com.lifttrax.models.CatalogProvenance;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
@@ -16,11 +18,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 /** Writes a complete, portable JSON export of one account's persisted training data. */
 final class AccountExportWriter {
-  static final int SCHEMA_VERSION = 1;
+  static final int SCHEMA_VERSION = 2;
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
   private static final ObjectWriter JSON = JSON_MAPPER.writerWithDefaultPrettyPrinter();
   private static final DateTimeFormatter FILE_TIME =
@@ -30,17 +31,11 @@ final class AccountExportWriter {
 
   static String write(TrainingDataStore db, AccountProfile account, Instant exportedAt)
       throws Exception {
-    List<Lift> lifts = new ArrayList<>(db.listLifts());
-    lifts.sort(Comparator.comparing(Lift::name, String.CASE_INSENSITIVE_ORDER));
-    Map<String, Boolean> enabledStatuses = db.liftEnabledStatuses();
-    Map<String, List<LiftExecution>> executionsByLift =
-        db.getExecutionsByLift(lifts.stream().map(Lift::name).toList());
-
+    List<CatalogEntry> catalog = new ArrayList<>(db.listCatalogEntries());
+    catalog.sort(Comparator.comparing(entry -> entry.lift().name(), String.CASE_INSENSITIVE_ORDER));
     List<JsonExecution> executions = new ArrayList<>();
-    for (Lift lift : lifts) {
-      for (LiftExecution execution : executionsByLift.getOrDefault(lift.name(), List.of())) {
-        executions.add(JsonExecution.from(lift.name(), execution));
-      }
+    for (com.lifttrax.db.LiftExecutionRow row : db.performedHistory()) {
+      executions.add(JsonExecution.from(row.lift(), row.execution()));
     }
     executions.sort(
         Comparator.comparing(JsonExecution::date)
@@ -60,11 +55,10 @@ final class AccountExportWriter {
             SCHEMA_VERSION,
             exportedAt.toString(),
             new JsonAccount(blankToNull(account.username())),
-            lifts.stream()
+            catalog.stream()
                 .map(
-                    lift ->
-                        JsonCatalogEntry.from(
-                            lift, enabledStatuses.getOrDefault(lift.name(), true)))
+                    entry ->
+                        JsonCatalogEntry.from(entry.lift(), entry.enabled(), entry.provenance()))
                 .toList(),
             executions,
             savedWorkouts);
@@ -95,30 +89,39 @@ final class AccountExportWriter {
       String main,
       List<String> muscles,
       String notes,
-      boolean enabled) {
-    private static JsonCatalogEntry from(Lift lift, boolean enabled) {
+      boolean enabled,
+      CatalogProvenance provenance) {
+    private static JsonCatalogEntry from(Lift lift, boolean enabled, CatalogProvenance provenance) {
       return new JsonCatalogEntry(
           lift.name(),
           lift.region().name(),
           lift.main() == null ? null : lift.main().name(),
           lift.muscles().stream().map(Enum::name).toList(),
           lift.notes(),
-          enabled);
+          enabled,
+          provenance);
     }
   }
 
   private record JsonExecution(
       Integer id,
       String liftName,
+      JsonPerformedExercise performedExercise,
       String date,
       boolean warmup,
       boolean deload,
       String notes,
       List<JsonSet> sets) {
-    private static JsonExecution from(String liftName, LiftExecution execution) {
+    private static JsonExecution from(Lift lift, LiftExecution execution) {
       return new JsonExecution(
           execution.id(),
-          liftName,
+          lift.name(),
+          new JsonPerformedExercise(
+              lift.name(),
+              lift.region().name(),
+              lift.main() == null ? null : lift.main().name(),
+              lift.muscles().stream().map(Enum::name).toList(),
+              lift.notes()),
           execution.date().toString(),
           execution.warmup(),
           execution.deload(),
@@ -126,6 +129,9 @@ final class AccountExportWriter {
           execution.sets().stream().map(JsonSet::from).toList());
     }
   }
+
+  private record JsonPerformedExercise(
+      String name, String region, String main, List<String> muscles, String notes) {}
 
   private record JsonSet(JsonMetric metric, String weight, Float rpe, boolean missed) {
     private static JsonSet from(ExecutionSet set) {

@@ -19,6 +19,58 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PlannedWorkoutSessionServiceTest {
+  @Test
+  void disabledCatalogEntriesFailBeforeAnyWorkoutExecutionIsWritten() throws Exception {
+    var config =
+        new com.lifttrax.db.HostedPostgresConfig(
+            "jdbc:h2:mem:enabled_session_"
+                + java.util.UUID.randomUUID()
+                + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+            "",
+            "");
+    var store =
+        new com.lifttrax.db.HostedPostgresTrainingDataStoreProvider(config).forUser("owner");
+    store.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "source squat");
+    store.addLift(
+        "Farmer Carry", LiftRegion.LOWER, LiftType.CONDITIONING, List.of(), "source carry");
+    store.setLiftEnabled("Farmer Carry", false);
+    String results =
+        """
+        [{"exerciseKey":"1:0","plannedLift":"Back Squat","performedLift":"Back Squat","state":"complete","sets":[{"metricType":"reps","metricValue":"5","weight":"185 lb"}]},
+         {"exerciseKey":"2:0","plannedLift":"Farmer Carry","performedLift":"Farmer Carry","state":"complete","sets":[{"metricType":"time","metricValue":"30","weight":"none"}]}]
+        """;
+    var error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                PlannedWorkoutSessionService.saveSubmittedResults(
+                    store,
+                    workoutFile(),
+                    1,
+                    "MONDAY",
+                    LocalDate.of(2026, 10, 27),
+                    results,
+                    true,
+                    "enabled-check"));
+    assertTrue(error.getMessage().contains("Lift is disabled: Farmer Carry"));
+    assertTrue(store.performedHistory().isEmpty());
+    org.junit.jupiter.api.Assertions.assertNull(store.getWorkoutSubmission("enabled-check"));
+    store.setLiftEnabled("Farmer Carry", true);
+    var saved =
+        PlannedWorkoutSessionService.saveSubmittedResults(
+            store,
+            workoutFile(),
+            1,
+            "MONDAY",
+            LocalDate.of(2026, 10, 27),
+            results,
+            true,
+            "enabled-check");
+    assertEquals(2, saved.loggedExecutionCount());
+    assertEquals(
+        List.of("Back Squat", "Farmer Carry"),
+        store.performedHistory().stream().map(row -> row.lift().name()).toList());
+  }
 
   @Test
   void saveKeepsMissedAttemptsWithZeroOrPartialActualsAndRetriesWithoutDuplicates()

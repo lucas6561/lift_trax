@@ -160,6 +160,11 @@ final class WebRouteRegistry {
         auth.protect(exchange -> WebServerCli.handleAddLift(exchange, db)));
     WebRequestSecurity.register(
         server,
+        "/import-exercise-catalog",
+        Set.of("GET", "POST"),
+        auth.protect(exchange -> WebServerCli.handleExerciseCatalogImport(exchange, db)));
+    WebRequestSecurity.register(
+        server,
         "/import-lifts",
         Set.of("GET", "POST"),
         auth.protect(exchange -> WebServerCli.handleImportLifts(exchange, db)));

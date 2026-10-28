@@ -40,7 +40,7 @@ public final class PostgresSqliteBackupService {
         Clock.systemUTC());
   }
 
-  static BackupResult createBackup(
+  public static BackupResult createBackup(
       HostedPostgresConfig config, Path destination, boolean confirmOverwrite) throws Exception {
     return createBackup(
         config, destination, confirmOverwrite, BackupObserver.NONE, Clock.systemUTC());
@@ -119,7 +119,7 @@ public final class PostgresSqliteBackupService {
     return requested.resolveSibling(timestampedName);
   }
 
-  public static ValidationResult validate(Path backupPath) throws SQLException {
+  public static ValidationResult validate(Path backupPath) throws Exception {
     Path path = backupPath.toAbsolutePath().normalize();
     if (!Files.isRegularFile(path)) {
       throw new IllegalArgumentException("Backup file not found: " + path);
@@ -138,11 +138,21 @@ public final class PostgresSqliteBackupService {
   }
 
   private static ValidationResult validate(Path backupPath, Map<String, Long> expectedCounts)
-      throws SQLException {
+      throws Exception {
     Map<String, Long> actualCounts = new LinkedHashMap<>();
     try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + backupPath)) {
       int formatVersion = metadataInt(connection, "format_version");
       int schemaVersion = metadataInt(connection, "postgres_schema_version");
+      String createdAtUtc;
+      try (Statement statement = connection.createStatement();
+          ResultSet rows =
+              statement.executeQuery(
+                  "SELECT metadata_value FROM lifttrax_backup_metadata WHERE metadata_key = 'created_at_utc'")) {
+        if (!rows.next()) {
+          throw new IllegalStateException("Snapshot is missing its recovery point.");
+        }
+        createdAtUtc = Instant.parse(rows.getString(1)).toString();
+      }
       if (formatVersion != FORMAT_VERSION) {
         throw new IllegalStateException("Unsupported backup format version: " + formatVersion);
       }
@@ -171,7 +181,9 @@ public final class PostgresSqliteBackupService {
         }
         actualCounts.put(table.name(), actual);
       }
-      return new ValidationResult(formatVersion, schemaVersion, Map.copyOf(actualCounts));
+      SnapshotIntegrity.validate(connection);
+      return new ValidationResult(
+          formatVersion, schemaVersion, Map.copyOf(actualCounts), createdAtUtc);
     }
   }
 
@@ -211,7 +223,11 @@ public final class PostgresSqliteBackupService {
       while (resultSet.next()) {
         for (int index = 1; index <= table.columns().size(); index++) {
           Object value = resultSet.getObject(index);
-          if (value instanceof TemporalAccessor) {
+          if (value instanceof java.sql.Timestamp timestamp) {
+            insert.setString(index, timestamp.toLocalDateTime().toString());
+          } else if (value instanceof java.sql.Date date) {
+            insert.setString(index, date.toLocalDate().toString());
+          } else if (value instanceof TemporalAccessor) {
             insert.setString(index, value.toString());
           } else {
             insert.setObject(index, value);
@@ -293,7 +309,7 @@ public final class PostgresSqliteBackupService {
     }
   }
 
-  private static List<TableSpec> applicationTables() {
+  static List<TableSpec> applicationTables() {
     List<TableSpec> tables = new ArrayList<>();
     tables.add(
         table(
@@ -326,7 +342,7 @@ public final class PostgresSqliteBackupService {
     tables.add(
         table(
             "exercise_catalog_entries",
-            "CREATE TABLE exercise_catalog_entries (id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, lifter_profile_id TEXT NOT NULL, name TEXT NOT NULL, region TEXT NOT NULL, main_lift TEXT, muscles TEXT NOT NULL, notes TEXT NOT NULL, enabled INTEGER NOT NULL, created_at TEXT NOT NULL)",
+            "CREATE TABLE exercise_catalog_entries (id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, lifter_profile_id TEXT NOT NULL, name TEXT NOT NULL, region TEXT NOT NULL, main_lift TEXT, muscles TEXT NOT NULL, notes TEXT NOT NULL, enabled INTEGER NOT NULL, created_at TEXT NOT NULL, origin TEXT NOT NULL, source_namespace TEXT, source_key TEXT, source_revision TEXT, copied_from_label TEXT)",
             "id",
             "owner_user_id",
             "lifter_profile_id",
@@ -336,11 +352,16 @@ public final class PostgresSqliteBackupService {
             "muscles",
             "notes",
             "enabled",
-            "created_at"));
+            "created_at",
+            "origin",
+            "source_namespace",
+            "source_key",
+            "source_revision",
+            "copied_from_label"));
     tables.add(
         table(
             "executions",
-            "CREATE TABLE executions (web_execution_id INTEGER PRIMARY KEY, id TEXT NOT NULL, lifter_profile_id TEXT NOT NULL, catalog_entry_id TEXT NOT NULL, performed_on TEXT NOT NULL, warmup INTEGER NOT NULL, deload INTEGER NOT NULL, notes TEXT NOT NULL, created_at TEXT NOT NULL)",
+            "CREATE TABLE executions (web_execution_id INTEGER PRIMARY KEY, id TEXT NOT NULL, lifter_profile_id TEXT NOT NULL, catalog_entry_id TEXT, performed_on TEXT NOT NULL, warmup INTEGER NOT NULL, deload INTEGER NOT NULL, notes TEXT NOT NULL, created_at TEXT NOT NULL, performed_catalog_id TEXT NOT NULL, performed_exercise_name TEXT NOT NULL, performed_region TEXT NOT NULL, performed_main_lift TEXT, performed_muscles TEXT NOT NULL, performed_catalog_notes TEXT NOT NULL)",
             "web_execution_id",
             "id",
             "lifter_profile_id",
@@ -349,7 +370,13 @@ public final class PostgresSqliteBackupService {
             "warmup",
             "deload",
             "notes",
-            "created_at"));
+            "created_at",
+            "performed_catalog_id",
+            "performed_exercise_name",
+            "performed_region",
+            "performed_main_lift",
+            "performed_muscles",
+            "performed_catalog_notes"));
     tables.add(
         table(
             "execution_sets",
@@ -426,5 +453,8 @@ public final class PostgresSqliteBackupService {
   public record BackupResult(Path backupPath, String createdAtUtc, ValidationResult validation) {}
 
   public record ValidationResult(
-      int formatVersion, int postgresSchemaVersion, Map<String, Long> rowCounts) {}
+      int formatVersion,
+      int postgresSchemaVersion,
+      Map<String, Long> rowCounts,
+      String createdAtUtc) {}
 }

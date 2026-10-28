@@ -113,8 +113,9 @@ final class HostedLiftSharing {
         }
         int imported = 0;
         for (Lift lift : available) {
-          if (selected.contains(lift.name()) && existing.add(normalizedName(lift.name()))) {
-            insertLift(connection, targetOwner, targetProfile, lift);
+          if (selected.contains(lift.name())
+              && existing.add(normalizedName(lift.name()))
+              && insertLift(connection, targetOwner, targetProfile, lift, sourceOwner, username)) {
             imported++;
           }
         }
@@ -127,13 +128,49 @@ final class HostedLiftSharing {
     }
   }
 
-  private static void insertLift(Connection connection, String owner, String profile, Lift lift)
+  private static boolean insertLift(
+      Connection connection,
+      String owner,
+      String profile,
+      Lift lift,
+      String sourceOwner,
+      String username)
       throws Exception {
+    String sourceKey;
+    try (var source =
+        connection.prepareStatement(
+            "SELECT e.id FROM exercise_catalog_entries e JOIN lifter_profiles p ON p.id = e.lifter_profile_id WHERE e.owner_user_id = ? AND p.owner_user_id = e.owner_user_id AND p.is_default = TRUE AND e.name = ? AND e.enabled = TRUE")) {
+      source.setString(1, sourceOwner);
+      source.setString(2, lift.name());
+      try (var rows = source.executeQuery()) {
+        if (!rows.next()) {
+          throw new IllegalArgumentException(
+              "Shared exercise is no longer available. Preview again.");
+        }
+        sourceKey =
+            java.util.HexFormat.of()
+                .formatHex(
+                    java.security.MessageDigest.getInstance("SHA-256")
+                        .digest(
+                            rows.getString(1).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+      }
+    }
+    try (var duplicate =
+        connection.prepareStatement(
+            "SELECT 1 FROM exercise_catalog_entries WHERE lifter_profile_id = ? AND source_namespace = 'lifttrax:shared' AND source_key = ?")) {
+      duplicate.setString(1, profile);
+      duplicate.setString(2, sourceKey);
+      try (var rows = duplicate.executeQuery()) {
+        if (rows.next()) {
+          return false;
+        }
+      }
+    }
     try (var statement =
         connection.prepareStatement(
             "INSERT INTO exercise_catalog_entries"
-                + " (id, owner_user_id, lifter_profile_id, name, region, main_lift, muscles, notes, enabled)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)")) {
+                + " (id, owner_user_id, lifter_profile_id, name, region, main_lift, muscles, notes, enabled, origin, source_namespace, source_key, copied_from_label)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'shared_copy', 'lifttrax:shared', ?, ?)")) {
       statement.setString(1, UUID.randomUUID().toString());
       statement.setString(2, owner);
       statement.setString(3, profile);
@@ -142,7 +179,10 @@ final class HostedLiftSharing {
       statement.setString(6, lift.main() == null ? null : lift.main().toDbValue());
       statement.setString(7, String.join(",", lift.muscles().stream().map(Enum::name).toList()));
       statement.setString(8, lift.notes());
+      statement.setString(9, sourceKey);
+      statement.setString(10, username.trim().toLowerCase(Locale.ROOT));
       statement.executeUpdate();
+      return true;
     }
   }
 

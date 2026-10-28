@@ -1,7 +1,7 @@
 ---
 id: LT-0076
 title: Define the Postgres catalog and history boundary
-status: ready
+status: done
 track: data
 priority: high
 effort: small
@@ -41,17 +41,17 @@ and recovery preserve account-owned history.
 
 ## Acceptance criteria
 
-- [ ] An ADR or architecture note states that catalog and history remain in one
+- [x] An ADR or architecture note states that catalog and history remain in one
       Postgres database but have separate lifecycle rules.
-- [ ] The decision names the execution-side snapshot fields required to render
+- [x] The decision names the execution-side snapshot fields required to render
       and filter old history without a mutable catalog join.
-- [ ] The decision defines how live catalog IDs, portable source identities,
+- [x] The decision defines how live catalog IDs, portable source identities,
       and copied/imported catalog provenance differ.
-- [ ] Rename, reclassification, disable, and delete behavior is explicit for
+- [x] Rename, reclassification, disable, and delete behavior is explicit for
       both live catalog views and existing executions.
-- [ ] Account export and operator recovery implications link to
+- [x] Account export and operator recovery implications link to
       `docs/account-data-export-and-recovery.md`.
-- [ ] Follow-up implementation tasks `LT-0077` through `LT-0080` are linked in
+- [x] Follow-up implementation tasks `LT-0077` through `LT-0080` are linked in
       their intended order.
 
 ## Notes
@@ -62,3 +62,20 @@ catalog database file or a SQLite runtime mode.
 `docs/hosted-user-data-schema.md` already sketches performed-exercise snapshot
 fields, but the implemented migration still joins executions to mutable catalog
 rows. This task should reconcile the design document with the implemented schema.
+
+## Completion - 2026-10-27
+
+Recorded ADR-0005 and reconciled the hosted schema documentation with the
+implemented single-Postgres boundary. The decision names immutable performed
+identity/name/region/main/muscle/catalog-note snapshots, separate live references,
+portable source identity and acquisition provenance, safe mutation rules, export
+v2, migration order, and isolated operator recovery. Follow-up cards in this
+sequence are also complete.
+
+Evidence: [ADR-0005](../../docs/adr/0005-catalog-history-lifecycle.md),
+[implemented schema](../../docs/hosted-user-data-schema.md), and
+[recovery runbook](../../docs/account-data-export-and-recovery.md).
+
+Validation: `./gradlew.bat qualityGate` passed with 337 tests, zero failures or
+skips, and 92.34% instruction coverage. The run included the real Postgres
+backfill and recovery tests against disposable loopback databases.

@@ -38,6 +38,10 @@ final class PostgresSchemaMigrator {
     }
   }
 
+  static List<String> migrationNames() throws IOException {
+    return migrations().stream().map(Migration::name).toList();
+  }
+
   private static List<Migration> migrations() throws IOException {
     String index = resourceText(MIGRATION_ROOT + "index.txt");
     List<Migration> migrations = new ArrayList<>();
@@ -83,9 +87,21 @@ final class PostgresSchemaMigrator {
     boolean autoCommit = connection.getAutoCommit();
     connection.setAutoCommit(false);
     try {
+      long legacyCount = migration.version() == 11 ? validateLegacyExerciseRows(connection) : -1;
       String databaseProductName = connection.getMetaData().getDatabaseProductName();
       if (shouldExecuteMigration(databaseProductName, migration.sql())) {
         executeSql(connection, migration.sql());
+      }
+      if (legacyCount >= 0) {
+        try (Statement verify = connection.createStatement();
+            ResultSet rows =
+                verify.executeQuery(
+                    "SELECT COUNT(*) FROM executions WHERE performed_catalog_id IS NOT NULL AND performed_exercise_name IS NOT NULL AND performed_region IS NOT NULL AND performed_muscles IS NOT NULL AND performed_catalog_notes IS NOT NULL")) {
+          if (!rows.next() || rows.getLong(1) != legacyCount) {
+            throw new IllegalStateException(
+                "Snapshot backfill count does not match legacy execution count.");
+          }
+        }
       }
       try (PreparedStatement statement =
           connection.prepareStatement(
@@ -106,6 +122,38 @@ final class PostgresSchemaMigrator {
   static boolean shouldExecuteMigration(String databaseProductName, String sql) {
     return !sql.startsWith(POSTGRES_ONLY_DIRECTIVE)
         || "PostgreSQL".equalsIgnoreCase(databaseProductName);
+  }
+
+  private static long validateLegacyExerciseRows(Connection connection) throws Exception {
+    long count = 0;
+    try (Statement statement = connection.createStatement();
+        ResultSet rows =
+            statement.executeQuery(
+                """
+            SELECT c.name, c.region, c.main_lift, c.muscles, c.notes,
+              c.lifter_profile_id AS catalog_profile, e.lifter_profile_id AS execution_profile,
+              c.owner_user_id, p.owner_user_id AS profile_owner
+            FROM executions e
+            LEFT JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
+            LEFT JOIN lifter_profiles p ON p.id = e.lifter_profile_id
+            """)) {
+      while (rows.next()) {
+        if (rows.getString("name") == null
+            || rows.getString("name").isBlank()
+            || !java.util.Objects.equals(
+                rows.getString("catalog_profile"), rows.getString("execution_profile"))
+            || !java.util.Objects.equals(
+                rows.getString("owner_user_id"), rows.getString("profile_owner"))
+            || rows.getString("muscles") == null
+            || rows.getString("notes") == null) {
+          throw new IllegalStateException(
+              "Snapshot backfill requires an ownership-valid catalog row for every execution. Repair legacy data before retrying.");
+        }
+        HostedPostgresTrainingDataStore.mapLift(rows);
+        count++;
+      }
+    }
+    return count;
   }
 
   private static void executeSql(Connection connection, String sql) throws SQLException {

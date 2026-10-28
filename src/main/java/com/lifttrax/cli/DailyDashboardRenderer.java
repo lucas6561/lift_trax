@@ -128,9 +128,10 @@ final class DailyDashboardRenderer {
   private static String renderRecentHistoryItem(LiftExecutionRow row) {
     Lift lift = row.lift();
     LiftExecution execution = row.execution();
+    String historyHref = liftHref(lift) + "&historyExecutionId=" + execution.id();
     return "<li class='dashboard-history-item'>"
         + "<div><a href='"
-        + WebHtml.escapeHtml(liftHref(lift))
+        + WebHtml.escapeHtml(historyHref)
         + "'><strong>"
         + WebHtml.escapeHtml(lift.name())
         + "</strong></a><p class='muted'>"
@@ -140,8 +141,8 @@ final class DailyDashboardRenderer {
         + WebHtml.escapeHtml(formatExecution(execution))
         + "</span>"
         + "<a class='compact-btn secondary' href='"
-        + WebHtml.escapeHtml(logHref(lift, execution.date()))
-        + "'>Log Again</a></li>";
+        + WebHtml.escapeHtml(historyHref)
+        + "'>View history</a></li>";
   }
 
   private static String formatLiftCategory(Lift lift) {

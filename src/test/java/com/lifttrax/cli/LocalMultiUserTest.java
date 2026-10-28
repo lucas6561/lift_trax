@@ -253,7 +253,6 @@ class LocalMultiUserTest {
       var aliceStore = fixture.provider.forUserIdentifier("alice");
       aliceStore.addLift(
           "Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "Alice catalog note");
-      aliceStore.setLiftEnabled("Bench", false);
       aliceStore.addLiftExecution(
           "Bench",
           new LiftExecution(
@@ -268,6 +267,7 @@ class LocalMultiUserTest {
               false,
               false,
               "Alice private execution"));
+      aliceStore.setLiftEnabled("Bench", false);
       aliceStore.saveWorkout(
           "Alice plan", "{\"schemaVersion\":6,\"metadata\":{\"name\":\"Alice plan\"}}");
 
@@ -292,7 +292,7 @@ class LocalMultiUserTest {
       assertEquals("no-store", response.headers().firstValue("Cache-Control").orElseThrow());
 
       JsonNode export = new ObjectMapper().readTree(response.body());
-      assertEquals(1, export.path("schemaVersion").asInt());
+      assertEquals(2, export.path("schemaVersion").asInt());
       assertEquals("alice", export.path("account").path("username").asText());
       assertEquals(1, export.path("catalog").size());
       assertEquals("Bench", export.path("catalog").get(0).path("name").asText());

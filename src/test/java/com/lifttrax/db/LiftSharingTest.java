@@ -10,6 +10,47 @@ import org.junit.jupiter.api.Test;
 
 class LiftSharingTest {
   @Test
+  void portableSharedSourceSurvivesRenameWithoutCopyingPrivateIdentityOrHistory() throws Exception {
+    var provider = provider();
+    var source = provider.forUser("source-private-auth");
+    var target = provider.forUser("target-private-auth");
+    provider.updateUsername("source-private-auth", "shared_coach");
+    source.addLift("Bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "public definition");
+    provider.setLiftCatalogShared("source-private-auth", true);
+    assertEquals(
+        1, provider.importSharedLifts("target-private-auth", "shared_coach", List.of("Bench")));
+    var provenance = target.listCatalogEntries().get(0).provenance();
+    assertEquals("shared_copy", provenance.origin());
+    assertEquals("lifttrax:shared", provenance.sourceNamespace());
+    assertTrue(provenance.sourceKey().matches("[a-f0-9]{64}"));
+    assertEquals("shared_coach", provenance.copiedFromLabel());
+    assertFalse(provenance.toString().contains("source-private-auth"));
+    target.updateLift(
+        "Bench", "My bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "mine");
+    source.updateLift(
+        "Bench", "Coach bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "revised");
+    assertEquals(
+        0,
+        provider.importSharedLifts("target-private-auth", "shared_coach", List.of("Coach bench")));
+    assertEquals(1, target.listLifts().size());
+    assertEquals("mine", target.getLift("My bench").notes());
+    assertEquals(provenance, target.listCatalogEntries().get(0).provenance());
+    var updated =
+        com.lifttrax.catalog.ExerciseCatalogFile.parse(
+            """
+        {"schemaVersion":1,"exercises":[{"name":"My bench","enabled":true,"region":"UPPER","main":"BENCH_PRESS","muscles":[],"notes":"updated explicitly","source":{"namespace":"lifttrax:shared","key":"%s","revision":"2"}}]}
+        """
+                .formatted(provenance.sourceKey()));
+    var preview =
+        com.lifttrax.catalog.CatalogImportPlan.preview(updated, target.listCatalogEntries());
+    assertEquals(1, target.importCatalog(updated, preview.fingerprint()));
+    assertEquals("shared_copy", target.listCatalogEntries().get(0).provenance().origin());
+    assertEquals("shared_coach", target.listCatalogEntries().get(0).provenance().copiedFromLabel());
+    assertEquals("2", target.listCatalogEntries().get(0).provenance().sourceRevision());
+    assertTrue(target.performedHistory().isEmpty());
+  }
+
+  @Test
   void copiesSelectedDefinitionsOnlyAndPreservesExistingLiftsAndSource() throws Exception {
     var provider = provider();
     var source = provider.forUser("alice-id");

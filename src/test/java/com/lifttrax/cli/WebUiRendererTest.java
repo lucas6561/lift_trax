@@ -122,7 +122,7 @@ class WebUiRendererTest {
           html.contains(
               "href='/?tab=add-execution&amp;prefillDate=2026-05-30&amp;prefillLift=Back+Squat'"));
       assertTrue(html.contains("href='/lift?name=Back+Squat'"));
-      assertTrue(html.contains("Log Again"));
+      assertTrue(html.contains("View history"));
       assertTrue(html.contains("2026-05-29"));
     }
   }
@@ -211,7 +211,9 @@ class WebUiRendererTest {
       assertTrue(html.contains("name='tab' value='executions'"));
       assertTrue(html.contains("name='lift' value='Back Squat'"));
       assertTrue(html.contains("Delete lift"));
-      assertTrue(html.contains("Delete this lift and all its executions?"));
+      assertTrue(
+          html.contains(
+              "Delete this catalog lift? Completed executions and sets will be retained in history."));
     }
   }
 

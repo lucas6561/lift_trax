@@ -275,6 +275,11 @@ public final class WebServerCli {
     }
   }
 
+  static void handleExerciseCatalogImport(HttpExchange exchange, TrainingDataStoreProvider rootDb)
+      throws IOException {
+    ExerciseCatalogImportResponse.handle(exchange, rootDb);
+  }
+
   static void handleImportLifts(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     String userId = WebAuth.currentUser(exchange).orElseThrow().id();
@@ -719,7 +724,8 @@ public final class WebServerCli {
           exchange,
           redirectBase
               + "&statusType=success&status="
-              + WebUiRenderer.urlEncode("Deleted lift: " + lift));
+              + WebUiRenderer.urlEncode(
+                  "Deleted catalog lift: " + lift + ". Completed history retained."));
     } catch (Exception e) {
       redirect(
           exchange,
@@ -1430,82 +1436,14 @@ public final class WebServerCli {
     return result;
   }
 
-  private static Map<String, String> parseForm(InputStream body) throws IOException {
+  static Map<String, String> parseForm(InputStream body) throws IOException {
     String form = new String(body.readAllBytes(), StandardCharsets.UTF_8);
     return parseQuery(URI.create("/?" + form));
   }
 
   static void handleLift(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
-    if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-      sendText(exchange, 405, "Method Not Allowed");
-      return;
-    }
-
-    Map<String, String> query = parseQuery(exchange.getRequestURI());
-    String name = query.get("name");
-    if (name == null || name.isBlank()) {
-      sendHtml(
-          exchange,
-          WebHtml.wrapPage(
-              "Missing lift", "<h1>Missing lift name</h1><p><a href='/'>Back</a></p>"));
-      return;
-    }
-
-    try {
-      TrainingDataStore db = databaseFor(exchange, rootDb);
-      Lift lift = db.getLift(name);
-      List<LiftExecution> executions = db.getExecutions(name);
-
-      StringBuilder body = new StringBuilder();
-      body.append("<p><a href='/'>← Back to all lifts</a></p>")
-          .append("<h1>")
-          .append(WebHtml.escapeHtml(lift.name()))
-          .append("</h1>")
-          .append("<p><strong>Region:</strong> ")
-          .append(WebHtml.escapeHtml(lift.region().toString()))
-          .append("</p>")
-          .append("<p><strong>Main type:</strong> ")
-          .append(WebHtml.escapeHtml(WebUiRenderer.formatMainType(lift)))
-          .append("</p>")
-          .append("<p><strong>Muscles:</strong> ")
-          .append(
-              WebHtml.escapeHtml(
-                  WebUiRenderer.joinList(lift.muscles().stream().map(Object::toString).toList())))
-          .append("</p>")
-          .append("<p><strong>Notes:</strong> ")
-          .append(WebHtml.escapeHtml(lift.notes() == null ? "" : lift.notes()))
-          .append("</p>")
-          .append(WebUiRenderer.renderLiftTrendSummary(executions, LocalDate.now()))
-          .append("<h2>Executions</h2>");
-
-      if (executions.isEmpty()) {
-        body.append("<p>No executions recorded.</p>");
-      } else {
-        body.append(
-            "<table><thead><tr><th>Date</th><th>Sets</th><th>Notes</th></tr></thead><tbody>");
-        for (LiftExecution execution : executions) {
-          body.append("<tr><td>")
-              .append(WebHtml.escapeHtml(WebUiRenderer.DATE_FORMAT.format(execution.date())))
-              .append("</td><td>")
-              .append(WebHtml.escapeHtml(WebUiRenderer.formatSets(execution.sets())))
-              .append("</td><td>")
-              .append(WebHtml.escapeHtml(execution.notes() == null ? "" : execution.notes()))
-              .append("</td></tr>");
-        }
-        body.append("</tbody></table>");
-      }
-
-      sendHtml(exchange, WebHtml.wrapPage(lift.name(), body.toString()));
-    } catch (Exception e) {
-      sendHtml(
-          exchange,
-          WebHtml.wrapPage(
-              "Error",
-              "<h1>Error loading lift</h1><pre>"
-                  + WebHtml.escapeHtml(e.getMessage())
-                  + "</pre><p><a href='/'>Back</a></p>"));
-    }
+    LiftDetailResponse.handle(exchange, rootDb);
   }
 
   static Map<String, String> parseQuery(URI uri) {
@@ -1571,7 +1509,7 @@ public final class WebServerCli {
     exchange.close();
   }
 
-  private static void sendText(HttpExchange exchange, int status, String text) throws IOException {
+  static void sendText(HttpExchange exchange, int status, String text) throws IOException {
     sendContent(exchange, status, "text/plain; charset=utf-8", text);
   }
 
