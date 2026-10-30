@@ -14,3 +14,5 @@ record and update the old record's status instead of rewriting history.
 - [0003: Use Supabase and Render for the first hosted beta](0003-hosted-auth-data-platform.md)
 - [0004: Use Postgres as the sole runtime database](0004-postgres-only-runtime.md)
 - [0005: Separate catalog and performed-history lifecycles in Postgres](0005-catalog-history-lifecycle.md)
+- [0006: Terminate local HTTPS with Caddy](0006-local-https-reverse-proxy.md)
+- [0007: Use DuckDNS and public certificates without client enrollment](0007-public-https-with-duckdns.md)

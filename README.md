@@ -148,6 +148,12 @@ cookies when accessing the server across a network. Local mode still uses the
 configured Postgres database. See
 [account authentication](docs/account-authentication.md).
 
+For HTTPS on home Wi-Fi, use the [local HTTPS setup](docs/local-https.md).
+It uses a DuckDNS hostname and public certificates with automatic renewal, so
+phones need no certificate installation. The normal HTTP app on port 8080 stays
+available while HTTPS is tested separately against the same database.
+Away-from-home access is future work in LT-0100.
+
 ### Export account data
 
 Open **Account** and choose **Download my data** to download a versioned JSON

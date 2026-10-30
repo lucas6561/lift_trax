@@ -1,0 +1,7 @@
+{
+  "CaddyVersion": "2.11.7",
+  "DuckDnsVersion": "0.5.0",
+  "XCaddyVersion": "0.4.7",
+  "GoVersion": "1.27.3",
+  "GoArchiveSha256": "f26081f438319757f8a1b46d7d0b2c5ec7583d4038e485e0aa725cfde7885fff"
+}

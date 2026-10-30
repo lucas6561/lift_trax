@@ -1,6 +1,7 @@
 /target
 data/
 config/*.override.properties
+config/*.override.json
 rust/target
 lifts.db*
 rust/.idea

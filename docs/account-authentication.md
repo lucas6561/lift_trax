@@ -122,6 +122,12 @@ work. Local OAuth callback requests are rejected. Configure HTTPS and
 transport protection as well as hashing. Local mode is designed for a single
 server instance. Account registration remains available to visitors.
 
+The [local HTTPS launcher](local-https.md) provides a Caddy proxy with a private
+Java backend, secure cookies, and the same existing database configuration. It
+uses public certificates without phone enrollment and documents the shared
+proxy rate-limit bucket and how to resolve unfinished browser drafts before
+changing the site origin.
+
 The Postgres migration adds nullable password hashes and credential versions to
 existing accounts without changing training data. All-user SQLite backups include
 these fields for recovery; keep those backups private. Workout/catalog exports

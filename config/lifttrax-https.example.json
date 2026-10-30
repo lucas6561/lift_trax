@@ -1,0 +1,5 @@
+{
+  "Hostname": "your-hostname.duckdns.org",
+  "AppConfig": "config/lifttrax-local.properties",
+  "LanAddress": "192.168.1.100"
+}

@@ -3,6 +3,11 @@
 The first hosted LiftTrax beta should deploy the existing Java web service to
 Render while Supabase owns authentication and durable Postgres data.
 
+Render terminates HTTPS at its edge and forwards to the existing Java HTTP
+listener; do not enable native Java TLS. For the local Windows/phone deployment,
+use the separate [Caddy HTTPS setup](local-https.md), which reuses the existing
+database and includes backup comparison and browser-draft cutover instructions.
+
 The deployment pipeline, import path, user-scoped export, and hosted recovery
 expectations are now documented. User-scoped authorization and the core hosted
 persistence adapter are available for deployment smoke checks.

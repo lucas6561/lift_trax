@@ -1,0 +1,20 @@
+{
+	admin off
+	persist_config off
+	skip_install_trust
+	auto_https disable_redirects
+	storage file_system {
+		root "{$LIFTTRAX_TLS_STORAGE}"
+	}
+}
+
+https://{$LIFTTRAX_HTTPS_HOST}:{$LIFTTRAX_HTTPS_PORT} {
+	bind {$LIFTTRAX_PROXY_BIND}
+	tls internal
+	reverse_proxy 127.0.0.1:{$LIFTTRAX_BACKEND_PORT}
+}
+
+http://:{$LIFTTRAX_HTTP_PORT}, http://:{$LIFTTRAX_LEGACY_PORT} {
+	bind {$LIFTTRAX_PROXY_BIND}
+	redir https://{$LIFTTRAX_HTTPS_HOST}:{$LIFTTRAX_HTTPS_PORT}{uri} 308
+}

@@ -30,3 +30,5 @@ The app needs to work where training happens. A phone-friendly workout flow matt
 - `LT-0089`: Define PWA and offline boundaries.
 - `LT-0094`: Add PWA installability shell.
 - `LT-0095`: Add offline workout-session drafts.
+- `LT-0099`: Add home-network HTTPS without losing existing data.
+- `LT-0100`: Add secure access away from home after home access is reliable.
