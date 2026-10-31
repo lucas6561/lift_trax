@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 [CmdletBinding()]
 param(
-    [ValidateSet('Install', 'Provision', 'Start', 'Stop', 'Status', 'Certificate')]
+    [ValidateSet('Install', 'Provision', 'Start', 'Stop', 'Restart', 'Status', 'Certificate')]
     [string] $Action = 'Status',
     [ValidateSet('Preview', 'Network')]
     [string] $Mode = 'Preview',
@@ -74,6 +74,36 @@ switch ($Action) {
         return
     }
     'Stop' { Stop-ManagedServer; Write-Host 'Managed HTTPS processes stopped. Database and certificates retained.'; return }
+    'Restart' {
+        $restartMode = if ($PSBoundParameters.ContainsKey('Mode')) { $Mode }
+            elseif (Test-Path -LiteralPath $statePath) {
+                (Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).Mode
+            } else { 'Network' }
+        $task = Get-ScheduledTask -TaskName 'LiftTrax Home HTTPS' -ErrorAction SilentlyContinue
+        if ($task) {
+            $expected = '-File "' + (Join-Path $PSScriptRoot 'https-startup.ps1') + '" -Action Run'
+            if (@($task.Actions).Count -ne 1 -or -not $task.Actions[0].Arguments.EndsWith($expected)) {
+                throw 'The startup task belongs to another checkout; no processes were stopped.'
+            }
+            Stop-ScheduledTask -TaskName $task.TaskName
+        }
+        $restartLock = $null
+        try {
+            $deadline = [DateTime]::UtcNow.AddSeconds(15)
+            do {
+                try {
+                    $restartLock = [System.IO.File]::Open((Join-Path $runtime 'startup.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
+                } catch [System.IO.IOException] { Start-Sleep -Milliseconds 200 }
+            } while (-not $restartLock -and [DateTime]::UtcNow -lt $deadline)
+            if (-not $restartLock) { throw 'Automatic recovery is still busy; restart was not performed.' }
+            Stop-ManagedServer
+            & $PSCommandPath -Action Start -Mode $restartMode -SkipBuild:$SkipBuild -SkipDnsUpdate:$SkipDnsUpdate
+        } finally {
+            if ($restartLock) { $restartLock.Dispose() }
+            if ($task) { Start-ScheduledTask -TaskName $task.TaskName }
+        }
+        return
+    }
     'Status' {
         if (-not (Test-Path -LiteralPath $statePath)) { Write-Host 'Managed HTTPS server is stopped.'; return }
         $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json

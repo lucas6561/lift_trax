@@ -170,6 +170,22 @@ actual JVM/proxy executable paths, IDs, and start times, and stops only matching
 managed processes. Startup failure cleans up its children and retains snapshots
 and certificate files.
 
+Restart the HTTPS application from an ordinary Windows terminal with:
+
+```powershell
+.\https.bat -Action Restart
+```
+
+Restart pauses automatic recovery, rebuilds the installed application, restarts
+the managed backend/proxy with the same mode, validates database snapshots, then
+resumes automatic recovery even if startup fails. It does not stop port 8080.
+Use `-SkipBuild -SkipDnsUpdate` to restart the current build and DNS mapping.
+The batch launcher uses Windows PowerShell to locate PowerShell 7 through PATH,
+the standard installation directory, the saved runtime path, or this checkout's
+registered startup task. PowerShell 7 need not be on the interactive user's PATH.
+The launcher sets RemoteSigned only for its child shells, without changing the
+machine or user's saved execution policy; organizational policy still applies.
+
 For normal home use, install the current user's automatic startup task once:
 
 ```powershell

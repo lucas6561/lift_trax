@@ -19,6 +19,8 @@ if ($Action -eq 'Install') {
     if ($existing) { throw 'Startup task already exists. Inspect Status or Uninstall before replacing it.' }
     $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
     $pwsh = Join-Path $PSHOME 'pwsh.exe'
+    New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $runtime 'powershell-path.txt') -Value $pwsh
     $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -File "' + $PSCommandPath + '" -Action Run'
     $taskAction = New-ScheduledTaskAction -Execute $pwsh -Argument $arguments -WorkingDirectory $repo
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user

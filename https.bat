@@ -1,4 +1,4 @@
 @echo off
 setlocal
-pwsh -NoProfile -File "%~dp0scripts\https.ps1" %*
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy RemoteSigned -File "%~dp0scripts\invoke-https.ps1" %*
 exit /b %errorlevel%
