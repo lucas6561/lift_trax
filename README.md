@@ -2,6 +2,38 @@
 
 This repository now uses a **root-level Java/Gradle project layout**.
 
+## Everyday home app use on Windows
+
+After home HTTPS setup, open your configured DuckDNS address on home Wi-Fi.
+To **rebuild and restart that app after code changes**, run this from the
+repository root in an ordinary PowerShell or Command Prompt window:
+
+```powershell
+.\https.bat -Action Restart
+```
+
+Check whether it is running with:
+
+```powershell
+.\https.bat -Action Status
+```
+
+When automatic startup is installed, HTTPS starts after your Windows account
+**signs in**, including after a reboot. Allow about a minute. Its entry is
+**Task Scheduler → Task Scheduler Library → LiftTrax Home HTTPS**. It does not
+appear in Task Manager's Startup apps list. Keep the PC awake and clients on the
+home network.
+
+**`gradlew.bat runWeb` starts the separate HTTP server on port 8080. It does not
+restart or update the DuckDNS HTTPS app.** Use `https.bat -Action Restart` for
+normal home-app updates. That command rebuilds, checks database snapshots,
+restarts HTTPS, and resumes automatic recovery. Refresh the browser afterward;
+sign in again if prompted.
+
+See [everyday HTTPS commands](docs/local-https.md#everyday-use-after-setup) and
+the [full operation guide](docs/local-https.md#operation-renewal-and-rollback),
+including how to stop the app and automatic recovery intentionally.
+
 ## Project structure
 
 - `src/main/java` – application source code
@@ -27,6 +59,10 @@ All database-aware commands use the configured Postgres database. Set
 configuration file. Do not commit a file containing credentials.
 
 ## Web UI
+
+For the normal DuckDNS home app, use `https.bat -Action Restart` as described
+above. The command below runs the independent HTTP development/fallback server
+on port 8080; changes served there do not update an already-running HTTPS app.
 
 From the repository root:
 
@@ -150,8 +186,9 @@ configured Postgres database. See
 
 For HTTPS on home Wi-Fi, use the [local HTTPS setup](docs/local-https.md).
 It uses a DuckDNS hostname and public certificates with automatic renewal, so
-phones need no certificate installation. The normal HTTP app on port 8080 stays
-available while HTTPS is tested separately against the same database.
+phones need no certificate installation. Restart it with
+`https.bat -Action Restart` after source changes. The independent HTTP app on
+port 8080 can remain available against the same database.
 Away-from-home access is future work in LT-0100.
 
 ### Export account data

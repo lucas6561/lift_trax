@@ -15,6 +15,32 @@ The original HTTP app on port 8080 stays independent during setup and phone
 verification. HTTPS uses ports 443/80 and its own private backend on 18080;
 starting or stopping the HTTPS pair does not stop or reserve the original server.
 
+## Everyday use after setup
+
+Run these commands from the repository root in an ordinary Windows terminal.
+PowerShell 7 does not need to be on your terminal's PATH.
+
+| What you want | Command or location |
+| --- | --- |
+| Rebuild and restart the DuckDNS app, including after code changes | `.\https.bat -Action Restart` |
+| Check the HTTPS server's status | `.\https.bat -Action Status` |
+| Find automatic startup | Task Scheduler → Task Scheduler Library → LiftTrax Home HTTPS |
+
+Automatic startup runs **when your Windows account signs in**, rather than at
+boot before sign-in. Allow about a minute, then open the configured DuckDNS
+address on home Wi-Fi. The PC must remain awake. Locking Windows after signing
+in leaves the app running.
+
+**`gradlew.bat runWeb` starts the independent HTTP server on port 8080; it does
+not restart or update the DuckDNS HTTPS app.** For everyday home-app changes,
+use `https.bat -Action Restart`, refresh the browser, and sign in again if asked.
+The restart command checks database snapshots and resumes automatic recovery.
+
+`https.bat -Action Stop` alone is temporary while automatic recovery is running:
+recovery starts HTTPS again. For an intentional shutdown, follow
+[operation, renewal, and rollback](#operation-renewal-and-rollback) to remove
+automatic recovery first. Keep browser site storage to preserve unfinished drafts.
+
 ## One-time setup on the Windows PC
 
 Prerequisites: Windows x64, PowerShell 7 (`pwsh`), Java on PATH, the existing
