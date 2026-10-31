@@ -66,6 +66,7 @@ final class ApplicationShellHtml {
             + "<span>LiftTrax</span></a>"
             + "<div class='app-profile-slot' data-profile-slot></div>"
             + "</header>"
+            + renderPrimaryNavigation(section, "Primary mobile")
             + "<div class='app-frame'>"
             + "<aside class='app-sidebar'>"
             + renderPrimaryNavigation(section, "Primary")
@@ -75,7 +76,6 @@ final class ApplicationShellHtml {
             + body
             + "</section>"
             + "</div>"
-            + renderPrimaryNavigation(section, "Primary mobile")
             + "</div>";
     return WebHtml.wrapPage(title + " | LiftTrax", shell);
   }

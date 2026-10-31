@@ -43,7 +43,6 @@ final class WebHtml {
                   --pico-form-element-spacing-horizontal: 0.45rem;
                   --pico-spacing: 0.65rem;
                 }
-                html { scroll-padding-bottom: 5.5rem; }
                 body {
                   background: radial-gradient(circle at top, #0b1736, #0a1022 45%, #070d1a);
                   min-height: 100vh;
@@ -272,7 +271,7 @@ final class WebHtml {
                 .save-workout-session-btn { min-height: 2.75rem; }
                 .save-workout-session-btn { position: sticky; bottom: 0.35rem; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
                 @media (max-width: 720px) {
-                  body { padding-bottom: 5rem; }
+                  html { scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom)); }
                   main.container { padding-left: 0.35rem; padding-right: 0.35rem; }
                   .app-shell { min-height: auto; }
                   .app-header { min-height: 3.35rem; padding: 0.38rem 0.48rem; }
@@ -284,7 +283,7 @@ final class WebHtml {
                   .app-sidebar { display: none; }
                   .app-content { border-radius: 0.62rem; padding: 0.55rem 0.45rem; }
                   .breadcrumbs { margin-bottom: 0.42rem; }
-                  .mobile-primary-navigation { display: block; position: fixed; z-index: 30; left: 0.35rem; right: 0.35rem; bottom: max(0.35rem, env(safe-area-inset-bottom)); padding: 0.32rem; border: 1px solid rgba(148, 163, 184, 0.42); border-radius: 0.8rem; background: rgba(7, 13, 26, 0.98); box-shadow: 0 -0.35rem 1.2rem rgba(0, 0, 0, 0.32); }
+                  .mobile-primary-navigation { display: block; position: static; margin-top: 0.45rem; padding: 0.32rem; border: 1px solid rgba(148, 163, 184, 0.42); border-radius: 0.8rem; background: rgba(7, 13, 26, 0.98); }
                   .mobile-primary-navigation ul { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.12rem; }
                   .mobile-primary-navigation a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.08rem; min-height: 3.4rem; padding: 0.22rem 0.08rem; border-radius: 0.55rem; color: #94a3b8; text-decoration: none; font-size: 0.67rem; line-height: 1; }
                   .mobile-primary-navigation a.is-current { background: rgba(15, 118, 110, 0.34); color: #f0fdfa; }
@@ -325,7 +324,7 @@ final class WebHtml {
                   .quick-log-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
                   .quick-log-label { grid-column: 1 / -1; }
                   .quick-log-presets .compact-btn { width: 100%; }
-                  .save-execution-btn { position: sticky; bottom: 4.45rem; width: 100%; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
+                  .save-execution-btn { position: sticky; bottom: max(0.35rem, env(safe-area-inset-bottom)); width: 100%; margin-bottom: 0; box-shadow: 0 0 0 2px rgba(7, 13, 26, 0.82); }
                   .execution-list { display: grid; gap: 0.38rem; }
                   .execution-item { margin: 0 !important; padding: 0.42rem; border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.5rem; background: rgba(15, 23, 42, 0.72); }
                   .js-exec-view { align-items: flex-start !important; flex-wrap: wrap !important; }
@@ -361,7 +360,7 @@ final class WebHtml {
                   .session-entry-options input,
                   .session-entry-options select,
                   .session-entry-options button { width: 100%; }
-                  .save-workout-session-btn { bottom: 4rem; width: 100%; }
+                  .save-workout-session-btn { bottom: max(0.35rem, env(safe-area-inset-bottom)); width: 100%; }
                 }
                 .is-hidden { display: none; }
             """;

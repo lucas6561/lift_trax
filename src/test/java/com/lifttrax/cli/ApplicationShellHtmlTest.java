@@ -30,6 +30,37 @@ class ApplicationShellHtmlTest {
   }
 
   @Test
+  void placesMobileNavigationBetweenHeaderAndMainContentInKeyboardOrder() {
+    String html =
+        ApplicationShellHtml.wrapPage(
+            "Train", ApplicationShellHtml.Section.TRAIN, "<h1>Quick logging</h1>");
+
+    int skipLink = html.indexOf("<a class='skip-link'");
+    int header = html.indexOf("<header class='app-header'>");
+    int profile = html.indexOf("<div class='app-profile-slot'");
+    int headerEnd = html.indexOf("</header>", header);
+    int mobileNav = html.indexOf("<nav class='mobile-primary-navigation'");
+    int frame = html.indexOf("<div class='app-frame'>");
+    int desktopNav = html.indexOf("<nav class='primary-navigation'");
+    int content = html.indexOf("<section class='app-content' id='main-content' tabindex='-1'>");
+
+    assertTrue(skipLink >= 0 && skipLink < header);
+    assertTrue(header < profile && profile < headerEnd);
+    assertTrue(headerEnd < mobileNav && mobileNav < frame);
+    assertTrue(frame < desktopNav && desktopNav < content);
+    assertTrue(content < html.indexOf("<h1>Quick logging</h1>"));
+    assertEquals(1, occurrences(html, "<nav class='mobile-primary-navigation'"));
+    assertEquals(
+        2, occurrences(html, "data-section='train' class='is-current' aria-current='page'"));
+    for (var section : ApplicationShellHtml.Section.values()) {
+      if (section != ApplicationShellHtml.Section.ACCOUNT) {
+        assertEquals(2, occurrences(html, "data-section='" + section.key() + "'"));
+        assertTrue(html.contains("href='" + section.href() + "' data-section='" + section.key()));
+      }
+    }
+  }
+
+  @Test
   void mapsStableDeepLinkTabsToTaskSections() {
     assertEquals(
         ApplicationShellHtml.Section.TODAY, ApplicationShellHtml.Section.forTab("dashboard"));
