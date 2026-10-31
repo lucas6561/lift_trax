@@ -4,13 +4,17 @@ param(
     [ValidateSet('Install', 'Provision', 'Start', 'Stop', 'Status', 'Certificate')]
     [string] $Action = 'Status',
     [ValidateSet('Preview', 'Network')]
-    [string] $Mode = 'Preview'
+    [string] $Mode = 'Preview',
+    # Automatic recovery uses the already installed build, even without internet.
+    [switch] $SkipBuild,
+    [switch] $SkipDnsUpdate
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'duckdns.ps1')
+. (Join-Path $PSScriptRoot 'https-processes.ps1')
 $runtime = Join-Path $repo 'data/https'
 $statePath = Join-Path $runtime 'processes.json'
 $settingsPath = Join-Path $repo 'config/lifttrax-https.override.json'
@@ -18,23 +22,6 @@ $versions = Get-Content (Join-Path $repo 'config/https/toolchain.json') -Raw | C
 $caddyDirectory = Join-Path $runtime "tools/caddy-$($versions.CaddyVersion)-duckdns-$($versions.DuckDnsVersion)"
 $caddy = Join-Path $caddyDirectory 'caddy.exe'
 $rootCertificate = Join-Path $runtime 'pki/pki/authorities/local/root.crt'
-
-function Get-ManagedProcess($Record) {
-    $process = Get-Process -Id $Record.Id -ErrorAction SilentlyContinue
-    if ($process -and $process.Path -eq $Record.Path -and
-        $process.StartTime.ToUniversalTime().Ticks.ToString() -eq $Record.StartTicks) {
-        return $process
-    }
-    return $null
-}
-
-function Get-ProcessRecord($Process) {
-    return @{
-        Id = $Process.Id
-        Path = $Process.Path
-        StartTicks = $Process.StartTime.ToUniversalTime().Ticks.ToString()
-    }
-}
 
 function Stop-ManagedServer {
     if (-not (Test-Path -LiteralPath $statePath)) { return }
@@ -149,10 +136,16 @@ $backendProcess = $null
 $proxyProcess = $null
 $proxyEnvironment = @{}
 try {
-    if ($isPublic) { Set-DuckDnsLanAddress $siteHost $duckDnsToken $settings.LanAddress }
+    if ($isPublic -and -not $SkipDnsUpdate) { Set-DuckDnsLanAddress $siteHost $duckDnsToken $settings.LanAddress }
     if ($Action -eq 'Start') {
-      & (Join-Path $repo 'gradlew.bat') --quiet installDist
-      if ($LASTEXITCODE -ne 0) { throw 'Application build failed.' }
+      if ($SkipBuild) {
+          if (-not (Test-Path (Join-Path $repo 'build/install/lift-trax-java/lib/lift-trax-java-*.jar'))) {
+              throw 'No installed application build. Run https.bat -Action Start -Mode Network once first.'
+          }
+      } else {
+          & (Join-Path $repo 'gradlew.bat') --quiet installDist
+          if ($LASTEXITCODE -ne 0) { throw 'Application build failed.' }
+      }
       $before = Invoke-Backup 'before-https'
       $backendProcess = Start-HiddenProcess $java @(
         "-Dlifttrax.config=$appConfig", '-Dlifttrax.web.bind=127.0.0.1',

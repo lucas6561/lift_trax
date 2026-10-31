@@ -168,9 +168,33 @@ pre-start snapshot. A transport rollback does not reverse schema migrations.
 Use `https.bat -Action Status` and `https.bat -Action Stop`. The launcher records
 actual JVM/proxy executable paths, IDs, and start times, and stops only matching
 managed processes. Startup failure cleans up its children and retains snapshots
-and certificate files. Automatic Windows-service installation is not included;
-HTTPS must be started manually after a PC restart. Check status, clear the old
-process record with Stop, then start network mode again:
+and certificate files.
+
+For normal home use, install the current user's automatic startup task once:
+
+```powershell
+pwsh -NoProfile -File scripts/https-startup.ps1 -Action Install
+pwsh -NoProfile -File scripts/https-startup.ps1 -Action Status
+```
+
+The `LiftTrax Home HTTPS` task runs hidden with ordinary user permissions after
+that user signs into Windows, without storing a Windows password. It monitors
+the two managed processes every 30 seconds, removes stale reboot records, and
+retries failed starts while the network/database comes up. A healthy pair and
+developer preview are left alone. It uses the existing installed build and DNS
+mapping, so an internet outage does not itself block local startup. LAN address
+validation, validated before/after backups, and snapshot comparison still run.
+The PC must be awake, the user signed in, and clients on the home network.
+This is not a service that runs before Windows sign-in.
+
+Before intentionally stopping HTTPS, remove automatic recovery first:
+
+```powershell
+pwsh -NoProfile -File scripts/https-startup.ps1 -Action Uninstall
+```
+
+Uninstall removes only this checkout's task and retains data and certificates.
+Then stop/start manually as needed:
 
 ```powershell
 .\https.bat -Action Status
@@ -192,6 +216,7 @@ for issuance and renewal. If the PC's LAN address changes, update `LanAddress`
 and restart after resolving unfinished drafts; prefer a DHCP reservation.
 
 Logs are private `data/https/backend.*.log`, `proxy.*.log`, and `provision.*.log`.
+Automatic recovery writes private `data/https/startup.log`.
 No request-access log is enabled. Provider errors can include request details;
 do not share raw provider logs without removing the DuckDNS token. Do not serve
 the repository, credentials, backups, or certificate storage as static files.
