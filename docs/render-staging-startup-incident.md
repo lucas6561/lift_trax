@@ -100,11 +100,52 @@ Its missing-setting path exited 1 before any database connection, naming only
 on isolated hosted-auth fixtures. Smoke repairs include PowerShell redirect
 handling, header arrays, the reserved HOME variable, CSRF cookie replay and
 account-scoped form fields. No Docker engine is installed locally; the actual
-Docker image must be built and verified by Render.
+Docker image was built and verified by Render, as recorded below.
 
-Staging cycles, smoke and final revision remain pending. LT-0103 stays open
-until they succeed. No valid authenticated staging smoke session has been
-located; anonymous hosted checks are mandatory.
+Staging verification completed on the patched implementation revision
+`e475f47e558e2b696fed31a76dee8e6283e36394`:
+
+| Cycle | UTC evidence | Result |
+| --- | --- | --- |
+| Fresh Docker build/deploy `dep-dbiu06m7bikc73ds7mb0`, instance `qcqcx` | Container quality gate passed at 12:35:20; startup 12:35:49; database connection 12:35:54; migrations and readiness on port 10000 at 12:35:55; Render live at 12:35:58. | Clean deployment; mandatory anonymous smoke passed. |
+| Explicit staging restart, instance `bq2fh` | Startup 12:36:45; first connection failed at 12:36:50; two-second backoff; second attempt at 12:36:52 connected at 12:36:54; migrations and readiness at 12:36:55. | Clean restart with a real transient connection failure recovered **without process exit**. Anonymous smoke passed again. |
+
+The second cycle directly verifies the mitigation on Render, beyond the isolated
+regression. Application logs inspected after both cycles and authenticated smoke
+contained no unexpected exit or additional restart of the patched instances.
+The HEAD-request content-length warning is non-fatal and unrelated to this exit.
+
+Saving the health-check setting initially redeployed the previous July image
+(`dep-dbitvq8ae00c73cmc8pg`); that old image failed at 12:32:54 with an SSL
+connection reset and is not counted as a patched cycle. The subsequent manual
+deploy explicitly built the pushed fix. `/health` is now saved and used by
+Render, with its standard five-second probe and 15-minute new-deploy budget.
+No compute, start command, credential, database, or production service setting
+was changed. All ten required secret/config entries were verified nonblank;
+Supabase mode, secure cookies, project target and staging callback matched.
+Supabase network restrictions and banned-address lists were empty.
+
+A validated post-cycle snapshot at 2026-10-31T12:37:52.170218800Z,
+`data/backups/lt-0103-after-20261031-123752Z.db`, was compared to the preserved
+pre-deploy snapshot. `CompareSnapshotsCli` confirmed identical application rows,
+IDs and ownership across the deploy and restart.
+
+Chrome then proved to have an existing authenticated staging session. Without
+extracting its cookie or signing secret, UI smoke created exactly one synthetic
+exercise, `LT-0103 Smoke 2026-10-31`, and one unweighted one-rep execution dated
+2026-10-31 with an explicit LT-0103 smoke note. Save success, the authenticated
+Today/Train/Exercises/History shells, the lazily loaded persisted history row
+and lift detail were verified. These identified synthetic additions are retained;
+no existing training records were edited or deleted. The full authenticated
+PowerShell smoke path separately passed on an isolated fixture; staging's
+PowerShell invocation ran its mandatory anonymous path because the available
+session remains inside the browser. Evidence image (ignored build output):
+`build/reports/lt-0103-staging-history.png`.
+
+LT-0103 is complete. The completion publication changes only this verification
+record and the task card. Its deployed `main` revision can be checked in Render
+Deploys and the final handoff report. No production deployment is authorized
+by this incident.
 
 ## Recurrence, diagnosis and rollback
 
