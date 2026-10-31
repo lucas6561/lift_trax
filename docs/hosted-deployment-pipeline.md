@@ -8,6 +8,9 @@ listener; do not enable native Java TLS. For the local Windows/phone deployment,
 use the separate [Caddy HTTPS setup](local-https.md), which reuses the existing
 database and includes backup comparison and browser-draft cutover instructions.
 
+For startup exits, connection retry behavior, health-check timing, and the
+2026-10-31 staging incident, use the [Render startup incident runbook](render-staging-startup-incident.md).
+
 The deployment pipeline, import path, user-scoped export, and hosted recovery
 expectations are now documented. User-scoped authorization and the core hosted
 persistence adapter are available for deployment smoke checks.
@@ -112,10 +115,10 @@ Minimum hosted smoke checks:
 - authenticated account export contains only the current user's catalog,
   executions, and saved planned workouts.
 
-`scripts/hosted-smoke.ps1` always verifies the anonymous redirect and invalid
-callback failure behavior. When `LIFTTRAX_HOSTED_SMOKE_SESSION_COOKIE` is
-available, it also creates a smoke lift and logs one execution through the
-hosted app.
+`scripts/hosted-smoke.ps1` always verifies `/health`, the anonymous redirect and
+invalid callback failure behavior. When `LIFTTRAX_HOSTED_SMOKE_SESSION_COOKIE`
+is available, it also checks the authenticated shell, creates a smoke lift,
+logs one execution and reads its persisted history and lift detail.
 
 ## Rollback
 

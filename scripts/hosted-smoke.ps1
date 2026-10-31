@@ -8,6 +8,11 @@ param(
 $ErrorActionPreference = "Stop"
 $base = $BaseUrl.TrimEnd("/")
 
+$health = Invoke-WebRequest -Uri "$base/health" -TimeoutSec 90 -SkipHttpErrorCheck
+if ($health.StatusCode -ne 200 -or $health.Content.Trim() -ne "ok") {
+    throw "Expected /health to return HTTP 200 with 'ok'; got HTTP $($health.StatusCode)."
+}
+
 function Invoke-NoRedirect {
     param(
         [string] $Uri,
@@ -20,6 +25,9 @@ function Invoke-NoRedirect {
         Method = $Method
         MaximumRedirection = 0
         SkipHttpErrorCheck = $true
+        # PowerShell emits a non-terminating error for a deliberately unfollowed redirect.
+        ErrorAction = "SilentlyContinue"
+        TimeoutSec = 90
     }
     if ($Headers.Count -gt 0) {
         $request.Headers = $Headers
@@ -48,8 +56,8 @@ $anonymous = Invoke-NoRedirect "$base/"
 if ($anonymous.StatusCode -notin @(301, 302, 303, 307, 308)) {
     throw "Expected anonymous / to redirect to login; got HTTP $($anonymous.StatusCode)."
 }
-$location = $anonymous.Headers.Location
-if ([string]::IsNullOrWhiteSpace($location) -or -not $location.ToString().Contains("/auth/login")) {
+$location = [string]($anonymous.Headers.Location | Select-Object -First 1)
+if ([string]::IsNullOrWhiteSpace($location) -or -not $location.Contains("/auth/login")) {
     throw "Expected anonymous redirect location to include /auth/login; got '$location'."
 }
 
@@ -68,19 +76,31 @@ if ([string]::IsNullOrWhiteSpace($SessionCookie)) {
 }
 
 $headers = @{ Cookie = "lt_session=$SessionCookie" }
-$home = Invoke-WebRequest -Uri "$base/" -Headers $headers
-Assert-Contains $home.Content "Signed in as" "Authenticated home"
+$homePage = Invoke-WebRequest -Uri "$base/" -Headers $headers
+Assert-Contains $homePage.Content "Signed in as" "Authenticated home"
 
-$csrfMatch = [regex]::Match($home.Content, "name='csrfToken' value='([^']+)'")
+# The form is rendered on Train, while Today only renders the dashboard.
+$train = Invoke-WebRequest -Uri "$base/?tab=add-execution" -Headers $headers
+Assert-Contains $train.Content "data-current-section='train'" "Authenticated Train shell"
+
+$csrfMatch = [regex]::Match($train.Content, "name='csrfToken' value='([^']+)'")
 if (-not $csrfMatch.Success) {
     throw "Authenticated home did not include a CSRF token."
 }
 $csrf = $csrfMatch.Groups[1].Value
+$scopeMatch = [regex]::Match($train.Content, "name='accountScope' value='([^']+)'")
+if (-not $scopeMatch.Success) {
+    throw "Authenticated Train page did not include an account scope."
+}
+$accountScope = $scopeMatch.Groups[1].Value
+# Replay the same CSRF cookie and account-bound form fields a browser submits.
+$headers.Cookie = "lt_session=$SessionCookie; lt_csrf=$csrf"
 $stamp = Get-Date -Format "yyyyMMddHHmmss"
 $lift = "Smoke Lift $stamp"
 
 $addLift = Invoke-NoRedirect "$base/add-lift" -Method Post -Headers $headers -Body @{
     csrfToken = $csrf
+    accountScope = $accountScope
     name = $lift
     region = "UPPER"
     main = "accessory"
@@ -91,7 +111,7 @@ if ($addLift.StatusCode -ne 303) {
     throw "Expected add-lift to redirect after success; got HTTP $($addLift.StatusCode)."
 }
 
-$homeAfterLift = Invoke-WebRequest -Uri "$base/" -Headers $headers
+$homeAfterLift = Invoke-WebRequest -Uri "$base/?tab=add-execution" -Headers $headers
 $csrfMatch = [regex]::Match($homeAfterLift.Content, "name='csrfToken' value='([^']+)'")
 if (-not $csrfMatch.Success) {
     throw "Home after lift creation did not include a CSRF token."
@@ -100,6 +120,7 @@ $csrf = $csrfMatch.Groups[1].Value
 
 $addExecution = Invoke-NoRedirect "$base/add-execution" -Method Post -Headers $headers -Body @{
     csrfToken = $csrf
+    accountScope = $accountScope
     lift = $lift
     date = (Get-Date -Format "yyyy-MM-dd")
     setCount = "1"
@@ -112,5 +133,13 @@ $addExecution = Invoke-NoRedirect "$base/add-execution" -Method Post -Headers $h
 if ($addExecution.StatusCode -ne 303) {
     throw "Expected add-execution to redirect after success; got HTTP $($addExecution.StatusCode)."
 }
+
+$encodedLift = [uri]::EscapeDataString($lift)
+$detail = Invoke-WebRequest -Uri "$base/lift?name=$encodedLift" -Headers $headers
+Assert-Contains $detail.Content $lift "Created lift detail"
+Assert-Contains $detail.Content "hosted smoke" "Persisted execution detail"
+$history = Invoke-WebRequest -Uri "$base/?tab=executions&search=$encodedLift" -Headers $headers
+Assert-Contains $history.Content "data-current-section='history'" "Authenticated History shell"
+Assert-Contains $history.Content $lift "Persisted execution history"
 
 Write-Host "Hosted smoke passed."

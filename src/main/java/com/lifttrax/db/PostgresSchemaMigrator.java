@@ -1,5 +1,6 @@
 package com.lifttrax.db;
 
+import com.lifttrax.config.StartupDiagnostics;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +25,7 @@ final class PostgresSchemaMigrator {
     ensureMigrationsTable(connection);
     for (Migration migration : migrations) {
       if (!isApplied(connection, migration.version())) {
+        StartupDiagnostics.event("migrations", "applying=" + migration.name());
         applyMigration(connection, migration);
       }
     }

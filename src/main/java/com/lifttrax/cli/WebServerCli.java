@@ -3,6 +3,7 @@ package com.lifttrax.cli;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifttrax.config.LiftTraxConfig;
+import com.lifttrax.config.StartupDiagnostics;
 import com.lifttrax.db.AccountProfile;
 import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.db.TrainingDataStoreProvider;
@@ -43,27 +44,56 @@ public final class WebServerCli {
 
   private WebServerCli() {}
 
-  @SuppressWarnings("PMD.CloseResource")
-  public static void main(String[] args) throws Exception {
-    if (args.length > 1) {
-      throw new IllegalArgumentException("Usage: WebServerCli [port]");
+  public static void main(String[] args) {
+    Thread.setDefaultUncaughtExceptionHandler(
+        (thread, failure) -> {
+          StartupDiagnostics.event("uncaught", "failed");
+          StartupDiagnostics.failure(failure);
+        });
+    try {
+      launch(args);
+    } catch (Exception failure) {
+      StartupDiagnostics.event("startup", "failed");
+      StartupDiagnostics.failure(failure);
+      System.exit(1);
     }
-    int port = args.length == 1 ? Integer.parseInt(args[0]) : 8080;
+  }
 
-    TrainingDataStoreProvider db = TrainingDataStoreProvider.fromEnvironment();
+  @SuppressWarnings("PMD.CloseResource")
+  private static void launch(String... args) throws Exception {
+    int port = WebStartup.configuration(args);
     WebAuth auth = WebAuth.fromEnvironment(port);
-    RunningServer running = start(port, db, auth);
+    TrainingDataStoreProvider db = TrainingDataStoreProvider.fromEnvironment();
+    RunningServer running;
+    try {
+      StartupDiagnostics.event("http-bind", "starting");
+      running = start(port, db, auth);
+    } catch (Exception failure) {
+      StartupDiagnostics.event("http-bind", "failed");
+      try {
+        db.close();
+      } catch (Exception closeFailure) {
+        failure.addSuppressed(closeFailure);
+      }
+      throw failure;
+    }
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
                 () -> {
+                  StartupDiagnostics.event("shutdown", "requested");
                   running.close();
                   try {
                     db.close();
-                  } catch (Exception ignored) {
+                  } catch (Exception failure) {
+                    StartupDiagnostics.failure(failure);
                   }
+                  StartupDiagnostics.event("shutdown", "complete");
                 }));
 
+    StartupDiagnostics.event(
+        "readiness",
+        "ready address=" + running.server.getAddress().getHostString() + " port=" + running.port());
     System.out.println("LiftTrax web UI started.");
     System.out.printf(
         Locale.ROOT,

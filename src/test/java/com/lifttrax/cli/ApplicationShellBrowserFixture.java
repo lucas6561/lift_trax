@@ -59,7 +59,10 @@ final class ApplicationShellBrowserFixture {
         "Shared browser fixture");
     provider.setLiftCatalogShared(coach.authUserId(), true);
 
-    var auth = WebAuth.localDevelopment(Clock.systemUTC(), false);
+    var auth =
+        args.length == 1 && "--hosted-smoke".equals(args[0])
+            ? WebAuth.supabaseForTest(Clock.systemUTC())
+            : WebAuth.localDevelopment(Clock.systemUTC(), false);
     try (var server = WebServerCli.start(18091, provider, auth)) {
       System.out.println("BROWSER_FIXTURE_URL=http://127.0.0.1:" + server.port());
       System.out.println("BROWSER_FIXTURE_LOGIN=browser-check / browser-pass");

@@ -1,5 +1,6 @@
 package com.lifttrax.db;
 
+import com.lifttrax.config.StartupDiagnostics;
 import com.lifttrax.models.Lift;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -24,8 +25,15 @@ public final class HostedPostgresTrainingDataStoreProvider implements TrainingDa
 
   public HostedPostgresTrainingDataStoreProvider(HostedPostgresConfig config) throws Exception {
     this.config = config;
-    try (Connection connection = openConnection()) {
-      PostgresSchemaMigrator.migrate(connection);
+    try (Connection connection = PostgresStartupConnection.open(config)) {
+      StartupDiagnostics.event("migrations", "starting");
+      try {
+        PostgresSchemaMigrator.migrate(connection);
+        StartupDiagnostics.event("migrations", "complete");
+      } catch (Exception failure) {
+        StartupDiagnostics.event("migrations", "failed");
+        throw failure;
+      }
     }
   }
 
