@@ -8,6 +8,8 @@ import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
 import com.lifttrax.models.SetMetric;
+import com.lifttrax.workout.PlannedWorkoutFile;
+import com.lifttrax.workout.PlannedWorkoutJson;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -48,6 +50,21 @@ final class ApplicationShellBrowserFixture {
     String workoutJson =
         Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
     owner.saveWorkout("Browser Fixture Workout", workoutJson);
+    var source = PlannedWorkoutJson.readString(workoutJson);
+    var previewWeeks =
+        new PlannedWorkoutFile(
+            source.schemaVersion(),
+            new PlannedWorkoutFile.PlannedWorkoutMetadata(
+                "Preview Weeks Fixture", "Non-contiguous weeks in file order", 3, List.of()),
+            source.source(),
+            List.of(5, 2, 9).stream()
+                .map(
+                    number ->
+                        new PlannedWorkoutFile.PlannedWorkoutWeek(
+                            number, source.weeks().get(0).days()))
+                .toList(),
+            source.completedWorkouts());
+    owner.saveWorkout("Preview Weeks Fixture", PlannedWorkoutJson.writeString(previewWeeks));
 
     var coach = provider.createLocalAccount("fixture-coach", "coach@example.test", "coach-pass");
     var coachStore = provider.forUser(coach.authUserId());

@@ -124,6 +124,7 @@ final class PlannedWorkoutHtml {
         .append(WebHtml.escapeHtml(workoutFile.source().generatedAt()))
         .append("</p>");
     html.append(renderOutputActions(workoutFile));
+    html.append(PlannedWorkoutPreviewNavigationHtml.render(workoutFile));
     for (PlannedWorkoutFile.PlannedWorkoutWeek week : workoutFile.weeks()) {
       appendPlannedWeek(html, week, history);
     }
@@ -133,6 +134,7 @@ final class PlannedWorkoutHtml {
           .append(workoutFile.completedWorkouts().size())
           .append(" completed workouts recorded.</p>");
     }
+    html.append(PlannedWorkoutPreviewNavigationHtml.script());
     return html.toString();
   }
 
@@ -140,7 +142,10 @@ final class PlannedWorkoutHtml {
       StringBuilder html,
       PlannedWorkoutFile.PlannedWorkoutWeek week,
       PlannedWorkoutHistory.Snapshot history) {
-    html.append("<section class='planned-week'><h2>Week ")
+    html.append(
+            "<section class='planned-week'><h2 tabindex='-1' class='preview-week-heading' id='preview-week-")
+        .append(week.weekNumber())
+        .append("'>Week ")
         .append(week.weekNumber())
         .append("</h2>");
     for (PlannedWorkoutFile.PlannedWorkoutDay day : week.days()) {

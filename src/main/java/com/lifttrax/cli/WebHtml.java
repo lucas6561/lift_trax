@@ -200,6 +200,16 @@ final class WebHtml {
                 .planned-workalong-form { max-width: 620px; display: flex; flex-direction: column; gap: 0.55rem; }
                 .planned-workalong-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
                 .planned-week { margin-top: 0.75rem; }
+                .preview-week-navigation { display: block; margin: 0.75rem 0; padding: 0.55rem; border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; background: #0f172a; }
+                .preview-week-navigation.is-enhanced { position: sticky; top: calc(var(--preview-header-height, 4rem) + 0.35rem); z-index: 10; }
+                .preview-week-controls:not([hidden]) { display: grid; grid-template-columns: auto minmax(7rem, 1fr) auto; gap: 0.4rem; align-items: end; }
+                .preview-week-controls label, .preview-week-controls select, .preview-week-controls button { margin-bottom: 0; }
+                .preview-week-controls button, .preview-week-controls select { min-height: 44px; padding: 0.45rem; font-size: 0.85rem; }
+                .preview-week-current { grid-column: 1 / -1; color: #5eead4; font-size: 0.85rem; }
+                .preview-week-links a { display: inline-block; min-height: 44px; padding: 0.35rem; }
+                .preview-week-heading { scroll-margin-top: calc(var(--preview-header-height, 4rem) + var(--preview-navigation-height, 0px) + 1rem); }
+                .preview-week-heading[aria-current='location'] { color: #5eead4; }
+                .preview-week-heading:focus-visible { outline: 2px solid #5eead4; outline-offset: 0.2rem; }
                 .planned-day { border-top: 1px solid var(--pico-muted-border-color); padding-top: 0.5rem; margin-top: 0.55rem; }
                 .planned-block { border: 1px solid var(--pico-muted-border-color); border-radius: 0.5rem; padding: 0.5rem; margin-bottom: 0.5rem; background: rgba(9, 16, 30, 0.7); }
                 .planned-block header h4 { margin-bottom: 0.15rem; }
@@ -302,6 +312,8 @@ final class WebHtml {
                   .planned-import-layout { grid-template-columns: 1fr; }
                   .planned-import-actions { border-left: 0; border-top: 1px solid var(--pico-muted-border-color); padding-left: 0; padding-top: 0.65rem; }
                   .planned-workalong-grid { grid-template-columns: 1fr; }
+                  .preview-week-controls:not([hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  .preview-week-controls label { grid-column: 1 / -1; grid-row: 1; }
                   .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
                   .tab { min-width: 0; width: 100%; }
                   .tab-panel { padding: 0.45rem; }

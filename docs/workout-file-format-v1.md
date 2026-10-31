@@ -66,6 +66,14 @@ preview route. When imported exercise names match local lifts, the preview also
 shows the same local history context used by generated waves: `Last:` and `Best
 1RM:`.
 
+App Preview keeps every week visible. For multi-week files, the preview week
+selector and Previous Week / Next Week controls follow the file's actual week
+numbers and order. Choosing a week scrolls to and focuses its heading without
+reloading. Headings use stable fragments such as `#preview-week-5`, including
+in saved-workout links, and support browser back/forward and refresh. With
+JavaScript disabled, direct week links remain available. Single-week previews
+keep the heading target without extra navigation controls.
+
 From the preview, `Start This Day` opens the follow-along logging screen for one
 week and day. Planned set counts seed editable result fields for reps,
 left/right reps, time, and distance. Current generated planned sets use percent
