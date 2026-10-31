@@ -37,7 +37,7 @@ final class AccountPageHtml {
             ? ""
             : "<p class='status "
                 + WebHtml.escapeHtml(messageType)
-                + "'>"
+                + "' role='status' aria-live='polite'>"
                 + WebHtml.escapeHtml(message)
                 + "</p>";
     String body =
@@ -62,7 +62,6 @@ final class AccountPageHtml {
             <h2>Data export</h2>
             <p>Download a private JSON copy of your lift catalog, execution history, and saved planned workouts. The export contains only this signed-in account's data.</p>
             <p><a href='/account/export?format=json' download>Download my data</a></p>
-            <p><a href='/'>Back to LiftTrax</a></p>
             """
             .formatted(status, WebHtml.escapeHtml(value), shareLifts ? "checked" : "");
     if (localPasswords) {
@@ -78,7 +77,7 @@ final class AccountPageHtml {
           </form>
           """;
     }
-    return WebHtml.wrapPage("Account", body);
+    return ApplicationShellHtml.wrapPage("Account", ApplicationShellHtml.Section.ACCOUNT, body);
   }
 
   static String suggestedUsername(String suggestion) {

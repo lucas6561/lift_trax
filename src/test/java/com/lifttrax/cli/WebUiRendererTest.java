@@ -410,7 +410,7 @@ class WebUiRendererTest {
     String html = PlannedWorkoutHtml.renderPage(workoutFile);
 
     assertTrue(html.contains("Imported Wave"));
-    assertTrue(html.contains("Back to Import Workout"));
+    assertTrue(html.contains("Back to Workouts"));
     assertTrue(html.contains("Week 1"));
     assertTrue(html.contains("Monday"));
     assertTrue(html.contains("Backoff Sets"));

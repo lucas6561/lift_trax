@@ -7,9 +7,7 @@ final class ExerciseCatalogImportHtml {
   private ExerciseCatalogImportHtml() {}
 
   static String render(String document, CatalogImportPlan plan, String error, String success) {
-    StringBuilder body =
-        new StringBuilder(
-            "<h1>Import exercise catalog</h1><p><a href='/'>Back to LiftTrax</a></p>");
+    StringBuilder body = new StringBuilder("<h1>Import exercise catalog</h1>");
     body.append(
         "<p>Choose a LiftTrax exercise-catalog JSON file. Preview changes, then confirm to save them to your account. Completed history is retained.</p>");
     if (!error.isBlank()) {
@@ -54,6 +52,11 @@ final class ExerciseCatalogImportHtml {
             .append("'/><button type='submit'>Confirm and save catalog</button></form>");
       }
     }
-    return WebHtml.wrapPage("Import exercise catalog", body.toString());
+    return ApplicationShellHtml.wrapPage(
+        "Import exercise catalog",
+        ApplicationShellHtml.Section.EXERCISES,
+        "Exercises",
+        "/?tab=exercises",
+        body.toString());
   }
 }

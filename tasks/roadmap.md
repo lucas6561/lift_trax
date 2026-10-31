@@ -2,6 +2,12 @@
 
 LiftTrax is becoming a practical strength-training planning and logging system: quality software with a strict engineering bar, an easy workout experience on desktop and phone, and a schema-driven program builder that can support coaches, generated programs, and future distribution.
 
+The current interface direction is a single authenticated application shell
+organized around user tasks: Today, Train, Workouts, History, and Exercises,
+with Account controls in the signed-in profile area. New interface work should
+extend this structure instead of adding equal-weight root tabs or standalone
+authenticated pages.
+
 ## North star
 
 Make it easy for a lifter or coach to answer four questions:
@@ -88,6 +94,10 @@ Keep the database trustworthy as the app grows: migrations, seed data, backup/re
 ### Interface
 
 Improve the web UI so it feels dense, fast, and usable during an actual lifting session on both desktop and phone.
+
+`LT-0101` unifies the authenticated UI around task-based desktop and mobile
+navigation while preserving direct server-rendered routes and offline workout
+draft behavior.
 
 ### Platform and distribution
 

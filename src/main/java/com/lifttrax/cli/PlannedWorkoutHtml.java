@@ -111,7 +111,7 @@ final class PlannedWorkoutHtml {
   static String renderPage(PlannedWorkoutFile workoutFile, Database db) {
     PlannedWorkoutHistory.Snapshot history = PlannedWorkoutHistory.load(db, workoutFile);
     StringBuilder html = new StringBuilder();
-    html.append("<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>");
+    html.append("<p><a href='/?tab=import-workout'>Back to Workouts</a></p>");
     html.append("<h1>").append(WebHtml.escapeHtml(workoutFile.metadata().name())).append("</h1>");
     html.append("<p class='muted'>")
         .append(WebHtml.escapeHtml(workoutFile.metadata().description()))
@@ -157,7 +157,7 @@ final class PlannedWorkoutHtml {
 
   static String renderWorkAlongPage(PlannedWorkoutFile workoutFile) {
     StringBuilder html = new StringBuilder();
-    html.append("<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>")
+    html.append("<p><a href='/?tab=import-workout'>Back to Workouts</a></p>")
         .append("<h1>Work Along</h1>")
         .append("<p class='muted'>")
         .append(WebHtml.escapeHtml(workoutFile.metadata().name()))

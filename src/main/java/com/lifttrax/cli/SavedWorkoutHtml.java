@@ -8,7 +8,7 @@ final class SavedWorkoutHtml {
   private SavedWorkoutHtml() {}
 
   static String renderLibrary(TrainingDataStore db) {
-    StringBuilder html = new StringBuilder("<h2>Saved Workouts</h2>");
+    StringBuilder html = new StringBuilder("<h2 id='saved-workouts'>Saved Workouts</h2>");
     html.append("<p class='muted'>Save a workout once, then open it here whenever you train.</p>");
     try {
       var workouts = db.listSavedWorkouts();
@@ -54,7 +54,7 @@ final class SavedWorkoutHtml {
     } catch (Exception e) {
       html.append("<p class='status error'>Could not load saved workouts. Please try again.</p>");
     }
-    return html.append("<h2>Upload Workout</h2>")
+    return html.append("<h2 id='workout-upload'>Upload Workout</h2>")
         .append(PlannedWorkoutHtml.renderImportPanel())
         .toString();
   }

@@ -22,7 +22,8 @@ class WebHtmlTest {
 
     assertTrue(html.contains("@media (max-width: 720px)"));
     assertTrue(
-        html.contains(".save-execution-btn { position: sticky; bottom: 0.35rem; width: 100%"));
+        html.contains(".save-execution-btn { position: sticky; bottom: 4.45rem; width: 100%"));
+    assertTrue(html.contains(".mobile-primary-navigation { display: block; position: fixed;"));
     assertTrue(html.contains(".session-block-nav { grid-template-columns: 1fr; }"));
     assertTrue(html.contains(".session-block-nav .js-session-skip-block { width: 100%; }"));
     assertTrue(

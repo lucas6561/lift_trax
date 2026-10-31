@@ -23,7 +23,7 @@ final class LiftImportHtml {
         <h1>Import lifts from another user</h1>
         <p>Choose a shared lift list, then select the lifts to copy into your own list.
         Existing lifts are skipped. Workout history is not copied.</p>
-        <p><a href='/?tab=add-execution'>Back to Add Execution</a> · <a href='/account'>Manage my sharing</a></p>
+        <p><a href='/account'>Manage my sharing</a></p>
         """);
     if (!message.isBlank()) {
       body.append("<p role='status' class='status ")
@@ -58,7 +58,12 @@ final class LiftImportHtml {
         appendPicker(body, source, lifts, ownLifts);
       }
     }
-    return WebHtml.wrapPage("Import Lifts", body.toString());
+    return ApplicationShellHtml.wrapPage(
+        "Import shared lifts",
+        ApplicationShellHtml.Section.EXERCISES,
+        "Exercises",
+        "/?tab=exercises",
+        body.toString());
   }
 
   private static void appendPicker(

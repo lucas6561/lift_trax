@@ -162,13 +162,29 @@ final class WebAuth {
     Object configuredLabel = exchange.getAttribute(ACCOUNT_LABEL_ATTRIBUTE);
     String label =
         configuredLabel instanceof String value && !value.isBlank() ? value : user.get().label();
+    String accountCurrent =
+        html.contains("data-current-section='account'") ? " aria-current='page'" : "";
     String accountBar =
-        "<section class='auth-bar'><a href='/account'>Signed in as "
+        "<section class='auth-bar' aria-label='Account controls'><a href='/account'"
+            + accountCurrent
+            + ">Signed in as "
             + WebHtml.escapeHtml(label)
             + "</a><form method='post' action='/auth/logout'>"
             + "<button type='submit' class='secondary compact-btn'>Sign Out</button></form></section>";
-    return html.replace(
-        "<main class='container'>",
+    String scopedHtml =
+        html.replace(
+            "<main class='container'>",
+            "<main class='container' data-account-scope='"
+                + BrowserAccountScope.forUser(user.get().id())
+                + "'>");
+    if (scopedHtml.contains("<div class='app-profile-slot' data-profile-slot></div>")) {
+      return scopedHtml.replace(
+          "<div class='app-profile-slot' data-profile-slot></div>", accountBar);
+    }
+    return scopedHtml.replace(
+        "<main class='container' data-account-scope='"
+            + BrowserAccountScope.forUser(user.get().id())
+            + "'>",
         "<main class='container' data-account-scope='"
             + BrowserAccountScope.forUser(user.get().id())
             + "'>"
@@ -332,8 +348,9 @@ final class WebAuth {
     } catch (IllegalArgumentException e) {
       WebServerCli.sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Password change",
+              ApplicationShellHtml.Section.ACCOUNT,
               "<h1>Password change</h1><p class='status error'>"
                   + WebHtml.escapeHtml(e.getMessage())
                   + "</p><p><a href='/account'>Back to Account</a></p>"));

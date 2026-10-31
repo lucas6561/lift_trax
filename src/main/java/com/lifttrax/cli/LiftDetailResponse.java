@@ -25,8 +25,10 @@ final class LiftDetailResponse {
     if (name == null || name.isBlank()) {
       WebServerCli.sendHtml(
           exchange,
-          WebHtml.wrapPage(
-              "Missing lift", "<h1>Missing lift name</h1><p><a href='/'>Back</a></p>"));
+          ApplicationShellHtml.wrapPage(
+              "Missing lift",
+              ApplicationShellHtml.Section.EXERCISES,
+              "<h1>Missing lift name</h1><p><a href='/?tab=exercises'>Back to Exercises</a></p>"));
       return;
     }
 
@@ -57,8 +59,7 @@ final class LiftDetailResponse {
           performed.stream().map(com.lifttrax.db.LiftExecutionRow::execution).toList();
 
       StringBuilder body = new StringBuilder();
-      body.append("<p><a href='/'>← Back to all lifts</a></p>")
-          .append("<h1>")
+      body.append("<h1>")
           .append(WebHtml.escapeHtml(lift.name()))
           .append("</h1>")
           .append("<p><strong>Region:</strong> ")
@@ -98,15 +99,23 @@ final class LiftDetailResponse {
         body.append("</tbody></table>");
       }
 
-      WebServerCli.sendHtml(exchange, WebHtml.wrapPage(lift.name(), body.toString()));
+      WebServerCli.sendHtml(
+          exchange,
+          ApplicationShellHtml.wrapPage(
+              lift.name(),
+              ApplicationShellHtml.Section.EXERCISES,
+              "Exercises",
+              "/?tab=exercises",
+              body.toString()));
     } catch (Exception e) {
       WebServerCli.sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Error",
+              ApplicationShellHtml.Section.EXERCISES,
               "<h1>Error loading lift</h1><pre>"
                   + WebHtml.escapeHtml(e.getMessage())
-                  + "</pre><p><a href='/'>Back</a></p>"));
+                  + "</pre><p><a href='/?tab=exercises'>Back to Exercises</a></p>"));
     }
   }
 }

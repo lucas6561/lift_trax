@@ -183,6 +183,13 @@ tasks.register('runHostedWeb', JavaExec) {
     systemProperty 'lifttrax.config', 'config/lifttrax-hosted.properties'
 }
 
+tasks.register('runBrowserFixture', JavaExec) {
+    group = 'verification'
+    description = 'Runs an isolated H2-backed web fixture for authenticated browser checks.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.lifttrax.cli.ApplicationShellBrowserFixture'
+}
+
 tasks.register('postgresSqliteBackup', JavaExec) {
     group = 'application'
     description = 'Creates a validated point-in-time SQLite snapshot of Postgres.'

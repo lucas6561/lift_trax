@@ -1036,7 +1036,7 @@ class WebServerCliTest {
   }
 
   @Test
-  void renderTabbedLayoutIncludesExpectedTabs() {
+  void renderTaskLayoutKeepsSecondaryViewsAndExistingFlows() {
     List<Lift> lifts =
         List.of(
             new Lift(
@@ -1069,12 +1069,12 @@ class WebServerCliTest {
             LocalDate.parse("2026-01-07"),
             6);
 
-    assertTrue(html.contains("Add Execution"));
+    assertTrue(html.contains("<h1>History</h1>"));
+    assertTrue(html.contains("aria-label='History views'"));
     assertTrue(html.contains("Executions"));
-    assertTrue(html.contains("Workout Waves"));
-    assertTrue(html.contains("Import Workout"));
     assertTrue(html.contains("Query"));
-    assertTrue(html.contains("Last Week"));
+    assertTrue(html.contains("Weekly"));
+    assertFalse(html.contains("role='tablist'"));
     assertTrue(html.contains("data-initial-tab='query'"));
     assertTrue(html.contains("Run Query"));
     assertTrue(html.contains("data-filter-option"));
@@ -1082,7 +1082,7 @@ class WebServerCliTest {
     assertTrue(html.contains("select name='queryLift'"));
     assertTrue(html.contains("query result"));
     assertTrue(html.contains("js-filter-name"));
-    assertTrue(html.split("js-filter-name", -1).length - 1 >= 4);
+    assertTrue(html.contains("js-filter-name"));
     assertTrue(html.contains("js-filter-muscle"));
     assertTrue(html.contains("multiple"));
     assertTrue(html.contains("js-clear-filters"));

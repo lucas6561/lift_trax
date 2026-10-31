@@ -269,8 +269,9 @@ public final class WebServerCli {
     } catch (Exception e) {
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Account Error",
+              ApplicationShellHtml.Section.ACCOUNT,
               "<h1>Account Error</h1><p class='status error'>Account settings are temporarily unavailable.</p>"));
     }
   }
@@ -337,8 +338,9 @@ public final class WebServerCli {
     } catch (Exception e) {
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Import Lifts",
+              ApplicationShellHtml.Section.EXERCISES,
               "<h1>Import Lifts</h1><p class='status error'>Could not import lifts. Please try again.</p>"
                   + "<p><a href='/import-lifts'>Back to import</a></p>"));
     }
@@ -398,21 +400,22 @@ public final class WebServerCli {
       }
 
       String body =
-          PlannedWorkoutSessionHtml.renderResumePanel(userIdFor(exchange))
-              + WebUiRenderer.renderIndexBody(
-                  db,
-                  lifts,
-                  search,
-                  queryLift,
-                  activeTab,
-                  statusMessage,
-                  statusType,
-                  prefill,
-                  lastWeekStart,
-                  lastWeekEnd,
-                  waveWeeks,
-                  query);
-      sendHtml(exchange, WebHtml.wrapPage("LiftTrax Lifts", body));
+          WebUiRenderer.renderIndexBody(
+              db,
+              lifts,
+              search,
+              queryLift,
+              activeTab,
+              statusMessage,
+              statusType,
+              prefill,
+              lastWeekStart,
+              lastWeekEnd,
+              waveWeeks,
+              query,
+              PlannedWorkoutSessionHtml.renderResumePanel(userIdFor(exchange)));
+      ApplicationShellHtml.Section section = ApplicationShellHtml.Section.forTab(activeTab);
+      sendHtml(exchange, ApplicationShellHtml.wrapPage(section.label(), section, body));
     } catch (Exception e) {
       String message =
           e.getMessage() == null
@@ -420,8 +423,10 @@ public final class WebServerCli {
               : e.getClass().getName() + ": " + e.getMessage();
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
-              "Error", "<h1>Error</h1><pre>" + WebHtml.escapeHtml(message) + "</pre>"));
+          ApplicationShellHtml.wrapPage(
+              "Error",
+              ApplicationShellHtml.Section.TODAY,
+              "<h1>Error</h1><pre>" + WebHtml.escapeHtml(message) + "</pre>"));
     }
   }
 
@@ -761,7 +766,14 @@ public final class WebServerCli {
           "work-along".equals(query.get("view"))
               ? PlannedWorkoutHtml.renderWorkAlongPage(workout)
               : PlannedWorkoutHtml.renderPage(workout, db);
-      sendHtml(exchange, WebHtml.wrapPage(workout.metadata().name(), body));
+      sendHtml(
+          exchange,
+          ApplicationShellHtml.wrapPage(
+              workout.metadata().name(),
+              ApplicationShellHtml.Section.WORKOUTS,
+              "Workouts",
+              "/?tab=import-workout",
+              body));
     } catch (Exception e) {
       savedWorkoutRedirect(exchange, "error", "Could not load workout: " + e.getMessage());
     }
@@ -813,14 +825,19 @@ public final class WebServerCli {
       PlannedWorkoutFile workoutFile = loadPlannedWorkout(values);
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
-              workoutFile.metadata().name(), PlannedWorkoutHtml.renderPage(workoutFile, db)));
+          ApplicationShellHtml.wrapPage(
+              workoutFile.metadata().name(),
+              ApplicationShellHtml.Section.WORKOUTS,
+              "Workouts",
+              "/?tab=import-workout",
+              PlannedWorkoutHtml.renderPage(workoutFile, db)));
     } catch (Exception e) {
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Planned Workout Import Error",
-              "<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>"
+              ApplicationShellHtml.Section.WORKOUTS,
+              "<p><a href='/?tab=import-workout'>Back to Workouts</a></p>"
                   + "<h1>Import Error</h1><p class='status error'>"
                   + WebHtml.escapeHtml(e.getMessage())
                   + "</p>"));
@@ -852,7 +869,12 @@ public final class WebServerCli {
       PlannedWorkoutFile workoutFile = loadPlannedWorkout(parseForm(exchange.getRequestBody()));
       sendHtml(
           exchange,
-          WebHtml.wrapPage("Work Along", PlannedWorkoutHtml.renderWorkAlongPage(workoutFile)));
+          ApplicationShellHtml.wrapPage(
+              "Work Along",
+              ApplicationShellHtml.Section.TRAIN,
+              "Workouts",
+              "/?tab=import-workout",
+              PlannedWorkoutHtml.renderWorkAlongPage(workoutFile)));
     } catch (Exception e) {
       sendPlannedWorkoutError(exchange, "Could not prepare workout", e);
     }
@@ -928,12 +950,16 @@ public final class WebServerCli {
   static void handlePlannedWorkoutSession(HttpExchange exchange, TrainingDataStoreProvider rootDb)
       throws IOException {
     if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+      if (WebAuth.currentUser(exchange).isPresent()) {
+        prepareAccountLabel(exchange, rootDb);
+      }
       Map<String, String> query = parseQuery(exchange.getRequestURI());
       String draftKey = query.getOrDefault("draft", "").trim();
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Resume Workout",
+              ApplicationShellHtml.Section.TRAIN,
               PlannedWorkoutSessionHtml.renderResumePage(draftKey, userIdFor(exchange))));
       return;
     }
@@ -952,8 +978,9 @@ public final class WebServerCli {
       lifts.sort(Comparator.comparing(Lift::name));
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Train " + dayOfWeek,
+              ApplicationShellHtml.Section.TRAIN,
               PlannedWorkoutSessionHtml.renderPage(
                   workoutFile,
                   weekNumber,
@@ -1000,8 +1027,9 @@ public final class WebServerCli {
               form.getOrDefault("submissionId", ""));
       sendHtml(
           exchange,
-          WebHtml.wrapPage(
+          ApplicationShellHtml.wrapPage(
               "Workout Saved",
+              ApplicationShellHtml.Section.TRAIN,
               PlannedWorkoutSessionHtml.renderSavedPage(
                   workoutFile,
                   weekNumber,
@@ -1061,9 +1089,10 @@ public final class WebServerCli {
       HttpExchange exchange, String heading, Exception error) throws IOException {
     sendHtml(
         exchange,
-        WebHtml.wrapPage(
+        ApplicationShellHtml.wrapPage(
             heading,
-            "<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>"
+            ApplicationShellHtml.Section.WORKOUTS,
+            "<p><a href='/?tab=import-workout'>Back to Workouts</a></p>"
                 + "<h1>"
                 + WebHtml.escapeHtml(heading)
                 + "</h1><p class='status error'>"
@@ -1139,13 +1168,16 @@ public final class WebServerCli {
       return;
     }
 
+    String targetTab = "add-execution";
     try {
       TrainingDataStore db = databaseFor(exchange, rootDb);
       Map<String, String> form = parseForm(exchange.getRequestBody());
+      targetTab = "exercises".equals(form.getOrDefault("tab", "")) ? "exercises" : "add-execution";
       String name = form.getOrDefault("name", "").trim();
       if (name.isBlank()) {
         redirect(
-            exchange, "/?tab=add-execution&statusType=error&status=Lift%20name%20is%20required");
+            exchange,
+            "/?tab=" + targetTab + "&statusType=error&status=Lift%20name%20is%20required");
         return;
       }
 
@@ -1157,14 +1189,18 @@ public final class WebServerCli {
       db.addLift(name, region, main, muscles, notes);
       redirect(
           exchange,
-          "/?tab=add-execution&statusType=success&status="
+          "/?tab="
+              + targetTab
+              + "&statusType=success&status="
               + WebUiRenderer.urlEncode("Created lift: " + name)
               + "&prefillLift="
               + WebUiRenderer.urlEncode(name));
     } catch (Exception e) {
       redirect(
           exchange,
-          "/?tab=add-execution&statusType=error&status="
+          "/?tab="
+              + targetTab
+              + "&statusType=error&status="
               + WebUiRenderer.urlEncode("Failed to create lift: " + e.getMessage()));
     }
   }

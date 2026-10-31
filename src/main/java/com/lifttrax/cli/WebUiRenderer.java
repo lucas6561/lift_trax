@@ -111,10 +111,40 @@ final class WebUiRenderer {
       LocalDate lastWeekEnd,
       int waveWeeks,
       Map<String, String> waveInput) {
+    return renderIndexBody(
+        db,
+        lifts,
+        search,
+        queryLift,
+        activeTab,
+        statusMessage,
+        statusType,
+        prefill,
+        lastWeekStart,
+        lastWeekEnd,
+        waveWeeks,
+        waveInput,
+        "");
+  }
+
+  static String renderIndexBody(
+      TrainingDataStore db,
+      List<Lift> lifts,
+      String search,
+      String queryLift,
+      String activeTab,
+      String statusMessage,
+      String statusType,
+      AddExecutionPrefill prefill,
+      LocalDate lastWeekStart,
+      LocalDate lastWeekEnd,
+      int waveWeeks,
+      Map<String, String> waveInput,
+      String resumePanel) {
     String normalizedTab = normalizeTab(activeTab);
     String dashboardContent =
         "dashboard".equals(normalizedTab)
-            ? renderDailyDashboard(db, LocalDate.now())
+            ? resumePanel + renderDailyDashboard(db, LocalDate.now())
             : deferredTabContent("Dashboard");
     String executionContent =
         "executions".equals(normalizedTab)
@@ -136,6 +166,10 @@ final class WebUiRenderer {
         "import-workout".equals(normalizedTab)
             ? SavedWorkoutHtml.renderLibrary(db)
             : deferredTabContent("Import Workout");
+    String exerciseContent =
+        "exercises".equals(normalizedTab)
+            ? renderExecutionList(db, lifts, search, "Exercise catalog:", "exercises")
+            : deferredTabContent("Exercises");
     return renderTabbedLayout(
         lifts,
         search,
@@ -147,13 +181,15 @@ final class WebUiRenderer {
             queryContent,
             lastWeekContent,
             waveContent,
-            importWorkoutContent),
+            importWorkoutContent,
+            exerciseContent),
         statusMessage,
         statusType,
         prefill,
         lastWeekStart,
         lastWeekEnd,
-        waveWeeks);
+        waveWeeks,
+        resumePanel);
   }
 
   static List<Lift> loadIndexLifts(TrainingDataStore db, String activeTab) throws Exception {
@@ -171,7 +207,8 @@ final class WebUiRenderer {
           "import-workout",
           "executions",
           "query",
-          "last-week" ->
+          "last-week",
+          "exercises" ->
           activeTab.trim();
       default -> "dashboard";
     };
@@ -212,13 +249,15 @@ final class WebUiRenderer {
             queryContent,
             lastWeekContent,
             waveContent,
-            importWorkoutContent),
+            importWorkoutContent,
+            executionContent),
         statusMessage,
         statusType,
         prefill,
         lastWeekStart,
         lastWeekEnd,
-        waveWeeks);
+        waveWeeks,
+        "");
   }
 
   static String renderTabbedLayout(
@@ -232,7 +271,8 @@ final class WebUiRenderer {
       AddExecutionPrefill prefill,
       LocalDate lastWeekStart,
       LocalDate lastWeekEnd,
-      int waveWeeks) {
+      int waveWeeks,
+      String resumePanel) {
     String filterControls =
         switch (activeTab) {
           case "add-execution", "executions", "query" -> renderFilterControls(lifts, search);
@@ -240,16 +280,10 @@ final class WebUiRenderer {
         };
     String addExecutionContent =
         "add-execution".equals(activeTab)
-            ? renderAddExecutionForm(lifts, statusMessage, statusType, prefill)
+            ? TaskNavigationHtml.renderTrainIntro(resumePanel)
+                + renderAddExecutionForm(lifts, statusMessage, statusType, prefill)
             : deferredTabContent("Add Execution");
     String queryControls = "query".equals(activeTab) ? renderQueryControls(lifts, queryLift) : "";
-    String dashboardTabClass = tabClass(activeTab, "dashboard");
-    String addExecutionTabClass = tabClass(activeTab, "add-execution");
-    String wavesTabClass = tabClass(activeTab, "waves");
-    String importWorkoutTabClass = tabClass(activeTab, "import-workout");
-    String executionsTabClass = tabClass(activeTab, "executions");
-    String queryTabClass = tabClass(activeTab, "query");
-    String lastWeekTabClass = tabClass(activeTab, "last-week");
     String dashboardPanelClass = panelClass(activeTab, "dashboard");
     String addExecutionPanelClass = panelClass(activeTab, "add-execution");
     String executionsPanelClass = panelClass(activeTab, "executions");
@@ -257,6 +291,7 @@ final class WebUiRenderer {
     String importWorkoutPanelClass = panelClass(activeTab, "import-workout");
     String queryPanelClass = panelClass(activeTab, "query");
     String lastWeekPanelClass = panelClass(activeTab, "last-week");
+    String exercisesPanelClass = panelClass(activeTab, "exercises");
     String dashboardLoaded = loaded(activeTab, "dashboard");
     String addExecutionLoaded = loaded(activeTab, "add-execution");
     String executionsLoaded = loaded(activeTab, "executions");
@@ -264,45 +299,48 @@ final class WebUiRenderer {
     String importWorkoutLoaded = loaded(activeTab, "import-workout");
     String queryLoaded = loaded(activeTab, "query");
     String lastWeekLoaded = loaded(activeTab, "last-week");
+    String exercisesLoaded = loaded(activeTab, "exercises");
 
     return """
                 <div class='tabbed-ui' data-initial-tab='%s'>
-                  <div class='tabs' role='tablist' aria-label='LiftTrax sections'>
-                    <button class='%s' role='tab' type='button' data-tab='dashboard' aria-selected='%s'>Dashboard</button>
-                    <button class='%s' role='tab' type='button' data-tab='add-execution' aria-selected='%s'>Add Execution</button>
-                    <button class='%s' role='tab' type='button' data-tab='waves' aria-selected='%s'>Workout Waves</button>
-                    <button class='%s' role='tab' type='button' data-tab='import-workout' aria-selected='%s'>Saved / Import Workouts</button>
-                    <button class='%s' role='tab' type='button' data-tab='executions' aria-selected='%s'>Executions</button>
-                    <button class='%s' role='tab' type='button' data-tab='query' aria-selected='%s'>Query</button>
-                    <button class='%s' role='tab' type='button' data-tab='last-week' aria-selected='%s'>Last Week</button>
-                  </div>
-                  <section class='%s' data-panel='dashboard' data-loaded='%s' role='tabpanel'>
+                  %s
+                  <section class='%s' data-panel='dashboard' data-loaded='%s' role='region' aria-label='Today'>
                     %s
                   </section>
-                  <section class='%s' data-panel='add-execution' data-loaded='%s' role='tabpanel'>
+                  <section class='%s' data-panel='add-execution' data-loaded='%s' role='region' aria-label='Quick log'>
                     <h2>Add Execution</h2>
                     %s
                     %s
                   </section>
-                  <section class='%s' data-panel='executions' data-loaded='%s' role='tabpanel'>
+                  <section class='%s' data-panel='executions' data-loaded='%s' role='region' aria-label='Execution history'>
                     %s
                     %s
                   </section>
-                  <section class='%s' data-panel='waves' data-loaded='%s' role='tabpanel'>
+                  <section class='%s' data-panel='exercises' data-loaded='%s' role='region' aria-label='Exercise catalog'>
+                    %s
+                    %s
+                    %s
+                    <div class='compact-actions page-actions'>
+                      <a class='compact-btn secondary' href='/import-exercise-catalog'>Import catalog file</a>
+                      <a class='compact-btn secondary' href='/import-lifts'>Import shared lifts</a>
+                    </div>
+                    %s
+                  </section>
+                  <section class='%s' data-panel='waves' data-loaded='%s' role='region' aria-label='Wave generation'>
                     <h2>Workout Waves</h2>
                     %s
                   </section>
-                  <section class='%s' data-panel='import-workout' data-loaded='%s' role='tabpanel'>
+                  <section class='%s' data-panel='import-workout' data-loaded='%s' role='region' aria-label='Saved and imported workouts'>
                     <h2>Workouts</h2>
                     %s
                   </section>
-                  <section class='%s' data-panel='query' data-loaded='%s' role='tabpanel'>
+                  <section class='%s' data-panel='query' data-loaded='%s' role='region' aria-label='History query'>
                     <h2>Query</h2>
                     %s
                     %s
                     %s
                   </section>
-                  <section class='%s' data-panel='last-week' data-loaded='%s' role='tabpanel'>
+                  <section class='%s' data-panel='last-week' data-loaded='%s' role='region' aria-label='Weekly history'>
                     <h2>Last Week</h2>
                     <p class='muted'>This tab shows a 7-day window. Use Previous Week or adjust the dates to view older history.</p>
                     <form method='get' action='/' class='query-form compact-actions'>
@@ -1319,20 +1357,7 @@ final class WebUiRenderer {
                 """
         .formatted(
             WebHtml.escapeHtml(activeTab),
-            dashboardTabClass,
-            selected(activeTab, "dashboard"),
-            addExecutionTabClass,
-            selected(activeTab, "add-execution"),
-            wavesTabClass,
-            selected(activeTab, "waves"),
-            importWorkoutTabClass,
-            selected(activeTab, "import-workout"),
-            executionsTabClass,
-            selected(activeTab, "executions"),
-            queryTabClass,
-            selected(activeTab, "query"),
-            lastWeekTabClass,
-            selected(activeTab, "last-week"),
+            TaskNavigationHtml.renderSectionHeading(activeTab),
             dashboardPanelClass,
             dashboardLoaded,
             tabContent.dashboardContent(),
@@ -1344,6 +1369,12 @@ final class WebUiRenderer {
             executionsLoaded,
             "executions".equals(activeTab) ? filterControls : "",
             tabContent.executionContent(),
+            exercisesPanelClass,
+            exercisesLoaded,
+            "exercises".equals(activeTab) ? filterControls : "",
+            TaskNavigationHtml.renderStatusMessage(statusMessage, statusType),
+            TaskNavigationHtml.renderNewLiftForm(),
+            tabContent.exerciseContent(),
             wavesPanelClass,
             wavesLoaded,
             tabContent.waveContent(),
@@ -1369,18 +1400,11 @@ final class WebUiRenderer {
       String queryContent,
       String lastWeekContent,
       String waveContent,
-      String importWorkoutContent) {}
-
-  private static String tabClass(String activeTab, String tab) {
-    return tab.equals(activeTab) ? "tab is-active" : "tab";
-  }
+      String importWorkoutContent,
+      String exerciseContent) {}
 
   private static String panelClass(String activeTab, String tab) {
     return tab.equals(activeTab) ? "tab-panel is-active" : "tab-panel";
-  }
-
-  private static String selected(String activeTab, String tab) {
-    return Boolean.toString(tab.equals(activeTab));
   }
 
   private static String loaded(String activeTab, String tab) {
@@ -2456,6 +2480,11 @@ final class WebUiRenderer {
 
   static String renderExecutionList(
       TrainingDataStore db, List<Lift> lifts, String search, String label) {
+    return renderExecutionList(db, lifts, search, label, "executions");
+  }
+
+  private static String renderExecutionList(
+      TrainingDataStore db, List<Lift> lifts, String search, String label, String returnTab) {
     StringBuilder html = new StringBuilder();
     html.append("<p>").append(WebHtml.escapeHtml(label)).append("</p>");
 
@@ -2507,7 +2536,9 @@ final class WebUiRenderer {
           .append("<input type='hidden' name='enabled' value='")
           .append(enabled ? "0" : "1")
           .append("'/>")
-          .append("<input type='hidden' name='tab' value='executions'/>")
+          .append("<input type='hidden' name='tab' value='")
+          .append(WebHtml.escapeHtml(returnTab))
+          .append("'/>")
           .append("<button type='submit' class='compact-btn'>")
           .append(enabled ? "Disable for wave" : "Enable for wave")
           .append("</button>")
@@ -2516,7 +2547,9 @@ final class WebUiRenderer {
           .append("<summary>Edit lift</summary>")
           .append(
               "<form method='post' action='/update-lift' class='query-form compact-actions' style='margin:8px 0;'>")
-          .append("<input type='hidden' name='tab' value='executions'/>")
+          .append("<input type='hidden' name='tab' value='")
+          .append(WebHtml.escapeHtml(returnTab))
+          .append("'/>")
           .append("<input type='hidden' name='currentName' value='")
           .append(WebHtml.escapeHtml(lift.name()))
           .append("'/>")
@@ -2550,7 +2583,9 @@ final class WebUiRenderer {
               "<form method='post' action='/delete-lift' class='query-form compact-actions' style='margin:8px 0;' ")
           .append(
               "onsubmit=\"return window.confirm('Delete this catalog lift? Completed executions and sets will be retained in history.');\">")
-          .append("<input type='hidden' name='tab' value='executions'/>")
+          .append("<input type='hidden' name='tab' value='")
+          .append(WebHtml.escapeHtml(returnTab))
+          .append("'/>")
           .append("<input type='hidden' name='lift' value='")
           .append(WebHtml.escapeHtml(lift.name()))
           .append("'/>")

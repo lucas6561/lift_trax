@@ -246,7 +246,7 @@ final class PlannedWorkoutSessionHtml {
     Map<String, PlannedWorkoutWarmups.WarmupPlan> warmups =
         PlannedWorkoutWarmups.forDay(day, history);
     StringBuilder html = new StringBuilder();
-    html.append("<p><a href='/?tab=import-workout'>Back to Import Workout</a></p>")
+    html.append("<p><a href='/?tab=import-workout'>Back to Workouts</a></p>")
         .append("<h1>Train ")
         .append(WebHtml.escapeHtml(day.title()))
         .append("</h1>")
