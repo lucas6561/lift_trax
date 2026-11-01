@@ -61,14 +61,224 @@
 
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
-            <property name="methodReportLevel" value="29"/>
-            <property name="classReportLevel" value="225"/>
+            <property name="methodReportLevel" value="15"/>
+            <property name="classReportLevel" value="100"/>
+            <!-- Exact legacy symbols only; rationale and removal conditions are in
+                 docs/source-size-and-complexity.md. -->
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::ClassDeclaration[@SimpleName = (
+                        'WebAuth',
+                        'WebServerCli',
+                        'WebUiRenderer',
+                        'HostedPostgresTrainingDataStore',
+                        'ProgramSchemaValidator'
+                    )]
+                    |
+                    ./ancestor-or-self::MethodDeclaration[
+                        (ancestor::ClassDeclaration[@SimpleName = 'ExecutionInputWidgetHtml']
+                            and @Name = 'render' and count(FormalParameters/FormalParameter) = 5)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'ExecutionInputWidgetHtml']
+                            and @Name = 'renderWorkAlong' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'LiftDetailResponse']
+                            and @Name = 'handle' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionService']
+                            and @Name = 'saveSubmittedResults' and count(FormalParameters/FormalParameter) = 8)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebStartup']
+                            and @Name = 'configuration' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'SnapshotIntegrity']
+                            and @Name = 'validate' and count(FormalParameters/FormalParameter) = 1)
+                        or (ancestor::RecordDeclaration[@SimpleName = 'WarmupLoading']
+                            and @Name = 'choose' and count(FormalParameters/FormalParameter) = 4)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WaveMarkdownWriter']
+                            and @Name = 'workoutLines' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WorkoutHistoryFormatter']
+                            and @Name = 'trainingMaxValue' and count(FormalParameters/FormalParameter) = 1)
+                    ]
+                ]]></value>
+            </property>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/NPathComplexity">
         <properties>
-            <property name="reportLevel" value="60000000"/>
+            <property name="reportLevel" value="200"/>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    ./ancestor-or-self::MethodDeclaration[
+                        (ancestor::RecordDeclaration[@SimpleName = 'CatalogImportPlan']
+                            and @Name = 'preview' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'DumpDatabaseCli']
+                            and @Name = 'parseArgs' and count(FormalParameters/FormalParameter) = 1)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'ExecutionInputWidgetHtml']
+                            and @Name = 'render' and count(FormalParameters/FormalParameter) = 5)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'ExecutionInputWidgetHtml']
+                            and @Name = 'renderWorkAlong' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'LiftDetailResponse']
+                            and @Name = 'handle' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionService']
+                            and @Name = 'saveSubmittedResults' and count(FormalParameters/FormalParameter) = 8)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebStartup']
+                            and @Name = 'configuration' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderTabbedLayout' and count(FormalParameters/FormalParameter) = 12)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderWavePlannerForm' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderLastWeekContent' and count(FormalParameters/FormalParameter) = 4)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderExecutionRows' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'HostedLiftSharing']
+                            and @Name = 'copy' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'LocalPasswords']
+                            and @Name = 'matches' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'SnapshotIntegrity']
+                            and @Name = 'validate' and count(FormalParameters/FormalParameter) = 1)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutExporter']
+                            and @Name = 'blockType' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutMarkdownWriter']
+                            and @Name = 'appendBlock' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutText']
+                            and @Name = 'plannedSet' and count(FormalParameters/FormalParameter) = 1)
+                        or (ancestor::RecordDeclaration[@SimpleName = 'WarmupLoading']
+                            and @Name = 'choose' and count(FormalParameters/FormalParameter) = 4)
+                        or (ancestor::RecordDeclaration[@SimpleName = 'WarmupLoading']
+                            and @Name = 'plateCandidates' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WorkingSetWarmups']
+                            and @Name = 'template' and count(FormalParameters/FormalParameter) = 1)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WorkoutHistoryFormatter']
+                            and @Name = 'trainingMaxValue' and count(FormalParameters/FormalParameter) = 1)
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/NcssCount">
+        <properties>
+            <property name="methodReportLevel" value="60"/>
+            <property name="classReportLevel" value="500"/>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::ClassDeclaration[@SimpleName = 'WebServerCli']
+                    |
+                    ./ancestor-or-self::MethodDeclaration[
+                        ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                        and @Name = 'renderWavePlannerForm'
+                        and count(FormalParameters/FormalParameter) = 3
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/TooManyMethods">
+        <properties>
+            <property name="maxmethods" value="35"/>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    ./ancestor-or-self::ClassDeclaration[@SimpleName = (
+                        'WebAuth',
+                        'WebServerCli',
+                        'WebUiRenderer',
+                        'HostedPostgresTrainingDataStore'
+                    )]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="ExcessivePhysicalClassLength"
+          language="java"
+          message="Production class spans more than 750 physical lines."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Counts the complete source span so embedded HTML, JavaScript, SQL,
+            and other text blocks cannot evade the NCSS limit.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::ClassBody[parent::ClassDeclaration[@SimpleName = (
+                        'PlannedWorkoutSessionHtml',
+                        'WebServerCli',
+                        'WebUiRenderer',
+                        'HostedPostgresTrainingDataStore'
+                    )]]
+                ]]></value>
+            </property>
+            <property name="xpath">
+                <value><![CDATA[
+                    //(
+                        ClassDeclaration/ClassBody
+                        | RecordDeclaration/RecordBody
+                        | EnumDeclaration/EnumBody
+                        | AnnotationTypeDeclaration/AnnotationTypeBody
+                    )[
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 750
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="ExcessivePhysicalMethodLength"
+          language="java"
+          message="Production method or constructor spans more than 100 physical lines."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Counts the complete declaration span, including maintained text blocks.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::Block[parent::MethodDeclaration[
+                        (ancestor::ClassDeclaration[@SimpleName = 'ExecutionInputWidgetHtml']
+                            and @Name = 'render' and count(FormalParameters/FormalParameter) = 5)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'ExecutionInputWidgetHtml']
+                            and @Name = 'renderWorkAlong' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'LiftDetailResponse']
+                            and @Name = 'handle' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionHtml']
+                            and @Name = 'renderResumePanel' and count(FormalParameters/FormalParameter) = 1)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionHtml']
+                            and @Name = 'appendScript' and count(FormalParameters/FormalParameter) = 1)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionService']
+                            and @Name = 'saveSubmittedResults' and count(FormalParameters/FormalParameter) = 8)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebRouteRegistry']
+                            and @Name = 'register' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderTabbedLayout' and count(FormalParameters/FormalParameter) = 12)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderWavePlannerForm' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderAddExecutionForm' and count(FormalParameters/FormalParameter) = 4)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'addExecutionSetLogFallbackScript' and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderExecutionList' and count(FormalParameters/FormalParameter) = 5)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebUiRenderer']
+                            and @Name = 'renderExecutionRows' and count(FormalParameters/FormalParameter) = 2)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PostgresSqliteBackupService']
+                            and @Name = 'applicationTables' and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'SnapshotIntegrity']
+                            and @Name = 'validate' and count(FormalParameters/FormalParameter) = 1)
+                    ]]
+                ]]></value>
+            </property>
+            <property name="xpath">
+                <value><![CDATA[
+                    //(
+                        MethodDeclaration
+                        | ConstructorDeclaration
+                        | CompactConstructorDeclaration
+                    )/Block[
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 100
+                    ]
+                ]]></value>
+            </property>
         </properties>
     </rule>
 

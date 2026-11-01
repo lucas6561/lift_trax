@@ -76,10 +76,13 @@ expected to bring its own coverage instead of relying on unrelated tests.
 ## Required checks
 
 Run `./gradlew.bat qualityGate` on Windows or `./gradlew qualityGate` elsewhere.
-The gate checks Google Java Format through Spotless, strict PMD analysis, JUnit,
-and repository-wide JaCoCo instruction coverage. GitHub Actions runs the same
-command for every pull request and push to `main`, and preserves the test, PMD,
-and JaCoCo reports.
+The gate checks Google Java Format through Spotless, strict PMD analysis of
+production and test sources, JUnit, and repository-wide JaCoCo instruction
+coverage. Source-size, NCSS, cyclomatic, NPath, and method-count thresholds,
+their measured baseline, and the exact legacy-exception ledger are documented
+in [source size and complexity ratchet](source-size-and-complexity.md). GitHub
+Actions runs the same command for every pull request and push to `main`, and
+preserves the test, PMD, and JaCoCo reports.
 
 Run `./gradlew.bat pitest` when changing mutation-tested workout-file or active
 workout-save behavior. Review survivors in `build/reports/pitest/`; do not lower

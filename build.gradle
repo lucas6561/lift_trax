@@ -41,6 +41,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'com.h2database:h2:2.3.232'
     testImplementation 'com.tngtech.archunit:archunit:1.5.0'
+    testImplementation 'net.sourceforge.pmd:pmd-java:7.13.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.0'
 }
 
@@ -120,6 +121,7 @@ tasks.register('staticAnalysis') {
     group = 'verification'
     description = 'Runs PMD static analysis with a strict threshold.'
     dependsOn tasks.named('pmdMain')
+    dependsOn tasks.named('pmdTest')
 }
 
 tasks.register('qualityGate') {
@@ -223,5 +225,5 @@ tasks.register('generateWave', JavaExec) {
 
 
 tasks.named('pmdTest') {
-    enabled = false
+    ruleSetFiles = files('config/pmd/ruleset-test.xml')
 }

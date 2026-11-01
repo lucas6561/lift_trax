@@ -124,8 +124,9 @@ From repository root, run:
 ./gradlew qualityGate
 ```
 
-This single command checks Java formatting, runs PMD static analysis, runs the
-test suite, and verifies the JaCoCo coverage threshold.
+This single command checks Java formatting, runs PMD static analysis of
+production and test sources, runs the test suite, and verifies the JaCoCo
+coverage threshold.
 
 Static scanning uses the PMD ruleset in `config/pmd/ruleset.xml`. The policy
 includes broad correctness/security/best-practice checks plus stricter rules for
@@ -133,6 +134,9 @@ braces and empty control flow, unnecessary casts/locals/returns, utility-class
 shape, exception misuse, mutable static state, fragile synchronization, and
 selected file/string performance mistakes. Exclusions stay in the ruleset with a
 short rationale so future tightening has a clear starting point.
+Physical-size, NCSS, cyclomatic, NPath, and method-count thresholds and their
+exact legacy exceptions are documented in
+`docs/source-size-and-complexity.md`.
 
 Coverage is enforced at **90% instruction coverage across all production Java
 code**. New packages and classes enter the same aggregate gate automatically;

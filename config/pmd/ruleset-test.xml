@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="lift-trax-test-source-analysis"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://pmd.sourceforge.net/ruleset/2.0.0
+            https://pmd.github.io/pmd-7.0.0/ruleset_xml_schema.xsd">
+
+    <description>
+        Size and complexity ratchets for maintained test sources. The focused
+        rules avoid applying production style opinions to test fixtures while
+        still preventing oversized or overly complex tests.
+    </description>
+
+    <rule ref="category/java/design.xml/CyclomaticComplexity">
+        <properties>
+            <property name="methodReportLevel" value="15"/>
+            <property name="classReportLevel" value="100"/>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::ClassDeclaration[@SimpleName = 'SqliteDb']
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/NPathComplexity">
+        <properties>
+            <property name="reportLevel" value="200"/>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    ./ancestor-or-self::MethodDeclaration[
+                        ancestor::ClassDeclaration[@SimpleName = 'SqliteDb']
+                        and @Name = 'parseMetric'
+                        and count(FormalParameters/FormalParameter) = 1
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/NcssCount">
+        <properties>
+            <property name="methodReportLevel" value="60"/>
+            <property name="classReportLevel" value="700"/>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::ClassDeclaration[@SimpleName = 'WebServerCliTest']
+                    |
+                    ./ancestor-or-self::MethodDeclaration[
+                        (ancestor::ClassDeclaration[@SimpleName = 'CatalogRecoveryDrillTest']
+                            and @Name = 'drill' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'HttpsProxyIntegrationTest']
+                            and @Name = 'trustedTlsPreservesAuthenticationIsolationCsrfAndWorkoutSubmission'
+                            and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionHtmlTest']
+                            and @Name = 'sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps'
+                            and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
+                            and @Name = 'renderTaskLayoutKeepsSecondaryViewsAndExistingFlows'
+                            and count(FormalParameters/FormalParameter) = 0)
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/TooManyMethods">
+        <properties>
+            <property name="maxmethods" value="50"/>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    ./ancestor-or-self::ClassDeclaration[@SimpleName = ('WebServerCliTest', 'SqliteDb')]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="ExcessivePhysicalTestClassLength"
+          language="java"
+          message="Test class spans more than 1000 physical lines."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Counts the complete test class source span, including fixture text blocks.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::ClassBody[parent::ClassDeclaration[@SimpleName = (
+                        'WebServerCliTest',
+                        'SqliteDb'
+                    )]]
+                ]]></value>
+            </property>
+            <property name="xpath">
+                <value><![CDATA[
+                    //(
+                        ClassDeclaration/ClassBody
+                        | RecordDeclaration/RecordBody
+                        | EnumDeclaration/EnumBody
+                        | AnnotationTypeDeclaration/AnnotationTypeBody
+                    )[
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 1000
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="ExcessivePhysicalTestMethodLength"
+          language="java"
+          message="Test method or constructor spans more than 100 physical lines."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Counts the complete declaration span, including maintained fixture text blocks.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="violationSuppressXPath">
+                <value><![CDATA[
+                    self::Block[parent::MethodDeclaration[
+                        (ancestor::ClassDeclaration[@SimpleName = 'CatalogRecoveryDrillTest']
+                            and @Name = 'drill' and count(FormalParameters/FormalParameter) = 3)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'HttpsProxyIntegrationTest']
+                            and @Name = 'trustedTlsPreservesAuthenticationIsolationCsrfAndWorkoutSubmission'
+                            and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'LocalMultiUserTest']
+                            and @Name = 'twoLocalAccountsCanRegisterLogIndependentlyAndSwitchWithoutSavingAnOldForm'
+                            and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionHtmlTest']
+                            and @Name = 'sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps'
+                            and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
+                            and @Name = 'renderTaskLayoutKeepsSecondaryViewsAndExistingFlows'
+                            and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
+                            and @Name = 'liftCrudFragmentAndDetailRoutesCoverSuccessfulAndInvalidRequests'
+                            and count(FormalParameters/FormalParameter) = 0)
+                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
+                            and @Name = 'plannedWorkoutRoutesCoverPreviewDownloadsResumeAndIdempotentEmptySaves'
+                            and count(FormalParameters/FormalParameter) = 0)
+                    ]]
+                ]]></value>
+            </property>
+            <property name="xpath">
+                <value><![CDATA[
+                    //(
+                        MethodDeclaration
+                        | ConstructorDeclaration
+                        | CompactConstructorDeclaration
+                    )/Block[
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 100
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+</ruleset>

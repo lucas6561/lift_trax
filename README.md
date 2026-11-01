@@ -231,9 +231,12 @@ verifies at least 90% instruction coverage across all production Java code.
 GitHub Actions runs the same command for every pull request and push to `main`
 and preserves the test, PMD, and JaCoCo reports.
 
-PMD scans production Java sources for correctness, security, best-practice,
-style, maintainability, concurrency, and selected file/string performance risks.
-Intentional rule exclusions are documented in `config/pmd/ruleset.xml`.
+PMD scans production Java for correctness, security, best-practice, style,
+maintainability, concurrency, and selected file/string performance risks. It
+also scans production and test sources for physical size, NCSS, cyclomatic,
+NPath, and method-count growth. Thresholds and exact temporary exceptions are
+documented in `docs/source-size-and-complexity.md`; other intentional rule
+exclusions remain documented in `config/pmd/ruleset.xml`.
 Package responsibilities, test expectations, and ADR guidance are documented in
 `docs/code-organization-and-quality.md`.
 
