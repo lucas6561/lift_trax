@@ -40,7 +40,7 @@ class HttpsProxyIntegrationTest {
   @TempDir Path directory;
 
   @Test
-  void trustedTlsPreservesAuthenticationIsolationCsrfAndWorkoutSubmission() throws Exception {
+  void httpsAcceptanceScenarioPreservesSecurityAndWorkoutSubmission() throws Exception {
     Path caddy = caddyExecutable();
     assumeTrue(Files.isRegularFile(caddy), "Install Caddy to run the real HTTPS integration test.");
     String priorBind = System.getProperty("lifttrax.web.bind");

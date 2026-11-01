@@ -8,35 +8,38 @@ final class TaskNavigationHtml {
 
   static String renderSectionHeading(String activeTab) {
     ApplicationShellHtml.Section section = ApplicationShellHtml.Section.forTab(activeTab);
-    String description =
-        switch (section) {
-          case TODAY -> "Drafts, recent activity, and a useful next step.";
-          case TRAIN -> "Quickly log training or continue a planned workout.";
-          case WORKOUTS -> "Use saved workouts, import a plan, or generate a wave.";
-          case HISTORY -> "Review executions, date ranges, queries, and lift trends.";
-          case EXERCISES -> "Manage the exercise catalog, details, sharing, and imports.";
-          case ACCOUNT -> "Manage your LiftTrax account.";
-        };
-    String action =
-        switch (section) {
-          case TODAY -> "<a class='compact-btn' href='/?tab=add-execution'>Log training</a>";
-          case TRAIN ->
-              "<a class='compact-btn secondary' href='/?tab=import-workout'>Choose a workout</a>";
-          case WORKOUTS ->
-              "<a class='compact-btn' href='/?tab=import-workout#workout-upload'>Import workout</a>";
-          case HISTORY ->
-              "<a class='compact-btn secondary' href='/?tab=last-week'>View this week</a>";
-          case EXERCISES -> "<a class='compact-btn' href='#new-exercise'>Add exercise</a>";
-          case ACCOUNT -> "";
-        };
     return "<header class='page-heading'><div><h1>"
         + section.label()
         + "</h1><p class='muted'>"
-        + description
+        + sectionDescription(section)
         + "</p></div><div class='compact-actions'>"
-        + action
+        + sectionAction(section)
         + "</div></header>"
         + renderSecondaryNavigation(activeTab, section);
+  }
+
+  private static String sectionDescription(ApplicationShellHtml.Section section) {
+    return switch (section) {
+      case TODAY -> "Drafts, recent activity, and a useful next step.";
+      case TRAIN -> "Quickly log training or continue a planned workout.";
+      case WORKOUTS -> "Use saved workouts, import a plan, or generate a wave.";
+      case HISTORY -> "Review executions, date ranges, queries, and lift trends.";
+      case EXERCISES -> "Manage the exercise catalog, details, sharing, and imports.";
+      case ACCOUNT -> "Manage your LiftTrax account.";
+    };
+  }
+
+  private static String sectionAction(ApplicationShellHtml.Section section) {
+    return switch (section) {
+      case TODAY -> "<a class='compact-btn' href='/?tab=add-execution'>Log training</a>";
+      case TRAIN ->
+          "<a class='compact-btn secondary' href='/?tab=import-workout'>Choose a workout</a>";
+      case WORKOUTS ->
+          "<a class='compact-btn' href='/?tab=import-workout#workout-upload'>Import workout</a>";
+      case HISTORY -> "<a class='compact-btn secondary' href='/?tab=last-week'>View this week</a>";
+      case EXERCISES -> "<a class='compact-btn' href='#new-exercise'>Add exercise</a>";
+      case ACCOUNT -> "";
+    };
   }
 
   static String renderTrainIntro(String resumePanel) {

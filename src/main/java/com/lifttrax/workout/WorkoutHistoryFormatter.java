@@ -128,20 +128,25 @@ public final class WorkoutHistoryFormatter {
         continue;
       }
       for (ExecutionSet set : exec.sets()) {
-        if (!set.missed()
-            && set.metric() instanceof SetMetric.Reps reps
-            && reps.reps() == 1
-            && set.weight() != null
-            && !"none".equalsIgnoreCase(set.weight())) {
-          double weightLbs = WeightText.toPounds(set.weight());
-          if (weightLbs > 0.0 && (bestWeight == null || weightLbs > bestWeightLbs)) {
-            bestWeight = set.weight();
-            bestWeightLbs = weightLbs;
-          }
+        if (!isCompletedOneRepSet(set)) {
+          continue;
+        }
+        double weightLbs = WeightText.toPounds(set.weight());
+        if (weightLbs > 0.0 && (bestWeight == null || weightLbs > bestWeightLbs)) {
+          bestWeight = set.weight();
+          bestWeightLbs = weightLbs;
         }
       }
     }
     return bestWeight == null ? null : new BestOneRepMax(bestWeightLbs);
+  }
+
+  private static boolean isCompletedOneRepSet(ExecutionSet set) {
+    return !set.missed()
+        && set.metric() instanceof SetMetric.Reps reps
+        && reps.reps() == 1
+        && set.weight() != null
+        && !"none".equalsIgnoreCase(set.weight());
   }
 
   private static BestOneRepMax trainingMaxValue(List<LiftExecution> executions) {
@@ -164,27 +169,34 @@ public final class WorkoutHistoryFormatter {
         continue;
       }
       for (ExecutionSet set : exec.sets()) {
-        if (set.missed()
-            || !(set.metric() instanceof SetMetric.Reps reps)
-            || reps.reps() < 1
-            || set.weight() == null
-            || "none".equalsIgnoreCase(set.weight())) {
+        HistoricalSet candidate = historicalSet(set);
+        if (candidate == null) {
           continue;
         }
-        double weightLbs = WeightText.toPounds(set.weight());
-        if (weightLbs <= 0.0) {
-          continue;
-        }
-        HistoricalSet candidate = new HistoricalSet(weightLbs, reps.reps(), set.rpe());
-        if (fallback == null
-            || candidate.weightLbs() > fallback.weightLbs()
-            || (candidate.weightLbs() == fallback.weightLbs()
-                && candidate.reps() < fallback.reps())) {
+        if (isBetterFallback(candidate, fallback)) {
           fallback = candidate;
         }
       }
     }
     return fallback;
+  }
+
+  private static HistoricalSet historicalSet(ExecutionSet set) {
+    if (set.missed()
+        || !(set.metric() instanceof SetMetric.Reps reps)
+        || reps.reps() < 1
+        || set.weight() == null
+        || "none".equalsIgnoreCase(set.weight())) {
+      return null;
+    }
+    double weightLbs = WeightText.toPounds(set.weight());
+    return weightLbs <= 0.0 ? null : new HistoricalSet(weightLbs, reps.reps(), set.rpe());
+  }
+
+  private static boolean isBetterFallback(HistoricalSet candidate, HistoricalSet fallback) {
+    return fallback == null
+        || candidate.weightLbs() > fallback.weightLbs()
+        || (candidate.weightLbs() == fallback.weightLbs() && candidate.reps() < fallback.reps());
   }
 
   private static double estimatedOneRepMax(HistoricalSet fallback) {

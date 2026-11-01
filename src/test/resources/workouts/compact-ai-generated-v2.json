@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "metadata": {
+    "name": "AI Hypertrophy",
+    "description": "",
+    "totalWeeks": 1,
+    "tags": []
+  },
+  "source": {
+    "kind": "ai",
+    "generator": "ChatGPT",
+    "programName": "AI Hypertrophy",
+    "programSchemaVersion": 2,
+    "generatedAt": "2026-06-01T00:00:00Z"
+  },
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayOfWeek": "MONDAY",
+          "title": "Monday",
+          "blocks": [
+            {
+              "order": 1,
+              "title": "Warm-up",
+              "blockType": "warmup",
+              "warmup": true,
+              "exercises": [
+                {
+                  "name": "General Mobility",
+                  "region": "FULL_BODY",
+                  "type": "MOBILITY",
+                  "muscles": ["CORE"],
+                  "plannedSets": [
+                    {
+                      "setNumber": 1,
+                      "metricType": "timeSecs",
+                      "seconds": 300,
+                      "rpe": 5.0,
+                      "deload": false
+                    }
+                  ],
+                  "notes": "",
+                  "substitutionOptions": []
+                },
+                {
+                  "name": "SSB Squat",
+                  "region": "LOWER",
+                  "type": "SQUAT",
+                  "muscles": ["QUAD"],
+                  "plannedSets": [
+                    {
+                      "setNumber": 1,
+                      "metricType": "reps",
+                      "repsMin": 8,
+                      "repsMax": 10,
+                      "rpe": 8.0,
+                      "deload": false
+                    }
+                  ],
+                  "notes": "",
+                  "substitutionOptions": []
+                }
+              ],
+              "notes": []
+            }
+          ],
+          "notes": []
+        }
+      ]
+    }
+  ],
+  "completedWorkouts": []
+}

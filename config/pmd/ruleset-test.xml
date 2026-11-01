@@ -14,33 +14,33 @@
 
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
-            <property name="methodReportLevel" value="15"/>
+            <property name="methodReportLevel" value="13"/>
             <property name="classReportLevel" value="100"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/NPathComplexity">
         <properties>
-            <property name="reportLevel" value="200"/>
+            <property name="reportLevel" value="190"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/NcssCount">
         <properties>
-            <property name="methodReportLevel" value="60"/>
-            <property name="classReportLevel" value="700"/>
+            <property name="methodReportLevel" value="52"/>
+            <property name="classReportLevel" value="650"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/TooManyMethods">
         <properties>
-            <property name="maxmethods" value="50"/>
+            <property name="maxmethods" value="45"/>
         </properties>
     </rule>
 
     <rule name="ExcessivePhysicalTestClassLength"
           language="java"
-          message="Test class spans more than 1000 physical lines."
+          message="Test class spans more than 950 physical lines."
           class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
         <description>
             Counts the complete test class source span, including fixture text blocks.
@@ -55,7 +55,7 @@
                         | EnumDeclaration/EnumBody
                         | AnnotationTypeDeclaration/AnnotationTypeBody
                     )[
-                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 1000
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 950
                     ]
                 ]]></value>
             </property>
@@ -64,7 +64,7 @@
 
     <rule name="ExcessivePhysicalTestMethodLength"
           language="java"
-          message="Test method or constructor spans more than 100 physical lines."
+          message="Test method or constructor spans more than 90 physical lines."
           class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
         <description>
             Counts the complete declaration span, including maintained fixture text blocks.
@@ -78,7 +78,7 @@
                         | ConstructorDeclaration
                         | CompactConstructorDeclaration
                     )/Block[
-                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 100
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 90
                     ]
                 ]]></value>
             </property>

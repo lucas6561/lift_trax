@@ -54,7 +54,6 @@ final class MaxEffortEditor {
     int weeks = defaultLower.size();
     List<Integer> lowerEvenWeeks = weekIndexes(weeks, 0);
     List<Integer> lowerOddWeeks = weekIndexes(weeks, 1);
-
     List<JComboBox<Lift>> squatWeekCombos =
         combosForWeeks(squatOptions, defaultLower, lowerEvenWeeks);
     List<JComboBox<Lift>> deadliftWeekCombos =
@@ -63,77 +62,135 @@ final class MaxEffortEditor {
         combosForWeeks(benchOptions, defaultUpper, lowerEvenWeeks);
     List<JComboBox<Lift>> ohpWeekCombos =
         combosForWeeks(overheadOptions, defaultUpper, lowerOddWeeks);
+    EditorPanel editor =
+        editorPanel(
+            squatOptions,
+            deadliftOptions,
+            benchOptions,
+            overheadOptions,
+            defaultLower,
+            defaultUpper,
+            lowerEvenWeeks,
+            lowerOddWeeks,
+            squatWeekCombos,
+            deadliftWeekCombos,
+            benchWeekCombos,
+            ohpWeekCombos);
+    if (dialog.show(editor.panel(), "Max Effort Planner") != JOptionPane.OK_OPTION) {
+      return MaxEffortPlan.fromDefaults(defaultLower, defaultUpper);
+    }
+    List<Lift> lower = buildWeekPlan(defaultLower, squatWeekCombos, deadliftWeekCombos);
+    List<Lift> upper = buildWeekPlan(defaultUpper, benchWeekCombos, ohpWeekCombos);
+    return selectedPlan(lower, upper, editor);
+  }
 
-    List<MaxEffortPlan.DeloadLowerLifts> lowerDeloadDefaults =
-        MaxEffortPlan.deriveLowerDeloadFromPlan(defaultLower);
-    List<MaxEffortPlan.DeloadUpperLifts> upperDeloadDefaults =
-        MaxEffortPlan.deriveUpperDeloadFromPlan(defaultUpper);
-
-    List<JComboBox<Lift>> lowerDeloadSquat = new ArrayList<>();
-    List<JComboBox<Lift>> lowerDeloadDeadlift = new ArrayList<>();
-    List<JComboBox<Lift>> upperDeloadBench = new ArrayList<>();
-    List<JComboBox<Lift>> upperDeloadOhp = new ArrayList<>();
-
+  private static EditorPanel editorPanel(
+      List<Lift> squatOptions,
+      List<Lift> deadliftOptions,
+      List<Lift> benchOptions,
+      List<Lift> overheadOptions,
+      List<Lift> defaultLower,
+      List<Lift> defaultUpper,
+      List<Integer> lowerEvenWeeks,
+      List<Integer> lowerOddWeeks,
+      List<JComboBox<Lift>> squatWeekCombos,
+      List<JComboBox<Lift>> deadliftWeekCombos,
+      List<JComboBox<Lift>> benchWeekCombos,
+      List<JComboBox<Lift>> ohpWeekCombos) {
     JPanel panel = new JPanel();
     panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
     panel.add(columnPanel("Squat Weeks", squatWeekCombos, lowerEvenWeeks));
     panel.add(columnPanel("Deadlift Weeks", deadliftWeekCombos, lowerOddWeeks));
     panel.add(columnPanel("Bench Weeks", benchWeekCombos, lowerEvenWeeks));
     panel.add(columnPanel("Overhead Weeks", ohpWeekCombos, lowerOddWeeks));
+    List<JComboBox<Lift>> lowerSquat = new ArrayList<>();
+    List<JComboBox<Lift>> lowerDeadlift = new ArrayList<>();
+    List<JComboBox<Lift>> upperBench = new ArrayList<>();
+    List<JComboBox<Lift>> upperOhp = new ArrayList<>();
+    addDeloadHeading(panel, defaultLower, defaultUpper);
+    addLowerDeloadRows(
+        panel, squatOptions, deadliftOptions, defaultLower, lowerSquat, lowerDeadlift);
+    addUpperDeloadRows(panel, benchOptions, overheadOptions, defaultUpper, upperBench, upperOhp);
+    return new EditorPanel(panel, lowerSquat, lowerDeadlift, upperBench, upperOhp);
+  }
 
-    if (!lowerDeloadDefaults.isEmpty() || !upperDeloadDefaults.isEmpty()) {
+  private static void addDeloadHeading(
+      JPanel panel, List<Lift> defaultLower, List<Lift> defaultUpper) {
+    if (!MaxEffortPlan.deriveLowerDeloadFromPlan(defaultLower).isEmpty()
+        || !MaxEffortPlan.deriveUpperDeloadFromPlan(defaultUpper).isEmpty()) {
       panel.add(new JLabel("Deload Weeks"));
     }
+  }
 
-    for (int i = 0; i < lowerDeloadDefaults.size(); i++) {
-      var def = lowerDeloadDefaults.get(i);
-      JComboBox<Lift> squat = new JComboBox<>(squatOptions.toArray(Lift[]::new));
-      JComboBox<Lift> dead = new JComboBox<>(deadliftOptions.toArray(Lift[]::new));
-      squat.setSelectedItem(def.squat());
-      dead.setSelectedItem(def.deadlift());
-      lowerDeloadSquat.add(squat);
-      lowerDeloadDeadlift.add(dead);
-      panel.add(row("Lower Week " + ((i + 1) * 7), "Squat", squat, "Deadlift", dead));
+  private static void addLowerDeloadRows(
+      JPanel panel,
+      List<Lift> squatOptions,
+      List<Lift> deadliftOptions,
+      List<Lift> defaults,
+      List<JComboBox<Lift>> squats,
+      List<JComboBox<Lift>> deadlifts) {
+    List<MaxEffortPlan.DeloadLowerLifts> deloads =
+        MaxEffortPlan.deriveLowerDeloadFromPlan(defaults);
+    for (int i = 0; i < deloads.size(); i++) {
+      var selected = deloads.get(i);
+      JComboBox<Lift> squat = selectedCombo(squatOptions, selected.squat());
+      JComboBox<Lift> deadlift = selectedCombo(deadliftOptions, selected.deadlift());
+      squats.add(squat);
+      deadlifts.add(deadlift);
+      panel.add(row("Lower Week " + ((i + 1) * 7), "Squat", squat, "Deadlift", deadlift));
     }
+  }
 
-    for (int i = 0; i < upperDeloadDefaults.size(); i++) {
-      var def = upperDeloadDefaults.get(i);
-      JComboBox<Lift> bench = new JComboBox<>(benchOptions.toArray(Lift[]::new));
-      JComboBox<Lift> ohp = new JComboBox<>(overheadOptions.toArray(Lift[]::new));
-      bench.setSelectedItem(def.bench());
-      ohp.setSelectedItem(def.overhead());
-      upperDeloadBench.add(bench);
-      upperDeloadOhp.add(ohp);
-      panel.add(row("Upper Week " + ((i + 1) * 7), "Bench", bench, "OHP", ohp));
+  private static void addUpperDeloadRows(
+      JPanel panel,
+      List<Lift> benchOptions,
+      List<Lift> overheadOptions,
+      List<Lift> defaults,
+      List<JComboBox<Lift>> benches,
+      List<JComboBox<Lift>> overheads) {
+    List<MaxEffortPlan.DeloadUpperLifts> deloads =
+        MaxEffortPlan.deriveUpperDeloadFromPlan(defaults);
+    for (int i = 0; i < deloads.size(); i++) {
+      var selected = deloads.get(i);
+      JComboBox<Lift> bench = selectedCombo(benchOptions, selected.bench());
+      JComboBox<Lift> overhead = selectedCombo(overheadOptions, selected.overhead());
+      benches.add(bench);
+      overheads.add(overhead);
+      panel.add(row("Upper Week " + ((i + 1) * 7), "Bench", bench, "OHP", overhead));
     }
+  }
 
-    int result = dialog.show(panel, "Max Effort Planner");
+  private static JComboBox<Lift> selectedCombo(List<Lift> options, Lift selected) {
+    JComboBox<Lift> combo = new JComboBox<>(options.toArray(Lift[]::new));
+    combo.setSelectedItem(selected);
+    return combo;
+  }
 
-    if (result != JOptionPane.OK_OPTION) {
-      return MaxEffortPlan.fromDefaults(defaultLower, defaultUpper);
-    }
-
-    List<Lift> lower = buildWeekPlan(defaultLower, squatWeekCombos, deadliftWeekCombos);
-    List<Lift> upper = buildWeekPlan(defaultUpper, benchWeekCombos, ohpWeekCombos);
-
+  private static MaxEffortPlan selectedPlan(
+      List<Lift> lower, List<Lift> upper, EditorPanel editor) {
     List<MaxEffortPlan.DeloadLowerLifts> lowerDeload = new ArrayList<>();
-    for (int i = 0; i < lowerDeloadSquat.size(); i++) {
+    for (int i = 0; i < editor.lowerSquat().size(); i++) {
       lowerDeload.add(
           new MaxEffortPlan.DeloadLowerLifts(
-              (Lift) lowerDeloadSquat.get(i).getSelectedItem(),
-              (Lift) lowerDeloadDeadlift.get(i).getSelectedItem()));
+              (Lift) editor.lowerSquat().get(i).getSelectedItem(),
+              (Lift) editor.lowerDeadlift().get(i).getSelectedItem()));
     }
-
     List<MaxEffortPlan.DeloadUpperLifts> upperDeload = new ArrayList<>();
-    for (int i = 0; i < upperDeloadBench.size(); i++) {
+    for (int i = 0; i < editor.upperBench().size(); i++) {
       upperDeload.add(
           new MaxEffortPlan.DeloadUpperLifts(
-              (Lift) upperDeloadBench.get(i).getSelectedItem(),
-              (Lift) upperDeloadOhp.get(i).getSelectedItem()));
+              (Lift) editor.upperBench().get(i).getSelectedItem(),
+              (Lift) editor.upperOhp().get(i).getSelectedItem()));
     }
-
     return new MaxEffortPlan(lower, upper, lowerDeload, upperDeload);
   }
+
+  private record EditorPanel(
+      JPanel panel,
+      List<JComboBox<Lift>> lowerSquat,
+      List<JComboBox<Lift>> lowerDeadlift,
+      List<JComboBox<Lift>> upperBench,
+      List<JComboBox<Lift>> upperOhp) {}
 
   @FunctionalInterface
   interface ConfirmationDialog {

@@ -32,6 +32,7 @@ let socket;
 let nextId = 1;
 const pending = new Map();
 const eventWaiters = new Map();
+const runtimeExceptions = [];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -226,6 +227,15 @@ try {
       else request.resolve(message.result || {});
       return;
     }
+    if (message.method === "Runtime.exceptionThrown") {
+      const details = message.params?.exceptionDetails || {};
+      runtimeExceptions.push({
+        text: details.exception?.description || details.text || "Uncaught browser exception",
+        url: details.url || "",
+        line: details.lineNumber,
+        column: details.columnNumber,
+      });
+    }
     const waiters = eventWaiters.get(message.method) || [];
     const waiter = waiters.shift();
     if (waiter) waiter(message.params || {});
@@ -291,6 +301,34 @@ try {
     assert((await evaluate("document.body.textContent")).includes("Start Workout"), "Work Along chooser did not load");
     await clickAndWait(".planned-workalong-form button[type='submit']", "train");
     assert(await evaluate("Boolean(document.querySelector('.planned-session-form'))"), "Active Work Along session did not load");
+    const plannedSession = await evaluate(`(() => {
+      const form = document.querySelector('.planned-session-form');
+      const input = form.querySelector("input[name='weightValue']");
+      input.value = '185';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      const draft = JSON.parse(localStorage.getItem(form.dataset.draftKey) || 'null');
+      return {
+        blockCount: form.querySelectorAll('.session-block').length,
+        visibleBlock: form.querySelector('.session-block:not(.is-hidden)')?.dataset.sessionBlockIndex,
+        draftKey: form.dataset.draftKey,
+        draftWeight: draft?.exercises?.[0]?.widget?.weightValue || '',
+        deviceStatus: form.querySelector('.js-session-device-status')?.textContent || ''
+      };
+    })()`);
+    assert(plannedSession.blockCount >= 1 && plannedSession.visibleBlock === "0", `Planned session did not initialize its first block: ${JSON.stringify(plannedSession)}`);
+    assert(plannedSession.draftKey && plannedSession.draftWeight === "185", `Planned session did not persist the edited draft: ${JSON.stringify({plannedSession, runtimeExceptions})}`);
+    assert(plannedSession.deviceStatus.includes("Saved on this"), "Planned session did not report its device backup");
+    const skippedBlock = await evaluate(`(() => {
+      const form = document.querySelector('.planned-session-form');
+      document.querySelector('.js-session-skip-block').click();
+      const draft = JSON.parse(localStorage.getItem(form.dataset.draftKey) || 'null');
+      return {
+        visibleBlock: document.querySelector('.session-block:not(.is-hidden)')?.dataset.sessionBlockIndex,
+        skippedBlockIndexes: draft?.skippedBlockIndexes || []
+      };
+    })()`);
+    const expectedBlock = plannedSession.blockCount > 1 ? "1" : "0";
+    assert(skippedBlock.visibleBlock === expectedBlock && skippedBlock.skippedBlockIndexes.includes(0), "Skipping a planned block did not update the session draft");
     await screenshot("desktop-work-along.png");
 
     await navigate("/account", "account");
@@ -343,11 +381,28 @@ try {
       if (section === "train") await screenshot("mobile-train.png");
     }
 
+    await navigate("/?tab=import-workout", "workouts");
+    await clickAndWait(".saved-workout a[href*='view=work-along']", "workouts");
+    await clickAndWait(".planned-workalong-form button[type='submit']", "train");
+    const mobileSession = await evaluate(`({
+      form: Boolean(document.querySelector('.planned-session-form')),
+      restoredBlock: document.querySelector('.session-block:not(.is-hidden)')?.dataset.sessionBlockIndex,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      navVisible: getComputedStyle(document.querySelector('.mobile-primary-navigation')).display !== 'none'
+    })`);
+    assert(mobileSession.form && mobileSession.restoredBlock === expectedBlock, "Mobile planned session did not restore the saved block");
+    assert(mobileSession.overflow <= 1 && mobileSession.navVisible, "Mobile planned session layout failed");
+    await screenshot("mobile-work-along.png");
+
     const serviceWorker = await evaluate(
       "navigator.serviceWorker.getRegistration('/').then(registration => Boolean(registration))",
       true,
     );
     assert(serviceWorker, "Service-worker registration was not preserved");
+    assert(
+      runtimeExceptions.length === 0,
+      `Uncaught browser runtime exceptions: ${JSON.stringify(runtimeExceptions)}`,
+    );
 
     console.log(
       JSON.stringify(
@@ -370,11 +425,18 @@ try {
           ],
           backForwardReload: true,
           serviceWorker: true,
+          plannedSession: {
+            draftPersisted: true,
+            blockNavigation: true,
+            mobileRestore: true,
+            uncaughtRuntimeExceptions: runtimeExceptions.length,
+          },
           screenshots: [
             "build/browser-shell-check/desktop-today.png",
             "build/browser-shell-check/desktop-work-along.png",
             "build/browser-shell-check/mobile-today.png",
             "build/browser-shell-check/mobile-train.png",
+            "build/browser-shell-check/mobile-work-along.png",
           ],
         },
         null,

@@ -341,73 +341,7 @@ class WebUiRendererTest {
 
   @Test
   void plannedWorkoutPageRendersWeeksBlocksAndGroupedTargets() {
-    PlannedWorkoutFile.PlannedSetTarget firstSet =
-        new PlannedWorkoutFile.PlannedSetTarget(
-            1,
-            "reps",
-            5,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            80,
-            null,
-            "CHAINS",
-            new PlannedWorkoutFile.RestRange(120, 180),
-            false);
-    PlannedWorkoutFile.PlannedSetTarget secondSet =
-        new PlannedWorkoutFile.PlannedSetTarget(
-            2,
-            "reps",
-            5,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            80,
-            null,
-            "CHAINS",
-            new PlannedWorkoutFile.RestRange(120, 180),
-            false);
-    PlannedWorkoutFile workoutFile =
-        new PlannedWorkoutFile(
-            4,
-            new PlannedWorkoutFile.PlannedWorkoutMetadata(
-                "Imported Wave", "Ready to train.", 1, List.of("test")),
-            new PlannedWorkoutFile.PlannedWorkoutSource(
-                "wave-generation", "conjugate", "Conjugate Wave", null, "2026-05-29T00:00:00Z"),
-            List.of(
-                new PlannedWorkoutFile.PlannedWorkoutWeek(
-                    1,
-                    List.of(
-                        new PlannedWorkoutFile.PlannedWorkoutDay(
-                            "MONDAY",
-                            "Monday",
-                            List.of(
-                                new PlannedWorkoutFile.PlannedWorkoutBlock(
-                                    1,
-                                    "Backoff Sets",
-                                    "supplemental",
-                                    null,
-                                    false,
-                                    List.of(
-                                        new PlannedWorkoutFile.PlannedExercise(
-                                            "Back Squat",
-                                            "LOWER",
-                                            "SQUAT",
-                                            List.of("QUAD"),
-                                            List.of(firstSet, secondSet),
-                                            "Stay fast.",
-                                            List.of("Front Squat"))),
-                                    List.of("Use today's top single."))),
-                            List.of())))),
-            List.of());
-
-    String html = PlannedWorkoutHtml.renderPage(workoutFile);
+    String html = PlannedWorkoutHtml.renderPage(groupedTargetWorkout());
 
     assertTrue(html.contains("Imported Wave"));
     assertTrue(html.contains("Back to Workouts"));
@@ -424,16 +358,75 @@ class WebUiRendererTest {
     assertTrue(html.contains("Print View"));
     assertTrue(html.contains("Save As Markdown"));
     assertTrue(html.contains("Save As Workout JSON"));
+  }
 
-    String workAlongHtml = PlannedWorkoutHtml.renderWorkAlongPage(workoutFile);
-    assertTrue(workAlongHtml.contains("<h1>Work Along</h1>"));
-    assertTrue(workAlongHtml.contains("Choose the week and training day you want to follow."));
-    assertTrue(workAlongHtml.contains("action='/planned-workout-session'"));
-    assertTrue(workAlongHtml.contains("name='weekNumber'"));
-    assertTrue(workAlongHtml.contains("class='js-workalong-day-choice'"));
-    assertTrue(workAlongHtml.contains("name='dayOfWeek' class='js-workalong-day'"));
-    assertTrue(workAlongHtml.contains("data-week='1' data-day='MONDAY'"));
-    assertTrue(workAlongHtml.contains("Start Workout"));
+  @Test
+  void workAlongPageRendersWorkoutChooserAndStartControls() {
+    String html = PlannedWorkoutHtml.renderWorkAlongPage(groupedTargetWorkout());
+
+    assertTrue(html.contains("<h1>Work Along</h1>"));
+    assertTrue(html.contains("Choose the week and training day you want to follow."));
+    assertTrue(html.contains("action='/planned-workout-session'"));
+    assertTrue(html.contains("name='weekNumber'"));
+    assertTrue(html.contains("class='js-workalong-day-choice'"));
+    assertTrue(html.contains("name='dayOfWeek' class='js-workalong-day'"));
+    assertTrue(html.contains("data-week='1' data-day='MONDAY'"));
+    assertTrue(html.contains("Start Workout"));
+  }
+
+  private static PlannedWorkoutFile groupedTargetWorkout() {
+    PlannedWorkoutFile.PlannedSetTarget firstSet = groupedTargetSet(1);
+    PlannedWorkoutFile.PlannedSetTarget secondSet = groupedTargetSet(2);
+    return new PlannedWorkoutFile(
+        4,
+        new PlannedWorkoutFile.PlannedWorkoutMetadata(
+            "Imported Wave", "Ready to train.", 1, List.of("test")),
+        new PlannedWorkoutFile.PlannedWorkoutSource(
+            "wave-generation", "conjugate", "Conjugate Wave", null, "2026-05-29T00:00:00Z"),
+        List.of(
+            new PlannedWorkoutFile.PlannedWorkoutWeek(
+                1,
+                List.of(
+                    new PlannedWorkoutFile.PlannedWorkoutDay(
+                        "MONDAY",
+                        "Monday",
+                        List.of(
+                            new PlannedWorkoutFile.PlannedWorkoutBlock(
+                                1,
+                                "Backoff Sets",
+                                "supplemental",
+                                null,
+                                false,
+                                List.of(
+                                    new PlannedWorkoutFile.PlannedExercise(
+                                        "Back Squat",
+                                        "LOWER",
+                                        "SQUAT",
+                                        List.of("QUAD"),
+                                        List.of(firstSet, secondSet),
+                                        "Stay fast.",
+                                        List.of("Front Squat"))),
+                                List.of("Use today's top single."))),
+                        List.of())))),
+        List.of());
+  }
+
+  private static PlannedWorkoutFile.PlannedSetTarget groupedTargetSet(int setNumber) {
+    return new PlannedWorkoutFile.PlannedSetTarget(
+        setNumber,
+        "reps",
+        5,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        80,
+        null,
+        "CHAINS",
+        new PlannedWorkoutFile.RestRange(120, 180),
+        false);
   }
 
   @Test

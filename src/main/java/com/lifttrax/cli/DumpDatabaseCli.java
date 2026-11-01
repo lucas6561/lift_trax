@@ -168,12 +168,25 @@ public final class DumpDatabaseCli {
       boolean formatSpecified,
       LocalDate from,
       LocalDate to) {
+    rejectConflictingOutputModes(liftsOnly, executionsOnly);
+    rejectExecutionFiltersWithoutExecutionMode(executionsOnly, formatSpecified, from, to);
+    rejectReversedDateRange(from, to);
+  }
+
+  private static void rejectConflictingOutputModes(boolean liftsOnly, boolean executionsOnly) {
     if (liftsOnly && executionsOnly) {
       throw new IllegalArgumentException("--lifts-only cannot be combined with --executions-only");
     }
+  }
+
+  private static void rejectExecutionFiltersWithoutExecutionMode(
+      boolean executionsOnly, boolean formatSpecified, LocalDate from, LocalDate to) {
     if (!executionsOnly && (formatSpecified || from != null || to != null)) {
       throw new IllegalArgumentException("--format, --from, and --to require --executions-only");
     }
+  }
+
+  private static void rejectReversedDateRange(LocalDate from, LocalDate to) {
     if (from != null && to != null && from.isAfter(to)) {
       throw new IllegalArgumentException("--from must be on or before --to");
     }

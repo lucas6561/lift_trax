@@ -98,12 +98,7 @@ public record WarmupLoading(
     if (all.isEmpty()) {
       return null;
     }
-    List<Candidate> eligible =
-        all.stream().filter(candidate -> candidate.load() + 1e-9 >= minimumBridge).toList();
-    // An impossible bridge remains explicitly unsatisfied in the generator's result.
-    if (eligible.isEmpty()) {
-      eligible = all;
-    }
+    List<Candidate> eligible = eligibleCandidates(all, minimumBridge);
     if (system == LoadingSystem.FIXED_INCREMENT) {
       return eligible.stream().min(accuracy(target)).orElseThrow();
     }
@@ -122,6 +117,14 @@ public record WarmupLoading(
                 .thenComparingDouble(candidate -> candidate.changeCost(previous))
                 .thenComparingDouble(Candidate::load))
         .orElseThrow();
+  }
+
+  private static List<Candidate> eligibleCandidates(
+      List<Candidate> candidates, double minimumBridge) {
+    List<Candidate> eligible =
+        candidates.stream().filter(candidate -> candidate.load() + 1e-9 >= minimumBridge).toList();
+    // An impossible bridge remains explicitly unsatisfied in the generator's result.
+    return eligible.isEmpty() ? candidates : eligible;
   }
 
   private Candidate chooseFreeform(double workingWeight, double target, double minimumBridge) {

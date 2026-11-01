@@ -220,7 +220,7 @@ final class WebWorkoutRoutes {
     }
   }
 
-  private static String downloadName(PlannedWorkoutFile workoutFile, String extension) {
+  static String downloadName(PlannedWorkoutFile workoutFile, String extension) {
     String slug =
         workoutFile
             .metadata()

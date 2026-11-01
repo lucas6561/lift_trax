@@ -61,33 +61,33 @@
 
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
-            <property name="methodReportLevel" value="15"/>
+            <property name="methodReportLevel" value="13"/>
             <property name="classReportLevel" value="100"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/NPathComplexity">
         <properties>
-            <property name="reportLevel" value="200"/>
+            <property name="reportLevel" value="190"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/NcssCount">
         <properties>
-            <property name="methodReportLevel" value="60"/>
-            <property name="classReportLevel" value="500"/>
+            <property name="methodReportLevel" value="52"/>
+            <property name="classReportLevel" value="450"/>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/TooManyMethods">
         <properties>
-            <property name="maxmethods" value="35"/>
+            <property name="maxmethods" value="32"/>
         </properties>
     </rule>
 
     <rule name="ExcessivePhysicalClassLength"
           language="java"
-          message="Production class spans more than 750 physical lines."
+          message="Production class spans more than 675 physical lines."
           class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
         <description>
             Counts the complete source span so embedded HTML, JavaScript, SQL,
@@ -103,7 +103,7 @@
                         | EnumDeclaration/EnumBody
                         | AnnotationTypeDeclaration/AnnotationTypeBody
                     )[
-                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 750
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 675
                     ]
                 ]]></value>
             </property>
@@ -112,7 +112,7 @@
 
     <rule name="ExcessivePhysicalMethodLength"
           language="java"
-          message="Production method or constructor spans more than 100 physical lines."
+          message="Production method or constructor spans more than 85 physical lines."
           class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
         <description>
             Counts the complete declaration span, including maintained text blocks.
@@ -126,7 +126,7 @@
                         | ConstructorDeclaration
                         | CompactConstructorDeclaration
                     )/Block[
-                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 100
+                        pmd:endLine(.) - pmd:startLine(parent::*) + 1 > 85
                     ]
                 ]]></value>
             </property>

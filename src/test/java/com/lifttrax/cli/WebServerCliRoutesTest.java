@@ -223,76 +223,163 @@ class WebServerCliRoutesTest {
   }
 
   @Test
-  void liftCrudFragmentAndDetailRoutesCoverSuccessfulAndInvalidRequests() throws Exception {
-    Path dbPath = Files.createTempFile("lifttrax-route-lift-crud", ".db");
-    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
-      assertLiftCreate(db);
-      assertLiftUpdate(db);
-      assertLiftStatusAndViews(db);
-      assertLiftDeleteAndValidation(db);
-    } finally {
-      Files.deleteIfExists(dbPath);
+  void addLiftRouteCreatesTheCatalogEntry() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("lift-add")) {
+      TestExchange exchange =
+          TestExchange.post(
+              "/add-lift",
+              form(
+                  "name",
+                  "Safety Bar Squat",
+                  "region",
+                  "LOWER",
+                  "main",
+                  "SQUAT",
+                  "muscles",
+                  "QUAD, GLUTE",
+                  "notes",
+                  "upright"));
+
+      invokeHandler("handleAddLift", exchange, fixture.db());
+
+      assertEquals(303, exchange.status());
+      assertEquals("upright", fixture.db().getLift("Safety Bar Squat").notes());
     }
   }
 
-  private static void assertLiftCreate(SqliteDb db) throws Exception {
-    TestExchange create =
-        TestExchange.post(
-            "/add-lift",
-            form(
-                "name",
-                "Safety Bar Squat",
-                "region",
-                "LOWER",
-                "main",
-                "SQUAT",
-                "muscles",
-                "QUAD, GLUTE",
-                "notes",
-                "upright"));
-    invokeHandler("handleAddLift", create, db);
-    assertEquals(303, create.status());
-    assertEquals("upright", db.getLift("Safety Bar Squat").notes());
+  @Test
+  void updateLiftRouteRenamesTheEntryAndPreservesNavigation() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("lift-update")) {
+      addSsbLift(fixture.db(), "Safety Bar Squat", "upright");
+      TestExchange exchange =
+          TestExchange.post(
+              "/update-lift",
+              form(
+                  "currentName",
+                  "Safety Bar Squat",
+                  "name",
+                  "SSB Squat",
+                  "region",
+                  "LOWER",
+                  "main",
+                  "SQUAT",
+                  "muscles",
+                  "QUAD,HAMSTRING",
+                  "notes",
+                  "updated",
+                  "tab",
+                  "executions",
+                  "lastWeekStart",
+                  "2026-07-20",
+                  "lastWeekEnd",
+                  "2026-07-26"));
+
+      invokeHandler("handleUpdateLift", exchange, fixture.db());
+
+      assertEquals(303, exchange.status());
+      assertTrue(exchange.location().contains("Updated+lift"));
+      assertEquals("updated", fixture.db().getLift("SSB Squat").notes());
+    }
   }
 
-  private static void assertLiftUpdate(SqliteDb db) throws Exception {
-    TestExchange update =
-        TestExchange.post(
-            "/update-lift",
-            form(
-                "currentName",
-                "Safety Bar Squat",
-                "name",
-                "SSB Squat",
-                "region",
-                "LOWER",
-                "main",
-                "SQUAT",
-                "muscles",
-                "QUAD,HAMSTRING",
-                "notes",
-                "updated",
-                "tab",
-                "executions",
-                "lastWeekStart",
-                "2026-07-20",
-                "lastWeekEnd",
-                "2026-07-26"));
-    invokeHandler("handleUpdateLift", update, db);
-    assertEquals(303, update.status());
-    assertTrue(update.location().contains("Updated+lift"));
-    assertEquals("updated", db.getLift("SSB Squat").notes());
+  @Test
+  void liftStatusRouteDisablesTheSelectedLift() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("lift-status")) {
+      addSsbLift(fixture.db(), "SSB Squat", "updated");
+      TestExchange exchange =
+          TestExchange.post(
+              "/set-lift-enabled", form("lift", "SSB Squat", "enabled", "0", "tab", "executions"));
+
+      invokeHandler("handleSetLiftEnabled", exchange, fixture.db());
+
+      assertFalse(fixture.db().isLiftEnabled("SSB Squat"));
+      assertTrue(exchange.location().contains("Disabled+lift"));
+    }
   }
 
-  private static void assertLiftStatusAndViews(SqliteDb db) throws Exception {
-    TestExchange disable =
-        TestExchange.post(
-            "/set-lift-enabled", form("lift", "SSB Squat", "enabled", "0", "tab", "executions"));
-    invokeHandler("handleSetLiftEnabled", disable, db);
-    assertFalse(db.isLiftEnabled("SSB Squat"));
-    assertTrue(disable.location().contains("Disabled+lift"));
+  @Test
+  void liftDetailRouteRendersExecutionHistory() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("lift-detail")) {
+      addSsbExecution(fixture.db());
+      TestExchange exchange = TestExchange.get("/lift?name=SSB+Squat");
 
-    db.setLiftEnabled("SSB Squat", true);
+      invokeHandler("handleLift", exchange, fixture.db());
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("315 lb"));
+      assertTrue(exchange.responseBody().contains("solid"));
+    }
+  }
+
+  @Test
+  void executionFragmentRendersHistoryForTheSelectedLift() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("execution-fragment")) {
+      addSsbExecution(fixture.db());
+      TestExchange exchange = TestExchange.get("/executions-fragment?lift=SSB+Squat");
+
+      invokeHandler("handleExecutionsFragment", exchange, fixture.db());
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("315 lb"));
+    }
+  }
+
+  @Test
+  void liftAndExecutionViewsRejectMissingLiftNames() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("missing-lift")) {
+      TestExchange fragment = TestExchange.get("/executions-fragment");
+      TestExchange detail = TestExchange.get("/lift");
+
+      invokeHandler("handleExecutionsFragment", fragment, fixture.db());
+      invokeHandler("handleLift", detail, fixture.db());
+
+      assertEquals(400, fragment.status());
+      assertTrue(detail.responseBody().contains("Missing lift name"));
+    }
+  }
+
+  @Test
+  void deleteLiftRouteRemovesTheCatalogEntry() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("lift-delete")) {
+      addSsbLift(fixture.db(), "SSB Squat", "updated");
+      TestExchange exchange =
+          TestExchange.post("/delete-lift", form("lift", "SSB Squat", "tab", "executions"));
+
+      invokeHandler("handleDeleteLift", exchange, fixture.db());
+
+      assertEquals(303, exchange.status());
+      assertTrue(exchange.location().contains("Deleted+catalog+lift"));
+    }
+  }
+
+  @Test
+  void addLiftRouteRejectsMissingNames() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("lift-missing-name")) {
+      TestExchange exchange = TestExchange.post("/add-lift", form("name", "", "region", "UPPER"));
+
+      invokeHandler("handleAddLift", exchange, fixture.db());
+
+      assertTrue(exchange.location().contains("name%20is%20required"));
+    }
+  }
+
+  @Test
+  void addLiftRouteRejectsUnsupportedMethods() throws Exception {
+    try (RouteDbFixture fixture = routeDbFixture("lift-method")) {
+      TestExchange exchange = TestExchange.put("/add-lift", "");
+
+      invokeHandler("handleAddLift", exchange, fixture.db());
+
+      assertEquals(405, exchange.status());
+    }
+  }
+
+  private static void addSsbLift(SqliteDb db, String name, String notes) throws Exception {
+    db.addLift(name, LiftRegion.LOWER, LiftType.SQUAT, List.of(Muscle.QUAD), notes);
+  }
+
+  private static void addSsbExecution(SqliteDb db) throws Exception {
+    addSsbLift(db, "SSB Squat", "updated");
     db.addLiftExecution(
         "SSB Squat",
         new LiftExecution(
@@ -302,41 +389,19 @@ class WebServerCliRoutesTest {
             false,
             false,
             "solid"));
-
-    TestExchange detail = TestExchange.get("/lift?name=SSB+Squat");
-    invokeHandler("handleLift", detail, db);
-    assertEquals(200, detail.status());
-    assertTrue(detail.responseBody().contains("315 lb"));
-    assertTrue(detail.responseBody().contains("solid"));
-
-    TestExchange fragment = TestExchange.get("/executions-fragment?lift=SSB+Squat");
-    invokeHandler("handleExecutionsFragment", fragment, db);
-    assertEquals(200, fragment.status());
-    assertTrue(fragment.responseBody().contains("315 lb"));
-
-    TestExchange missingFragment = TestExchange.get("/executions-fragment");
-    invokeHandler("handleExecutionsFragment", missingFragment, db);
-    assertEquals(400, missingFragment.status());
-
-    TestExchange missingDetail = TestExchange.get("/lift");
-    invokeHandler("handleLift", missingDetail, db);
-    assertTrue(missingDetail.responseBody().contains("Missing lift name"));
   }
 
-  private static void assertLiftDeleteAndValidation(SqliteDb db) throws Exception {
-    TestExchange delete =
-        TestExchange.post("/delete-lift", form("lift", "SSB Squat", "tab", "executions"));
-    invokeHandler("handleDeleteLift", delete, db);
-    assertEquals(303, delete.status());
-    assertTrue(delete.location().contains("Deleted+catalog+lift"));
+  private static RouteDbFixture routeDbFixture(String name) throws Exception {
+    Path path = Files.createTempFile("lifttrax-route-" + name, ".db");
+    return new RouteDbFixture(path, new SqliteDb(path.toString()));
+  }
 
-    TestExchange missingName = TestExchange.post("/add-lift", form("name", "", "region", "UPPER"));
-    invokeHandler("handleAddLift", missingName, db);
-    assertTrue(missingName.location().contains("name%20is%20required"));
-
-    TestExchange invalidMethod = TestExchange.put("/add-lift", "");
-    invokeHandler("handleAddLift", invalidMethod, db);
-    assertEquals(405, invalidMethod.status());
+  private record RouteDbFixture(Path path, SqliteDb db) implements AutoCloseable {
+    @Override
+    public void close() throws Exception {
+      db.close();
+      Files.deleteIfExists(path);
+    }
   }
 
   @Test
@@ -501,209 +566,260 @@ class WebServerCliRoutesTest {
   }
 
   @Test
-  void plannedWorkoutRoutesCoverPreviewDownloadsResumeAndIdempotentEmptySaves() throws Exception {
-    String json =
-        Files.readString(Path.of("shared", "workouts", "examples", "conjugate-wave-v2.json"));
-    PlannedWorkoutFile workout = PlannedWorkoutJson.readString(json);
-    int weekNumber = workout.weeks().get(0).weekNumber();
-    String dayOfWeek = workout.weeks().get(0).days().get(0).dayOfWeek();
-    Path dbPath = Files.createTempFile("lifttrax-route-planned-workout", ".db");
-    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
-      assertPlannedPreviewRoutes(db, json, workout);
-      assertPlannedStartAndBlockSave(db, json, weekNumber, dayOfWeek);
-      assertPlannedSessionSaveAndErrors(db, json, weekNumber, dayOfWeek);
-    } finally {
-      Files.deleteIfExists(dbPath);
+  void plannedWorkoutPreviewRendersTheImportedWorkout() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      TestExchange exchange =
+          TestExchange.post("/planned-workout-preview", form("plannedWorkoutJson", fixture.json()));
+
+      invokeHandler("handlePlannedWorkoutPreview", exchange, fixture.db());
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains(fixture.workout().metadata().name()));
     }
   }
 
-  private static void assertPlannedPreviewRoutes(
-      SqliteDb db, String json, PlannedWorkoutFile workout) throws Exception {
-    String workoutForm = form("plannedWorkoutJson", json);
-
-    TestExchange preview = TestExchange.post("/planned-workout-preview", workoutForm);
-    invokeHandler("handlePlannedWorkoutPreview", preview, db);
-    assertEquals(200, preview.status());
-    assertTrue(preview.responseBody().contains(workout.metadata().name()));
-
-    TestExchange workAlong = TestExchange.post("/planned-workout-work-along", workoutForm);
-    invokeStaticHandler("handlePlannedWorkoutWorkAlong", workAlong);
-    assertTrue(workAlong.responseBody().contains("Start Workout"));
-
-    TestExchange print = TestExchange.post("/planned-workout-print", workoutForm);
-    invokeHandler("handlePlannedWorkoutPrint", print, db);
-    assertEquals(200, print.status());
-    assertTrue(print.responseBody().contains("Print"));
-
-    TestExchange markdown = TestExchange.post("/planned-workout-markdown", workoutForm);
-    invokeHandler("handlePlannedWorkoutMarkdown", markdown, db);
-    assertEquals(200, markdown.status());
-    assertTrue(markdown.responseHeaders.getFirst("Content-Disposition").endsWith(".md\""));
-
-    TestExchange downloadJson = TestExchange.post("/planned-workout-json", workoutForm);
-    invokeStaticHandler("handlePlannedWorkoutJson", downloadJson);
-    assertEquals(200, downloadJson.status());
-    assertTrue(downloadJson.responseHeaders.getFirst("Content-Disposition").endsWith(".json\""));
-
-    TestExchange resume = TestExchange.get("/planned-workout-session?draft=draft-key");
-    invokeHandler("handlePlannedWorkoutSession", resume, db);
-    assertTrue(resume.responseBody().contains("Resume Workout"));
-  }
-
-  private static void assertPlannedStartAndBlockSave(
-      SqliteDb db, String json, int weekNumber, String dayOfWeek) throws Exception {
-    TestExchange start =
-        TestExchange.post(
-            "/planned-workout-session",
-            form(
-                "plannedWorkoutJson",
-                json,
-                "weekNumber",
-                String.valueOf(weekNumber),
-                "dayOfWeek",
-                dayOfWeek));
-    invokeHandler("handlePlannedWorkoutSession", start, db);
-    assertEquals(200, start.status());
-    assertTrue(start.responseBody().contains("Train " + dayOfWeek));
-
-    TestExchange saveBlock =
-        TestExchange.post(
-            "/save-planned-workout-block",
-            form(
-                "plannedWorkoutJson",
-                json,
-                "weekNumber",
-                String.valueOf(weekNumber),
-                "dayOfWeek",
-                dayOfWeek,
-                "sessionDate",
-                "2026-07-27",
-                "sessionResultsJson",
-                "[]",
-                "submissionId",
-                "coverage-block-1"));
-    invokeHandler("handleSavePlannedWorkoutBlock", saveBlock, db);
-    assertEquals(200, saveBlock.status());
-    assertTrue(saveBlock.responseBody().contains("\"loggedExecutionCount\":0"));
-  }
-
-  private static void assertPlannedSessionSaveAndErrors(
-      SqliteDb db, String json, int weekNumber, String dayOfWeek) throws Exception {
-    TestExchange saveSession =
-        TestExchange.post(
-            "/save-planned-workout-session",
-            form(
-                "plannedWorkoutJson",
-                json,
-                "weekNumber",
-                String.valueOf(weekNumber),
-                "dayOfWeek",
-                dayOfWeek,
-                "sessionDate",
-                "2026-07-27",
-                "sessionResultsJson",
-                "[]",
-                "submissionId",
-                "coverage-session-1",
-                "savedSessionLoggedCount",
-                "2",
-                "savedSessionSkippedExercises",
-                "bad",
-                "savedSessionSkippedSets",
-                "-4"));
-    invokeHandler("handleSavePlannedWorkoutSession", saveSession, db);
-    assertEquals(200, saveSession.status());
-    assertTrue(saveSession.responseBody().contains("Workout Saved"));
-
-    TestExchange invalidPreview = TestExchange.post("/planned-workout-preview", "");
-    invokeHandler("handlePlannedWorkoutPreview", invalidPreview, db);
-    assertTrue(invalidPreview.responseBody().contains("Import Error"));
-
-    TestExchange invalidBlock = TestExchange.post("/save-planned-workout-block", "");
-    invokeHandler("handleSavePlannedWorkoutBlock", invalidBlock, db);
-    assertEquals(400, invalidBlock.status());
-    assertTrue(invalidBlock.responseBody().contains("error"));
-  }
-
-  @SuppressWarnings("unchecked")
   @Test
-  void serverParsingHelpersCoverBoundsDatesDetailedSetsAndDownloadNames() throws Exception {
-    assertEquals(
-        7,
-        invokePrivate(
-            "parseBoundedInt",
-            new Class<?>[] {String.class, int.class, int.class, int.class},
-            null,
-            7,
-            1,
-            24));
-    assertEquals(
-        24,
-        invokePrivate(
-            "parseBoundedInt",
-            new Class<?>[] {String.class, int.class, int.class, int.class},
-            "99",
-            7,
-            1,
-            24));
-    assertEquals(
-        7,
-        invokePrivate(
-            "parseBoundedInt",
-            new Class<?>[] {String.class, int.class, int.class, int.class},
-            "bad",
-            7,
-            1,
-            24));
+  void plannedWorkoutWorkAlongRendersAStartAction() throws Exception {
+    PlannedRouteFixture fixture = plannedRouteData();
+    TestExchange exchange =
+        TestExchange.post(
+            "/planned-workout-work-along", form("plannedWorkoutJson", fixture.json()));
+
+    invokeStaticHandler("handlePlannedWorkoutWorkAlong", exchange);
+
+    assertTrue(exchange.responseBody().contains("Start Workout"));
+  }
+
+  @Test
+  void plannedWorkoutPrintRendersPrintableContent() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      TestExchange exchange =
+          TestExchange.post("/planned-workout-print", form("plannedWorkoutJson", fixture.json()));
+
+      invokeHandler("handlePlannedWorkoutPrint", exchange, fixture.db());
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("Print"));
+    }
+  }
+
+  @Test
+  void plannedWorkoutDownloadsUseTheExpectedExtensions() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      String workoutForm = form("plannedWorkoutJson", fixture.json());
+      TestExchange markdown = TestExchange.post("/planned-workout-markdown", workoutForm);
+      TestExchange json = TestExchange.post("/planned-workout-json", workoutForm);
+
+      invokeHandler("handlePlannedWorkoutMarkdown", markdown, fixture.db());
+      invokeStaticHandler("handlePlannedWorkoutJson", json);
+
+      assertEquals(200, markdown.status());
+      assertTrue(markdown.responseHeaders.getFirst("Content-Disposition").endsWith(".md\""));
+      assertEquals(200, json.status());
+      assertTrue(json.responseHeaders.getFirst("Content-Disposition").endsWith(".json\""));
+    }
+  }
+
+  @Test
+  void plannedWorkoutResumeRouteRendersTheDraftChooser() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      TestExchange exchange = TestExchange.get("/planned-workout-session?draft=draft-key");
+
+      invokeHandler("handlePlannedWorkoutSession", exchange, fixture.db());
+
+      assertTrue(exchange.responseBody().contains("Resume Workout"));
+    }
+  }
+
+  @Test
+  void plannedWorkoutSessionRouteStartsTheSelectedDay() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      TestExchange exchange =
+          TestExchange.post("/planned-workout-session", selectedWorkoutForm(fixture));
+
+      invokeHandler("handlePlannedWorkoutSession", exchange, fixture.db());
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("Train " + fixture.dayOfWeek()));
+    }
+  }
+
+  @Test
+  void plannedWorkoutBlockSaveIsIdempotentForAnEmptyBlock() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      TestExchange exchange =
+          TestExchange.post(
+              "/save-planned-workout-block",
+              form(
+                  "plannedWorkoutJson",
+                  fixture.json(),
+                  "weekNumber",
+                  String.valueOf(fixture.weekNumber()),
+                  "dayOfWeek",
+                  fixture.dayOfWeek(),
+                  "sessionDate",
+                  "2026-07-27",
+                  "sessionResultsJson",
+                  "[]",
+                  "submissionId",
+                  "coverage-block-1"));
+
+      invokeHandler("handleSavePlannedWorkoutBlock", exchange, fixture.db());
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("\"loggedExecutionCount\":0"));
+    }
+  }
+
+  @Test
+  void plannedWorkoutSessionSaveCombinesEarlierBlockTotals() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      TestExchange exchange =
+          TestExchange.post(
+              "/save-planned-workout-session",
+              form(
+                  "plannedWorkoutJson",
+                  fixture.json(),
+                  "weekNumber",
+                  String.valueOf(fixture.weekNumber()),
+                  "dayOfWeek",
+                  fixture.dayOfWeek(),
+                  "sessionDate",
+                  "2026-07-27",
+                  "sessionResultsJson",
+                  "[]",
+                  "submissionId",
+                  "coverage-session-1",
+                  "savedSessionLoggedCount",
+                  "2",
+                  "savedSessionSkippedExercises",
+                  "bad",
+                  "savedSessionSkippedSets",
+                  "-4"));
+
+      invokeHandler("handleSavePlannedWorkoutSession", exchange, fixture.db());
+
+      assertEquals(200, exchange.status());
+      assertTrue(exchange.responseBody().contains("Workout Saved"));
+    }
+  }
+
+  @Test
+  void plannedWorkoutRoutesRejectMissingPayloads() throws Exception {
+    try (PlannedRouteFixture fixture = plannedRouteFixture()) {
+      TestExchange preview = TestExchange.post("/planned-workout-preview", "");
+      TestExchange block = TestExchange.post("/save-planned-workout-block", "");
+
+      invokeHandler("handlePlannedWorkoutPreview", preview, fixture.db());
+      invokeHandler("handleSavePlannedWorkoutBlock", block, fixture.db());
+
+      assertTrue(preview.responseBody().contains("Import Error"));
+      assertEquals(400, block.status());
+      assertTrue(block.responseBody().contains("error"));
+    }
+  }
+
+  @Test
+  void boundedIntegerParsingUsesFallbacksAndClampsHighValues() {
+    assertEquals(7, WebExecutionRequestParser.parseBoundedInt(null, 7, 1, 24));
+    assertEquals(24, WebExecutionRequestParser.parseBoundedInt("99", 7, 1, 24));
+    assertEquals(7, WebExecutionRequestParser.parseBoundedInt("bad", 7, 1, 24));
+  }
+
+  @Test
+  void dateParsingUsesTheFallbackForInvalidInput() {
     assertEquals(
         LocalDate.parse("2026-07-27"),
-        invokePrivate(
-            "parseDateOrDefault",
-            new Class<?>[] {String.class, LocalDate.class},
-            "2026-07-27",
-            LocalDate.MIN));
-    assertEquals(
-        LocalDate.MIN,
-        invokePrivate(
-            "parseDateOrDefault",
-            new Class<?>[] {String.class, LocalDate.class},
-            "bad",
-            LocalDate.MIN));
-    assertEquals(
-        List.of(Muscle.QUAD, Muscle.GLUTE),
-        invokePrivate("parseMuscles", new Class<?>[] {String.class}, "QUAD, ,GLUTE"));
-    assertEquals(
-        List.of(), invokePrivate("parseMuscles", new Class<?>[] {String.class}, (Object) null));
+        WebExecutionRequestParser.parseDateOrDefault("2026-07-27", LocalDate.MIN));
+    assertEquals(LocalDate.MIN, WebExecutionRequestParser.parseDateOrDefault("bad", LocalDate.MIN));
+  }
 
+  @Test
+  void muscleParsingIgnoresBlankTokensAndNullInput() {
+    assertEquals(List.of(Muscle.QUAD, Muscle.GLUTE), WebCatalogRoutes.parseMuscles("QUAD, ,GLUTE"));
+    assertEquals(List.of(), WebCatalogRoutes.parseMuscles(null));
+  }
+
+  @Test
+  void detailedSetParsingPreservesMetricKinds() {
     List<ExecutionSet> sets =
-        (List<ExecutionSet>)
-            invokePrivate(
-                "parseDetailedSets",
-                new Class<?>[] {String.class},
-                """
-                [
-                  {"metricType":"reps-lr","metricLeft":"4","metricRight":"3","weight":"25 lb","rpe":"8"},
-                  {"metricType":"time","metricValue":"30","weight":"","rpe":""},
-                  {"metricType":"distance","metricValue":"100","weight":"90 lb","rpe":"7.5"}
-                ]
-                """);
+        WebExecutionRequestParser.parseDetailedSets(
+            """
+            [
+              {"metricType":"reps-lr","metricLeft":"4","metricRight":"3","weight":"25 lb","rpe":"8"},
+              {"metricType":"time","metricValue":"30","weight":"","rpe":""},
+              {"metricType":"distance","metricValue":"100","weight":"90 lb","rpe":"7.5"}
+            ]
+            """);
+
     assertEquals(3, sets.size());
     assertEquals(new SetMetric.RepsLr(4, 3), sets.get(0).metric());
-    assertEquals(
-        List.of(), invokePrivate("parseDetailedSets", new Class<?>[] {String.class}, "{}"));
-    assertEquals(
-        List.of(), invokePrivate("parseDetailedSets", new Class<?>[] {String.class}, "bad-json"));
+  }
 
-    String exampleJson =
+  @Test
+  void detailedSetParsingRejectsObjectsAndMalformedJson() {
+    assertEquals(List.of(), WebExecutionRequestParser.parseDetailedSets("{}"));
+    assertEquals(List.of(), WebExecutionRequestParser.parseDetailedSets("bad-json"));
+  }
+
+  @Test
+  void plannedWorkoutDownloadNamesPreserveTheRequestedExtension() throws Exception {
+    PlannedRouteFixture fixture = plannedRouteData();
+
+    assertTrue(WebWorkoutRoutes.downloadName(fixture.workout(), ".json").endsWith(".json"));
+  }
+
+  private static String selectedWorkoutForm(PlannedRouteFixture fixture) {
+    return form(
+        "plannedWorkoutJson",
+        fixture.json(),
+        "weekNumber",
+        String.valueOf(fixture.weekNumber()),
+        "dayOfWeek",
+        fixture.dayOfWeek());
+  }
+
+  private static PlannedRouteFixture plannedRouteFixture() throws Exception {
+    PlannedRouteFixture data = plannedRouteData();
+    Path path = Files.createTempFile("lifttrax-route-planned-workout", ".db");
+    return new PlannedRouteFixture(
+        data.json(),
+        data.workout(),
+        data.weekNumber(),
+        data.dayOfWeek(),
+        path,
+        new SqliteDb(path.toString()));
+  }
+
+  private static PlannedRouteFixture plannedRouteData() throws Exception {
+    String json =
         Files.readString(Path.of("shared", "workouts", "examples", "conjugate-wave-v2.json"));
-    PlannedWorkoutFile workout = PlannedWorkoutJson.readString(exampleJson);
-    assertTrue(
-        ((String)
-                invokePrivate(
-                    "downloadName",
-                    new Class<?>[] {PlannedWorkoutFile.class, String.class},
-                    workout,
-                    ".json"))
-            .endsWith(".json"));
+    PlannedWorkoutFile workout = PlannedWorkoutJson.readString(json);
+    return new PlannedRouteFixture(
+        json,
+        workout,
+        workout.weeks().get(0).weekNumber(),
+        workout.weeks().get(0).days().get(0).dayOfWeek(),
+        null,
+        null);
+  }
+
+  private record PlannedRouteFixture(
+      String json,
+      PlannedWorkoutFile workout,
+      int weekNumber,
+      String dayOfWeek,
+      Path path,
+      SqliteDb db)
+      implements AutoCloseable {
+    @Override
+    public void close() throws Exception {
+      if (db != null) {
+        db.close();
+      }
+      if (path != null) {
+        Files.deleteIfExists(path);
+      }
+    }
   }
 }

@@ -155,7 +155,7 @@ final class WebCatalogRoutes {
     }
   }
 
-  private static List<Muscle> parseMuscles(String value) {
+  static List<Muscle> parseMuscles(String value) {
     if (value == null || value.isBlank()) {
       return List.of();
     }

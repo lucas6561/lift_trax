@@ -89,21 +89,35 @@ class PlannedWorkoutSessionHtmlTest {
   }
 
   @Test
-  void sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps() {
-    String html =
-        PlannedWorkoutSessionHtml.renderPage(
-            workoutFile(),
-            1,
-            "MONDAY",
-            List.of(
-                lift("Back Squat", LiftType.SQUAT, "Brace hard and sit between the hips."),
-                lift("Front Squat", LiftType.SQUAT, "Keep elbows high."),
-                lift("Farmer Carry", LiftType.CONDITIONING)),
-            LocalDate.parse("2026-05-31"));
+  void sessionPageSupportsBlockNavigationAndLiftSwaps() {
+    assertSessionNavigation(renderSessionPage());
+  }
 
-    assertSessionNavigation(html);
-    assertSessionSetEntry(html);
-    assertSessionDraftAndSave(html);
+  @Test
+  void sessionPageStartsWithEmptyCompletedSetEntry() {
+    assertSessionSetEntry(renderSessionPage());
+  }
+
+  @Test
+  void sessionPagePersistsAndRestoresDeviceDrafts() {
+    assertSessionDraftPersistence(renderSessionPage());
+  }
+
+  @Test
+  void sessionPageSynchronizesCompletedBlocks() {
+    assertSessionBlockSynchronization(renderSessionPage());
+  }
+
+  private static String renderSessionPage() {
+    return PlannedWorkoutSessionHtml.renderPage(
+        workoutFile(),
+        1,
+        "MONDAY",
+        List.of(
+            lift("Back Squat", LiftType.SQUAT, "Brace hard and sit between the hips."),
+            lift("Front Squat", LiftType.SQUAT, "Keep elbows high."),
+            lift("Farmer Carry", LiftType.CONDITIONING)),
+        LocalDate.parse("2026-05-31"));
   }
 
   private static void assertSessionNavigation(String html) {
@@ -213,7 +227,7 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("localStorage.getItem(draftKey) !== serialized"));
   }
 
-  private static void assertSessionDraftAndSave(String html) {
+  private static void assertSessionDraftPersistence(String html) {
     assertTrue(html.contains("version: 3"));
     assertTrue(html.contains("plannedWorkoutJson:"));
     assertTrue(html.contains("ownerScope: form.dataset.ownerScope"));
@@ -227,6 +241,9 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("serialized = localStorage.getItem(legacyDraftKey);"));
     assertTrue(html.contains("localStorage.removeItem(restoredLegacyDraftKey);"));
     assertTrue(html.contains("window.history.replaceState"));
+  }
+
+  private static void assertSessionBlockSynchronization(String html) {
     assertTrue(html.contains("currentBlockIndex"));
     assertTrue(html.contains("detailedSets.length > 0 || setEntryMode(widget) === 'individual'"));
     assertTrue(html.contains("event.preventDefault();"));

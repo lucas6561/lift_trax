@@ -52,44 +52,57 @@ final class HostedCatalogImport {
   int save(List<CatalogEntry> entries, String expectedFingerprint) throws Exception {
     connection.setAutoCommit(false);
     try {
-      String profileLock =
-          "PostgreSQL".equals(connection.getMetaData().getDatabaseProductName())
-              ? " FOR NO KEY UPDATE"
-              : " FOR UPDATE";
-      try (PreparedStatement lock =
-          connection.prepareStatement(
-              "SELECT id FROM lifter_profiles WHERE id = ? AND owner_user_id = ?" + profileLock)) {
-        lock.setString(1, profile);
-        lock.setString(2, owner);
-        try (ResultSet rows = lock.executeQuery()) {
-          if (!rows.next()) {
-            throw new IllegalArgumentException("Account profile not found.");
-          }
-        }
-      }
+      lockProfile();
       CatalogImportPlan plan = CatalogImportPlan.preview(entries, list(true));
-      if (!plan.fingerprint().equals(expectedFingerprint)) {
-        throw new IllegalArgumentException(
-            "Catalog changed since preview. Preview this file again before confirming.");
-      }
-      if (plan.hasConflicts()) {
-        throw new IllegalArgumentException(
-            "Catalog import has conflicts. Resolve them in the file and preview again.");
-      }
-      int written = 0;
-      for (CatalogImportPlan.Row row : plan.rows()) {
-        if (row.action() == CatalogImportPlan.Action.NEW
-            || row.action() == CatalogImportPlan.Action.CHANGED) {
-          write(row);
-          written++;
-        }
-      }
+      validatePlan(plan, expectedFingerprint);
+      int written = writeChanges(plan);
       connection.commit();
       return written;
     } catch (Exception e) {
       connection.rollback();
       throw e;
     }
+  }
+
+  private void lockProfile() throws Exception {
+    String profileLock =
+        "PostgreSQL".equals(connection.getMetaData().getDatabaseProductName())
+            ? " FOR NO KEY UPDATE"
+            : " FOR UPDATE";
+    try (PreparedStatement lock =
+        connection.prepareStatement(
+            "SELECT id FROM lifter_profiles WHERE id = ? AND owner_user_id = ?" + profileLock)) {
+      lock.setString(1, profile);
+      lock.setString(2, owner);
+      try (ResultSet rows = lock.executeQuery()) {
+        if (!rows.next()) {
+          throw new IllegalArgumentException("Account profile not found.");
+        }
+      }
+    }
+  }
+
+  private static void validatePlan(CatalogImportPlan plan, String expectedFingerprint) {
+    if (!plan.fingerprint().equals(expectedFingerprint)) {
+      throw new IllegalArgumentException(
+          "Catalog changed since preview. Preview this file again before confirming.");
+    }
+    if (plan.hasConflicts()) {
+      throw new IllegalArgumentException(
+          "Catalog import has conflicts. Resolve them in the file and preview again.");
+    }
+  }
+
+  private int writeChanges(CatalogImportPlan plan) throws Exception {
+    int written = 0;
+    for (CatalogImportPlan.Row row : plan.rows()) {
+      if (row.action() == CatalogImportPlan.Action.NEW
+          || row.action() == CatalogImportPlan.Action.CHANGED) {
+        write(row);
+        written++;
+      }
+    }
+    return written;
   }
 
   private void write(CatalogImportPlan.Row row) throws Exception {

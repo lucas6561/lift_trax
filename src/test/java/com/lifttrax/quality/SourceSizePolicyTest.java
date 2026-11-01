@@ -26,40 +26,40 @@ class SourceSizePolicyTest {
   @Test
   void productionClassAtPhysicalLimitPassesAndOneLineOverFails() throws IOException {
     assertFalse(
-        violations(PRODUCTION_RULESET, "ProductionClassAtLimit", classSource(750))
+        violations(PRODUCTION_RULESET, "ProductionClassAtLimit", classSource(675))
             .contains("ExcessivePhysicalClassLength"));
     assertTrue(
-        violations(PRODUCTION_RULESET, "ProductionClassOverLimit", classSource(751))
+        violations(PRODUCTION_RULESET, "ProductionClassOverLimit", classSource(676))
             .contains("ExcessivePhysicalClassLength"));
   }
 
   @Test
   void productionMethodAtPhysicalLimitPassesAndOneLineOverFails() throws IOException {
     assertFalse(
-        violations(PRODUCTION_RULESET, "ProductionMethodAtLimit", methodSource(100))
+        violations(PRODUCTION_RULESET, "ProductionMethodAtLimit", methodSource(85))
             .contains("ExcessivePhysicalMethodLength"));
     assertTrue(
-        violations(PRODUCTION_RULESET, "ProductionMethodOverLimit", methodSource(101))
+        violations(PRODUCTION_RULESET, "ProductionMethodOverLimit", methodSource(86))
             .contains("ExcessivePhysicalMethodLength"));
   }
 
   @Test
   void testClassAtPhysicalLimitPassesAndOneLineOverFails() throws IOException {
     assertFalse(
-        violations(TEST_RULESET, "TestClassAtLimit", classSource(1000))
+        violations(TEST_RULESET, "TestClassAtLimit", classSource(950))
             .contains("ExcessivePhysicalTestClassLength"));
     assertTrue(
-        violations(TEST_RULESET, "TestClassOverLimit", classSource(1001))
+        violations(TEST_RULESET, "TestClassOverLimit", classSource(951))
             .contains("ExcessivePhysicalTestClassLength"));
   }
 
   @Test
   void testMethodAtPhysicalLimitPassesAndOneLineOverFails() throws IOException {
     assertFalse(
-        violations(TEST_RULESET, "TestMethodAtLimit", methodSource(100))
+        violations(TEST_RULESET, "TestMethodAtLimit", methodSource(90))
             .contains("ExcessivePhysicalTestMethodLength"));
     assertTrue(
-        violations(TEST_RULESET, "TestMethodOverLimit", methodSource(101))
+        violations(TEST_RULESET, "TestMethodOverLimit", methodSource(91))
             .contains("ExcessivePhysicalTestMethodLength"));
   }
 

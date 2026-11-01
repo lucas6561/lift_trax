@@ -49,6 +49,20 @@ required for these checks.
 
 ## Test expectations
 
+A focused unit or contract test should have one behavioral reason to fail. It
+may use several assertions when they jointly describe that one contract (for
+example, a response status, redirect, and persisted row from one route action).
+Split a test when its assertions describe independent routes, parser rules,
+page modes, or state transitions. Share fixture builders when that keeps each
+test's setup small and makes the contract easier to see.
+
+An acceptance test intentionally spans components to prove a valuable user
+journey that would be expensive or misleading to fragment. Name it as an
+acceptance scenario, keep its phases readable, and reserve it for boundaries
+such as TLS, authentication/account isolation, or a complete workout
+submission. Acceptance coverage complements focused tests; it does not replace
+the smaller failure signals.
+
 - Model and workout changes need focused unit tests for happy paths, boundaries,
   invalid input, and meaningful alternatives.
 - Database changes need integration tests against isolated data, including user

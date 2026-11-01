@@ -32,66 +32,54 @@ final class ExecutionInputWidgetHtml {
     List<ExecutionSetFormValues> safeInitialSets = safeSets(initialSets);
     WeightInputParser.WeightPrefill weightPrefill =
         WeightInputParser.parseWeightPrefill(prefill.weight());
-
-    String repsChecked = checked("reps".equals(prefill.metricType()));
-    String repsLrChecked = checked("reps-lr".equals(prefill.metricType()));
-    String timeChecked = checked("time".equals(prefill.metricType()));
-    String distanceChecked = checked("distance".equals(prefill.metricType()));
-    String standardWeightChecked = checked("weight".equals(weightPrefill.mode()));
-    String lrWeightChecked = checked("lr".equals(weightPrefill.mode()));
-    String bandsWeightChecked = checked("bands".equals(weightPrefill.mode()));
-    String accomWeightChecked = checked("accom".equals(weightPrefill.mode()));
-    String noneWeightChecked = checked("none".equals(weightPrefill.mode()));
-    String customWeightChecked = checked("custom".equals(weightPrefill.mode()));
-    String weightUnitLbSelected = selected("lb".equals(weightPrefill.weightUnit()));
-    String weightUnitKgSelected = selected("kg".equals(weightPrefill.weightUnit()));
-    String weightUnitLrLbSelected = selected("lb".equals(weightPrefill.lrUnit()));
-    String weightUnitLrKgSelected = selected("kg".equals(weightPrefill.lrUnit()));
-    String accomUnitLbSelected = selected("lb".equals(weightPrefill.accomUnit()));
-    String accomUnitKgSelected = selected("kg".equals(weightPrefill.accomUnit()));
-    String accomChainsSelected = selected("chains".equals(weightPrefill.accomMode()));
-    String accomBandsSelected = selected("bands".equals(weightPrefill.accomMode()));
-    String bandChecks = renderBandChecks("weightBandColors", weightPrefill.bands());
-    String accomBandChecks = renderBandChecks("accomBandColors", weightPrefill.accomBands());
-    String quickPresets = valueWhen(showQuickPresets, quickPresets());
     SetEntryModeState setEntryMode = SetEntryModeState.from(safeInitialSets, openIndividualSets);
-    String weightModeName = radioName("weightMode", radioNameSuffix);
-    String setEntryModeName = radioName("setEntryMode", radioNameSuffix);
-    String metricTypeName = radioName("metricType", radioNameSuffix);
+    return formatInputWidget(
+        prefill, safeInitialSets, weightPrefill, setEntryMode, showQuickPresets, radioNameSuffix);
+  }
 
+  private static String formatInputWidget(
+      WebUiRenderer.AddExecutionPrefill prefill,
+      List<ExecutionSetFormValues> initialSets,
+      WeightInputParser.WeightPrefill weight,
+      SetEntryModeState setEntryMode,
+      boolean showQuickPresets,
+      String radioNameSuffix) {
+    String weightMode = radioName("weightMode", radioNameSuffix);
+    String setEntryModeName = radioName("setEntryMode", radioNameSuffix);
+    String metricType = radioName("metricType", radioNameSuffix);
     return ClasspathText.read("execution-input-widget.html")
         .formatted(
-            quickPresets,
+            valueWhen(showQuickPresets, quickPresets()),
             WebHtml.escapeHtml(prefill.weight()),
-            WebHtml.escapeHtml(executionSetValuesToJson(safeInitialSets)),
-            weightModeName,
-            standardWeightChecked,
-            weightModeName,
-            lrWeightChecked,
-            weightModeName,
-            bandsWeightChecked,
-            weightModeName,
-            accomWeightChecked,
-            weightModeName,
-            noneWeightChecked,
-            weightModeName,
-            customWeightChecked,
-            WebHtml.escapeHtml(weightPrefill.weightValue()),
-            weightUnitLbSelected,
-            weightUnitKgSelected,
-            WebHtml.escapeHtml(weightPrefill.leftValue()),
-            WebHtml.escapeHtml(weightPrefill.rightValue()),
-            weightUnitLrLbSelected,
-            weightUnitLrKgSelected,
-            bandChecks,
-            WebHtml.escapeHtml(weightPrefill.accomBar()),
-            accomUnitLbSelected,
-            accomUnitKgSelected,
-            accomChainsSelected,
-            accomBandsSelected,
-            WebHtml.escapeHtml(weightPrefill.accomChain()),
-            accomBandChecks,
-            WebHtml.escapeHtml(weightPrefill.customWeight()),
+            WebHtml.escapeHtml(executionSetValuesToJson(initialSets)),
+            weightMode,
+            checked("weight".equals(weight.mode())),
+            weightMode,
+            checked("lr".equals(weight.mode())),
+            weightMode,
+            checked("bands".equals(weight.mode())),
+            weightMode,
+            checked("accom".equals(weight.mode())),
+            weightMode,
+            checked("none".equals(weight.mode())),
+            weightMode,
+            checked("custom".equals(weight.mode())),
+            WebHtml.escapeHtml(weight.weightValue()),
+            selected("lb".equals(weight.weightUnit())),
+            selected("kg".equals(weight.weightUnit())),
+            WebHtml.escapeHtml(weight.leftValue()),
+            WebHtml.escapeHtml(weight.rightValue()),
+            selected("lb".equals(weight.lrUnit())),
+            selected("kg".equals(weight.lrUnit())),
+            renderBandChecks("weightBandColors", weight.bands()),
+            WebHtml.escapeHtml(weight.accomBar()),
+            selected("lb".equals(weight.accomUnit())),
+            selected("kg".equals(weight.accomUnit())),
+            selected("chains".equals(weight.accomMode())),
+            selected("bands".equals(weight.accomMode())),
+            WebHtml.escapeHtml(weight.accomChain()),
+            renderBandChecks("accomBandColors", weight.accomBands()),
+            WebHtml.escapeHtml(weight.customWeight()),
             setEntryModeName,
             setEntryMode.multipleChecked(),
             setEntryModeName,
@@ -99,20 +87,20 @@ final class ExecutionInputWidgetHtml {
             WebHtml.escapeHtml(prefill.setCount()),
             WebHtml.escapeHtml(prefill.rpe()),
             missedTargetControl(prefill.missed()),
-            metricTypeName,
-            repsChecked,
-            metricTypeName,
-            repsLrChecked,
-            metricTypeName,
-            timeChecked,
-            metricTypeName,
-            distanceChecked,
+            metricType,
+            checked("reps".equals(prefill.metricType())),
+            metricType,
+            checked("reps-lr".equals(prefill.metricType())),
+            metricType,
+            checked("time".equals(prefill.metricType())),
+            metricType,
+            checked("distance".equals(prefill.metricType())),
             WebHtml.escapeHtml(prefill.metricValue()),
             WebHtml.escapeHtml(prefill.metricLeft()),
             WebHtml.escapeHtml(prefill.metricRight()),
             setEntryMode.detailsOpen(),
-            setLogStatus(safeInitialSets.size()),
-            renderInitialSetItems(safeInitialSets),
+            setLogStatus(initialSets.size()),
+            renderInitialSetItems(initialSets),
             WebHtml.escapeHtml(prefill.date()),
             checked(prefill.warmup()),
             checked(prefill.deload()),
@@ -124,92 +112,77 @@ final class ExecutionInputWidgetHtml {
     WebUiRenderer.AddExecutionPrefill prefill = defaultPrefill(prefillInput);
     WeightInputParser.WeightPrefill weightPrefill =
         WeightInputParser.parseWeightPrefill(prefill.weight());
+    return formatWorkAlongWidget(prefill, weightPrefill, radioNameSuffix);
+  }
+
+  private static String formatWorkAlongWidget(
+      WebUiRenderer.AddExecutionPrefill prefill,
+      WeightInputParser.WeightPrefill weight,
+      String radioNameSuffix) {
     SetEntryModeState setEntryMode = SetEntryModeState.from(List.of(), false);
-    String weightModeName = radioName("weightMode", radioNameSuffix);
+    String weightMode = radioName("weightMode", radioNameSuffix);
     String setEntryModeName = radioName("setEntryMode", radioNameSuffix);
-    String metricTypeName = radioName("metricType", radioNameSuffix);
-    String standardWeightChecked =
-        checked(prefill.weight().isBlank() || "weight".equals(weightPrefill.mode()));
-    String lrWeightChecked = checked("lr".equals(weightPrefill.mode()));
-    String bandsWeightChecked = checked("bands".equals(weightPrefill.mode()));
-    String accomWeightChecked = checked("accom".equals(weightPrefill.mode()));
-    String noneWeightChecked =
-        checked(!prefill.weight().isBlank() && "none".equals(weightPrefill.mode()));
-    String customWeightChecked = checked("custom".equals(weightPrefill.mode()));
-    String weightUnitLbSelected = selected("lb".equals(weightPrefill.weightUnit()));
-    String weightUnitKgSelected = selected("kg".equals(weightPrefill.weightUnit()));
-    String weightUnitLrLbSelected = selected("lb".equals(weightPrefill.lrUnit()));
-    String weightUnitLrKgSelected = selected("kg".equals(weightPrefill.lrUnit()));
-    String accomUnitLbSelected = selected("lb".equals(weightPrefill.accomUnit()));
-    String accomUnitKgSelected = selected("kg".equals(weightPrefill.accomUnit()));
-    String accomChainsSelected = selected("chains".equals(weightPrefill.accomMode()));
-    String accomBandsSelected = selected("bands".equals(weightPrefill.accomMode()));
-    String bandChecks = renderBandChecks("weightBandColors", weightPrefill.bands());
-    String accomBandChecks = renderBandChecks("accomBandColors", weightPrefill.accomBands());
-    String repsChecked = checked("reps".equals(prefill.metricType()));
-    String repsLrChecked = checked("reps-lr".equals(prefill.metricType()));
-    String timeChecked = checked("time".equals(prefill.metricType()));
-    String distanceChecked = checked("distance".equals(prefill.metricType()));
+    String metricType = radioName("metricType", radioNameSuffix);
     String metricLabel =
         switch (prefill.metricType()) {
           case "time" -> "Seconds";
           case "distance" -> "Feet";
           default -> "Reps";
         };
-    boolean uncommonWeight = !prefill.weight().isBlank() && !"weight".equals(weightPrefill.mode());
+    boolean uncommonWeight = !prefill.weight().isBlank() && !"weight".equals(weight.mode());
     boolean leftRightMetric = "reps-lr".equals(prefill.metricType());
     String moreOptionsOpen = valueWhen(uncommonWeight || leftRightMetric, " open");
 
     return ClasspathText.read("execution-work-along-widget.html")
         .formatted(
             WebHtml.escapeHtml(prefill.weight()),
-            WebHtml.escapeHtml(weightPrefill.weightValue()),
-            weightUnitLbSelected,
-            weightUnitKgSelected,
+            WebHtml.escapeHtml(weight.weightValue()),
+            selected("lb".equals(weight.weightUnit())),
+            selected("kg".equals(weight.weightUnit())),
             metricLabel,
             WebHtml.escapeHtml(prefill.metricValue()),
             WebHtml.escapeHtml(prefill.rpe()),
             WebHtml.escapeHtml(prefill.setCount()),
             moreOptionsOpen,
             missedTargetControl(prefill.missed()),
-            weightModeName,
-            standardWeightChecked,
-            weightModeName,
-            lrWeightChecked,
-            weightModeName,
-            bandsWeightChecked,
-            weightModeName,
-            accomWeightChecked,
-            weightModeName,
-            noneWeightChecked,
-            weightModeName,
-            customWeightChecked,
-            WebHtml.escapeHtml(weightPrefill.leftValue()),
-            WebHtml.escapeHtml(weightPrefill.rightValue()),
-            weightUnitLrLbSelected,
-            weightUnitLrKgSelected,
-            bandChecks,
-            WebHtml.escapeHtml(weightPrefill.accomBar()),
-            accomUnitLbSelected,
-            accomUnitKgSelected,
-            accomChainsSelected,
-            accomBandsSelected,
-            WebHtml.escapeHtml(weightPrefill.accomChain()),
-            accomBandChecks,
-            WebHtml.escapeHtml(weightPrefill.customWeight()),
+            weightMode,
+            checked(prefill.weight().isBlank() || "weight".equals(weight.mode())),
+            weightMode,
+            checked("lr".equals(weight.mode())),
+            weightMode,
+            checked("bands".equals(weight.mode())),
+            weightMode,
+            checked("accom".equals(weight.mode())),
+            weightMode,
+            checked(!prefill.weight().isBlank() && "none".equals(weight.mode())),
+            weightMode,
+            checked("custom".equals(weight.mode())),
+            WebHtml.escapeHtml(weight.leftValue()),
+            WebHtml.escapeHtml(weight.rightValue()),
+            selected("lb".equals(weight.lrUnit())),
+            selected("kg".equals(weight.lrUnit())),
+            renderBandChecks("weightBandColors", weight.bands()),
+            WebHtml.escapeHtml(weight.accomBar()),
+            selected("lb".equals(weight.accomUnit())),
+            selected("kg".equals(weight.accomUnit())),
+            selected("chains".equals(weight.accomMode())),
+            selected("bands".equals(weight.accomMode())),
+            WebHtml.escapeHtml(weight.accomChain()),
+            renderBandChecks("accomBandColors", weight.accomBands()),
+            WebHtml.escapeHtml(weight.customWeight()),
             setEntryModeName,
             setEntryMode.multipleChecked(),
             setEntryModeName,
             setEntryMode.individualChecked(),
             setEntryMode.detailsOpen(),
-            metricTypeName,
-            repsChecked,
-            metricTypeName,
-            repsLrChecked,
-            metricTypeName,
-            timeChecked,
-            metricTypeName,
-            distanceChecked,
+            metricType,
+            checked("reps".equals(prefill.metricType())),
+            metricType,
+            checked("reps-lr".equals(prefill.metricType())),
+            metricType,
+            checked("time".equals(prefill.metricType())),
+            metricType,
+            checked("distance".equals(prefill.metricType())),
             WebHtml.escapeHtml(prefill.metricLeft()),
             WebHtml.escapeHtml(prefill.metricRight()),
             WebHtml.escapeHtml(prefill.date()),

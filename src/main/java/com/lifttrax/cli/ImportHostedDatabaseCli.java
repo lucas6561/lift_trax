@@ -49,10 +49,7 @@ public final class ImportHostedDatabaseCli {
     while (index < args.length) {
       String arg = args[index];
       if ("--user".equals(arg)) {
-        if (index + 1 >= args.length) {
-          throw new IllegalArgumentException("Missing value after --user");
-        }
-        userId = args[index + 1];
+        userId = optionValue(args, index, "--user");
         index += 2;
         continue;
       }
@@ -70,13 +67,22 @@ public final class ImportHostedDatabaseCli {
       sourcePath = arg;
       index++;
     }
+    return resolvedOptions(sourcePath, userId, previewOnly);
+  }
+
+  private static String optionValue(String[] args, int index, String option) {
+    if (index + 1 >= args.length) {
+      throw new IllegalArgumentException("Missing value after " + option);
+    }
+    return args[index + 1];
+  }
+
+  private static Options resolvedOptions(String sourcePath, String userId, boolean previewOnly) {
     if (sourcePath == null) {
       throw new IllegalArgumentException("Source database path is required.");
     }
-    if (!previewOnly) {
-      userId = CliUserResolver.resolve(userId);
-    }
-    return new Options(sourcePath, userId, previewOnly);
+    String resolvedUserId = previewOnly ? userId : CliUserResolver.resolve(userId);
+    return new Options(sourcePath, resolvedUserId, previewOnly);
   }
 
   private record Options(String sourcePath, String userId, boolean previewOnly) {}

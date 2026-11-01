@@ -1225,7 +1225,7 @@
         localStorage.removeItem(draftKey);
         window.location.href = '/?tab=dashboard';
       } catch (error) {
-        setDeviceStatus('LiftTrax could not discard this phone\\'s workout backup.', true);
+        setDeviceStatus('LiftTrax could not discard this phone\'s workout backup.', true);
       }
     });
     window.setInterval(() => persistDraft(), 30000);

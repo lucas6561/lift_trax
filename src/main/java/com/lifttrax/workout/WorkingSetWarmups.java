@@ -82,9 +82,19 @@ public final class WorkingSetWarmups {
       throw new IllegalArgumentException("Working weight must be finite and positive.");
     }
     List<Stage> stages = template(workingReps);
+    double minimumFinalLoad = workingWeight * minimumFinalFraction(workingReps);
+    List<WarmupSet> sets = buildSets(workingWeight, loading, stages, minimumFinalLoad);
+    pruneSmallSteps(sets, workingWeight);
+    removeEarlyWarmupsWhenAlreadyWarm(sets, alreadyWarm);
+    boolean satisfied =
+        !sets.isEmpty() && sets.get(sets.size() - 1).load() + 1e-9 >= minimumFinalLoad;
+    return new Result(sets, satisfied);
+  }
+
+  private static List<WarmupSet> buildSets(
+      double workingWeight, WarmupLoading loading, List<Stage> stages, double minimumFinalLoad) {
     List<WarmupSet> sets = new ArrayList<>();
     WarmupLoading.Candidate previous = WarmupLoading.Candidate.empty();
-    double minimumFinalLoad = workingWeight * minimumFinalFraction(workingReps);
     for (int index = 0; index < stages.size(); index++) {
       Stage stage = stages.get(index);
       boolean finalStage = index == stages.size() - 1;
@@ -100,17 +110,18 @@ public final class WorkingSetWarmups {
         previous = chosen;
       }
     }
-    pruneSmallSteps(sets, workingWeight);
-    if (alreadyWarm) {
-      int removed = 0;
-      while (removed < 2 && sets.size() > 2 && sets.get(0).percent() <= 60) {
-        sets.remove(0);
-        removed++;
-      }
+    return sets;
+  }
+
+  private static void removeEarlyWarmupsWhenAlreadyWarm(List<WarmupSet> sets, boolean alreadyWarm) {
+    if (!alreadyWarm) {
+      return;
     }
-    boolean satisfied =
-        !sets.isEmpty() && sets.get(sets.size() - 1).load() + 1e-9 >= minimumFinalLoad;
-    return new Result(sets, satisfied);
+    int removed = 0;
+    while (removed < 2 && sets.size() > 2 && sets.get(0).percent() <= 60) {
+      sets.remove(0);
+      removed++;
+    }
   }
 
   private static void pruneSmallSteps(List<WarmupSet> sets, double workingWeight) {
@@ -126,15 +137,17 @@ public final class WorkingSetWarmups {
   }
 
   private static double minimumFinalFraction(int reps) {
-    if (reps == 1) {
-      return 0.90;
+    if (reps <= 3) {
+      return switch (reps) {
+        case 1 -> 0.90;
+        case 2 -> 0.84;
+        default -> 0.82;
+      };
     }
-    if (reps == 2) {
-      return 0.84;
-    }
-    if (reps == 3) {
-      return 0.82;
-    }
+    return higherRepMinimumFinalFraction(reps);
+  }
+
+  private static double higherRepMinimumFinalFraction(int reps) {
     if (reps <= 6) {
       return 0.77;
     }

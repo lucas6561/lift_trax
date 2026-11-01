@@ -385,8 +385,7 @@ class LocalMultiUserTest {
   }
 
   @Test
-  void twoLocalAccountsCanRegisterLogIndependentlyAndSwitchWithoutSavingAnOldForm()
-      throws Exception {
+  void multiAccountAcceptanceScenarioPreservesIsolationAcrossAccountSwitches() throws Exception {
     try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
       LocalAccounts accounts = createIndependentAccounts(fixture);
       switchAliceBrowserToBob(fixture, accounts);

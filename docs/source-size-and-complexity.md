@@ -10,8 +10,8 @@ and the normal `qualityGate`.
 
 | Source | Physical class | Physical method | Class NCSS | Method NCSS | Class cyclomatic | Method cyclomatic | NPath | Methods per class |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Production | 750 | 100 | 500 | 60 | 100 | 15 | 200 | 35 |
-| Test | 1,000 | 100 | 700 | 60 | 100 | 15 | 200 | 50 |
+| Production | 675 | 85 | 450 | 52 | 100 | 13 | 190 | 32 |
+| Test | 950 | 90 | 650 | 52 | 100 | 13 | 190 | 45 |
 
 The physical class rules cover classes, records, enums, and annotation types and
 measure the complete declaration span, including comments, blank lines, and
@@ -19,13 +19,13 @@ embedded HTML, JavaScript, SQL, or other text blocks. Physical method rules also
 cover ordinary, standard-constructor, and compact-constructor bodies. NCSS
 measures executable source statements and catches dense code that a physical
 line count alone can miss. PMD reports cyclomatic complexity at the configured
-report level, so a method measured at 15 is a violation. NPath uses PMD's
-documented 200-path warning point.
+report level, so a method measured at 13 is a violation. NPath is capped at
+190 paths.
 
-Production NCSS starts at 500 per class and 60 per method, as required by the
-initial policy. Test classes get a 700-NCSS allowance because setup and
-assertion code is intentionally more verbose, while their methods retain the
-same 60-NCSS and 100-physical-line limits. The 35/50 method limits ignore
+Production NCSS is capped at 450 per class and 52 per method. Test classes get
+a 650-NCSS allowance because setup and assertion code is intentionally more
+verbose, while test methods are held to the same 52-NCSS cap and a
+90-physical-line limit. The 32/45 method limits ignore
 PMD's simple accessor pattern and are intended to detect classes accumulating
 unrelated responsibilities rather than penalize small records or value access.
 
@@ -76,8 +76,10 @@ violations. Those findings were resolved in code rather than hidden from the
 rulesets. Both checked-in PMD rulesets now contain no violation-suppression
 XPath expressions and no exact-symbol exception ledger.
 
-The remediation kept the thresholds unchanged and separated responsibilities
-along existing product boundaries:
+LT-0113 established the zero-exception baseline. LT-0119 then split broad tests
+and production responsibilities before tightening every size and method-level
+complexity threshold shown above. The changes followed existing product
+boundaries:
 
 - web page rendering, embedded templates, route groups, authentication HTTP
   mechanics, and planned-workout parsing now have focused collaborators;
@@ -108,9 +110,9 @@ Run just the static checks or executable boundary probes with:
 ```
 
 `SourceSizePolicyTest` invokes the checked-in PMD rules against generated
-boundary sources. Production classes at 750 lines, production methods at 100,
-test classes at 1,000, and test methods at 100 pass; each corresponding source
-one line over fails its physical rule. Because the test and both PMD tasks are
+boundary sources. Production classes at 675 lines, production methods at 85,
+test classes at 950, and test methods at 90 pass; each corresponding source one
+line over fails its physical rule. Because the test and both PMD tasks are
 dependencies of `qualityGate`, weakening or disconnecting the limits breaks the
 normal local and CI proof.
 
