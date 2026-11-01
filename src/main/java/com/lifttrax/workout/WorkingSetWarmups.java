@@ -22,34 +22,41 @@ public final class WorkingSetWarmups {
     if (workingReps < 1) {
       throw new IllegalArgumentException("Working repetitions must be positive.");
     }
-    if (workingReps == 1) {
-      return List.of(
-          new Stage(35, 5), new Stage(55, 3), new Stage(70, 2), new Stage(82, 1), new Stage(92, 1));
+    return switch (repetitionBand(workingReps)) {
+      case 0 ->
+          List.of(
+              new Stage(35, 5),
+              new Stage(55, 3),
+              new Stage(70, 2),
+              new Stage(82, 1),
+              new Stage(92, 1));
+      case 1 ->
+          List.of(
+              new Stage(35, 5),
+              new Stage(55, 3),
+              new Stage(70, 2),
+              new Stage(workingReps == 2 ? 87 : 85, workingReps == 2 ? 1 : 2));
+      case 2 ->
+          List.of(
+              new Stage(35, 5),
+              new Stage(55, 4),
+              new Stage(70, 3),
+              new Stage(80, (workingReps + 1) / 2));
+      case 3 -> List.of(new Stage(35, 6), new Stage(55, 5), new Stage(75, (workingReps + 1) / 2));
+      case 4 -> List.of(new Stage(35, 8), new Stage(55, 6), new Stage(70, 5));
+      case 5 -> List.of(new Stage(30, 8), new Stage(50, 6), new Stage(65, 5));
+      default -> List.of(new Stage(27.5, 10), new Stage(47.5, 6), new Stage(60, 5));
+    };
+  }
+
+  private static int repetitionBand(int repetitions) {
+    int[] upperBounds = {1, 3, 6, 10, 15, 20};
+    for (int index = 0; index < upperBounds.length; index++) {
+      if (repetitions <= upperBounds[index]) {
+        return index;
+      }
     }
-    if (workingReps <= 3) {
-      return List.of(
-          new Stage(35, 5),
-          new Stage(55, 3),
-          new Stage(70, 2),
-          new Stage(workingReps == 2 ? 87 : 85, workingReps == 2 ? 1 : 2));
-    }
-    if (workingReps <= 6) {
-      return List.of(
-          new Stage(35, 5),
-          new Stage(55, 4),
-          new Stage(70, 3),
-          new Stage(80, (workingReps + 1) / 2));
-    }
-    if (workingReps <= 10) {
-      return List.of(new Stage(35, 6), new Stage(55, 5), new Stage(75, (workingReps + 1) / 2));
-    }
-    if (workingReps <= 15) {
-      return List.of(new Stage(35, 8), new Stage(55, 6), new Stage(70, 5));
-    }
-    if (workingReps <= 20) {
-      return List.of(new Stage(30, 8), new Stage(50, 6), new Stage(65, 5));
-    }
-    return List.of(new Stage(27.5, 10), new Stage(47.5, 6), new Stage(60, 5));
+    return upperBounds.length;
   }
 
   public static Result generate(double workingWeight, int workingReps) {

@@ -13,16 +13,12 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import javax.crypto.Mac;
@@ -36,13 +32,12 @@ final class WebAuth {
   private static final String ACCOUNT_LABEL_ATTRIBUTE = "lifttrax.accountLabel";
   private static final String VERIFIER_COOKIE_NAME = "lt_pkce_verifier";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
   private static final Duration LOCAL_SESSION_DURATION = Duration.ofHours(8);
   private static final Duration OAUTH_COOKIE_DURATION = Duration.ofMinutes(5);
 
   private final Config config;
   private final TokenExchanger tokenExchanger;
-  private final String localSessionSecret = randomToken();
+  private final String localSessionSecret = WebAuthHttp.randomToken();
   private final AuthAttemptLimiter attempts = new AuthAttemptLimiter();
   private TrainingDataStoreProvider accounts;
 
@@ -66,7 +61,7 @@ final class WebAuth {
         LiftTraxConfig.setting(
             "lifttrax.auth.sessionSecret",
             "LIFTTRAX_AUTH_SESSION_SECRET",
-            supabaseMode ? "" : randomToken());
+            supabaseMode ? "" : WebAuthHttp.randomToken());
     if (supabaseMode && sessionSecret.isBlank()) {
       throw new IllegalStateException("Hosted auth requires lifttrax.auth.sessionSecret.");
     }
@@ -96,7 +91,7 @@ final class WebAuth {
     return new WebAuth(
         new Config(
             AuthMode.LOCAL,
-            randomToken(),
+            WebAuthHttp.randomToken(),
             secureCookies,
             "",
             "",
@@ -155,40 +150,8 @@ final class WebAuth {
   }
 
   static String decorateAuthenticatedHtml(HttpExchange exchange, String html) {
-    Optional<User> user = currentUser(exchange);
-    if (user.isEmpty() || !html.contains("<main class='container'>")) {
-      return html;
-    }
-    Object configuredLabel = exchange.getAttribute(ACCOUNT_LABEL_ATTRIBUTE);
-    String label =
-        configuredLabel instanceof String value && !value.isBlank() ? value : user.get().label();
-    String accountCurrent =
-        html.contains("data-current-section='account'") ? " aria-current='page'" : "";
-    String accountBar =
-        "<section class='auth-bar' aria-label='Account controls'><a href='/account'"
-            + accountCurrent
-            + ">Signed in as "
-            + WebHtml.escapeHtml(label)
-            + "</a><form method='post' action='/auth/logout'>"
-            + "<button type='submit' class='secondary compact-btn'>Sign Out</button></form></section>";
-    String scopedHtml =
-        html.replace(
-            "<main class='container'>",
-            "<main class='container' data-account-scope='"
-                + BrowserAccountScope.forUser(user.get().id())
-                + "'>");
-    if (scopedHtml.contains("<div class='app-profile-slot' data-profile-slot></div>")) {
-      return scopedHtml.replace(
-          "<div class='app-profile-slot' data-profile-slot></div>", accountBar);
-    }
-    return scopedHtml.replace(
-        "<main class='container' data-account-scope='"
-            + BrowserAccountScope.forUser(user.get().id())
-            + "'>",
-        "<main class='container' data-account-scope='"
-            + BrowserAccountScope.forUser(user.get().id())
-            + "'>"
-            + accountBar);
+    return AuthenticatedPageHtml.decorate(
+        html, currentUser(exchange), exchange.getAttribute(ACCOUNT_LABEL_ATTRIBUTE));
   }
 
   void handleLogin(HttpExchange exchange) throws IOException {
@@ -197,8 +160,8 @@ final class WebAuth {
       redirectToSupabase(exchange);
       return;
     }
-    Map<String, String> query = parseQuery(exchange.getRequestURI());
-    String returnTo = safeReturnTo(query.getOrDefault("returnTo", "/"));
+    Map<String, String> query = WebAuthHttp.parseQuery(exchange.getRequestURI());
+    String returnTo = WebAuthHttp.safeReturnTo(query.getOrDefault("returnTo", "/"));
     String defaultUser =
         LiftTraxConfig.setting("lifttrax.cli.userId", "LIFTTRAX_CLI_USER_ID", "local-user");
     String body =
@@ -221,11 +184,13 @@ final class WebAuth {
       throws IOException {
     exchange.getResponseHeaders().set("Cache-Control", "no-store");
     if (config.mode() != AuthMode.LOCAL) {
-      sendText(exchange, 404, "Not Found");
+      WebAuthHttp.sendText(exchange, 404, "Not Found");
       return;
     }
     Map<String, String> form =
-        "POST".equalsIgnoreCase(exchange.getRequestMethod()) ? parseForm(exchange) : Map.of();
+        "POST".equalsIgnoreCase(exchange.getRequestMethod())
+            ? WebAuthHttp.parseForm(exchange)
+            : Map.of();
     String username = form.getOrDefault("username", "").trim();
     String email = form.getOrDefault("email", "").trim();
     String error = "";
@@ -246,10 +211,10 @@ final class WebAuth {
                 account.username(),
                 verified.passwordVersion()),
             config.clock().instant().plus(LOCAL_SESSION_DURATION));
-        redirect(
+        WebAuthHttp.redirect(
             exchange,
             "/?tab=add-execution&statusType=success&status="
-                + urlEncode(
+                + WebAuthHttp.urlEncode(
                     "Account created. Add your first lift below to start logging workouts."));
         return;
       } catch (IllegalArgumentException e) {
@@ -285,19 +250,19 @@ final class WebAuth {
 
   void handleDevLogin(HttpExchange exchange, TrainingDataStoreProvider db) throws IOException {
     if (config.mode() != AuthMode.LOCAL) {
-      sendText(exchange, 404, "Not Found");
+      WebAuthHttp.sendText(exchange, 404, "Not Found");
       return;
     }
     if (!allowAttempt(exchange)) {
       return;
     }
-    Map<String, String> form = parseForm(exchange);
+    Map<String, String> form = WebAuthHttp.parseForm(exchange);
     String accountIdentifier = form.getOrDefault("userId", "").trim();
     try {
       Optional<LocalAuthentication> verified =
           db.authenticateLocal(accountIdentifier, form.getOrDefault("password", ""));
       if (verified.isEmpty()) {
-        sendLoginFailure(exchange, safeReturnTo(form.getOrDefault("returnTo", "/")));
+        sendLoginFailure(exchange, WebAuthHttp.safeReturnTo(form.getOrDefault("returnTo", "/")));
         return;
       }
       AccountProfile account = db.accountFor(verified.get().authUserId(), "");
@@ -309,9 +274,9 @@ final class WebAuth {
               account.username(),
               verified.get().passwordVersion()),
           config.clock().instant().plus(LOCAL_SESSION_DURATION));
-      redirect(exchange, safeReturnTo(form.getOrDefault("returnTo", "/")));
+      WebAuthHttp.redirect(exchange, WebAuthHttp.safeReturnTo(form.getOrDefault("returnTo", "/")));
     } catch (Exception e) {
-      sendText(exchange, 503, "Sign in is temporarily unavailable. Please try again.");
+      WebAuthHttp.sendText(exchange, 503, "Sign in is temporarily unavailable. Please try again.");
     }
   }
 
@@ -326,13 +291,13 @@ final class WebAuth {
   void handlePasswordChange(HttpExchange exchange, TrainingDataStoreProvider db)
       throws IOException {
     if (!localPasswords()) {
-      sendText(exchange, 404, "Not Found");
+      WebAuthHttp.sendText(exchange, 404, "Not Found");
       return;
     }
     if (!allowAttempt(exchange)) {
       return;
     }
-    Map<String, String> form = parseForm(exchange);
+    Map<String, String> form = WebAuthHttp.parseForm(exchange);
     try {
       db.changeLocalPassword(
           currentUser(exchange).orElseThrow().id(),
@@ -355,7 +320,8 @@ final class WebAuth {
                   + WebHtml.escapeHtml(e.getMessage())
                   + "</p><p><a href='/account'>Back to Account</a></p>"));
     } catch (Exception e) {
-      sendText(exchange, 503, "Password changes are temporarily unavailable. Please try again.");
+      WebAuthHttp.sendText(
+          exchange, 503, "Password changes are temporarily unavailable. Please try again.");
     }
   }
 
@@ -366,7 +332,7 @@ final class WebAuth {
       return true;
     }
     exchange.getResponseHeaders().set("Retry-After", "60");
-    sendText(exchange, 429, "Too many attempts. Wait a minute, then try again.");
+    WebAuthHttp.sendText(exchange, 429, "Too many attempts. Wait a minute, then try again.");
     return false;
   }
 
@@ -374,7 +340,7 @@ final class WebAuth {
     String body =
         "<h1>Sign in failed</h1><p class='status error'>Username or password is incorrect.</p>"
             + "<p><a href='/auth/login?returnTo="
-            + WebHtml.escapeHtml(urlEncode(returnTo))
+            + WebHtml.escapeHtml(WebAuthHttp.urlEncode(returnTo))
             + "'>Try again</a></p><p>Need your first password or forgot it? Ask the server owner to reset it.</p>";
     byte[] bytes = WebHtml.wrapPage("Sign in failed", body).getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
@@ -386,22 +352,22 @@ final class WebAuth {
 
   void handleCallback(HttpExchange exchange) throws IOException {
     if (localPasswords()) {
-      sendText(exchange, 404, "Not Found");
+      WebAuthHttp.sendText(exchange, 404, "Not Found");
       return;
     }
-    Map<String, String> query = parseQuery(exchange.getRequestURI());
+    Map<String, String> query = WebAuthHttp.parseQuery(exchange.getRequestURI());
     if (query.containsKey("error")) {
-      sendAuthFailure(exchange, 400);
+      WebAuthHttp.sendAuthFailure(exchange, 400);
       return;
     }
     String code = query.getOrDefault("code", "").trim();
     if (code.isBlank()) {
-      sendAuthFailure(exchange, 400);
+      WebAuthHttp.sendAuthFailure(exchange, 400);
       return;
     }
-    String verifier = cookie(exchange, VERIFIER_COOKIE_NAME);
+    String verifier = WebAuthHttp.cookie(exchange, VERIFIER_COOKIE_NAME);
     if (verifier.isBlank()) {
-      sendAuthFailure(exchange, 400);
+      WebAuthHttp.sendAuthFailure(exchange, 400);
       return;
     }
     try {
@@ -410,15 +376,15 @@ final class WebAuth {
       Instant expiresAt = config.clock().instant().plusSeconds(Math.max(60, tokens.expiresIn()));
       setSessionCookie(exchange, user, expiresAt);
       clearCookie(exchange, VERIFIER_COOKIE_NAME);
-      redirect(exchange, "/");
+      WebAuthHttp.redirect(exchange, "/");
     } catch (Exception ignored) {
-      sendAuthFailure(exchange, 400);
+      WebAuthHttp.sendAuthFailure(exchange, 400);
     }
   }
 
   void handleLogout(HttpExchange exchange) throws IOException {
     clearCookie(exchange, SESSION_COOKIE_NAME);
-    redirect(exchange, "/auth/login");
+    WebAuthHttp.redirect(exchange, "/auth/login");
   }
 
   String sessionCookieValueForTest(User user, Duration duration) {
@@ -426,7 +392,7 @@ final class WebAuth {
   }
 
   private Optional<User> authenticate(HttpExchange exchange) {
-    String value = cookie(exchange, SESSION_COOKIE_NAME);
+    String value = WebAuthHttp.cookie(exchange, SESSION_COOKIE_NAME);
     if (value.isBlank()) {
       return Optional.empty();
     }
@@ -448,27 +414,29 @@ final class WebAuth {
 
   private void redirectToLogin(HttpExchange exchange) throws IOException {
     String returnTo = exchange.getRequestURI().toString();
-    redirect(exchange, "/auth/login?returnTo=" + urlEncode(safeReturnTo(returnTo)));
+    WebAuthHttp.redirect(
+        exchange,
+        "/auth/login?returnTo=" + WebAuthHttp.urlEncode(WebAuthHttp.safeReturnTo(returnTo)));
   }
 
   private void redirectToSupabase(HttpExchange exchange) throws IOException {
     if (config.supabaseUrl().isBlank() || config.supabaseAnonKey().isBlank()) {
-      sendAuthFailure(exchange, 500);
+      WebAuthHttp.sendAuthFailure(exchange, 500);
       return;
     }
-    String verifier = randomToken();
-    String challenge = codeChallenge(verifier);
+    String verifier = WebAuthHttp.randomToken();
+    String challenge = WebAuthHttp.codeChallenge(verifier);
     addCookie(exchange, VERIFIER_COOKIE_NAME, verifier, OAUTH_COOKIE_DURATION);
     String location =
         normalizedSupabaseUrl()
             + "/auth/v1/authorize?provider="
-            + urlEncode(config.provider())
+            + WebAuthHttp.urlEncode(config.provider())
             + "&redirect_to="
-            + urlEncode(config.redirectUri())
+            + WebAuthHttp.urlEncode(config.redirectUri())
             + "&code_challenge="
-            + urlEncode(challenge)
+            + WebAuthHttp.urlEncode(challenge)
             + "&code_challenge_method=s256";
-    redirect(exchange, location);
+    WebAuthHttp.redirect(exchange, location);
   }
 
   private User userFromAccessToken(String accessToken) throws IOException {
@@ -582,103 +550,6 @@ final class WebAuth {
 
   private String normalizedSupabaseUrl() {
     return config.supabaseUrl().replaceAll("/+$", "");
-  }
-
-  private static String cookie(HttpExchange exchange, String name) {
-    var cookies = exchange.getRequestHeaders().get("Cookie");
-    if (cookies == null) {
-      return "";
-    }
-    String prefix = name + "=";
-    for (String header : cookies) {
-      for (String cookie : header.split(";")) {
-        String trimmed = cookie.trim();
-        if (trimmed.startsWith(prefix)) {
-          return trimmed.substring(prefix.length());
-        }
-      }
-    }
-    return "";
-  }
-
-  private static Map<String, String> parseQuery(URI uri) {
-    Map<String, String> result = new HashMap<>();
-    String query = uri.getRawQuery();
-    if (query == null || query.isBlank()) {
-      return result;
-    }
-    for (String pair : query.split("&")) {
-      String[] parts = pair.split("=", 2);
-      String key = urlDecode(parts[0]);
-      String value = parts.length == 2 ? urlDecode(parts[1]) : "";
-      result.put(key, value);
-    }
-    return result;
-  }
-
-  private static Map<String, String> parseForm(HttpExchange exchange) throws IOException {
-    String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-    return parseQuery(URI.create("/?" + body));
-  }
-
-  private static String safeReturnTo(String value) {
-    if (value == null || value.isBlank() || !value.startsWith("/") || value.startsWith("//")) {
-      return "/";
-    }
-    return value;
-  }
-
-  private static String randomToken() {
-    byte[] bytes = new byte[32];
-    SECURE_RANDOM.nextBytes(bytes);
-    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-  }
-
-  private static String codeChallenge(String verifier) {
-    try {
-      byte[] digest =
-          MessageDigest.getInstance("SHA-256").digest(verifier.getBytes(StandardCharsets.UTF_8));
-      return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-    } catch (Exception e) {
-      throw new IllegalStateException("Could not create PKCE challenge", e);
-    }
-  }
-
-  private static void redirect(HttpExchange exchange, String location) throws IOException {
-    exchange.getResponseHeaders().add("Location", location);
-    exchange.sendResponseHeaders(303, -1);
-    exchange.close();
-  }
-
-  private static void sendText(HttpExchange exchange, int status, String text) throws IOException {
-    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-    exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
-    exchange.sendResponseHeaders(status, bytes.length);
-    try (OutputStream os = exchange.getResponseBody()) {
-      os.write(bytes);
-    }
-  }
-
-  private static void sendAuthFailure(HttpExchange exchange, int status) throws IOException {
-    byte[] bytes =
-        WebHtml.wrapPage(
-                "Authentication Failed",
-                "<h1>Authentication failed</h1><p class='status error'>Try signing in again.</p>"
-                    + "<p><a href='/auth/login'>Back to sign in</a></p>")
-            .getBytes(StandardCharsets.UTF_8);
-    exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-    exchange.sendResponseHeaders(status, bytes.length);
-    try (OutputStream os = exchange.getResponseBody()) {
-      os.write(bytes);
-    }
-  }
-
-  private static String urlDecode(String value) {
-    return URLDecoder.decode(value, StandardCharsets.UTF_8);
-  }
-
-  private static String urlEncode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 
   record User(String id, String email, String suggestedUsername, String passwordVersion) {

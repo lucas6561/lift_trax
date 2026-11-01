@@ -48,60 +48,70 @@ public final class WaveMarkdownWriter {
       WorkoutLift lift = workout.lifts().get(i);
       lines.add("### " + lift.name());
       if (lift.kind() instanceof WorkoutLiftKind.SingleKind sk) {
-        int count = 1;
-        while (i + count < workout.lifts().size()) {
-          WorkoutLift next = workout.lifts().get(i + count);
-          if (next.kind() instanceof WorkoutLiftKind.SingleKind nk
-              && sameSingle(sk.singleLift(), nk.singleLift())) {
-            count++;
-          } else {
-            break;
-          }
-        }
-
-        SingleLift s = sk.singleLift();
-        lines.add(singleDesc(s, count, db));
-        if (!s.lift().notes().isEmpty()) {
-          lines.add("   - Notes: " + s.lift().notes());
-        }
-        String last =
-            WorkoutHistoryFormatter.lastExecutionSummary(db, s.lift().name(), false, s.deload());
-        if (last != null) {
-          lines.add("   - Last: " + last);
-        }
-        String max = WorkoutHistoryFormatter.bestOneRepMax(db, s.lift().name());
-        if (max != null) {
-          lines.add("   - Best 1RM: " + max);
-        }
+        int count = matchingSingles(workout, i, sk.singleLift());
+        appendSingle(lines, sk.singleLift(), count, db);
         i += count;
       } else if (lift.kind() instanceof WorkoutLiftKind.CircuitKind ck) {
-        CircuitLift circuit = ck.circuitLift();
-        lines.add("- Circuit: " + circuit.rounds() + " rounds");
-        for (int j = 0; j < circuit.circuitLifts().size(); j++) {
-          SingleLift sl = circuit.circuitLifts().get(j);
-          String desc =
-              circuit.warmup()
-                  ? "**" + sl.lift().name() + "**"
-                  : singleDesc(sl, circuit.rounds(), db);
-          lines.add("  " + (j + 1) + ". " + desc);
-          if (!sl.lift().notes().isEmpty()) {
-            lines.add("     - Notes: " + sl.lift().notes());
-          }
-          String last =
-              WorkoutHistoryFormatter.lastExecutionSummary(
-                  db, sl.lift().name(), circuit.warmup(), sl.deload());
-          if (last != null) {
-            lines.add("     - Last: " + last);
-          }
-          String max = WorkoutHistoryFormatter.bestOneRepMax(db, sl.lift().name());
-          if (max != null) {
-            lines.add("     - Best 1RM: " + max);
-          }
-        }
+        appendCircuit(lines, ck.circuitLift(), db);
         i += 1;
       }
     }
     return lines;
+  }
+
+  private static int matchingSingles(Workout workout, int index, SingleLift first) {
+    int count = 1;
+    while (index + count < workout.lifts().size()) {
+      WorkoutLift next = workout.lifts().get(index + count);
+      if (!(next.kind() instanceof WorkoutLiftKind.SingleKind kind)
+          || !sameSingle(first, kind.singleLift())) {
+        break;
+      }
+      count++;
+    }
+    return count;
+  }
+
+  private static void appendSingle(List<String> lines, SingleLift lift, int count, Database db)
+      throws Exception {
+    lines.add(singleDesc(lift, count, db));
+    appendNotes(lines, lift, "   ");
+    appendHistory(lines, lift, false, db, "   ");
+  }
+
+  private static void appendCircuit(List<String> lines, CircuitLift circuit, Database db)
+      throws Exception {
+    lines.add("- Circuit: " + circuit.rounds() + " rounds");
+    for (int index = 0; index < circuit.circuitLifts().size(); index++) {
+      SingleLift lift = circuit.circuitLifts().get(index);
+      String description =
+          circuit.warmup()
+              ? "**" + lift.lift().name() + "**"
+              : singleDesc(lift, circuit.rounds(), db);
+      lines.add("  " + (index + 1) + ". " + description);
+      appendNotes(lines, lift, "     ");
+      appendHistory(lines, lift, circuit.warmup(), db, "     ");
+    }
+  }
+
+  private static void appendNotes(List<String> lines, SingleLift lift, String indent) {
+    if (!lift.lift().notes().isEmpty()) {
+      lines.add(indent + "- Notes: " + lift.lift().notes());
+    }
+  }
+
+  private static void appendHistory(
+      List<String> lines, SingleLift lift, boolean warmup, Database db, String indent)
+      throws Exception {
+    String last =
+        WorkoutHistoryFormatter.lastExecutionSummary(db, lift.lift().name(), warmup, lift.deload());
+    if (last != null) {
+      lines.add(indent + "- Last: " + last);
+    }
+    String max = WorkoutHistoryFormatter.bestOneRepMax(db, lift.lift().name());
+    if (max != null) {
+      lines.add(indent + "- Best 1RM: " + max);
+    }
   }
 
   private static boolean sameSingle(SingleLift a, SingleLift b) {

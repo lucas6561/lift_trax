@@ -41,6 +41,28 @@ class HttpsProxyIntegrationTest {
 
   @Test
   void trustedTlsPreservesAuthenticationIsolationCsrfAndWorkoutSubmission() throws Exception {
+    Path caddy = caddyExecutable();
+    assumeTrue(Files.isRegularFile(caddy), "Install Caddy to run the real HTTPS integration test.");
+    String priorBind = System.getProperty("lifttrax.web.bind");
+    System.setProperty("lifttrax.web.bind", "127.0.0.1");
+    Process proxy = null;
+    try (var provider = new HostedPostgresTrainingDataStoreProvider(isolatedConfig());
+        var server =
+            WebServerCli.start(0, provider, WebAuth.localDevelopment(Clock.systemUTC(), true))) {
+      var owner = seedAccounts(provider);
+      ProxyProcess started = startProxy(caddy, server.port());
+      proxy = started.process();
+      HttpsClient https = prepareHttpsClient(started);
+      String csrf = loginAndAssertAccountIsolation(https);
+      saveWorkoutAndAssert(https, owner, csrf);
+    } finally {
+      stopProxy(proxy);
+      restoreBindProperty(priorBind);
+      WebRequestSecurity.setSecureCookies(false);
+    }
+  }
+
+  private static Path caddyExecutable() throws Exception {
     var toolchain =
         new com.fasterxml.jackson.databind.ObjectMapper()
             .readTree(Path.of("config/https/toolchain.json").toFile());
@@ -51,208 +73,232 @@ class HttpsProxyIntegrationTest {
                 + "-duckdns-"
                 + toolchain.path("DuckDnsVersion").asText()
                 + "/caddy.exe");
-    Path caddy =
-        Path.of(
-                System.getenv()
-                    .getOrDefault(
-                        "LIFTTRAX_TEST_CADDY",
-                        Files.isRegularFile(customCaddy)
-                            ? customCaddy.toString()
-                            : "data/https/tools/caddy-2.11.7/caddy.exe"))
-            .toAbsolutePath();
-    assumeTrue(Files.isRegularFile(caddy), "Install Caddy to run the real HTTPS integration test.");
-    var config =
-        new HostedPostgresConfig(
-            "jdbc:h2:mem:https_"
-                + UUID.randomUUID()
-                + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-            "",
-            "");
-    String priorBind = System.getProperty("lifttrax.web.bind");
-    System.setProperty("lifttrax.web.bind", "127.0.0.1");
-    Process proxy = null;
-    try (var provider = new HostedPostgresTrainingDataStoreProvider(config);
-        var server =
-            WebServerCli.start(0, provider, WebAuth.localDevelopment(Clock.systemUTC(), true))) {
-      var owner = provider.forUser("tls-owner");
-      owner.addLift("TLS owner bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
-      owner.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
-      provider.updateUsername("tls-owner", "tls-user");
-      provider.resetLocalPassword("tls-owner", "test password");
-      provider
-          .forUser("other-account")
-          .addLift("Other account secret", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
-      int tlsPort = freePort();
-      int httpPort = freePort();
-      int legacyPort = freePort();
-      Path storage = directory.resolve("storage");
-      var builder =
-          new ProcessBuilder(
-              caddy.toString(),
-              "run",
-              "--config",
-              Path.of("config/https/Caddyfile.preview").toAbsolutePath().toString(),
-              "--adapter",
-              "caddyfile");
-      builder
-          .environment()
-          .putAll(
-              Map.of(
-                  "LIFTTRAX_TLS_STORAGE",
-                  storage.toString().replace('\\', '/'),
-                  "LIFTTRAX_HTTPS_HOST",
-                  "localhost",
-                  "LIFTTRAX_HTTPS_PORT",
-                  Integer.toString(tlsPort),
-                  "LIFTTRAX_HTTP_PORT",
-                  Integer.toString(httpPort),
-                  "LIFTTRAX_LEGACY_PORT",
-                  Integer.toString(legacyPort),
-                  "LIFTTRAX_BACKEND_PORT",
-                  Integer.toString(server.port()),
-                  "LIFTTRAX_PROXY_BIND",
-                  "127.0.0.1"));
-      proxy =
-          builder
-              .redirectErrorStream(true)
-              .redirectOutput(directory.resolve("caddy.log").toFile())
-              .start();
-      Path root = storage.resolve("pki/authorities/local/root.crt");
-      long deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos();
-      while (!Files.isRegularFile(root) && proxy.isAlive() && System.nanoTime() < deadline) {
-        Thread.sleep(100);
-      }
-      assertTrue(
-          Files.isRegularFile(root), () -> "CA not ready: " + directory.resolve("caddy.log"));
-      var cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
-      HttpClient client =
-          HttpClient.newBuilder()
-              .sslContext(trusting(root))
-              .cookieHandler(cookies)
-              .connectTimeout(Duration.ofSeconds(5))
-              .followRedirects(HttpClient.Redirect.NEVER)
-              .build();
-      String base = "https://localhost:" + tlsPort;
-      HttpResponse<String> health = ready(client, base + "/health", proxy);
-      assertEquals("ok", health.body());
-      assertTrue(
-          health.headers().allValues("set-cookie").stream()
-              .anyMatch(
-                  value ->
-                      value.startsWith("lt_csrf=")
-                          && value.contains("Secure")
-                          && value.contains("HttpOnly")));
-      assertThrows(
-          IOException.class,
-          () ->
-              HttpClient.newHttpClient()
-                  .send(
-                      HttpRequest.newBuilder(URI.create(base + "/health")).build(),
-                      HttpResponse.BodyHandlers.ofString()));
-      for (int port : List.of(httpPort, legacyPort)) {
-        var redirect =
-            client.send(
-                HttpRequest.newBuilder(
-                        URI.create("http://localhost:" + port + "/lift?name=Bench%20Press"))
-                    .build(),
-                HttpResponse.BodyHandlers.ofString());
-        assertEquals(308, redirect.statusCode());
-        assertEquals(
-            base + "/lift?name=Bench%20Press",
-            redirect.headers().firstValue("location").orElseThrow());
-      }
-      assertEquals(303, get(client, base + "/").statusCode());
+    return Path.of(
+            System.getenv()
+                .getOrDefault(
+                    "LIFTTRAX_TEST_CADDY",
+                    Files.isRegularFile(customCaddy)
+                        ? customCaddy.toString()
+                        : "data/https/tools/caddy-2.11.7/caddy.exe"))
+        .toAbsolutePath();
+  }
+
+  private static HostedPostgresConfig isolatedConfig() {
+    return new HostedPostgresConfig(
+        "jdbc:h2:mem:https_"
+            + UUID.randomUUID()
+            + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+        "",
+        "");
+  }
+
+  private static com.lifttrax.db.TrainingDataStore seedAccounts(
+      HostedPostgresTrainingDataStoreProvider provider) throws Exception {
+    var owner = provider.forUser("tls-owner");
+    owner.addLift("TLS owner bench", LiftRegion.UPPER, LiftType.BENCH_PRESS, List.of(), "");
+    owner.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+    provider.updateUsername("tls-owner", "tls-user");
+    provider.resetLocalPassword("tls-owner", "test password");
+    provider
+        .forUser("other-account")
+        .addLift("Other account secret", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+    return owner;
+  }
+
+  private ProxyProcess startProxy(Path caddy, int backendPort) throws Exception {
+    int tlsPort = freePort();
+    int httpPort = freePort();
+    int legacyPort = freePort();
+    Path storage = directory.resolve("storage");
+    var builder =
+        new ProcessBuilder(
+            caddy.toString(),
+            "run",
+            "--config",
+            Path.of("config/https/Caddyfile.preview").toAbsolutePath().toString(),
+            "--adapter",
+            "caddyfile");
+    builder
+        .environment()
+        .putAll(
+            Map.of(
+                "LIFTTRAX_TLS_STORAGE", storage.toString().replace('\\', '/'),
+                "LIFTTRAX_HTTPS_HOST", "localhost",
+                "LIFTTRAX_HTTPS_PORT", Integer.toString(tlsPort),
+                "LIFTTRAX_HTTP_PORT", Integer.toString(httpPort),
+                "LIFTTRAX_LEGACY_PORT", Integer.toString(legacyPort),
+                "LIFTTRAX_BACKEND_PORT", Integer.toString(backendPort),
+                "LIFTTRAX_PROXY_BIND", "127.0.0.1"));
+    Process process =
+        builder
+            .redirectErrorStream(true)
+            .redirectOutput(directory.resolve("caddy.log").toFile())
+            .start();
+    return new ProxyProcess(process, tlsPort, httpPort, legacyPort, storage);
+  }
+
+  private HttpsClient prepareHttpsClient(ProxyProcess proxy) throws Exception {
+    Path root = proxy.storage().resolve("pki/authorities/local/root.crt");
+    long deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos();
+    while (!Files.isRegularFile(root)
+        && proxy.process().isAlive()
+        && System.nanoTime() < deadline) {
+      Thread.sleep(100);
+    }
+    assertTrue(Files.isRegularFile(root), () -> "CA not ready: " + directory.resolve("caddy.log"));
+    var cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+    HttpClient client =
+        HttpClient.newBuilder()
+            .sslContext(trusting(root))
+            .cookieHandler(cookies)
+            .connectTimeout(Duration.ofSeconds(5))
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .build();
+    String base = "https://localhost:" + proxy.tlsPort();
+    assertTrustedHealth(client, base, proxy.process());
+    assertHttpRedirects(client, base, proxy.httpPort(), proxy.legacyPort());
+    return new HttpsClient(client, cookies, base);
+  }
+
+  private static void assertTrustedHealth(HttpClient client, String base, Process proxy)
+      throws Exception {
+    HttpResponse<String> health = ready(client, base + "/health", proxy);
+    assertEquals("ok", health.body());
+    assertTrue(
+        health.headers().allValues("set-cookie").stream()
+            .anyMatch(
+                value ->
+                    value.startsWith("lt_csrf=")
+                        && value.contains("Secure")
+                        && value.contains("HttpOnly")));
+    assertThrows(
+        IOException.class,
+        () ->
+            HttpClient.newHttpClient()
+                .send(
+                    HttpRequest.newBuilder(URI.create(base + "/health")).build(),
+                    HttpResponse.BodyHandlers.ofString()));
+  }
+
+  private static void assertHttpRedirects(
+      HttpClient client, String base, int httpPort, int legacyPort) throws Exception {
+    for (int port : List.of(httpPort, legacyPort)) {
+      var redirect =
+          client.send(
+              HttpRequest.newBuilder(
+                      URI.create("http://localhost:" + port + "/lift?name=Bench%20Press"))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      assertEquals(308, redirect.statusCode());
       assertEquals(
-          403, post(client, base + "/auth/dev-login", Map.of("userId", "tls-user")).statusCode());
-      String csrf =
-          cookies.getCookieStore().getCookies().stream()
-              .filter(cookie -> cookie.getName().equals("lt_csrf"))
-              .findFirst()
-              .orElseThrow()
-              .getValue();
-      var login =
-          post(
-              client,
-              base + "/auth/dev-login",
-              Map.of("userId", "tls-user", "password", "test password", "csrfToken", csrf));
-      assertEquals(303, login.statusCode());
-      assertTrue(
-          login.headers().allValues("set-cookie").stream()
-              .anyMatch(
-                  value ->
-                      value.startsWith("lt_session=")
-                          && value.contains("Secure")
-                          && value.contains("SameSite=Lax")));
-      // Browser cookies use the unquoted Netscape format, unlike Java's Max-Age default.
-      cookies.getCookieStore().getCookies().forEach(cookie -> cookie.setVersion(0));
-      var export = get(client, base + "/account/export");
-      assertEquals(200, export.statusCode());
-      assertTrue(export.body().contains("TLS owner bench"));
-      assertFalse(export.body().contains("Other account secret"));
-      assertTrue(get(client, base + "/").body().contains("serviceWorker.register"));
-      assertTrue(get(client, base + "/manifest.webmanifest").body().contains("LiftTrax"));
-      assertTrue(get(client, base + "/service-worker.js").body().contains("offline.html"));
-      assertTrue(get(client, base + "/offline.html").body().contains("Reconnect"));
-      String workout = Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
-      var session =
-          post(
-              client,
-              base + "/planned-workout-session",
-              Map.of(
-                  "plannedWorkoutJson",
-                  workout,
-                  "weekNumber",
-                  "1",
-                  "dayOfWeek",
-                  "MONDAY",
-                  "accountScope",
-                  BrowserAccountScope.forUser("tls-owner")));
-      assertEquals(200, session.statusCode());
-      assertTrue(session.body().contains("Train MONDAY"));
-      var save =
-          post(
-              client,
-              base + "/save-planned-workout-session",
-              Map.of(
-                  "plannedWorkoutJson",
-                  workout,
-                  "weekNumber",
-                  "1",
-                  "dayOfWeek",
-                  "MONDAY",
-                  "sessionDate",
-                  "2026-10-28",
-                  "sessionResultsJson",
-                  """
-                  [{"exerciseKey":"1:0","plannedLift":"Back Squat","performedLift":"Back Squat",
-                    "state":"complete","sets":[{"metricType":"reps","metricValue":"5","weight":"185 lb"}]}]
-                  """,
-                  "submissionId",
-                  "https-session",
-                  "accountScope",
-                  BrowserAccountScope.forUser("tls-owner"),
-                  "csrfToken",
-                  csrf));
-      assertEquals(200, save.statusCode());
-      assertTrue(save.body().contains("Workout Saved"));
-      assertEquals(1, owner.getExecutions("Back Squat").size());
-      assertTrue(get(client, base + "/account/export").body().contains("185 lb"));
-      assertEquals(
-          303, post(client, base + "/auth/logout", Map.of("csrfToken", csrf)).statusCode());
-      assertEquals(303, get(client, base + "/").statusCode());
-    } finally {
-      if (proxy != null) {
-        proxy.destroy();
-        proxy.waitFor();
-      }
-      if (priorBind == null) {
-        System.clearProperty("lifttrax.web.bind");
-      } else {
-        System.setProperty("lifttrax.web.bind", priorBind);
-      }
-      WebRequestSecurity.setSecureCookies(false);
+          base + "/lift?name=Bench%20Press",
+          redirect.headers().firstValue("location").orElseThrow());
     }
   }
+
+  private static String loginAndAssertAccountIsolation(HttpsClient https) throws Exception {
+    HttpClient client = https.client();
+    String base = https.base();
+    assertEquals(303, get(client, base + "/").statusCode());
+    assertEquals(
+        403, post(client, base + "/auth/dev-login", Map.of("userId", "tls-user")).statusCode());
+    String csrf =
+        https.cookies().getCookieStore().getCookies().stream()
+            .filter(cookie -> cookie.getName().equals("lt_csrf"))
+            .findFirst()
+            .orElseThrow()
+            .getValue();
+    var login =
+        post(
+            client,
+            base + "/auth/dev-login",
+            Map.of("userId", "tls-user", "password", "test password", "csrfToken", csrf));
+    assertEquals(303, login.statusCode());
+    assertTrue(
+        login.headers().allValues("set-cookie").stream()
+            .anyMatch(
+                value ->
+                    value.startsWith("lt_session=")
+                        && value.contains("Secure")
+                        && value.contains("SameSite=Lax")));
+    https.cookies().getCookieStore().getCookies().forEach(cookie -> cookie.setVersion(0));
+    var export = get(client, base + "/account/export");
+    assertEquals(200, export.statusCode());
+    assertTrue(export.body().contains("TLS owner bench"));
+    assertFalse(export.body().contains("Other account secret"));
+    assertTrue(get(client, base + "/").body().contains("serviceWorker.register"));
+    assertTrue(get(client, base + "/manifest.webmanifest").body().contains("LiftTrax"));
+    assertTrue(get(client, base + "/service-worker.js").body().contains("offline.html"));
+    assertTrue(get(client, base + "/offline.html").body().contains("Reconnect"));
+    return csrf;
+  }
+
+  private static void saveWorkoutAndAssert(
+      HttpsClient https, com.lifttrax.db.TrainingDataStore owner, String csrf) throws Exception {
+    String workout = Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
+    var session =
+        post(
+            https.client(),
+            https.base() + "/planned-workout-session",
+            Map.of(
+                "plannedWorkoutJson",
+                workout,
+                "weekNumber",
+                "1",
+                "dayOfWeek",
+                "MONDAY",
+                "accountScope",
+                BrowserAccountScope.forUser("tls-owner")));
+    assertEquals(200, session.statusCode());
+    assertTrue(session.body().contains("Train MONDAY"));
+    var save =
+        post(
+            https.client(),
+            https.base() + "/save-planned-workout-session",
+            Map.ofEntries(
+                Map.entry("plannedWorkoutJson", workout),
+                Map.entry("weekNumber", "1"),
+                Map.entry("dayOfWeek", "MONDAY"),
+                Map.entry("sessionDate", "2026-10-28"),
+                Map.entry(
+                    "sessionResultsJson",
+                    """
+                    [{"exerciseKey":"1:0","plannedLift":"Back Squat","performedLift":"Back Squat",
+                      "state":"complete","sets":[{"metricType":"reps","metricValue":"5","weight":"185 lb"}]}]
+                    """),
+                Map.entry("submissionId", "https-session"),
+                Map.entry("accountScope", BrowserAccountScope.forUser("tls-owner")),
+                Map.entry("csrfToken", csrf)));
+    assertEquals(200, save.statusCode());
+    assertTrue(save.body().contains("Workout Saved"));
+    assertEquals(1, owner.getExecutions("Back Squat").size());
+    assertTrue(get(https.client(), https.base() + "/account/export").body().contains("185 lb"));
+    assertEquals(
+        303,
+        post(https.client(), https.base() + "/auth/logout", Map.of("csrfToken", csrf))
+            .statusCode());
+    assertEquals(303, get(https.client(), https.base() + "/").statusCode());
+  }
+
+  private static void stopProxy(Process proxy) throws InterruptedException {
+    if (proxy != null) {
+      proxy.destroy();
+      proxy.waitFor();
+    }
+  }
+
+  private static void restoreBindProperty(String priorBind) {
+    if (priorBind == null) {
+      System.clearProperty("lifttrax.web.bind");
+    } else {
+      System.setProperty("lifttrax.web.bind", priorBind);
+    }
+  }
+
+  private record ProxyProcess(
+      Process process, int tlsPort, int httpPort, int legacyPort, Path storage) {}
+
+  private record HttpsClient(HttpClient client, CookieManager cookies, String base) {}
 
   private static int freePort() throws IOException {
     try (var socket = new ServerSocket(0)) {

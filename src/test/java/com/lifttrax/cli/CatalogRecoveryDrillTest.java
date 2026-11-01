@@ -62,9 +62,17 @@ class CatalogRecoveryDrillTest {
 
   private static void drill(HostedPostgresConfig source, HostedPostgresConfig target, String engine)
       throws Exception {
+    DrillSource state = seedSource(source);
+    prepareSourceHistory(state);
+    RecoveryState recovery = recoverSnapshot(state, source, target);
+    assertRecoveredState(state, recovery, target);
+    writeRecoveryReport(engine, recovery);
+  }
+
+  private static DrillSource seedSource(HostedPostgresConfig source) throws Exception {
     var provider = new HostedPostgresTrainingDataStoreProvider(source);
-    var a = provider.forUser("fixture-a");
-    var b = provider.forUser("fixture-b");
+    var accountA = provider.forUser("fixture-a");
+    var accountB = provider.forUser("fixture-b");
     provider.updateUsername("fixture-a", "fixture_a");
     provider.updateUsername("fixture-b", "fixture_b");
     String document =
@@ -72,9 +80,10 @@ class CatalogRecoveryDrillTest {
         {"schemaVersion":1,"exercises":[{"name":"Bench","enabled":true,"region":"UPPER","main":"BENCH_PRESS","muscles":["CHEST"],"notes":"catalog A","source":{"namespace":"drill:catalog","key":"bench","revision":"1"}}]}
         """;
     var entries = ExerciseCatalogFile.parse(document);
-    a.importCatalog(
-        entries, CatalogImportPlan.preview(entries, a.listCatalogEntries()).fingerprint());
-    b.addLift("Bench", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.QUAD), "catalog B");
+    accountA.importCatalog(
+        entries, CatalogImportPlan.preview(entries, accountA.listCatalogEntries()).fingerprint());
+    accountB.addLift(
+        "Bench", LiftRegion.LOWER, LiftType.ACCESSORY, List.of(Muscle.QUAD), "catalog B");
     List<ExecutionSet> sets =
         List.of(
             new ExecutionSet(new SetMetric.Reps(5), "100 lb", 8f),
@@ -82,9 +91,13 @@ class CatalogRecoveryDrillTest {
             new ExecutionSet(new SetMetric.TimeSecs(30), "none", null, true));
     var execution =
         new LiftExecution(null, LocalDate.of(2026, 10, 27), sets, false, false, "private A");
-    a.addLiftExecution("Bench", execution);
-    b.addLiftExecution(
+    accountA.addLiftExecution("Bench", execution);
+    accountB.addLiftExecution(
         "Bench", new LiftExecution(null, execution.date(), sets, true, true, "private B"));
+    return new DrillSource(provider, accountA, accountB, sets, execution);
+  }
+
+  private static void prepareSourceHistory(DrillSource state) throws Exception {
     Path legacy = Files.createTempFile("drill-legacy-import", ".db");
     try (SqliteDb old = new SqliteDb(legacy.toString())) {
       old.addLift(
@@ -97,88 +110,149 @@ class CatalogRecoveryDrillTest {
           "Bench",
           new LiftExecution(
               null,
-              execution.date().minusDays(1),
+              state.execution().date().minusDays(1),
               List.of(new ExecutionSet(new SetMetric.RepsRange(8, 12), "25 lb", null)),
               false,
               false,
               "legacy A"));
     }
-    HostedLocalDatabaseImportService.importDatabase(legacy, a);
-    assertEquals(LiftRegion.LOWER, a.performedHistory().get(0).lift().region());
-    assertEquals(LiftRegion.UPPER, a.getLift("Bench").region());
-    a.updateLift(
-        "Bench",
-        "Renamed Bench",
-        LiftRegion.LOWER,
-        LiftType.ACCESSORY,
-        List.of(Muscle.QUAD),
-        "live A");
-    b.deleteLift("Bench");
-    a.recordWorkoutSubmission("drill:block:0", new WorkoutSubmissionReceipt("drill", 1, 0, 0));
+    HostedLocalDatabaseImportService.importDatabase(legacy, state.accountA());
+    assertEquals(LiftRegion.LOWER, state.accountA().performedHistory().get(0).lift().region());
+    assertEquals(LiftRegion.UPPER, state.accountA().getLift("Bench").region());
+    state
+        .accountA()
+        .updateLift(
+            "Bench",
+            "Renamed Bench",
+            LiftRegion.LOWER,
+            LiftType.ACCESSORY,
+            List.of(Muscle.QUAD),
+            "live A");
+    state.accountB().deleteLift("Bench");
+    state
+        .accountA()
+        .recordWorkoutSubmission("drill:block:0", new WorkoutSubmissionReceipt("drill", 1, 0, 0));
     String workout = Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
-    a.saveWorkout("Private workout A", workout);
-    b.saveWorkout("Private workout B", workout);
+    state.accountA().saveWorkout("Private workout A", workout);
+    state.accountB().saveWorkout("Private workout B", workout);
+  }
+
+  private static RecoveryState recoverSnapshot(
+      DrillSource state, HostedPostgresConfig source, HostedPostgresConfig target)
+      throws Exception {
     Instant exportTime = Instant.now();
-    String beforeA = AccountExportWriter.write(a, provider.accountFor("fixture-a", ""), exportTime);
-    String beforeB = AccountExportWriter.write(b, provider.accountFor("fixture-b", ""), exportTime);
-    // Source config is explicit and test-only; use the package service overload through properties.
+    String beforeA =
+        AccountExportWriter.write(
+            state.accountA(), state.provider().accountFor("fixture-a", ""), exportTime);
+    String beforeB =
+        AccountExportWriter.write(
+            state.accountB(), state.provider().accountFor("fixture-b", ""), exportTime);
     Path folder = Files.createTempDirectory("lifttrax-recovery-drill");
     Path backup = createBackup(source, folder.resolve("snapshot.db"));
     Instant afterSnapshot = Instant.now();
-    a.addLiftExecution(
-        "Renamed Bench",
-        new LiftExecution(null, execution.date(), sets, false, false, "after snapshot"));
+    state
+        .accountA()
+        .addLiftExecution(
+            "Renamed Bench",
+            new LiftExecution(
+                null, state.execution().date(), state.sets(), false, false, "after snapshot"));
     var result = PostgresSnapshotRecovery.restore(backup, target);
     var recovered = new HostedPostgresTrainingDataStoreProvider(target);
-    var restoredA = recovered.forUser("fixture-a");
-    var restoredB = recovered.forUser("fixture-b");
-    assertEquals(
+    return new RecoveryState(
         beforeA,
-        AccountExportWriter.write(restoredA, recovered.accountFor("fixture-a", ""), exportTime));
-    assertEquals(
         beforeB,
-        AccountExportWriter.write(restoredB, recovered.accountFor("fixture-b", ""), exportTime));
-    JsonNode exported = new ObjectMapper().readTree(beforeA);
+        exportTime,
+        backup,
+        afterSnapshot,
+        result,
+        recovered,
+        recovered.forUser("fixture-a"),
+        recovered.forUser("fixture-b"));
+  }
+
+  private static void assertRecoveredState(
+      DrillSource state, RecoveryState recovery, HostedPostgresConfig target) throws Exception {
+    assertEquals(
+        recovery.beforeA(),
+        AccountExportWriter.write(
+            recovery.restoredA(),
+            recovery.provider().accountFor("fixture-a", ""),
+            recovery.exportTime()));
+    assertEquals(
+        recovery.beforeB(),
+        AccountExportWriter.write(
+            recovery.restoredB(),
+            recovery.provider().accountFor("fixture-b", ""),
+            recovery.exportTime()));
+    JsonNode exported = new ObjectMapper().readTree(recovery.beforeA());
     assertEquals(
         "Bench",
         exported.path("executions").get(0).path("performedExercise").path("name").asText());
     assertEquals(
         "drill:catalog",
         exported.path("catalog").get(0).path("provenance").path("sourceNamespace").asText());
-    assertFalse(beforeA.contains("private B"));
-    assertFalse(beforeB.contains("private A"));
-    assertEquals(sets, restoredB.performedHistory().get(0).execution().sets());
-    assertTrue(restoredB.listLifts().isEmpty());
-    assertEquals(2L, result.rowCounts().get("app_users"));
-    assertEquals(3L, result.rowCounts().get("executions"));
-    assertEquals(7L, result.rowCounts().get("execution_sets"));
-    assertEquals(2L, result.rowCounts().get("saved_workouts"));
-    assertEquals(1L, result.rowCounts().get("local_imports"));
-    assertEquals(1L, result.rowCounts().get("local_import_records"));
-    assertNotNull(restoredA.getWorkoutSubmission("drill:block:0"));
-    int existingId = restoredA.performedHistory().get(0).execution().id();
-    restoredA.addLiftExecution("Renamed Bench", execution);
+    assertFalse(recovery.beforeA().contains("private B"));
+    assertFalse(recovery.beforeB().contains("private A"));
+    assertEquals(state.sets(), recovery.restoredB().performedHistory().get(0).execution().sets());
+    assertTrue(recovery.restoredB().listLifts().isEmpty());
+    assertRecoveredCounts(recovery);
+    assertNotNull(recovery.restoredA().getWorkoutSubmission("drill:block:0"));
+    int existingId = recovery.restoredA().performedHistory().get(0).execution().id();
+    recovery.restoredA().addLiftExecution("Renamed Bench", state.execution());
     assertTrue(
-        restoredA.getExecutions("Renamed Bench").stream().anyMatch(e -> e.id() > existingId));
+        recovery.restoredA().getExecutions("Renamed Bench").stream()
+            .anyMatch(execution -> execution.id() > existingId));
     assertThrows(
-        IllegalArgumentException.class, () -> PostgresSnapshotRecovery.restore(backup, target));
+        IllegalArgumentException.class,
+        () -> PostgresSnapshotRecovery.restore(recovery.backup(), target));
+  }
+
+  private static void assertRecoveredCounts(RecoveryState recovery) {
+    assertEquals(2L, recovery.result().rowCounts().get("app_users"));
+    assertEquals(3L, recovery.result().rowCounts().get("executions"));
+    assertEquals(7L, recovery.result().rowCounts().get("execution_sets"));
+    assertEquals(2L, recovery.result().rowCounts().get("saved_workouts"));
+    assertEquals(1L, recovery.result().rowCounts().get("local_imports"));
+    assertEquals(1L, recovery.result().rowCounts().get("local_import_records"));
+  }
+
+  private static void writeRecoveryReport(String engine, RecoveryState recovery) throws Exception {
     Path report = Path.of("build/reports/recovery-drill-" + engine.replace(' ', '-') + ".md");
     Files.createDirectories(report.getParent());
     Files.writeString(
         report,
-        "# Catalog and history recovery drill\n\nEngine: "
+        "# Catalog and history recovery drill\\n\\nEngine: "
             + engine
-            + "\n\nRecovery point: "
-            + result.recoveryPointUtc()
-            + "\n\nRecovery time: "
-            + result.recoveryTimeMillis()
-            + " ms\n\nObserved post-snapshot window: "
-            + java.time.Duration.between(Instant.parse(result.recoveryPointUtc()), afterSnapshot)
+            + "\\n\\nRecovery point: "
+            + recovery.result().recoveryPointUtc()
+            + "\\n\\nRecovery time: "
+            + recovery.result().recoveryTimeMillis()
+            + " ms\\n\\nObserved post-snapshot window: "
+            + java.time.Duration.between(
+                    Instant.parse(recovery.result().recoveryPointUtc()), recovery.afterSnapshot())
                 .toMillis()
-            + " ms. One deliberately later execution was excluded as expected.\n\nRestored table counts: "
-            + result.rowCounts()
-            + "\n\nValidated two isolated account exports byte-for-byte, overlapping names, provenance, renamed and detached snapshots, ordered sets, submission receipts, saved workouts, and next execution identity. Manual steps: start disposable cluster and run test; provider auth/configuration and partial production restore remain outside this drill. No production data used.\n");
+            + " ms. One deliberately later execution was excluded as expected.\\n\\nRestored table counts: "
+            + recovery.result().rowCounts()
+            + "\\n\\nValidated two isolated account exports byte-for-byte, overlapping names, provenance, renamed and detached snapshots, ordered sets, submission receipts, saved workouts, and next execution identity. Manual steps: start disposable cluster and run test; provider auth/configuration and partial production restore remain outside this drill. No production data used.\\n");
   }
+
+  private record DrillSource(
+      HostedPostgresTrainingDataStoreProvider provider,
+      TrainingDataStore accountA,
+      TrainingDataStore accountB,
+      List<ExecutionSet> sets,
+      LiftExecution execution) {}
+
+  private record RecoveryState(
+      String beforeA,
+      String beforeB,
+      Instant exportTime,
+      Path backup,
+      Instant afterSnapshot,
+      PostgresSnapshotRecovery.RecoveryResult result,
+      HostedPostgresTrainingDataStoreProvider provider,
+      TrainingDataStore restoredA,
+      TrainingDataStore restoredB) {}
 
   @Test
   void invalidArtifactsFailBeforeTargetInitialization() throws Exception {

@@ -150,6 +150,14 @@ public final class WorkoutHistoryFormatter {
       return trueOneRepMax;
     }
 
+    HistoricalSet fallback = bestFallbackSet(executions);
+    if (fallback == null) {
+      return null;
+    }
+    return new BestOneRepMax(estimatedOneRepMax(fallback));
+  }
+
+  private static HistoricalSet bestFallbackSet(List<LiftExecution> executions) {
     HistoricalSet fallback = null;
     for (LiftExecution exec : executions) {
       if (exec.warmup()) {
@@ -176,9 +184,10 @@ public final class WorkoutHistoryFormatter {
         }
       }
     }
-    if (fallback == null) {
-      return null;
-    }
+    return fallback;
+  }
+
+  private static double estimatedOneRepMax(HistoricalSet fallback) {
     double base = fallback.weightLbs();
     if (fallback.rpe() != null) {
       Double historicalPercent = rpePercent(fallback.reps(), fallback.rpe());
@@ -186,7 +195,7 @@ public final class WorkoutHistoryFormatter {
         base = fallback.weightLbs() / (historicalPercent / 100.0);
       }
     }
-    return new BestOneRepMax(base);
+    return base;
   }
 
   static Double targetPercent(PlannedWorkoutFile.PlannedSetTarget target) {

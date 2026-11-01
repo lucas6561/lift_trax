@@ -1,7 +1,7 @@
 ---
 id: LT-0118
 title: Decompose oversized test suites and fixtures
-status: ready
+status: complete
 track: quality
 priority: high
 effort: large
@@ -26,10 +26,17 @@ end-to-end assertions, isolated data, and readable failure diagnosis.
 
 ## Acceptance criteria
 
-- [ ] Every LT-0118 exception in `docs/source-size-and-complexity.md` passes its
+- [x] Every LT-0118 exception in `docs/source-size-and-complexity.md` passes its
       listed limits.
-- [ ] Remove every LT-0118 XPath exception from
+- [x] Remove every LT-0118 XPath exception from
       `config/pmd/ruleset-test.xml`.
-- [ ] Preserve test intent and coverage; do not replace end-to-end assertions
+- [x] Preserve test intent and coverage; do not replace end-to-end assertions
       with implementation-only checks.
-- [ ] `./gradlew.bat qualityGate` passes without widening a threshold.
+- [x] `./gradlew.bat qualityGate` passes without widening a threshold.
+
+## Implementation notes
+
+Web server tests are grouped into core, rendering, and route suites; long scenarios use named phases; and the SQLite fixture separates query, schema/serialization, and write concerns.
+
+The matching production or test PMD ruleset now passes without suppression
+clauses, and the LT-0113 thresholds were not widened.

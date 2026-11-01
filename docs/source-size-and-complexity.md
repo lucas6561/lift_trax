@@ -69,74 +69,28 @@ counts are led by `WebServerCli` (72), `HostedPostgresTrainingDataStore` (52),
 `SqliteDb` (73) in tests. PMD's method-count rule excludes trivial accessors,
 so these declaration totals are a conservative upper bound on that metric.
 
-## Temporary production exceptions
+## Zero-exception baseline
 
-Each row below maps to one exact class or method selector in the production
-ruleset. For every row, the objective removal condition is that the named
-symbol passes every listed rule at the thresholds above; the matching XPath
-branch must be deleted in the same change. An exception never applies to an
-entire package, file, renderer category, CLI category, database category, or to
-future overloads.
+The initial unsuppressed run reported 60 production violations and 18 test
+violations. Those findings were resolved in code rather than hidden from the
+rulesets. Both checked-in PMD rulesets now contain no violation-suppression
+XPath expressions and no exact-symbol exception ledger.
 
-These exceptions are temporarily necessary because safely separating the
-listed behavior requires focused regression work outside this policy-only card;
-the linked decomposition item owns that work and its removal proof.
+The remediation kept the thresholds unchanged and separated responsibilities
+along existing product boundaries:
 
-| Exact symbol | Baseline violation | Decomposition item |
-| --- | --- | --- |
-| `CatalogImportPlan.preview/2` | NPath 205 | `LT-0117` |
-| `DumpDatabaseCli.parseArgs/1` | NPath 257 | `LT-0115` |
-| `ExecutionInputWidgetHtml.render/5` | 193 physical lines; cyclomatic 24; NPath 8,388,608 | `LT-0114` |
-| `ExecutionInputWidgetHtml.renderWorkAlong/2` | 202 physical lines; cyclomatic 28; NPath 42,467,328 | `LT-0114` |
-| `LiftDetailResponse.handle/2` | 104 physical lines; cyclomatic 16; NPath 486 | `LT-0114` |
-| `PlannedWorkoutSessionHtml` | 2,084 physical lines | `LT-0114` |
-| `PlannedWorkoutSessionHtml.renderResumePanel/1` | 111 physical lines | `LT-0114` |
-| `PlannedWorkoutSessionHtml.appendScript/1` | 1,245 physical lines | `LT-0114` |
-| `PlannedWorkoutSessionService.saveSubmittedResults/8` | 107 physical lines; cyclomatic 25; NPath 18,720 | `LT-0115` |
-| `WebAuth` | cyclomatic 120; more than 35 non-accessor methods | `LT-0115` |
-| `WebRouteRegistry.register/3` | 166 physical lines | `LT-0114` |
-| `WebServerCli` | 1,555 physical lines; NCSS 697; cyclomatic 221; more than 35 non-accessor methods | `LT-0115` |
-| `WebStartup.configuration/2` | cyclomatic 16; NPath 288 | `LT-0115` |
-| `WebUiRenderer` | 2,882 physical lines; cyclomatic 210; more than 35 non-accessor methods | `LT-0114` |
-| `WebUiRenderer.renderTabbedLayout/12` | 1,133 physical lines; NPath 512 | `LT-0114` |
-| `WebUiRenderer.renderWavePlannerForm/3` | 176 physical lines; NCSS 65; NPath 872 | `LT-0114` |
-| `WebUiRenderer.renderLastWeekContent/4` | NPath 240 | `LT-0114` |
-| `WebUiRenderer.renderAddExecutionForm/4` | 101 physical lines | `LT-0114` |
-| `WebUiRenderer.addExecutionSetLogFallbackScript/0` | 194 physical lines | `LT-0114` |
-| `WebUiRenderer.renderExecutionList/5` | 120 physical lines | `LT-0114` |
-| `WebUiRenderer.renderExecutionRows/2` | 119 physical lines; NPath 609 | `LT-0114` |
-| `HostedLiftSharing.copy/3` | NPath 324 | `LT-0116` |
-| `HostedPostgresTrainingDataStore` | 1,028 physical lines; cyclomatic 169; more than 35 non-accessor methods | `LT-0116` |
-| `LocalPasswords.matches/2` | NPath 333 | `LT-0116` |
-| `PostgresSqliteBackupService.applicationTables/0` | 128 physical lines | `LT-0116` |
-| `SnapshotIntegrity.validate/1` | 104 physical lines; cyclomatic 23; NPath 9,900 | `LT-0116` |
-| `PlannedWorkoutExporter.blockType/3` | NPath 288 | `LT-0117` |
-| `PlannedWorkoutMarkdownWriter.appendBlock/3` | NPath 257 | `LT-0117` |
-| `PlannedWorkoutText.plannedSet/1` | NPath 256 | `LT-0117` |
-| `ProgramSchemaValidator` | cyclomatic 127 | `LT-0117` |
-| `WarmupLoading.choose/4` | cyclomatic 19; NPath 27,648 | `LT-0117` |
-| `WarmupLoading.plateCandidates/3` | NPath 216 | `LT-0117` |
-| `WaveMarkdownWriter.workoutLines/2` | cyclomatic 15 | `LT-0117` |
-| `WorkingSetWarmups.template/1` | NPath 320 | `LT-0117` |
-| `WorkoutHistoryFormatter.trainingMaxValue/1` | cyclomatic 19; NPath 1,968 | `LT-0117` |
+- web page rendering, embedded templates, route groups, authentication HTTP
+  mechanics, and planned-workout parsing now have focused collaborators;
+- hosted JDBC mapping, execution reads, training queries, schema validation,
+  snapshot validation, and workout algorithms use smaller dedicated helpers;
+- the web server tests are grouped by behavior, long integration scenarios use
+  named phases, and the SQLite compatibility fixture separates queries, schema
+  serialization, and writes.
 
-## Temporary test exceptions
-
-The same objective removal rule applies: make the exact symbol pass every
-listed limit, remove its XPath branch, and keep `pmdTest` clean.
-
-| Exact symbol | Baseline violation | Decomposition item |
-| --- | --- | --- |
-| `CatalogRecoveryDrillTest.drill/3` | 119 physical lines; NCSS 61 | `LT-0118` |
-| `HttpsProxyIntegrationTest.trustedTlsPreservesAuthenticationIsolationCsrfAndWorkoutSubmission/0` | 213 physical lines; NCSS 75 | `LT-0118` |
-| `LocalMultiUserTest.twoLocalAccountsCanRegisterLogIndependentlyAndSwitchWithoutSavingAnOldForm/0` | 133 physical lines | `LT-0118` |
-| `PlannedWorkoutSessionHtmlTest.sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps/0` | 168 physical lines; NCSS 134 | `LT-0118` |
-| `WebServerCliTest` | 2,726 physical lines; NCSS 1,164; more than 50 non-accessor methods | `LT-0118` |
-| `WebServerCliTest.renderTaskLayoutKeepsSecondaryViewsAndExistingFlows/0` | 133 physical lines; NCSS 82 | `LT-0118` |
-| `WebServerCliTest.liftCrudFragmentAndDetailRoutesCoverSuccessfulAndInvalidRequests/0` | 103 physical lines | `LT-0118` |
-| `WebServerCliTest.plannedWorkoutRoutesCoverPreviewDownloadsResumeAndIdempotentEmptySaves/0` | 110 physical lines | `LT-0118` |
-| `SqliteDb` | 1,252 physical lines; cyclomatic 209; more than 50 non-accessor methods | `LT-0118` |
-| `SqliteDb.parseMetric/1` | NPath 2,304 | `LT-0118` |
+The distribution table above records the pre-remediation measurement that
+motivated LT-0113. It is historical evidence, not a list of current violations.
+Current compliance is established by `pmdMain`, `pmdTest`, the executable
+boundary probes, and the complete `qualityGate`.
 
 ## Running and tightening the policy
 
@@ -160,10 +114,8 @@ one line over fails its physical rule. Because the test and both PMD tasks are
 dependencies of `qualityGate`, weakening or disconnecting the limits breaks the
 normal local and CI proof.
 
-This is a ratchet. When decomposition lowers a hotspot, remove or narrow its
-exception immediately. Tighten a numeric threshold only after recording the
-new distribution and updating boundary probes where applicable. Never raise a
-threshold, add a broad exclusion, or silently regenerate an exception list to
-make a build pass. A genuinely necessary temporary exception requires an exact
-symbol selector, measured value, focused backlog item, reason, and objective
-removal condition in this document.
+This is a zero-exception ratchet. Tighten a numeric threshold only after
+recording the new distribution and updating boundary probes where applicable.
+Never raise a threshold, add an exclusion, or create a suppression merely to
+make a build pass. Fix the code so the checked-in production and test rulesets
+remain clean.

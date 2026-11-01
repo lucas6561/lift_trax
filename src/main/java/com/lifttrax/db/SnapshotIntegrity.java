@@ -10,14 +10,27 @@ final class SnapshotIntegrity {
   private SnapshotIntegrity() {}
 
   static void validate(Connection connection) throws Exception {
-    if ("SQLite".equals(connection.getMetaData().getDatabaseProductName())) {
-      try (Statement statement = connection.createStatement();
-          ResultSet rows = statement.executeQuery("PRAGMA integrity_check")) {
-        if (!rows.next() || !"ok".equals(rows.getString(1))) {
-          throw new IllegalStateException("Snapshot SQLite integrity check failed.");
-        }
+    validateSqlite(connection);
+    validateRelationships(connection);
+    validateCatalogRows(connection);
+    validatePerformedRows(connection);
+    validateMigrations(connection);
+    validateSavedWorkouts(connection);
+  }
+
+  private static void validateSqlite(Connection connection) throws Exception {
+    if (!"SQLite".equals(connection.getMetaData().getDatabaseProductName())) {
+      return;
+    }
+    try (Statement statement = connection.createStatement();
+        ResultSet rows = statement.executeQuery("PRAGMA integrity_check")) {
+      if (!rows.next() || !"ok".equals(rows.getString(1))) {
+        throw new IllegalStateException("Snapshot SQLite integrity check failed.");
       }
     }
+  }
+
+  private static void validateRelationships(Connection connection) throws Exception {
     reject(
         connection,
         "SELECT 1 FROM lifter_profiles p LEFT JOIN app_users u ON u.id = p.owner_user_id WHERE u.id IS NULL",
@@ -62,6 +75,9 @@ final class SnapshotIntegrity {
         connection,
         "SELECT lifter_profile_id, source_namespace, source_key FROM exercise_catalog_entries WHERE source_namespace IS NOT NULL GROUP BY lifter_profile_id, source_namespace, source_key HAVING COUNT(*) > 1",
         "duplicate provenance");
+  }
+
+  private static void validateCatalogRows(Connection connection) throws Exception {
     try (Statement statement = connection.createStatement();
         ResultSet rows =
             statement.executeQuery(
@@ -70,6 +86,9 @@ final class SnapshotIntegrity {
         validateLift(rows);
       }
     }
+  }
+
+  private static void validatePerformedRows(Connection connection) throws Exception {
     try (Statement statement = connection.createStatement();
         ResultSet rows =
             statement.executeQuery(
@@ -82,6 +101,9 @@ final class SnapshotIntegrity {
         validateLift(rows);
       }
     }
+  }
+
+  private static void validateMigrations(Connection connection) throws Exception {
     try (Statement statement = connection.createStatement();
         ResultSet rows =
             statement.executeQuery(
@@ -100,6 +122,9 @@ final class SnapshotIntegrity {
         throw new IllegalStateException("Unsupported migration history.");
       }
     }
+  }
+
+  private static void validateSavedWorkouts(Connection connection) throws Exception {
     try (Statement statement = connection.createStatement();
         ResultSet rows = statement.executeQuery("SELECT workout_json FROM saved_workouts")) {
       while (rows.next()) {
@@ -121,7 +146,7 @@ final class SnapshotIntegrity {
         || rows.getString("notes") == null) {
       throw new IllegalStateException("Incomplete exercise snapshot or catalog definition.");
     }
-    HostedPostgresTrainingDataStore.mapLift(rows);
+    HostedExecutionJdbc.mapLift(rows);
   }
 
   private static void reject(Connection connection, String sql, String reason) throws Exception {

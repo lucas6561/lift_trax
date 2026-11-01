@@ -1,7 +1,7 @@
 ---
 id: LT-0117
 title: Simplify catalog and workout algorithms
-status: ready
+status: complete
 track: quality
 priority: high
 effort: large
@@ -26,9 +26,16 @@ choices, schema compatibility, or history results.
 
 ## Acceptance criteria
 
-- [ ] Every LT-0117 exception in `docs/source-size-and-complexity.md` passes its
+- [x] Every LT-0117 exception in `docs/source-size-and-complexity.md` passes its
       listed limits.
-- [ ] Remove every LT-0117 XPath exception from `config/pmd/ruleset.xml`.
-- [ ] Preserve golden workout outputs and focused boundary tests.
-- [ ] Run relevant mutation tests and `./gradlew.bat qualityGate` without
+- [x] Remove every LT-0117 XPath exception from `config/pmd/ruleset.xml`.
+- [x] Preserve golden workout outputs and focused boundary tests.
+- [x] Run relevant mutation tests and `./gradlew.bat qualityGate` without
       widening a threshold.
+
+## Implementation notes
+
+Catalog preview, workout formatting, schema validation, warmup selection, loading candidates, and history calculations now use smaller decision-focused helpers.
+
+The matching production or test PMD ruleset now passes without suppression
+clauses, and the LT-0113 thresholds were not widened.

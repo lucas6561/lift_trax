@@ -76,49 +76,26 @@ final class HostedLiftSharing {
     try (Connection connection = open()) {
       connection.setAutoCommit(false);
       try {
-        // Serialize imports and sharing changes, with a stable lock order for reciprocal imports.
-        try (var lock =
-            connection.prepareStatement(
-                "SELECT id FROM app_users WHERE auth_user_id = ? OR username = ? ORDER BY id FOR UPDATE")) {
-          lock.setString(1, authUserId);
-          lock.setString(2, username.trim().toLowerCase(Locale.ROOT));
-          try (var rows = lock.executeQuery()) {
-            while (rows.next()) {
-              rows.getString(1);
-            }
-          }
-        }
+        lockSharingParticipants(connection, authUserId, username);
         String sourceOwner = sharedOwner(connection, authUserId, username);
         List<Lift> available = readLifts(connection, sourceOwner);
-        if (!available.stream().map(Lift::name).toList().containsAll(selected)) {
-          throw new IllegalArgumentException(
-              "A selected lift is no longer available. Reload the list.");
-        }
+        validateSelectedLifts(available, selected);
         String targetOwner =
             HostedPostgresTrainingDataStoreProvider.ensureAppUser(connection, authUserId);
         String targetProfile =
             HostedPostgresTrainingDataStoreProvider.ensureDefaultLifterProfile(
                 connection, targetOwner, authUserId);
-        Set<String> existing = new HashSet<>();
-        try (var statement =
-            connection.prepareStatement(
-                "SELECT name FROM exercise_catalog_entries WHERE owner_user_id = ? AND lifter_profile_id = ?")) {
-          statement.setString(1, targetOwner);
-          statement.setString(2, targetProfile);
-          try (var rows = statement.executeQuery()) {
-            while (rows.next()) {
-              existing.add(normalizedName(rows.getString(1)));
-            }
-          }
-        }
-        int imported = 0;
-        for (Lift lift : available) {
-          if (selected.contains(lift.name())
-              && existing.add(normalizedName(lift.name()))
-              && insertLift(connection, targetOwner, targetProfile, lift, sourceOwner, username)) {
-            imported++;
-          }
-        }
+        Set<String> existing = existingNames(connection, targetOwner, targetProfile);
+        int imported =
+            importSelected(
+                connection,
+                available,
+                selected,
+                existing,
+                targetOwner,
+                targetProfile,
+                sourceOwner,
+                username);
         connection.commit();
         return imported;
       } catch (Exception e) {
@@ -126,6 +103,67 @@ final class HostedLiftSharing {
         throw e;
       }
     }
+  }
+
+  private static void lockSharingParticipants(
+      Connection connection, String authUserId, String username) throws Exception {
+    // Serialize imports and sharing changes, with a stable lock order for reciprocal imports.
+    try (var lock =
+        connection.prepareStatement(
+            "SELECT id FROM app_users WHERE auth_user_id = ? OR username = ? ORDER BY id FOR UPDATE")) {
+      lock.setString(1, authUserId);
+      lock.setString(2, username.trim().toLowerCase(Locale.ROOT));
+      try (var rows = lock.executeQuery()) {
+        while (rows.next()) {
+          rows.getString(1);
+        }
+      }
+    }
+  }
+
+  private static void validateSelectedLifts(List<Lift> available, Set<String> selected) {
+    if (!available.stream().map(Lift::name).toList().containsAll(selected)) {
+      throw new IllegalArgumentException(
+          "A selected lift is no longer available. Reload the list.");
+    }
+  }
+
+  private static Set<String> existingNames(Connection connection, String owner, String profile)
+      throws Exception {
+    Set<String> existing = new HashSet<>();
+    try (var statement =
+        connection.prepareStatement(
+            "SELECT name FROM exercise_catalog_entries WHERE owner_user_id = ? AND lifter_profile_id = ?")) {
+      statement.setString(1, owner);
+      statement.setString(2, profile);
+      try (var rows = statement.executeQuery()) {
+        while (rows.next()) {
+          existing.add(normalizedName(rows.getString(1)));
+        }
+      }
+    }
+    return existing;
+  }
+
+  private static int importSelected(
+      Connection connection,
+      List<Lift> available,
+      Set<String> selected,
+      Set<String> existing,
+      String targetOwner,
+      String targetProfile,
+      String sourceOwner,
+      String username)
+      throws Exception {
+    int imported = 0;
+    for (Lift lift : available) {
+      if (selected.contains(lift.name())
+          && existing.add(normalizedName(lift.name()))
+          && insertLift(connection, targetOwner, targetProfile, lift, sourceOwner, username)) {
+        imported++;
+      }
+    }
+    return imported;
   }
 
   private static boolean insertLift(
@@ -213,7 +251,7 @@ final class HostedLiftSharing {
       try (var rows = statement.executeQuery()) {
         List<Lift> result = new ArrayList<>();
         while (rows.next()) {
-          result.add(HostedPostgresTrainingDataStore.mapLift(rows));
+          result.add(HostedExecutionJdbc.mapLift(rows));
         }
         return result;
       }

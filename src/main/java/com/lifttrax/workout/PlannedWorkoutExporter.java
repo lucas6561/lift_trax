@@ -218,25 +218,29 @@ public final class PlannedWorkoutExporter {
     if (warmup || normalized.contains("warmup")) {
       return "warmup";
     }
-    if (normalized.contains("max effort")) {
-      return "max_effort";
-    }
-    if (normalized.contains("dynamic effort")) {
-      return "dynamic_effort";
-    }
-    if (normalized.contains("supplemental")) {
-      return "supplemental";
-    }
-    if (normalized.contains("accessory") || normalized.contains("finisher")) {
-      return "accessory";
-    }
-    if (normalized.contains("conditioning")) {
-      return "conditioning";
+    for (BlockTypeHint hint : BLOCK_TYPE_HINTS) {
+      if (hint.matches(normalized)) {
+        return hint.type();
+      }
     }
     if (circuit) {
       return "circuit";
     }
     return "single";
+  }
+
+  private static final List<BlockTypeHint> BLOCK_TYPE_HINTS =
+      List.of(
+          new BlockTypeHint("max_effort", List.of("max effort")),
+          new BlockTypeHint("dynamic_effort", List.of("dynamic effort")),
+          new BlockTypeHint("supplemental", List.of("supplemental")),
+          new BlockTypeHint("accessory", List.of("accessory", "finisher")),
+          new BlockTypeHint("conditioning", List.of("conditioning")));
+
+  private record BlockTypeHint(String type, List<String> phrases) {
+    boolean matches(String title) {
+      return phrases.stream().anyMatch(title::contains);
+    }
   }
 
   private static List<String> blockNotes(String title) {

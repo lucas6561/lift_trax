@@ -16,26 +16,12 @@
         <properties>
             <property name="methodReportLevel" value="15"/>
             <property name="classReportLevel" value="100"/>
-            <property name="violationSuppressXPath">
-                <value><![CDATA[
-                    self::ClassDeclaration[@SimpleName = 'SqliteDb']
-                ]]></value>
-            </property>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/NPathComplexity">
         <properties>
             <property name="reportLevel" value="200"/>
-            <property name="violationSuppressXPath">
-                <value><![CDATA[
-                    ./ancestor-or-self::MethodDeclaration[
-                        ancestor::ClassDeclaration[@SimpleName = 'SqliteDb']
-                        and @Name = 'parseMetric'
-                        and count(FormalParameters/FormalParameter) = 1
-                    ]
-                ]]></value>
-            </property>
         </properties>
     </rule>
 
@@ -43,36 +29,12 @@
         <properties>
             <property name="methodReportLevel" value="60"/>
             <property name="classReportLevel" value="700"/>
-            <property name="violationSuppressXPath">
-                <value><![CDATA[
-                    self::ClassDeclaration[@SimpleName = 'WebServerCliTest']
-                    |
-                    ./ancestor-or-self::MethodDeclaration[
-                        (ancestor::ClassDeclaration[@SimpleName = 'CatalogRecoveryDrillTest']
-                            and @Name = 'drill' and count(FormalParameters/FormalParameter) = 3)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'HttpsProxyIntegrationTest']
-                            and @Name = 'trustedTlsPreservesAuthenticationIsolationCsrfAndWorkoutSubmission'
-                            and count(FormalParameters/FormalParameter) = 0)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionHtmlTest']
-                            and @Name = 'sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps'
-                            and count(FormalParameters/FormalParameter) = 0)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
-                            and @Name = 'renderTaskLayoutKeepsSecondaryViewsAndExistingFlows'
-                            and count(FormalParameters/FormalParameter) = 0)
-                    ]
-                ]]></value>
-            </property>
         </properties>
     </rule>
 
     <rule ref="category/java/design.xml/TooManyMethods">
         <properties>
             <property name="maxmethods" value="50"/>
-            <property name="violationSuppressXPath">
-                <value><![CDATA[
-                    ./ancestor-or-self::ClassDeclaration[@SimpleName = ('WebServerCliTest', 'SqliteDb')]
-                ]]></value>
-            </property>
         </properties>
     </rule>
 
@@ -85,14 +47,6 @@
         </description>
         <priority>3</priority>
         <properties>
-            <property name="violationSuppressXPath">
-                <value><![CDATA[
-                    self::ClassBody[parent::ClassDeclaration[@SimpleName = (
-                        'WebServerCliTest',
-                        'SqliteDb'
-                    )]]
-                ]]></value>
-            </property>
             <property name="xpath">
                 <value><![CDATA[
                     //(
@@ -117,32 +71,6 @@
         </description>
         <priority>3</priority>
         <properties>
-            <property name="violationSuppressXPath">
-                <value><![CDATA[
-                    self::Block[parent::MethodDeclaration[
-                        (ancestor::ClassDeclaration[@SimpleName = 'CatalogRecoveryDrillTest']
-                            and @Name = 'drill' and count(FormalParameters/FormalParameter) = 3)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'HttpsProxyIntegrationTest']
-                            and @Name = 'trustedTlsPreservesAuthenticationIsolationCsrfAndWorkoutSubmission'
-                            and count(FormalParameters/FormalParameter) = 0)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'LocalMultiUserTest']
-                            and @Name = 'twoLocalAccountsCanRegisterLogIndependentlyAndSwitchWithoutSavingAnOldForm'
-                            and count(FormalParameters/FormalParameter) = 0)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'PlannedWorkoutSessionHtmlTest']
-                            and @Name = 'sessionPageStartsWithEmptyCompletedSetsAndAllowsWorkoutFileSwaps'
-                            and count(FormalParameters/FormalParameter) = 0)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
-                            and @Name = 'renderTaskLayoutKeepsSecondaryViewsAndExistingFlows'
-                            and count(FormalParameters/FormalParameter) = 0)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
-                            and @Name = 'liftCrudFragmentAndDetailRoutesCoverSuccessfulAndInvalidRequests'
-                            and count(FormalParameters/FormalParameter) = 0)
-                        or (ancestor::ClassDeclaration[@SimpleName = 'WebServerCliTest']
-                            and @Name = 'plannedWorkoutRoutesCoverPreviewDownloadsResumeAndIdempotentEmptySaves'
-                            and count(FormalParameters/FormalParameter) = 0)
-                    ]]
-                ]]></value>
-            </property>
             <property name="xpath">
                 <value><![CDATA[
                     //(

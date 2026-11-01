@@ -134,8 +134,8 @@ braces and empty control flow, unnecessary casts/locals/returns, utility-class
 shape, exception misuse, mutable static state, fragile synchronization, and
 selected file/string performance mistakes. Exclusions stay in the ruleset with a
 short rationale so future tightening has a clear starting point.
-Physical-size, NCSS, cyclomatic, NPath, and method-count thresholds and their
-exact legacy exceptions are documented in
+Physical-size, NCSS, cyclomatic, NPath, and method-count thresholds and the
+zero-exception ratchet are documented in
 `docs/source-size-and-complexity.md`.
 
 Coverage is enforced at **90% instruction coverage across all production Java

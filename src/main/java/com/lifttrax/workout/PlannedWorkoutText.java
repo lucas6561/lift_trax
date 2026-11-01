@@ -116,6 +116,16 @@ public final class PlannedWorkoutText {
   public static String plannedSet(PlannedWorkoutFile.PlannedSetTarget target) {
     List<String> parts = new ArrayList<>();
     parts.add(plannedMetric(target));
+    addPercent(parts, target);
+    addDecimal(parts, "RPE ", target.rpe());
+    addDecimal(parts, "RPE cap ", target.rpeCap());
+    addResistance(parts, target.accommodatingResistance());
+    addRest(parts, target.rest());
+    addDeload(parts, target.deload());
+    return String.join(" ", parts);
+  }
+
+  private static void addPercent(List<String> parts, PlannedWorkoutFile.PlannedSetTarget target) {
     if (target.percent() != null) {
       String percentOf =
           target.percentOf() == null || target.percentOf().isBlank()
@@ -123,24 +133,30 @@ public final class PlannedWorkoutText {
               : " of " + target.percentOf();
       parts.add("@ " + target.percent() + "%" + percentOf);
     }
-    if (target.rpe() != null) {
-      parts.add("RPE " + String.format(Locale.ROOT, "%.1f", target.rpe()));
+  }
+
+  private static void addDecimal(List<String> parts, String label, Float value) {
+    if (value != null) {
+      parts.add(label + String.format(Locale.ROOT, "%.1f", value));
     }
-    if (target.rpeCap() != null) {
-      parts.add("RPE cap " + String.format(Locale.ROOT, "%.1f", target.rpeCap()));
+  }
+
+  private static void addResistance(List<String> parts, String resistance) {
+    if (resistance != null && !resistance.isBlank() && !"STRAIGHT".equals(resistance)) {
+      parts.add(resistance);
     }
-    if (target.accommodatingResistance() != null
-        && !target.accommodatingResistance().isBlank()
-        && !"STRAIGHT".equals(target.accommodatingResistance())) {
-      parts.add(target.accommodatingResistance());
+  }
+
+  private static void addRest(List<String> parts, PlannedWorkoutFile.RestRange plannedRest) {
+    if (plannedRest != null) {
+      parts.add(rest(plannedRest));
     }
-    if (target.rest() != null) {
-      parts.add(rest(target.rest()));
-    }
-    if (target.deload()) {
+  }
+
+  private static void addDeload(List<String> parts, boolean deload) {
+    if (deload) {
       parts.add("deload");
     }
-    return String.join(" ", parts);
   }
 
   public static String suggestedWeight(

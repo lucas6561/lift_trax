@@ -1,7 +1,7 @@
 ---
 id: LT-0114
 title: Decompose web UI rendering hotspots
-status: ready
+status: complete
 track: quality
 priority: high
 effort: large
@@ -28,9 +28,16 @@ progressive enhancement, keyboard behavior, or offline drafts.
 
 ## Acceptance criteria
 
-- [ ] Every LT-0114 production exception in
+- [x] Every LT-0114 production exception in
       `docs/source-size-and-complexity.md` passes its physical, NCSS,
       cyclomatic, and NPath limits as applicable.
-- [ ] Remove every LT-0114 XPath exception from `config/pmd/ruleset.xml`.
-- [ ] Preserve focused renderer tests and desktop/mobile browser behavior.
-- [ ] `./gradlew.bat qualityGate` passes without widening a threshold.
+- [x] Remove every LT-0114 XPath exception from `config/pmd/ruleset.xml`.
+- [x] Preserve focused renderer tests and desktop/mobile browser behavior.
+- [x] `./gradlew.bat qualityGate` passes without widening a threshold.
+
+## Implementation notes
+
+Rendering, embedded browser templates, route registration, lift details, and task-specific page sections now have focused collaborators while preserving existing HTML contracts.
+
+The matching production or test PMD ruleset now passes without suppression
+clauses, and the LT-0113 thresholds were not widened.

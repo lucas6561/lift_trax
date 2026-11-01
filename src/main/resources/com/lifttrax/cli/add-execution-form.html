@@ -1,0 +1,47 @@
+        %s
+        <div class='add-actions'>
+          <p><a href='/import-exercise-catalog'>Import exercise catalog file</a> | <a href='/import-lifts'>Import lifts from another user</a></p>
+          <details class='new-lift-details'>
+            <summary>New Lift</summary>
+            <form method='post' action='/add-lift' class='new-lift-form'>
+              <label>Name <input type='text' name='name' required/></label>
+              <label>Region
+                <select name='region'>
+                  <option value='UPPER'>UPPER</option>
+                  <option value='LOWER'>LOWER</option>
+                </select>
+              </label>
+              <label>Main
+                <select name='main'>
+                  <option value='ACCESSORY'>ACCESSORY</option>
+                  <option value='BENCH PRESS'>BENCH PRESS</option>
+                  <option value='CONDITIONING'>CONDITIONING</option>
+                  <option value='DEADLIFT'>DEADLIFT</option>
+                  <option value='MOBILITY'>MOBILITY</option>
+                  <option value='OVERHEAD PRESS'>OVERHEAD PRESS</option>
+                  <option value='SQUAT'>SQUAT</option>
+                </select>
+              </label>
+              <label>Muscles
+                <select class='js-new-lift-muscles' multiple size='6' title='Hold Ctrl/Cmd to select multiple'>%s</select>
+                <input type='hidden' name='muscles' class='js-new-lift-muscles-hidden' value=''/>
+              </label>
+              <label>Notes
+                <input type='text' name='notes' placeholder='Optional notes'/>
+              </label>
+              <button type='submit'>Create Lift</button>
+            </form>
+          </details>
+        </div>
+        <form method='post' action='/add-execution' class='add-execution-form'>
+          <label>Lift
+            <select name='lift' data-focus-target='add-lift'>%s</select>
+          </label>
+          <div class='stacked-row'>
+            <button type='submit' formaction='/load-last-execution' formmethod='get' class='secondary compact-btn'>Load Last</button>
+          </div>
+          %s
+          <button type='submit' class='save-execution-btn' data-focus-target='save-execution'>Save Execution</button>
+        </form>
+        %s
+        """

@@ -1,7 +1,7 @@
 ---
 id: LT-0115
 title: Decompose server auth and session orchestration
-status: ready
+status: complete
 track: quality
 priority: high
 effort: large
@@ -26,9 +26,16 @@ isolation, startup diagnostics, and existing command behavior.
 
 ## Acceptance criteria
 
-- [ ] Every LT-0115 exception in `docs/source-size-and-complexity.md` passes its
+- [x] Every LT-0115 exception in `docs/source-size-and-complexity.md` passes its
       listed limits.
-- [ ] Remove every LT-0115 XPath exception from `config/pmd/ruleset.xml`.
-- [ ] Preserve startup, authentication, authorization, route, and session-save
+- [x] Remove every LT-0115 XPath exception from `config/pmd/ruleset.xml`.
+- [x] Preserve startup, authentication, authorization, route, and session-save
       regression coverage.
-- [ ] `./gradlew.bat qualityGate` passes without widening a threshold.
+- [x] `./gradlew.bat qualityGate` passes without widening a threshold.
+
+## Implementation notes
+
+Server route groups, authentication HTTP mechanics, startup parsing, database dump arguments, and planned-workout set parsing now have focused collaborators.
+
+The matching production or test PMD ruleset now passes without suppression
+clauses, and the LT-0113 thresholds were not widened.

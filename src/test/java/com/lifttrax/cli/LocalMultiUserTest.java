@@ -388,136 +388,173 @@ class LocalMultiUserTest {
   void twoLocalAccountsCanRegisterLogIndependentlyAndSwitchWithoutSavingAnOldForm()
       throws Exception {
     try (Fixture fixture = new Fixture(WebAuth.localDevelopment(Clock.systemUTC(), false))) {
-      Browser alice = fixture.browser();
-      Browser bob = fixture.browser();
-      register(alice, "Alice", "alice@example.test");
-      register(bob, "bob", "bob@example.test");
-      String alicePage = alice.get("/?tab=add-execution").body();
-      String bobPage = bob.get("/?tab=add-execution").body();
-      assertTrue(alicePage.contains("Signed in as alice"));
-      assertTrue(bobPage.contains("Signed in as bob"));
-      assertNotEquals(field(alicePage, "accountScope"), field(bobPage, "accountScope"));
-      assertTrue(alicePage.contains("lifttrax.addExecutionDraft.v2.${accountScope}"));
-      assertFalse(alicePage.contains("lifttrax.addExecutionDraft.v1"));
-      assertTrue(alicePage.contains("lifttrax.filters.v2.${accountScope}."));
-
-      assertEquals(
-          303,
-          alice
-              .post("/add-lift", fields(alicePage, "name", "Bench", "main", "BENCH PRESS"))
-              .statusCode());
-      assertEquals(
-          303,
-          bob.post("/add-lift", fields(bobPage, "name", "Bench", "main", "BENCH PRESS"))
-              .statusCode());
-      assertEquals(
-          303,
-          alice
-              .post(
-                  "/add-execution",
-                  fields(
-                      alicePage,
-                      "lift",
-                      "Bench",
-                      "weight",
-                      "135 lb",
-                      "metricType",
-                      "reps",
-                      "metricValue",
-                      "5",
-                      "notes",
-                      "Alice only"))
-              .statusCode());
-      var aliceStore = fixture.provider.forUserIdentifier("alice");
-      var bobStore = fixture.provider.forUserIdentifier("bob");
-      assertEquals(1, aliceStore.getExecutions("Bench").size());
-      assertTrue(bobStore.getExecutions("Bench").isEmpty());
-      assertFalse(bob.get("/?tab=executions").body().contains("Alice only"));
-
-      assertEquals(303, alice.post("/auth/logout", fields(alicePage)).statusCode());
-      String loginPage = alice.get("/auth/login").body();
-      assertFalse(loginPage.contains("Signed in as"));
-      assertEquals(
-          303,
-          alice
-              .post(
-                  "/auth/dev-login",
-                  fields(loginPage, "userId", "bob", "email", "wrong@example.test"))
-              .statusCode());
-      assertTrue(alice.get("/").body().contains("Signed in as bob"));
-      assertEquals(
-          "bob@example.test",
-          fixture.provider.accountFor(fixture.provider.resolveAuthUserId("bob"), "").email());
-      var rejected =
-          alice.post(
-              "/add-execution",
-              fields(
-                  alicePage,
-                  "lift",
-                  "Bench",
-                  "weight",
-                  "225 lb",
-                  "metricType",
-                  "reps",
-                  "metricValue",
-                  "5"));
-      assertEquals(409, rejected.statusCode());
-      assertTrue(rejected.body().contains("Nothing was saved"));
-      for (String route :
-          Set.of(
-              "/save-planned-workout-block",
-              "/save-planned-workout-session",
-              "/planned-workout-session",
-              "/delete-lift",
-              "/update-execution",
-              "/delete-execution",
-              "/import-lifts",
-              "/account")) {
-        assertEquals(409, alice.post(route, fields(alicePage)).statusCode(), route);
-      }
-      assertEquals(
-          409,
-          alice
-              .post(
-                  "/add-lift",
-                  Map.of("csrfToken", field(alicePage, "csrfToken"), "name", "Unscoped"))
-              .statusCode());
-      assertTrue(bobStore.getExecutions("Bench").isEmpty());
-      assertEquals(1, aliceStore.getExecutions("Bench").size());
-
-      String switchedPage = alice.get("/?tab=add-execution").body();
-      var fragment = alice.get("/executions-fragment?lift=Bench");
-      assertEquals("no-store", fragment.headers().firstValue("Cache-Control").orElseThrow());
-      assertEquals(
-          field(bobPage, "accountScope"),
-          fragment.headers().firstValue("X-LiftTrax-Account").orElseThrow());
-      assertEquals(field(bobPage, "accountScope"), field(switchedPage, "accountScope"));
-      assertEquals(
-          303,
-          alice
-              .post(
-                  "/add-execution",
-                  fields(
-                      switchedPage,
-                      "lift",
-                      "Bench",
-                      "weight",
-                      "95 lb",
-                      "metricType",
-                      "reps",
-                      "metricValue",
-                      "8"))
-              .statusCode());
-      assertEquals(1, bobStore.getExecutions("Bench").size());
-      assertEquals(303, alice.post("/auth/logout", fields(switchedPage)).statusCode());
-      assertEquals(
-          303,
-          alice
-              .post("/auth/dev-login", fields(alice.get("/auth/login").body(), "userId", "alice"))
-              .statusCode());
-      assertEquals(field(alicePage, "accountScope"), field(alice.get("/").body(), "accountScope"));
+      LocalAccounts accounts = createIndependentAccounts(fixture);
+      switchAliceBrowserToBob(fixture, accounts);
+      assertOldAliceFormRejected(fixture, accounts);
+      saveForBobThenReturnToAlice(fixture, accounts);
     }
   }
+
+  private static LocalAccounts createIndependentAccounts(Fixture fixture) throws Exception {
+    Browser alice = fixture.browser();
+    Browser bob = fixture.browser();
+    register(alice, "Alice", "alice@example.test");
+    register(bob, "bob", "bob@example.test");
+    String alicePage = alice.get("/?tab=add-execution").body();
+    String bobPage = bob.get("/?tab=add-execution").body();
+    assertTrue(alicePage.contains("Signed in as alice"));
+    assertTrue(bobPage.contains("Signed in as bob"));
+    assertNotEquals(field(alicePage, "accountScope"), field(bobPage, "accountScope"));
+    assertTrue(alicePage.contains("lifttrax.addExecutionDraft.v2.${accountScope}"));
+    assertFalse(alicePage.contains("lifttrax.addExecutionDraft.v1"));
+    assertTrue(alicePage.contains("lifttrax.filters.v2.${accountScope}."));
+
+    assertEquals(
+        303,
+        alice
+            .post("/add-lift", fields(alicePage, "name", "Bench", "main", "BENCH PRESS"))
+            .statusCode());
+    assertEquals(
+        303,
+        bob.post("/add-lift", fields(bobPage, "name", "Bench", "main", "BENCH PRESS"))
+            .statusCode());
+    assertEquals(
+        303,
+        alice
+            .post(
+                "/add-execution",
+                fields(
+                    alicePage,
+                    "lift",
+                    "Bench",
+                    "weight",
+                    "135 lb",
+                    "metricType",
+                    "reps",
+                    "metricValue",
+                    "5",
+                    "notes",
+                    "Alice only"))
+            .statusCode());
+    var aliceStore = fixture.provider.forUserIdentifier("alice");
+    var bobStore = fixture.provider.forUserIdentifier("bob");
+    assertEquals(1, aliceStore.getExecutions("Bench").size());
+    assertTrue(bobStore.getExecutions("Bench").isEmpty());
+    assertFalse(bob.get("/?tab=executions").body().contains("Alice only"));
+
+    return new LocalAccounts(alice, bob, alicePage, bobPage, aliceStore, bobStore);
+  }
+
+  private static void switchAliceBrowserToBob(Fixture fixture, LocalAccounts accounts)
+      throws Exception {
+    Browser alice = accounts.alice();
+    String alicePage = accounts.alicePage();
+    assertEquals(303, alice.post("/auth/logout", fields(alicePage)).statusCode());
+    String loginPage = alice.get("/auth/login").body();
+    assertFalse(loginPage.contains("Signed in as"));
+    assertEquals(
+        303,
+        alice
+            .post(
+                "/auth/dev-login",
+                fields(loginPage, "userId", "bob", "email", "wrong@example.test"))
+            .statusCode());
+    assertTrue(alice.get("/").body().contains("Signed in as bob"));
+    assertEquals(
+        "bob@example.test",
+        fixture.provider.accountFor(fixture.provider.resolveAuthUserId("bob"), "").email());
+  }
+
+  private static void assertOldAliceFormRejected(Fixture fixture, LocalAccounts accounts)
+      throws Exception {
+    Browser alice = accounts.alice();
+    String alicePage = accounts.alicePage();
+    var aliceStore = accounts.aliceStore();
+    var bobStore = accounts.bobStore();
+    var rejected =
+        alice.post(
+            "/add-execution",
+            fields(
+                alicePage,
+                "lift",
+                "Bench",
+                "weight",
+                "225 lb",
+                "metricType",
+                "reps",
+                "metricValue",
+                "5"));
+    assertEquals(409, rejected.statusCode());
+    assertTrue(rejected.body().contains("Nothing was saved"));
+    for (String route :
+        Set.of(
+            "/save-planned-workout-block",
+            "/save-planned-workout-session",
+            "/planned-workout-session",
+            "/delete-lift",
+            "/update-execution",
+            "/delete-execution",
+            "/import-lifts",
+            "/account")) {
+      assertEquals(409, alice.post(route, fields(alicePage)).statusCode(), route);
+    }
+    assertEquals(
+        409,
+        alice
+            .post(
+                "/add-lift", Map.of("csrfToken", field(alicePage, "csrfToken"), "name", "Unscoped"))
+            .statusCode());
+    assertTrue(bobStore.getExecutions("Bench").isEmpty());
+    assertEquals(1, aliceStore.getExecutions("Bench").size());
+  }
+
+  private static void saveForBobThenReturnToAlice(Fixture fixture, LocalAccounts accounts)
+      throws Exception {
+    Browser alice = accounts.alice();
+    String alicePage = accounts.alicePage();
+    String bobPage = accounts.bobPage();
+    var aliceStore = accounts.aliceStore();
+    var bobStore = accounts.bobStore();
+    String switchedPage = alice.get("/?tab=add-execution").body();
+    var fragment = alice.get("/executions-fragment?lift=Bench");
+    assertEquals("no-store", fragment.headers().firstValue("Cache-Control").orElseThrow());
+    assertEquals(
+        field(bobPage, "accountScope"),
+        fragment.headers().firstValue("X-LiftTrax-Account").orElseThrow());
+    assertEquals(field(bobPage, "accountScope"), field(switchedPage, "accountScope"));
+    assertEquals(
+        303,
+        alice
+            .post(
+                "/add-execution",
+                fields(
+                    switchedPage,
+                    "lift",
+                    "Bench",
+                    "weight",
+                    "95 lb",
+                    "metricType",
+                    "reps",
+                    "metricValue",
+                    "8"))
+            .statusCode());
+    assertEquals(1, bobStore.getExecutions("Bench").size());
+    assertEquals(303, alice.post("/auth/logout", fields(switchedPage)).statusCode());
+    assertEquals(
+        303,
+        alice
+            .post("/auth/dev-login", fields(alice.get("/auth/login").body(), "userId", "alice"))
+            .statusCode());
+    assertEquals(field(alicePage, "accountScope"), field(alice.get("/").body(), "accountScope"));
+  }
+
+  private record LocalAccounts(
+      Browser alice,
+      Browser bob,
+      String alicePage,
+      String bobPage,
+      com.lifttrax.db.TrainingDataStore aliceStore,
+      com.lifttrax.db.TrainingDataStore bobStore) {}
 
   @Test
   void registrationRejectsDuplicatesInvalidNamesAndMissingCsrfWithoutSigningIn() throws Exception {

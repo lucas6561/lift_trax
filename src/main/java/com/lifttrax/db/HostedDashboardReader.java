@@ -122,7 +122,7 @@ final class HostedDashboardReader {
                       rs.getBoolean("warmup"),
                       rs.getBoolean("deload"),
                       rs.getString("execution_notes"));
-          rows.add(new PendingRow(HostedPostgresTrainingDataStore.mapLift(rs), id, execution));
+          rows.add(new PendingRow(HostedExecutionJdbc.mapLift(rs), id, execution));
         }
         return rows;
       }
@@ -149,8 +149,7 @@ final class HostedDashboardReader {
       }
       try (ResultSet rs = statement.executeQuery()) {
         while (rs.next()) {
-          sets.get(rs.getString("execution_id"))
-              .add(HostedPostgresTrainingDataStore.mapExecutionSet(rs));
+          sets.get(rs.getString("execution_id")).add(HostedExecutionJdbc.mapExecutionSet(rs));
         }
       }
     }

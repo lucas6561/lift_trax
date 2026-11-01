@@ -234,7 +234,7 @@ and preserves the test, PMD, and JaCoCo reports.
 PMD scans production Java for correctness, security, best-practice, style,
 maintainability, concurrency, and selected file/string performance risks. It
 also scans production and test sources for physical size, NCSS, cyclomatic,
-NPath, and method-count growth. Thresholds and exact temporary exceptions are
+NPath, and method-count growth. Thresholds and the zero-exception ratchet are
 documented in `docs/source-size-and-complexity.md`; other intentional rule
 exclusions remain documented in `config/pmd/ruleset.xml`.
 Package responsibilities, test expectations, and ADR guidance are documented in

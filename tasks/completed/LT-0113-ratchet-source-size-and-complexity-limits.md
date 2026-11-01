@@ -28,9 +28,9 @@ warning when a class, method, or test began accumulating responsibilities.
 ## Outcome
 
 The quality gate enforces documented size and complexity ceilings for
-production and test code. Existing hotspots remain visible through exact-symbol
-temporary exceptions tied to focused decomposition work, while new code cannot
-make those hotspots worse or introduce comparable ones.
+production and test code. The initial hotspots were decomposed until both
+rulesets passed with no violation-suppression clauses, so new and existing code
+share the same limits.
 
 ## Acceptance criteria
 
@@ -53,35 +53,34 @@ make those hotspots worse or introduce comparable ones.
 - [x] Enable `pmdTest` so oversized or overly complex tests fail the same local
       and CI quality gate.
 - [x] Do not use broad package, renderer, CLI, database, or test exclusions.
-      Every existing exception names an exact class or method, links to a
-      decomposition backlog item, records why it is temporarily necessary, and
-      has an objective removal condition.
+      Resolve the initial baseline violations in code and retain no PMD
+      violation-suppression clauses.
 - [x] Add boundary probes proving that code at the selected physical limits
       passes and representative production classes, production methods, test
       classes, and test methods one line over fail the checked-in rules.
 - [x] Document each threshold, how it was selected, how to run the checks, and
       the policy for tightening limits without weakening or silently resetting
       the baseline.
-- [x] Existing focused tests and `./gradlew.bat qualityGate` pass with only the
-      explicitly documented legacy exceptions.
+- [x] Existing focused tests and `./gradlew.bat qualityGate` pass with zero
+      source-size or complexity exceptions.
 
 ## Implementation notes
 
-`docs/source-size-and-complexity.md` records the complete 2026-11-01 metric
-distribution, worst offenders, threshold rationale, commands, ratchet policy,
-and every exact-symbol production and test exception. Physical-line XPath rules
-measure declaration spans, including maintained text blocks. `pmdTest` uses a
-focused size/complexity ruleset instead of applying unrelated production style
-opinions to fixtures.
+`docs/source-size-and-complexity.md` records the complete 2026-11-01
+pre-remediation metric distribution, worst offenders, threshold rationale,
+commands, and zero-exception ratchet policy. Physical-line XPath rules measure
+declaration spans, including maintained text blocks. `pmdTest` uses a focused
+size/complexity ruleset instead of applying unrelated production style opinions
+to fixtures.
 
 `SourceSizePolicyTest` runs PMD 7.13 programmatically against generated boundary
 sources. It proves 750/100 production and 1,000/100 test boundaries pass and
 that each corresponding source one line over is reported. The initial
 unsuppressed baseline also failed with 60 production and 18 test violations,
-confirming the new tasks reject the existing representative hotspots before
-their exact exceptions are applied.
+confirming the new tasks rejected the representative hotspots before they were
+resolved through decomposition.
 
-Focused decomposition work is tracked in:
+The decomposition completed alongside the ratchet is recorded in:
 
 - `LT-0114`: web UI rendering hotspots;
 - `LT-0115`: server, authentication, CLI, and session orchestration;
@@ -93,7 +92,8 @@ Verification on 2026-11-01:
 
 - `./gradlew.bat test --tests com.lifttrax.quality.SourceSizePolicyTest` passed
   all four boundary tests;
-- `./gradlew.bat pmdMain pmdTest` passed with zero reported violations;
+- `./gradlew.bat pmdMain pmdTest` passed with zero reported violations and no
+  PMD violation-suppression clauses or annotations;
 - `./gradlew.bat qualityGate` passed 363 tests with zero failures or errors and
   two intentional environment skips, plus Spotless, production/test PMD, and
-  92.462% aggregate instruction coverage.
+  92.658% aggregate instruction coverage.

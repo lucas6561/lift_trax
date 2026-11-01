@@ -6,7 +6,6 @@ import com.lifttrax.db.TrainingDataStore;
 import com.lifttrax.db.WorkoutSubmissionReceipt;
 import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.LiftExecution;
-import com.lifttrax.models.SetMetric;
 import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutJson;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +22,6 @@ import java.util.Set;
 /** Validates and saves completed work from an imported planned-workout day. */
 final class PlannedWorkoutSessionService {
   private static final ObjectMapper JSON = new ObjectMapper();
-  private static final String COMPLETE = "complete";
   private static final String SKIPPED = "skipped";
 
   private PlannedWorkoutSessionService() {}
@@ -97,22 +95,14 @@ final class PlannedWorkoutSessionService {
             ? ""
             : submissionFingerprint(
                 workoutFile, weekNumber, dayOfWeek, date, resultsJson, requireEveryPlannedExercise);
-    if (!normalizedSubmissionId.isBlank()) {
-      WorkoutSubmissionReceipt receipt = db.getWorkoutSubmission(normalizedSubmissionId);
-      if (receipt != null) {
-        if (!receipt.fingerprint().equals(fingerprint)) {
-          throw new IllegalArgumentException(
-              "This workout block changed after it was already submitted. Resume the saved version or start a new workout.");
-        }
-        return SaveSummary.fromReceipt(receipt);
-      }
+    SaveSummary prior = priorSubmission(db, normalizedSubmissionId, fingerprint);
+    if (prior != null) {
+      return prior;
     }
     Map<String, PlannedExerciseItem> plannedByKey = plannedByKey(day);
     JsonNode submitted = readSubmittedResults(resultsJson);
-    if (requireEveryPlannedExercise && submitted.size() != plannedByKey.size()) {
-      throw new IllegalArgumentException("Submit a result for every planned exercise.");
-    }
-    if (!requireEveryPlannedExercise && submitted.size() == 0) {
+    validateSubmissionSize(requireEveryPlannedExercise, submitted.size(), plannedByKey.size());
+    if (emptyPartialSubmission(requireEveryPlannedExercise, submitted)) {
       SaveSummary summary = new SaveSummary(List.of(), 0, 0);
       recordSubmission(db, normalizedSubmissionId, fingerprint, summary);
       return summary;
@@ -123,58 +113,116 @@ final class PlannedWorkoutSessionService {
     int skippedExercises = 0;
     int skippedSets = 0;
     for (JsonNode exerciseResult : submitted) {
-      String key = requiredText(exerciseResult, "exerciseKey", "Exercise key");
-      if (!submittedKeys.add(key)) {
-        throw new IllegalArgumentException("Each planned exercise can only be submitted once.");
-      }
-      PlannedExerciseItem planned = plannedByKey.get(key);
-      if (planned == null) {
-        throw new IllegalArgumentException("Unknown planned exercise: " + key);
-      }
-      String plannedLift = requiredText(exerciseResult, "plannedLift", "Planned lift");
-      if (!planned.exercise().name().equals(plannedLift)) {
-        throw new IllegalArgumentException("Planned exercise does not match the imported workout.");
-      }
-      String state = requiredState(exerciseResult.path("state").asText(""));
-      if (SKIPPED.equals(state)) {
+      ParsedExercise parsed = parseExercise(db, exerciseResult, plannedByKey, submittedKeys, date);
+      if (parsed.skippedExercise()) {
         skippedExercises++;
         continue;
       }
-
-      ParsedSets parsedSets = parseSets(exerciseResult.path("sets"));
-      skippedSets += parsedSets.skippedSets();
-      if (parsedSets.completedSets().isEmpty()) {
-        continue;
+      skippedSets += parsed.skippedSets();
+      if (parsed.pending() != null) {
+        pending.add(parsed.pending());
       }
-      String performedLift = requiredText(exerciseResult, "performedLift", "Performed lift");
-      db.getLift(performedLift);
-      if (!db.isLiftEnabled(performedLift)) {
-        throw new IllegalArgumentException(
-            "Lift is disabled: " + performedLift + ". Enable it before logging new executions.");
-      }
-      boolean warmup = exerciseResult.path("warmup").asBoolean(planned.block().warmup());
-      boolean deload =
-          exerciseResult
-              .path("deload")
-              .asBoolean(
-                  planned.exercise().plannedSets().stream()
-                      .anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload));
-      LiftExecution execution =
-          new LiftExecution(
-              null,
-              date,
-              parsedSets.completedSets(),
-              warmup,
-              deload,
-              exerciseResult.path("notes").asText(""));
-      pending.add(
-          new PendingExecution(
-              performedLift, execution, !performedLift.equals(planned.exercise().name())));
     }
+    List<LoggedExercise> logged = logPending(db, pending, normalizedSubmissionId);
+    SaveSummary summary = new SaveSummary(List.copyOf(logged), skippedExercises, skippedSets);
+    recordSubmission(db, normalizedSubmissionId, fingerprint, summary);
+    return summary;
+  }
 
+  private static SaveSummary priorSubmission(
+      TrainingDataStore db, String submissionId, String fingerprint) throws Exception {
+    if (submissionId.isBlank()) {
+      return null;
+    }
+    WorkoutSubmissionReceipt receipt = db.getWorkoutSubmission(submissionId);
+    if (receipt == null) {
+      return null;
+    }
+    if (!receipt.fingerprint().equals(fingerprint)) {
+      throw new IllegalArgumentException(
+          "This workout block changed after it was already submitted. Resume the saved version or start a new workout.");
+    }
+    return SaveSummary.fromReceipt(receipt);
+  }
+
+  private static void validateSubmissionSize(
+      boolean requireEvery, int submittedCount, int plannedCount) {
+    if (requireEvery && submittedCount != plannedCount) {
+      throw new IllegalArgumentException("Submit a result for every planned exercise.");
+    }
+  }
+
+  private static boolean emptyPartialSubmission(boolean requireEvery, JsonNode submitted) {
+    return !requireEvery && submitted.isEmpty();
+  }
+
+  private static ParsedExercise parseExercise(
+      TrainingDataStore db,
+      JsonNode result,
+      Map<String, PlannedExerciseItem> plannedByKey,
+      Set<String> submittedKeys,
+      LocalDate date)
+      throws Exception {
+    PlannedExerciseItem planned = plannedExercise(result, plannedByKey, submittedKeys);
+    String state = PlannedWorkoutSetParser.requiredState(result.path("state").asText(""));
+    if (SKIPPED.equals(state)) {
+      return new ParsedExercise(true, 0, null);
+    }
+    PlannedWorkoutSetParser.ParsedSets sets =
+        PlannedWorkoutSetParser.parseSets(result.path("sets"));
+    if (sets.completedSets().isEmpty()) {
+      return new ParsedExercise(false, sets.skippedSets(), null);
+    }
+    String performedLift = requiredText(result, "performedLift", "Performed lift");
+    validatePerformedLift(db, performedLift);
+    LiftExecution execution = execution(result, planned, sets.completedSets(), date);
+    PendingExecution pending =
+        new PendingExecution(
+            performedLift, execution, !performedLift.equals(planned.exercise().name()));
+    return new ParsedExercise(false, sets.skippedSets(), pending);
+  }
+
+  private static PlannedExerciseItem plannedExercise(
+      JsonNode result, Map<String, PlannedExerciseItem> plannedByKey, Set<String> submittedKeys) {
+    String key = requiredText(result, "exerciseKey", "Exercise key");
+    if (!submittedKeys.add(key)) {
+      throw new IllegalArgumentException("Each planned exercise can only be submitted once.");
+    }
+    PlannedExerciseItem planned = plannedByKey.get(key);
+    if (planned == null) {
+      throw new IllegalArgumentException("Unknown planned exercise: " + key);
+    }
+    String plannedLift = requiredText(result, "plannedLift", "Planned lift");
+    if (!planned.exercise().name().equals(plannedLift)) {
+      throw new IllegalArgumentException("Planned exercise does not match the imported workout.");
+    }
+    return planned;
+  }
+
+  private static void validatePerformedLift(TrainingDataStore db, String performedLift)
+      throws Exception {
+    db.getLift(performedLift);
+    if (!db.isLiftEnabled(performedLift)) {
+      throw new IllegalArgumentException(
+          "Lift is disabled: " + performedLift + ". Enable it before logging new executions.");
+    }
+  }
+
+  private static LiftExecution execution(
+      JsonNode result, PlannedExerciseItem planned, List<ExecutionSet> sets, LocalDate date) {
+    boolean warmup = result.path("warmup").asBoolean(planned.block().warmup());
+    boolean plannedDeload =
+        planned.exercise().plannedSets().stream()
+            .anyMatch(PlannedWorkoutFile.PlannedSetTarget::deload);
+    boolean deload = result.path("deload").asBoolean(plannedDeload);
+    return new LiftExecution(null, date, sets, warmup, deload, result.path("notes").asText(""));
+  }
+
+  private static List<LoggedExercise> logPending(
+      TrainingDataStore db, List<PendingExecution> pending, String submissionId) throws Exception {
     List<LoggedExercise> logged = new ArrayList<>();
     for (PendingExecution item : pending) {
-      if (normalizedSubmissionId.isBlank()
+      if (submissionId.isBlank()
           && hasMatchingExecution(db, item.performedLift(), item.execution())) {
         continue;
       }
@@ -183,9 +231,7 @@ final class PlannedWorkoutSessionService {
           new LoggedExercise(
               item.performedLift(), item.execution().sets().size(), item.substitution()));
     }
-    SaveSummary summary = new SaveSummary(List.copyOf(logged), skippedExercises, skippedSets);
-    recordSubmission(db, normalizedSubmissionId, fingerprint, summary);
-    return summary;
+    return logged;
   }
 
   private static void recordSubmission(
@@ -279,81 +325,6 @@ final class PlannedWorkoutSessionService {
     return root;
   }
 
-  private static ParsedSets parseSets(JsonNode setsNode) {
-    if (!setsNode.isArray()) {
-      throw new IllegalArgumentException("Completed exercise sets must be a JSON array.");
-    }
-    List<ExecutionSet> sets = new ArrayList<>();
-    int skippedSets = 0;
-    for (JsonNode setResult : setsNode) {
-      String state = requiredState(setResult.path("state").asText(COMPLETE));
-      if (SKIPPED.equals(state)) {
-        skippedSets++;
-        continue;
-      }
-      SetMetric metric = parseMetric(setResult);
-      String weight = setResult.path("weight").asText("").trim();
-      Float rpe = parseRpe(setResult.path("rpe").asText(""));
-      sets.add(new ExecutionSet(metric, weight, rpe, setResult.path("missed").asBoolean(false)));
-    }
-    return new ParsedSets(List.copyOf(sets), skippedSets);
-  }
-
-  private static SetMetric parseMetric(JsonNode setResult) {
-    String metricType = setResult.path("metricType").asText("reps");
-    return switch (metricType) {
-      case "reps-lr" ->
-          new SetMetric.RepsLr(
-              completedMetricValue(setResult, "metricLeft", "Left reps"),
-              completedMetricValue(setResult, "metricRight", "Right reps"));
-      case "time" ->
-          new SetMetric.TimeSecs(completedMetricValue(setResult, "metricValue", "Seconds"));
-      case "distance" ->
-          new SetMetric.DistanceFeet(completedMetricValue(setResult, "metricValue", "Feet"));
-      case "reps" -> new SetMetric.Reps(completedMetricValue(setResult, "metricValue", "Reps"));
-      default ->
-          throw new IllegalArgumentException("Unsupported completed set metric: " + metricType);
-    };
-  }
-
-  private static int completedMetricValue(JsonNode node, String field, String label) {
-    String value = node.path(field).asText("").trim();
-    boolean missed = node.path("missed").asBoolean(false);
-    try {
-      int parsed = Integer.parseInt(value);
-      if (parsed > 0 || (missed && parsed == 0)) {
-        return parsed;
-      }
-    } catch (NumberFormatException ignored) {
-      // Report the same actionable validation message for blank and malformed values.
-    }
-    throw new IllegalArgumentException(
-        label
-            + (missed ? " must be 0 or greater for a missed target." : " must be greater than 0."));
-  }
-
-  private static Float parseRpe(String value) {
-    if (value == null || value.isBlank()) {
-      return null;
-    }
-    try {
-      float parsed = Float.parseFloat(value.trim());
-      if (parsed >= 0.0f && parsed <= 10.0f) {
-        return parsed;
-      }
-    } catch (NumberFormatException ignored) {
-      // Report a consistent validation message below.
-    }
-    throw new IllegalArgumentException("RPE must be between 0 and 10.");
-  }
-
-  private static String requiredState(String state) {
-    if (COMPLETE.equals(state) || SKIPPED.equals(state)) {
-      return state;
-    }
-    throw new IllegalArgumentException("Workout state must be complete or skipped.");
-  }
-
   private static String requiredText(JsonNode node, String field, String label) {
     String value = node.path(field).asText("").trim();
     if (value.isBlank()) {
@@ -402,5 +373,6 @@ final class PlannedWorkoutSessionService {
   private record PendingExecution(
       String performedLift, LiftExecution execution, boolean substitution) {}
 
-  private record ParsedSets(List<ExecutionSet> completedSets, int skippedSets) {}
+  private record ParsedExercise(
+      boolean skippedExercise, int skippedSets, PendingExecution pending) {}
 }

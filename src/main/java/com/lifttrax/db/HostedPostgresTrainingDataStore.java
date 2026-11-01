@@ -1,15 +1,12 @@
 package com.lifttrax.db;
 
 import com.lifttrax.models.CatalogEntry;
-import com.lifttrax.models.ExecutionSet;
 import com.lifttrax.models.Lift;
 import com.lifttrax.models.LiftExecution;
 import com.lifttrax.models.LiftRegion;
 import com.lifttrax.models.LiftStats;
 import com.lifttrax.models.LiftType;
 import com.lifttrax.models.Muscle;
-import com.lifttrax.models.SetMetric;
-import com.lifttrax.models.WeightText;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -17,13 +14,9 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /** User-scoped hosted JDBC/Postgres implementation for core web training data. */
 final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
@@ -32,7 +25,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
   HostedPostgresTrainingDataStore(
       HostedPostgresConfig config, String authUserId, String appUserId, String lifterProfileId) {
     super(config, lifterProfileId);
-    requireUserId(authUserId);
+    HostedExecutionJdbc.requireUserId(authUserId);
     this.appUserId = appUserId;
   }
 
@@ -73,13 +66,13 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'user_created')
                     """)) {
-      statement.setString(1, newId());
+      statement.setString(1, HostedExecutionJdbc.newId());
       statement.setString(2, appUserId);
       statement.setString(3, lifterProfileId);
       statement.setString(4, name);
       statement.setString(5, region.name());
       statement.setString(6, main == null ? null : main.toDbValue());
-      statement.setString(7, serializeMuscles(muscles));
+      statement.setString(7, HostedExecutionJdbc.serializeMuscles(muscles));
       statement.setString(8, notes == null ? "" : notes);
       statement.executeUpdate();
     }
@@ -90,8 +83,8 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
     try (Connection connection = openConnection()) {
       connection.setAutoCommit(false);
       try {
-        String catalogEntryId = lockEnabledCatalogEntry(connection, name);
-        String executionId = newId();
+        String catalogEntryId = queries().lockEnabledCatalogEntry(connection, name);
+        String executionId = HostedExecutionJdbc.newId();
         int webExecutionId;
         try (PreparedStatement statement =
             connection.prepareStatement(
@@ -120,7 +113,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
             webExecutionId = keys.getInt(1);
           }
         }
-        saveExecutionSets(connection, executionId, execution.sets());
+        HostedExecutionJdbc.saveExecutionSets(connection, executionId, execution.sets());
         if (webExecutionId <= 0) {
           throw new IllegalStateException("Hosted execution ID was invalid.");
         }
@@ -212,7 +205,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
       statement.setString(1, newName);
       statement.setString(2, region.name());
       statement.setString(3, main == null ? null : main.toDbValue());
-      statement.setString(4, serializeMuscles(muscles));
+      statement.setString(4, HostedExecutionJdbc.serializeMuscles(muscles));
       statement.setString(5, notes == null ? "" : notes);
       statement.setString(6, appUserId);
       statement.setString(7, lifterProfileId);
@@ -235,7 +228,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
     try (Connection connection = openConnection()) {
       connection.setAutoCommit(false);
       try {
-        String catalogEntryId = findCatalogEntryId(connection, name);
+        String catalogEntryId = queries().findCatalogEntryId(connection, name);
         if (catalogEntryId == null) {
           throw new IllegalArgumentException("Lift not found.");
         }
@@ -321,66 +314,8 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
   @Override
   public Map<String, List<LiftExecution>> getExecutionsByLift(Collection<String> liftNames)
       throws Exception {
-    List<String> requestedNames = new ArrayList<>(new LinkedHashSet<>(liftNames));
-    Map<String, List<LiftExecution>> executionsByLift = new LinkedHashMap<>();
-    for (String liftName : requestedNames) {
-      executionsByLift.put(liftName, new ArrayList<>());
-    }
-    if (requestedNames.isEmpty()) {
-      return executionsByLift;
-    }
-
-    String placeholders = String.join(", ", Collections.nCopies(requestedNames.size(), "?"));
-    String sql =
-        """
-            SELECT c.name, e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload,
-                e.notes, es.metric_kind, es.metric_a, es.metric_b, es.weight, es.rpe, es.missed
-            FROM executions e
-            JOIN exercise_catalog_entries c ON c.id = e.catalog_entry_id
-            LEFT JOIN execution_sets es ON es.execution_id = e.id
-            WHERE e.lifter_profile_id = ? AND c.lifter_profile_id = ?
-                AND c.owner_user_id = ? AND c.name IN (%s)
-            ORDER BY c.name, e.performed_on DESC, e.web_execution_id DESC, es.set_index
-            """
-            .formatted(placeholders);
-    try (Connection connection = openConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, lifterProfileId);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, appUserId);
-      for (int i = 0; i < requestedNames.size(); i++) {
-        statement.setString(i + 4, requestedNames.get(i));
-      }
-      try (ResultSet rs = statement.executeQuery()) {
-        Map<String, Map<Integer, ExecutionRows>> rowsByLift = new LinkedHashMap<>();
-        while (rs.next()) {
-          String liftName = rs.getString("name");
-          int webExecutionId = rs.getInt("web_execution_id");
-          Map<Integer, ExecutionRows> rowsByExecution =
-              rowsByLift.computeIfAbsent(liftName, ignored -> new LinkedHashMap<>());
-          ExecutionRows rows = rowsByExecution.get(webExecutionId);
-          if (rows == null) {
-            rows =
-                new ExecutionRows(
-                    webExecutionId,
-                    parseDate(rs.getObject("performed_on")),
-                    rs.getBoolean("warmup"),
-                    rs.getBoolean("deload"),
-                    rs.getString("notes"),
-                    new ArrayList<>());
-            rowsByExecution.put(webExecutionId, rows);
-          }
-          if (rs.getString("metric_kind") != null) {
-            rows.sets().add(mapExecutionSet(rs));
-          }
-        }
-        for (Map.Entry<String, Map<Integer, ExecutionRows>> entry : rowsByLift.entrySet()) {
-          executionsByLift.put(
-              entry.getKey(),
-              entry.getValue().values().stream().map(ExecutionRows::toExecution).toList());
-        }
-        return executionsByLift;
-      }
+    try (Connection connection = openConnection()) {
+      return HostedExecutionBatchReader.load(connection, appUserId, lifterProfileId, liftNames);
     }
   }
 
@@ -389,7 +324,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
     try (Connection connection = openConnection()) {
       connection.setAutoCommit(false);
       try {
-        String hostedExecutionId = findHostedExecutionId(connection, execId);
+        String hostedExecutionId = queries().findHostedExecutionId(connection, execId);
         if (hostedExecutionId == null) {
           throw new IllegalArgumentException("Execution not found.");
         }
@@ -410,7 +345,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
             throw new IllegalArgumentException("Execution not found.");
           }
         }
-        saveExecutionSets(connection, hostedExecutionId, execution.sets());
+        HostedExecutionJdbc.saveExecutionSets(connection, hostedExecutionId, execution.sets());
         connection.commit();
       } catch (Exception e) {
         connection.rollback();
@@ -424,7 +359,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
     try (Connection connection = openConnection()) {
       connection.setAutoCommit(false);
       try {
-        String hostedExecutionId = findHostedExecutionId(connection, execId);
+        String hostedExecutionId = queries().findHostedExecutionId(connection, execId);
         if (hostedExecutionId == null) {
           throw new IllegalArgumentException("Execution not found.");
         }
@@ -453,7 +388,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
   @Override
   public LiftStats liftStats(String name) throws Exception {
     try (Connection connection = openConnection()) {
-      String catalogEntryId = findCatalogEntryId(connection, name);
+      String catalogEntryId = queries().findCatalogEntryId(connection, name);
       if (catalogEntryId == null) {
         try (PreparedStatement statement =
             connection.prepareStatement(
@@ -473,8 +408,8 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
         }
       }
       return new LiftStats(
-          getLastExecution(connection, catalogEntryId),
-          collectBestByReps(connection, catalogEntryId));
+          queries().getLastExecution(connection, catalogEntryId),
+          queries().collectBestByReps(connection, catalogEntryId));
     }
   }
 
@@ -494,7 +429,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
       try (ResultSet rs = statement.executeQuery()) {
         List<Lift> lifts = new ArrayList<>();
         while (rs.next()) {
-          lifts.add(mapLift(rs));
+          lifts.add(HostedExecutionJdbc.mapLift(rs));
         }
         return lifts;
       }
@@ -518,7 +453,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
         if (!rs.next()) {
           throw new IllegalArgumentException("Lift not found: " + name);
         }
-        return mapLift(rs);
+        return HostedExecutionJdbc.mapLift(rs);
       }
     }
   }
@@ -548,20 +483,21 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
   public List<LiftExecutionRow> getExecutionsBetween(LocalDate start, LocalDate end)
       throws Exception {
     try (Connection connection = openConnection()) {
-      return readSnapshots(connection, start, end, null, null);
+      return queries().readSnapshots(connection, start, end, null, null);
     }
   }
 
   @Override
   public List<LiftExecutionRow> liftHistory(String name) throws Exception {
     try (Connection connection = openConnection()) {
-      String identity = findCatalogEntryId(connection, name);
-      return readSnapshots(
-          connection,
-          LocalDate.of(1, 1, 1),
-          LocalDate.of(9999, 12, 31),
-          identity == null ? "performed_exercise_name" : "performed_catalog_id",
-          identity == null ? name : identity);
+      String identity = queries().findCatalogEntryId(connection, name);
+      return queries()
+          .readSnapshots(
+              connection,
+              LocalDate.of(1, 1, 1),
+              LocalDate.of(9999, 12, 31),
+              identity == null ? "performed_exercise_name" : "performed_catalog_id",
+              identity == null ? name : identity);
     }
   }
 
@@ -575,54 +511,14 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
       statement.setInt(2, executionId);
       try (ResultSet rows = statement.executeQuery()) {
         return rows.next()
-            ? readSnapshots(
-                connection,
-                LocalDate.of(1, 1, 1),
-                LocalDate.of(9999, 12, 31),
-                "performed_catalog_id",
-                rows.getString(1))
+            ? queries()
+                .readSnapshots(
+                    connection,
+                    LocalDate.of(1, 1, 1),
+                    LocalDate.of(9999, 12, 31),
+                    "performed_catalog_id",
+                    rows.getString(1))
             : List.of();
-      }
-    }
-  }
-
-  private List<LiftExecutionRow> readSnapshots(
-      Connection connection,
-      LocalDate start,
-      LocalDate end,
-      String filterColumn,
-      String filterValue)
-      throws Exception {
-    String sql =
-        """
-        SELECT e.performed_exercise_name AS name, e.performed_region AS region,
-          e.performed_main_lift AS main_lift, e.performed_muscles AS muscles,
-          e.performed_catalog_notes AS lift_notes,
-          e.web_execution_id, e.id, e.performed_on, e.warmup, e.deload, e.notes
-        FROM executions e WHERE e.lifter_profile_id = ? AND e.performed_on BETWEEN ? AND ?
-        """
-            + (filterColumn == null ? "" : " AND e." + filterColumn + " = ?")
-            + " ORDER BY e.performed_on ASC, e.performed_exercise_name ASC, e.web_execution_id ASC";
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, lifterProfileId);
-      statement.setObject(2, start);
-      statement.setObject(3, end);
-      if (filterColumn != null) {
-        statement.setString(4, filterValue);
-      }
-      try (ResultSet rs = statement.executeQuery()) {
-        List<LiftExecutionRow> rows = new ArrayList<>();
-        while (rs.next()) {
-          Lift lift =
-              new Lift(
-                  rs.getString("name"),
-                  LiftRegion.fromString(rs.getString("region")),
-                  LiftType.fromDbValue(rs.getString("main_lift")),
-                  parseMuscles(rs.getString("muscles")),
-                  rs.getString("lift_notes"));
-          rows.add(new LiftExecutionRow(lift, mapExecution(connection, rs)));
-        }
-        return rows;
       }
     }
   }
@@ -652,10 +548,10 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
         }
         return new ExecutionHistorySummary(
             rs.getInt("record_count"),
-            parseDate(rs.getObject("min_date")),
-            parseDate(rs.getObject("max_date")),
-            parseDate(rs.getObject("nearest_before")),
-            parseDate(rs.getObject("nearest_after")));
+            HostedExecutionJdbc.parseDate(rs.getObject("min_date")),
+            HostedExecutionJdbc.parseDate(rs.getObject("max_date")),
+            HostedExecutionJdbc.parseDate(rs.getObject("nearest_before")),
+            HostedExecutionJdbc.parseDate(rs.getObject("nearest_after")));
       }
     }
   }
@@ -683,7 +579,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
       statement.setBoolean(5, warmup);
       statement.setBoolean(6, deload);
       try (ResultSet rs = statement.executeQuery()) {
-        return rs.next() ? mapExecution(connection, rs) : null;
+        return rs.next() ? HostedExecutionJdbc.mapExecution(connection, rs) : null;
       }
     }
   }
@@ -707,7 +603,7 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
       statement.setString(3, liftName);
       statement.setInt(4, executionId);
       try (ResultSet rs = statement.executeQuery()) {
-        return rs.next() ? mapExecution(connection, rs) : null;
+        return rs.next() ? HostedExecutionJdbc.mapExecution(connection, rs) : null;
       }
     }
   }
@@ -752,280 +648,15 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
       try (ResultSet rs = statement.executeQuery()) {
         List<Lift> lifts = new ArrayList<>();
         while (rs.next()) {
-          lifts.add(mapLift(rs));
+          lifts.add(HostedExecutionJdbc.mapLift(rs));
         }
         return lifts;
       }
     }
   }
 
-  private LiftExecution getLastExecution(Connection connection, String catalogEntryId)
-      throws Exception {
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            """
-                SELECT web_execution_id, id, performed_on, warmup, deload, notes
-                FROM executions
-                WHERE lifter_profile_id = ? AND performed_catalog_id = ?
-                ORDER BY performed_on DESC, web_execution_id DESC
-                LIMIT 1
-                """)) {
-      statement.setString(1, lifterProfileId);
-      statement.setString(2, catalogEntryId);
-      try (ResultSet rs = statement.executeQuery()) {
-        return rs.next() ? mapExecution(connection, rs) : null;
-      }
-    }
-  }
-
-  private Map<Integer, String> collectBestByReps(Connection connection, String catalogEntryId)
-      throws Exception {
-    String sql =
-        """
-            SELECT es.metric_a AS reps, es.weight
-            FROM execution_sets es
-            JOIN executions e ON e.id = es.execution_id
-            WHERE e.lifter_profile_id = ? AND e.performed_catalog_id = ?
-                AND es.metric_kind = 'reps' AND es.missed = FALSE AND es.metric_a > 0
-            """;
-    Map<Integer, String> bestByReps = new TreeMap<>();
-    Map<Integer, Double> bestWeights = new HashMap<>();
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, lifterProfileId);
-      statement.setString(2, catalogEntryId);
-      try (ResultSet rs = statement.executeQuery()) {
-        while (rs.next()) {
-          int reps = rs.getInt("reps");
-          String weight = normalizeWeight(rs.getString("weight"));
-          double pounds = WeightText.toPounds(weight);
-          Double current = bestWeights.get(reps);
-          if (current == null || pounds > current) {
-            bestWeights.put(reps, pounds);
-            bestByReps.put(reps, weight);
-          }
-        }
-      }
-    }
-    return bestByReps;
-  }
-
-  private String lockEnabledCatalogEntry(Connection connection, String name) throws Exception {
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            "SELECT id, enabled FROM exercise_catalog_entries WHERE owner_user_id = ? AND lifter_profile_id = ? AND name = ? FOR UPDATE")) {
-      statement.setString(1, appUserId);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, name);
-      try (ResultSet rows = statement.executeQuery()) {
-        if (!rows.next()) {
-          throw new IllegalArgumentException("Lift not found: " + name);
-        }
-        if (!rows.getBoolean("enabled")) {
-          throw new IllegalArgumentException(
-              "Lift is disabled: " + name + ". Enable it before logging new executions.");
-        }
-        return rows.getString("id");
-      }
-    }
-  }
-
-  private String findCatalogEntryId(Connection connection, String name) throws Exception {
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            """
-                SELECT id FROM exercise_catalog_entries
-                WHERE owner_user_id = ? AND lifter_profile_id = ? AND name = ?
-                """)) {
-      statement.setString(1, appUserId);
-      statement.setString(2, lifterProfileId);
-      statement.setString(3, name);
-      try (ResultSet rs = statement.executeQuery()) {
-        return rs.next() ? rs.getString("id") : null;
-      }
-    }
-  }
-
-  private String findHostedExecutionId(Connection connection, int webExecutionId) throws Exception {
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            "SELECT id FROM executions WHERE lifter_profile_id = ? AND web_execution_id = ?")) {
-      statement.setString(1, lifterProfileId);
-      statement.setInt(2, webExecutionId);
-      try (ResultSet rs = statement.executeQuery()) {
-        return rs.next() ? rs.getString("id") : null;
-      }
-    }
-  }
-
-  private LiftExecution mapExecution(Connection connection, ResultSet rs) throws Exception {
-    String executionId = rs.getString("id");
-    return new LiftExecution(
-        rs.getInt("web_execution_id"),
-        parseDate(rs.getObject("performed_on")),
-        loadExecutionSets(connection, executionId),
-        rs.getBoolean("warmup"),
-        rs.getBoolean("deload"),
-        rs.getString("notes"));
-  }
-
-  private List<ExecutionSet> loadExecutionSets(Connection connection, String executionId)
-      throws Exception {
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            """
-                SELECT metric_kind, metric_a, metric_b, weight, rpe, missed
-                FROM execution_sets
-                WHERE execution_id = ?
-                ORDER BY set_index
-                """)) {
-      statement.setString(1, executionId);
-      try (ResultSet rs = statement.executeQuery()) {
-        List<ExecutionSet> sets = new ArrayList<>();
-        while (rs.next()) {
-          sets.add(mapExecutionSet(rs));
-        }
-        return sets;
-      }
-    }
-  }
-
-  static ExecutionSet mapExecutionSet(ResultSet rs) throws Exception {
-    Integer metricB = rs.getObject("metric_b") == null ? null : rs.getInt("metric_b");
-    Float rpe = rs.getObject("rpe") == null ? null : rs.getFloat("rpe");
-    return new ExecutionSet(
-        metricFromRow(rs.getString("metric_kind"), rs.getInt("metric_a"), metricB),
-        normalizeWeight(rs.getString("weight")),
-        rpe,
-        rs.getBoolean("missed"));
-  }
-
-  private void saveExecutionSets(Connection connection, String executionId, List<ExecutionSet> sets)
-      throws Exception {
-    try (PreparedStatement statement =
-        connection.prepareStatement("DELETE FROM execution_sets WHERE execution_id = ?")) {
-      statement.setString(1, executionId);
-      statement.executeUpdate();
-    }
-    String sql =
-        """
-            INSERT INTO execution_sets (
-                id, execution_id, set_index, metric_kind, metric_a, metric_b, weight, rpe, missed
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """;
-    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-      List<ExecutionSet> safeSets = sets == null ? List.of() : sets;
-      for (int i = 0; i < safeSets.size(); i++) {
-        ExecutionSet set = safeSets.get(i);
-        MetricRow metric = metricToRow(set.metric());
-        statement.setString(1, newId());
-        statement.setString(2, executionId);
-        statement.setInt(3, i);
-        statement.setString(4, metric.kind());
-        statement.setInt(5, metric.a());
-        if (metric.b() == null) {
-          statement.setNull(6, java.sql.Types.INTEGER);
-        } else {
-          statement.setInt(6, metric.b());
-        }
-        statement.setString(7, normalizeWeight(set.weight()));
-        if (set.rpe() == null) {
-          statement.setNull(8, java.sql.Types.REAL);
-        } else {
-          statement.setFloat(8, set.rpe());
-        }
-        statement.setBoolean(9, set.missed());
-        statement.addBatch();
-      }
-      statement.executeBatch();
-    }
-  }
-
-  static Lift mapLift(ResultSet rs) throws Exception {
-    return new Lift(
-        rs.getString("name"),
-        LiftRegion.fromString(rs.getString("region")),
-        LiftType.fromDbValue(rs.getString("main_lift")),
-        parseMuscles(rs.getString("muscles")),
-        rs.getString("notes"));
-  }
-
-  private static List<Muscle> parseMuscles(String value) {
-    if (value == null || value.isBlank()) {
-      return Collections.emptyList();
-    }
-    List<Muscle> muscles = new ArrayList<>();
-    for (String item : value.split(",")) {
-      if (!item.isBlank()) {
-        muscles.add(Muscle.fromString(item.trim()));
-      }
-    }
-    return muscles;
-  }
-
-  private static String serializeMuscles(List<Muscle> muscles) {
-    if (muscles == null || muscles.isEmpty()) {
-      return "";
-    }
-    return String.join(",", muscles.stream().map(Enum::name).toList());
-  }
-
-  private static LocalDate parseDate(Object value) {
-    if (value == null) {
-      return null;
-    }
-    if (value instanceof LocalDate localDate) {
-      return localDate;
-    }
-    if (value instanceof java.sql.Date date) {
-      return date.toLocalDate();
-    }
-    return LocalDate.parse(value.toString());
-  }
-
-  private static SetMetric metricFromRow(String kind, int a, Integer b) {
-    return switch (kind) {
-      case "reps" -> new SetMetric.Reps(a);
-      case "reps-lr" -> new SetMetric.RepsLr(a, b == null ? a : b);
-      case "reps-range" -> new SetMetric.RepsRange(a, b == null ? a : b);
-      case "time" -> new SetMetric.TimeSecs(a);
-      case "distance" -> new SetMetric.DistanceFeet(a);
-      default -> new SetMetric.Reps(a);
-    };
-  }
-
-  private static MetricRow metricToRow(SetMetric metric) {
-    if (metric instanceof SetMetric.Reps reps) {
-      return new MetricRow("reps", reps.reps(), null);
-    }
-    if (metric instanceof SetMetric.RepsLr repsLr) {
-      return new MetricRow("reps-lr", repsLr.left(), repsLr.right());
-    }
-    if (metric instanceof SetMetric.RepsRange range) {
-      return new MetricRow("reps-range", range.min(), range.max());
-    }
-    if (metric instanceof SetMetric.TimeSecs timeSecs) {
-      return new MetricRow("time", timeSecs.seconds(), null);
-    }
-    if (metric instanceof SetMetric.DistanceFeet distanceFeet) {
-      return new MetricRow("distance", distanceFeet.feet(), null);
-    }
-    return new MetricRow("reps", 0, null);
-  }
-
-  private static String normalizeWeight(String weight) {
-    return weight == null || weight.isBlank() ? "none" : weight;
-  }
-
-  private static String newId() {
-    return java.util.UUID.randomUUID().toString();
-  }
-
-  private static String requireUserId(String userId) {
-    if (userId == null || userId.isBlank()) {
-      throw new IllegalArgumentException("Authenticated user is required.");
-    }
-    return userId.trim();
+  private HostedTrainingQueries queries() {
+    return new HostedTrainingQueries(appUserId, lifterProfileId);
   }
 
   HostedPostgresConfig hostedConfig() {
@@ -1038,19 +669,5 @@ final class HostedPostgresTrainingDataStore extends HostedSavedWorkoutStore {
 
   String defaultLifterProfileId() {
     return lifterProfileId;
-  }
-
-  private record MetricRow(String kind, int a, Integer b) {}
-
-  private record ExecutionRows(
-      int id,
-      LocalDate date,
-      boolean warmup,
-      boolean deload,
-      String notes,
-      List<ExecutionSet> sets) {
-    private LiftExecution toExecution() {
-      return new LiftExecution(id, date, List.copyOf(sets), warmup, deload, notes);
-    }
   }
 }

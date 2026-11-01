@@ -101,6 +101,12 @@ class PlannedWorkoutSessionHtmlTest {
                 lift("Farmer Carry", LiftType.CONDITIONING)),
             LocalDate.parse("2026-05-31"));
 
+    assertSessionNavigation(html);
+    assertSessionSetEntry(html);
+    assertSessionDraftAndSave(html);
+  }
+
+  private static void assertSessionNavigation(String html) {
     assertTrue(html.contains("Train Monday"));
     assertTrue(html.contains("js-session-load-last'>Load last</button>"));
     assertTrue(html.contains("js-session-load-last-status' role='status'"));
@@ -151,6 +157,9 @@ class PlannedWorkoutSessionHtmlTest {
             "<option value='Safety Bar Squat' data-lift-note='' data-history-last='' data-history-best='' data-history-unavailable='false' disabled>Safety Bar Squat (not in local lifts)</option>"));
     assertTrue(html.contains("Changed to: ${performedLift.value}"));
     assertTrue(html.contains("Target: 5 reps @ 80%"));
+  }
+
+  private static void assertSessionSetEntry(String html) {
     assertTrue(html.contains("Target: 5 reps @ 80% rest 2-3 min"));
     assertTrue(html.contains("session-execution-widget js-session-execution-input"));
     assertTrue(html.contains("class='session-entry-primary' aria-label='Completed set entry'"));
@@ -202,6 +211,9 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("rememberRadioValue(widget, 'setEntryMode', mode);"));
     assertTrue(html.contains("localStorage.setItem(draftKey, serialized);"));
     assertTrue(html.contains("localStorage.getItem(draftKey) !== serialized"));
+  }
+
+  private static void assertSessionDraftAndSave(String html) {
     assertTrue(html.contains("version: 3"));
     assertTrue(html.contains("plannedWorkoutJson:"));
     assertTrue(html.contains("ownerScope: form.dataset.ownerScope"));

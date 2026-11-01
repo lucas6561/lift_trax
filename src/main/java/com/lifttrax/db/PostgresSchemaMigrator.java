@@ -151,7 +151,7 @@ final class PostgresSchemaMigrator {
           throw new IllegalStateException(
               "Snapshot backfill requires an ownership-valid catalog row for every execution. Repair legacy data before retrying.");
         }
-        HostedPostgresTrainingDataStore.mapLift(rows);
+        HostedExecutionJdbc.mapLift(rows);
         count++;
       }
     }

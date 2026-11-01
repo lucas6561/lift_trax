@@ -311,14 +311,20 @@ public final class PostgresSqliteBackupService {
 
   static List<TableSpec> applicationTables() {
     List<TableSpec> tables = new ArrayList<>();
-    tables.add(
+    tables.addAll(identityTables());
+    tables.addAll(trainingTables());
+    tables.addAll(importTables());
+    return List.copyOf(tables);
+  }
+
+  private static List<TableSpec> identityTables() {
+    return List.of(
         table(
             PostgresSchemaMigrator.MIGRATIONS_TABLE,
             "CREATE TABLE lifttrax_schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)",
             "version",
             "name",
-            "applied_at"));
-    tables.add(
+            "applied_at"),
         table(
             "app_users",
             "CREATE TABLE app_users (id TEXT PRIMARY KEY, auth_user_id TEXT NOT NULL, email TEXT, username TEXT, password_hash TEXT, password_version TEXT NOT NULL, share_lift_catalog INTEGER NOT NULL, created_at TEXT NOT NULL)",
@@ -329,8 +335,7 @@ public final class PostgresSqliteBackupService {
             "password_hash",
             "password_version",
             "share_lift_catalog",
-            "created_at"));
-    tables.add(
+            "created_at"),
         table(
             "lifter_profiles",
             "CREATE TABLE lifter_profiles (id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, display_name TEXT NOT NULL, is_default INTEGER NOT NULL, created_at TEXT NOT NULL)",
@@ -339,7 +344,10 @@ public final class PostgresSqliteBackupService {
             "display_name",
             "is_default",
             "created_at"));
-    tables.add(
+  }
+
+  private static List<TableSpec> trainingTables() {
+    return List.of(
         table(
             "exercise_catalog_entries",
             "CREATE TABLE exercise_catalog_entries (id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, lifter_profile_id TEXT NOT NULL, name TEXT NOT NULL, region TEXT NOT NULL, main_lift TEXT, muscles TEXT NOT NULL, notes TEXT NOT NULL, enabled INTEGER NOT NULL, created_at TEXT NOT NULL, origin TEXT NOT NULL, source_namespace TEXT, source_key TEXT, source_revision TEXT, copied_from_label TEXT)",
@@ -357,8 +365,7 @@ public final class PostgresSqliteBackupService {
             "source_namespace",
             "source_key",
             "source_revision",
-            "copied_from_label"));
-    tables.add(
+            "copied_from_label"),
         table(
             "executions",
             "CREATE TABLE executions (web_execution_id INTEGER PRIMARY KEY, id TEXT NOT NULL, lifter_profile_id TEXT NOT NULL, catalog_entry_id TEXT, performed_on TEXT NOT NULL, warmup INTEGER NOT NULL, deload INTEGER NOT NULL, notes TEXT NOT NULL, created_at TEXT NOT NULL, performed_catalog_id TEXT NOT NULL, performed_exercise_name TEXT NOT NULL, performed_region TEXT NOT NULL, performed_main_lift TEXT, performed_muscles TEXT NOT NULL, performed_catalog_notes TEXT NOT NULL)",
@@ -376,8 +383,7 @@ public final class PostgresSqliteBackupService {
             "performed_region",
             "performed_main_lift",
             "performed_muscles",
-            "performed_catalog_notes"));
-    tables.add(
+            "performed_catalog_notes"),
         table(
             "execution_sets",
             "CREATE TABLE execution_sets (id TEXT PRIMARY KEY, execution_id TEXT NOT NULL, set_index INTEGER NOT NULL, metric_kind TEXT NOT NULL, metric_a INTEGER NOT NULL, metric_b INTEGER, weight TEXT NOT NULL, rpe REAL, missed INTEGER NOT NULL DEFAULT 0)",
@@ -389,8 +395,7 @@ public final class PostgresSqliteBackupService {
             "metric_b",
             "weight",
             "rpe",
-            "missed"));
-    tables.add(
+            "missed"),
         table(
             "workout_submission_receipts",
             "CREATE TABLE workout_submission_receipts (lifter_profile_id TEXT NOT NULL, submission_id TEXT NOT NULL, payload_fingerprint TEXT NOT NULL, logged_execution_count INTEGER NOT NULL, skipped_exercises INTEGER NOT NULL, skipped_sets INTEGER NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (lifter_profile_id, submission_id))",
@@ -400,8 +405,7 @@ public final class PostgresSqliteBackupService {
             "logged_execution_count",
             "skipped_exercises",
             "skipped_sets",
-            "created_at"));
-    tables.add(
+            "created_at"),
         table(
             "saved_workouts",
             "CREATE TABLE saved_workouts (id TEXT PRIMARY KEY, lifter_profile_id TEXT NOT NULL, name TEXT NOT NULL, workout_json TEXT NOT NULL, created_at TEXT NOT NULL)",
@@ -410,7 +414,10 @@ public final class PostgresSqliteBackupService {
             "name",
             "workout_json",
             "created_at"));
-    tables.add(
+  }
+
+  private static List<TableSpec> importTables() {
+    return List.of(
         table(
             "local_imports",
             "CREATE TABLE local_imports (id TEXT PRIMARY KEY, target_app_user_id TEXT NOT NULL, target_lifter_profile_id TEXT NOT NULL, source_kind TEXT NOT NULL, source_fingerprint TEXT NOT NULL, source_schema_version INTEGER NOT NULL, lift_count INTEGER NOT NULL, execution_count INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)",
@@ -423,8 +430,7 @@ public final class PostgresSqliteBackupService {
             "lift_count",
             "execution_count",
             "status",
-            "created_at"));
-    tables.add(
+            "created_at"),
         table(
             "local_import_records",
             "CREATE TABLE local_import_records (id TEXT PRIMARY KEY, target_lifter_profile_id TEXT NOT NULL, import_id TEXT NOT NULL, source_table TEXT NOT NULL, source_id TEXT NOT NULL, target_table TEXT NOT NULL, target_id TEXT NOT NULL)",
@@ -435,7 +441,6 @@ public final class PostgresSqliteBackupService {
             "source_id",
             "target_table",
             "target_id"));
-    return List.copyOf(tables);
   }
 
   private static TableSpec table(String name, String createSql, String... columns) {

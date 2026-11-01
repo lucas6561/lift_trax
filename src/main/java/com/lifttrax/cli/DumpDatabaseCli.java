@@ -61,67 +61,90 @@ public final class DumpDatabaseCli {
   }
 
   private static CliOptions parseArgs(String... args) {
-    boolean liftsOnly = false;
-    boolean includeDisabled = false;
-    boolean executionsOnly = false;
-    boolean formatSpecified = false;
-    LocalDate from = null;
-    LocalDate to = null;
-    ExecutionDumpWriter.Format format = ExecutionDumpWriter.Format.JSON;
-    String userId = null;
+    CliOptionsBuilder options = new CliOptionsBuilder();
     int index = 0;
     while (index < args.length) {
-      String arg = args[index];
-      if ("--lifts-only".equals(arg)) {
-        liftsOnly = true;
-        index++;
-        continue;
-      }
-      if ("--include-disabled".equals(arg)) {
-        includeDisabled = true;
-        index++;
-        continue;
-      }
-      if ("--executions-only".equals(arg)) {
-        executionsOnly = true;
-        index++;
-        continue;
-      }
-      if ("--from".equals(arg)) {
-        from = parseDate(optionValue(args, index, arg), arg);
-        index += 2;
-        continue;
-      }
-      if ("--to".equals(arg)) {
-        to = parseDate(optionValue(args, index, arg), arg);
-        index += 2;
-        continue;
-      }
-      if ("--format".equals(arg)) {
-        format = ExecutionDumpWriter.Format.parse(optionValue(args, index, arg));
-        formatSpecified = true;
-        index += 2;
-        continue;
-      }
-      if ("--user".equals(arg)) {
-        userId = optionValue(args, index, arg);
-        index += 2;
-        continue;
-      }
-      if (arg.startsWith("--")) {
-        throw new IllegalArgumentException("Unknown option: " + arg);
-      }
-      throw new IllegalArgumentException("Unexpected argument: " + arg);
+      index += options.consume(args, index);
     }
-    validateExecutionOptions(liftsOnly, executionsOnly, formatSpecified, from, to);
-    return new CliOptions(
-        CliUserResolver.resolve(userId),
-        liftsOnly,
-        includeDisabled,
-        executionsOnly,
-        from,
-        to,
-        format);
+    return options.build();
+  }
+
+  private static final class CliOptionsBuilder {
+    private boolean liftsOnly;
+    private boolean includeDisabled;
+    private boolean executionsOnly;
+    private boolean formatSpecified;
+    private LocalDate from;
+    private LocalDate to;
+    private ExecutionDumpWriter.Format format = ExecutionDumpWriter.Format.JSON;
+    private String userId;
+
+    int consume(String[] args, int index) {
+      String arg = args[index];
+      return switch (arg) {
+        case "--lifts-only" -> setLiftsOnly();
+        case "--include-disabled" -> setIncludeDisabled();
+        case "--executions-only" -> setExecutionsOnly();
+        case "--from" -> setFrom(args, index, arg);
+        case "--to" -> setTo(args, index, arg);
+        case "--format" -> setFormat(args, index, arg);
+        case "--user" -> setUser(args, index, arg);
+        default -> throw unexpected(arg);
+      };
+    }
+
+    private int setLiftsOnly() {
+      liftsOnly = true;
+      return 1;
+    }
+
+    private int setIncludeDisabled() {
+      includeDisabled = true;
+      return 1;
+    }
+
+    private int setExecutionsOnly() {
+      executionsOnly = true;
+      return 1;
+    }
+
+    private int setFrom(String[] args, int index, String option) {
+      from = parseDate(optionValue(args, index, option), option);
+      return 2;
+    }
+
+    private int setTo(String[] args, int index, String option) {
+      to = parseDate(optionValue(args, index, option), option);
+      return 2;
+    }
+
+    private int setFormat(String[] args, int index, String option) {
+      format = ExecutionDumpWriter.Format.parse(optionValue(args, index, option));
+      formatSpecified = true;
+      return 2;
+    }
+
+    private int setUser(String[] args, int index, String option) {
+      userId = optionValue(args, index, option);
+      return 2;
+    }
+
+    private static IllegalArgumentException unexpected(String arg) {
+      String kind = arg.startsWith("--") ? "Unknown option: " : "Unexpected argument: ";
+      return new IllegalArgumentException(kind + arg);
+    }
+
+    CliOptions build() {
+      validateExecutionOptions(liftsOnly, executionsOnly, formatSpecified, from, to);
+      return new CliOptions(
+          CliUserResolver.resolve(userId),
+          liftsOnly,
+          includeDisabled,
+          executionsOnly,
+          from,
+          to,
+          format);
+    }
   }
 
   private static String optionValue(String[] args, int index, String option) {

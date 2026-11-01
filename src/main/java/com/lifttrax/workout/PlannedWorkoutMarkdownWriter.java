@@ -50,42 +50,65 @@ public final class PlannedWorkoutMarkdownWriter {
     appendNotes(lines, block.notes(), "");
     lines.add("");
     for (PlannedWorkoutFile.PlannedExercise exercise : block.exercises()) {
-      lines.add(
-          "- **"
-              + exercise.name()
-              + "** - "
-              + PlannedWorkoutText.plannedSets(exercise.plannedSets()));
-      String details = PlannedWorkoutText.exerciseDetails(exercise);
-      if (!details.isBlank()) {
-        lines.add("  - Details: " + details);
-      }
-      if (!exercise.notes().isBlank()) {
-        lines.add("  - Notes: " + exercise.notes());
-      }
-      String suggestions =
-          PlannedWorkoutText.loadSuggestions(history, exercise.name(), exercise.plannedSets());
-      if (!suggestions.isBlank()) {
-        lines.add("  - Suggested: " + suggestions);
-      }
-      for (String error :
-          PlannedWorkoutText.loadErrors(history, exercise.name(), exercise.plannedSets())) {
-        lines.add("  - Load error: " + error);
-      }
-      PlannedWorkoutHistory.Summary summary = history.lookup(block, exercise);
-      if (summary.last() != null) {
-        lines.add("  - Last: " + summary.last());
-      }
-      if (summary.bestOneRepMax() != null) {
-        lines.add("  - Best 1RM: " + summary.bestOneRepMax());
-      }
-      if (summary.unavailable()) {
-        lines.add("  - History unavailable.");
-      }
-      if (!exercise.substitutionOptions().isEmpty()) {
-        lines.add("  - Swap options: " + String.join(", ", exercise.substitutionOptions()));
-      }
+      appendExercise(lines, block, exercise, history);
     }
     lines.add("");
+  }
+
+  private static void appendExercise(
+      List<String> lines,
+      PlannedWorkoutFile.PlannedWorkoutBlock block,
+      PlannedWorkoutFile.PlannedExercise exercise,
+      PlannedWorkoutHistory.Snapshot history) {
+    lines.add(
+        "- **"
+            + exercise.name()
+            + "** - "
+            + PlannedWorkoutText.plannedSets(exercise.plannedSets()));
+    appendExerciseDetails(lines, exercise);
+    appendLoadGuidance(lines, exercise, history);
+    appendHistory(lines, history.lookup(block, exercise));
+    if (!exercise.substitutionOptions().isEmpty()) {
+      lines.add("  - Swap options: " + String.join(", ", exercise.substitutionOptions()));
+    }
+  }
+
+  private static void appendExerciseDetails(
+      List<String> lines, PlannedWorkoutFile.PlannedExercise exercise) {
+    String details = PlannedWorkoutText.exerciseDetails(exercise);
+    if (!details.isBlank()) {
+      lines.add("  - Details: " + details);
+    }
+    if (!exercise.notes().isBlank()) {
+      lines.add("  - Notes: " + exercise.notes());
+    }
+  }
+
+  private static void appendLoadGuidance(
+      List<String> lines,
+      PlannedWorkoutFile.PlannedExercise exercise,
+      PlannedWorkoutHistory.Snapshot history) {
+    String suggestions =
+        PlannedWorkoutText.loadSuggestions(history, exercise.name(), exercise.plannedSets());
+    if (!suggestions.isBlank()) {
+      lines.add("  - Suggested: " + suggestions);
+    }
+    for (String error :
+        PlannedWorkoutText.loadErrors(history, exercise.name(), exercise.plannedSets())) {
+      lines.add("  - Load error: " + error);
+    }
+  }
+
+  private static void appendHistory(List<String> lines, PlannedWorkoutHistory.Summary summary) {
+    if (summary.last() != null) {
+      lines.add("  - Last: " + summary.last());
+    }
+    if (summary.bestOneRepMax() != null) {
+      lines.add("  - Best 1RM: " + summary.bestOneRepMax());
+    }
+    if (summary.unavailable()) {
+      lines.add("  - History unavailable.");
+    }
   }
 
   private static void appendNotes(List<String> lines, List<String> notes, String indent) {

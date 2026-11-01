@@ -12,7 +12,7 @@ record LastExecutionResponse(int status, Map<String, Object> payload) {
   static void handle(HttpExchange exchange, TrainingDataStoreProvider rootDb) throws IOException {
     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())
         || !"json".equals(WebServerCli.parseQuery(exchange.getRequestURI()).get("format"))) {
-      WebServerCli.handleLoadLastExecution(exchange, rootDb);
+      WebExecutionRoutes.handleLoadLastExecution(exchange, rootDb);
       return;
     }
     LastExecutionResponse response;

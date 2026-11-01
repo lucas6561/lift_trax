@@ -35,14 +35,12 @@ final class LocalPasswords {
     String candidate = encoded == null || encoded.isBlank() ? DUMMY : encoded;
     try {
       String[] parts = candidate.split("\\$", -1);
-      if (parts.length != 4
-          || !"pbkdf2-sha256".equals(parts[0])
-          || !parts[1].equals(Integer.toString(ITERATIONS))) {
+      if (!validHeader(parts)) {
         return false;
       }
       byte[] salt = Base64.getDecoder().decode(parts[2]);
       byte[] expected = Base64.getDecoder().decode(parts[3]);
-      if (salt.length != 16 || expected.length != 32) {
+      if (!validLengths(salt, expected)) {
         return false;
       }
       boolean match = MessageDigest.isEqual(expected, derive(password, salt));
@@ -50,6 +48,16 @@ final class LocalPasswords {
     } catch (IllegalArgumentException e) {
       return false;
     }
+  }
+
+  private static boolean validHeader(String... parts) {
+    return parts.length == 4
+        && "pbkdf2-sha256".equals(parts[0])
+        && parts[1].equals(Integer.toString(ITERATIONS));
+  }
+
+  private static boolean validLengths(byte[] salt, byte[] expected) {
+    return salt.length == 16 && expected.length == 32;
   }
 
   private static byte[] derive(String password, byte[] salt) {

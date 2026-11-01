@@ -35,7 +35,7 @@ final class HostedCatalogImport {
         while (rows.next()) {
           entries.add(
               new CatalogEntry(
-                  HostedPostgresTrainingDataStore.mapLift(rows),
+                  HostedExecutionJdbc.mapLift(rows),
                   rows.getBoolean("enabled"),
                   new CatalogProvenance(
                       rows.getString("origin"),

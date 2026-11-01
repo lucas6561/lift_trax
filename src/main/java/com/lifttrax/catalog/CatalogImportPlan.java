@@ -5,7 +5,6 @@ import com.lifttrax.models.CatalogEntry;
 import com.lifttrax.models.CatalogProvenance;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +33,12 @@ public record CatalogImportPlan(List<Row> rows, String fingerprint) {
   public static CatalogImportPlan preview(List<CatalogEntry> incoming, List<CatalogEntry> existing)
       throws Exception {
     validateDefinitions(incoming);
+    ExistingCatalog catalog = index(existing);
+    List<Row> rows = incoming.stream().map(entry -> classify(entry, catalog)).toList();
+    return new CatalogImportPlan(rows, fingerprint(incoming, existing));
+  }
+
+  private static ExistingCatalog index(List<CatalogEntry> existing) {
     Map<String, CatalogEntry> names = new HashMap<>();
     Set<String> ambiguousNames = new HashSet<>();
     Map<Source, CatalogEntry> sources = new HashMap<>();
@@ -45,55 +50,64 @@ public record CatalogImportPlan(List<Row> rows, String fingerprint) {
         sources.put(source(entry), entry);
       }
     }
-    List<Row> rows = new ArrayList<>();
-    for (CatalogEntry entry : incoming) {
-      CatalogEntry byName = names.get(normalized(entry.lift().name()));
-      CatalogEntry bySource = entry.provenance().hasSource() ? sources.get(source(entry)) : null;
-      if (ambiguousNames.contains(normalized(entry.lift().name()))) {
-        rows.add(
-            new Row(
-                entry,
-                null,
-                Action.CONFLICT,
-                "Multiple existing catalog entries share this normalized name. Rename the duplicates before importing."));
-        continue;
-      }
-      if (byName != null && !byName.equals(bySource)) {
-        boolean same = !entry.provenance().hasSource() && sameDefinition(entry, byName);
-        rows.add(
-            new Row(
-                entry,
-                byName.lift().name(),
-                same ? Action.SKIPPED : Action.CONFLICT,
-                same
-                    ? "Identical name and definition; no portable source supplied."
-                    : "Name belongs to a different source identity. Rename the incoming exercise or supply its original source identity."));
-      } else if (bySource != null) {
-        boolean same =
-            sameDefinition(entry, bySource)
-                && java.util.Objects.equals(
-                    entry.provenance().sourceRevision(), bySource.provenance().sourceRevision());
-        rows.add(
-            new Row(
-                entry,
-                bySource.lift().name(),
-                same ? Action.UNCHANGED : Action.CHANGED,
-                same
-                    ? "Source identity and definition unchanged."
-                    : "Update matched portable source identity; completed history is retained."));
-      } else {
-        rows.add(new Row(entry, null, Action.NEW, "Add a new account-owned definition."));
-      }
+    return new ExistingCatalog(names, ambiguousNames, sources);
+  }
+
+  private static Row classify(CatalogEntry entry, ExistingCatalog catalog) {
+    String name = normalized(entry.lift().name());
+    CatalogEntry byName = catalog.names().get(name);
+    CatalogEntry bySource =
+        entry.provenance().hasSource() ? catalog.sources().get(source(entry)) : null;
+    if (catalog.ambiguousNames().contains(name)) {
+      return new Row(
+          entry,
+          null,
+          Action.CONFLICT,
+          "Multiple existing catalog entries share this normalized name. Rename the duplicates before importing.");
     }
+    if (byName != null && !byName.equals(bySource)) {
+      return nameConflict(entry, byName);
+    }
+    if (bySource != null) {
+      return sourceMatch(entry, bySource);
+    }
+    return new Row(entry, null, Action.NEW, "Add a new account-owned definition.");
+  }
+
+  private static Row nameConflict(CatalogEntry entry, CatalogEntry byName) {
+    boolean same = !entry.provenance().hasSource() && sameDefinition(entry, byName);
+    return new Row(
+        entry,
+        byName.lift().name(),
+        same ? Action.SKIPPED : Action.CONFLICT,
+        same
+            ? "Identical name and definition; no portable source supplied."
+            : "Name belongs to a different source identity. Rename the incoming exercise or supply its original source identity.");
+  }
+
+  private static Row sourceMatch(CatalogEntry entry, CatalogEntry bySource) {
+    boolean same =
+        sameDefinition(entry, bySource)
+            && java.util.Objects.equals(
+                entry.provenance().sourceRevision(), bySource.provenance().sourceRevision());
+    return new Row(
+        entry,
+        bySource.lift().name(),
+        same ? Action.UNCHANGED : Action.CHANGED,
+        same
+            ? "Source identity and definition unchanged."
+            : "Update matched portable source identity; completed history is retained.");
+  }
+
+  private static String fingerprint(List<CatalogEntry> incoming, List<CatalogEntry> existing)
+      throws Exception {
     List<CatalogEntry> sorted =
         existing.stream().sorted(Comparator.comparing(e -> e.lift().name())).toList();
     String serialized = new ObjectMapper().writeValueAsString(List.of(incoming, sorted));
-    String fingerprint =
-        HexFormat.of()
-            .formatHex(
-                MessageDigest.getInstance("SHA-256")
-                    .digest(serialized.getBytes(StandardCharsets.UTF_8)));
-    return new CatalogImportPlan(List.copyOf(rows), fingerprint);
+    return HexFormat.of()
+        .formatHex(
+            MessageDigest.getInstance("SHA-256")
+                .digest(serialized.getBytes(StandardCharsets.UTF_8)));
   }
 
   static void validateDefinitions(List<CatalogEntry> incoming) {
@@ -122,4 +136,9 @@ public record CatalogImportPlan(List<Row> rows, String fingerprint) {
   }
 
   private record Source(String namespace, String key) {}
+
+  private record ExistingCatalog(
+      Map<String, CatalogEntry> names,
+      Set<String> ambiguousNames,
+      Map<Source, CatalogEntry> sources) {}
 }
