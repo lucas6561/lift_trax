@@ -4,7 +4,7 @@ param(
     [ValidateSet('Install', 'Provision', 'Start', 'Stop', 'Restart', 'Status', 'Certificate')]
     [string] $Action = 'Status',
     [ValidateSet('Preview', 'Network')]
-    [string] $Mode = 'Preview',
+    [string] $Mode,
     # Automatic recovery uses the already installed build, even without internet.
     [switch] $SkipBuild,
     [switch] $SkipDnsUpdate
@@ -15,6 +15,7 @@ Set-StrictMode -Version Latest
 $repo = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'duckdns.ps1')
 . (Join-Path $PSScriptRoot 'https-processes.ps1')
+$Mode = Get-HttpsRunMode $PSBoundParameters.ContainsKey('Mode') $Mode
 $runtime = Join-Path $repo 'data/https'
 $statePath = Join-Path $runtime 'processes.json'
 $settingsPath = Join-Path $repo 'config/lifttrax-https.override.json'
@@ -47,7 +48,7 @@ function Assert-PortFree([int] $Port) {
 }
 
 function Invoke-Backup([string] $Label) {
-    $backupOutput = & $script:java "-Dlifttrax.config=$script:appConfig" -cp $script:classpath `
+    $backupOutput = & $script:java $script:nativeAccess "-Dlifttrax.config=$script:appConfig" -cp $script:classpath `
         com.lifttrax.cli.PostgresSqliteBackupCli (Join-Path $runtime "backups/$Label.db")
     if ($LASTEXITCODE -ne 0) { throw 'Database backup failed; HTTPS startup aborted.' }
     $backupLine = @($backupOutput | Where-Object { $_ -like 'Postgres snapshot created: *' })
@@ -75,10 +76,6 @@ switch ($Action) {
     }
     'Stop' { Stop-ManagedServer; Write-Host 'Managed HTTPS processes stopped. Database and certificates retained.'; return }
     'Restart' {
-        $restartMode = if ($PSBoundParameters.ContainsKey('Mode')) { $Mode }
-            elseif (Test-Path -LiteralPath $statePath) {
-                (Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).Mode
-            } else { 'Network' }
         $task = Get-ScheduledTask -TaskName 'LiftTrax Home HTTPS' -ErrorAction SilentlyContinue
         if ($task) {
             $expected = '-File "' + (Join-Path $PSScriptRoot 'https-startup.ps1') + '" -Action Run'
@@ -97,7 +94,7 @@ switch ($Action) {
             } while (-not $restartLock -and [DateTime]::UtcNow -lt $deadline)
             if (-not $restartLock) { throw 'Automatic recovery is still busy; restart was not performed.' }
             Stop-ManagedServer
-            & $PSCommandPath -Action Start -Mode $restartMode -SkipBuild:$SkipBuild -SkipDnsUpdate:$SkipDnsUpdate
+            & $PSCommandPath -Action Start -Mode $Mode -SkipBuild:$SkipBuild -SkipDnsUpdate:$SkipDnsUpdate
         } finally {
             if ($restartLock) { $restartLock.Dispose() }
             if ($task) { Start-ScheduledTask -TaskName $task.TaskName }
@@ -107,11 +104,16 @@ switch ($Action) {
     'Status' {
         if (-not (Test-Path -LiteralPath $statePath)) { Write-Host 'Managed HTTPS server is stopped.'; return }
         $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        $proxyRunning = [bool](Get-ManagedProcess $state.Proxy)
+        $backendRunning = [bool](Get-ManagedProcess $state.Backend)
         [pscustomobject]@{
             Url = $state.Url; Mode = $state.Mode
-            ProxyRunning = [bool](Get-ManagedProcess $state.Proxy)
-            BackendRunning = [bool](Get-ManagedProcess $state.Backend)
+            ProxyRunning = $proxyRunning
+            BackendRunning = $backendRunning
             BeforeSnapshot = $state.BeforeSnapshot; AfterSnapshot = $state.AfterSnapshot
+        }
+        if (-not $proxyRunning -or -not $backendRunning) {
+            Write-Warning 'Managed HTTPS state is stale. Run .\https.bat -Action Restart to recover DuckDNS HTTPS.'
         }
         return
     }
@@ -160,6 +162,7 @@ $javaHomeLine = @($javaSettings | ForEach-Object { $_.ToString() } | Where-Objec
 if ($javaHomeLine.Count -ne 1) { throw 'Could not locate the actual Java runtime.' }
 $script:java = Join-Path ($javaHomeLine[0] -replace '^\s*java.home = ', '') 'bin/java.exe'
 if (-not (Test-Path -LiteralPath $java -PathType Leaf)) { throw 'The actual Java executable does not exist.' }
+$script:nativeAccess = '--enable-native-access=ALL-UNNAMED'
 $script:classpath = Join-Path $repo 'build/install/lift-trax-java/lib/*'
 Push-Location $repo
 $backendProcess = $null
@@ -170,7 +173,7 @@ try {
     if ($Action -eq 'Start') {
       if ($SkipBuild) {
           if (-not (Test-Path (Join-Path $repo 'build/install/lift-trax-java/lib/lift-trax-java-*.jar'))) {
-              throw 'No installed application build. Run https.bat -Action Start -Mode Network once first.'
+              throw 'No installed application build. Run https.bat -Action Start once first.'
           }
       } else {
           & (Join-Path $repo 'gradlew.bat') --quiet installDist
@@ -178,7 +181,7 @@ try {
       }
       $before = Invoke-Backup 'before-https'
       $backendProcess = Start-HiddenProcess $java @(
-        "-Dlifttrax.config=$appConfig", '-Dlifttrax.web.bind=127.0.0.1',
+        $nativeAccess, "-Dlifttrax.config=$appConfig", '-Dlifttrax.web.bind=127.0.0.1',
         '-Dlifttrax.auth.secureCookies=true', "-Dlifttrax.auth.redirectUri=https://${siteHost}:$httpsPort/auth/callback",
         '-cp', $classpath, 'com.lifttrax.cli.WebServerCli', "$backendPort"
     ) 'backend'
@@ -227,7 +230,7 @@ try {
         return
     }
     $after = Invoke-Backup 'after-https'
-    & $java -cp $classpath com.lifttrax.cli.CompareSnapshotsCli $before $after
+    & $java $nativeAccess -cp $classpath com.lifttrax.cli.CompareSnapshotsCli $before $after
     if ($LASTEXITCODE -ne 0) { throw 'Snapshot contents changed. HTTPS startup aborted; inspect snapshots before proceeding.' }
     @{
         Mode = $Mode; Url = "https://${siteHost}:$httpsPort"

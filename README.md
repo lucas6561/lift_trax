@@ -12,6 +12,10 @@ repository root in an ordinary PowerShell or Command Prompt window:
 .\https.bat -Action Restart
 ```
 
+Both `Start` and `Restart` select the DuckDNS network app by default. The
+loopback developer preview is available only when explicitly requested with
+`-Mode Preview`.
+
 Check whether it is running with:
 
 ```powershell

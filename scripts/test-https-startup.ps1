@@ -13,6 +13,9 @@ $wrongPath = [pscustomobject]@{Id=$PID;Path='C:/unrelated.exe';StartTicks=$curre
 Require ($null -ne (Get-ManagedProcess $current)) 'Actual process identity was rejected.'
 Require ($null -eq (Get-ManagedProcess $reused)) 'A reused PID was accepted.'
 Require ($null -eq (Get-ManagedProcess $wrongPath)) 'An unrelated executable was accepted.'
+Require ((Get-HttpsRunMode $false $null) -eq 'Network') 'Omitted mode did not select DuckDNS network HTTPS.'
+Require ((Get-HttpsRunMode $true 'Network') -eq 'Network') 'Explicit network mode changed.'
+Require ((Get-HttpsRunMode $true 'Preview') -eq 'Preview') 'Explicit preview mode changed.'
 Require ((Get-HttpsRecoveryAction $null) -eq 'Start') 'First startup would not recover.'
 $state = [pscustomobject]@{Mode='Network';Proxy=$current;Backend=$current}
 Require ((Get-HttpsRecoveryAction $state) -eq 'KeepRunning') 'Healthy processes would be restarted.'

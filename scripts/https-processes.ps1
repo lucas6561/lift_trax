@@ -16,6 +16,11 @@ function Get-ProcessRecord($Process) {
     }
 }
 
+function Get-HttpsRunMode([bool] $ModeWasSpecified, [string] $RequestedMode) {
+    if ($ModeWasSpecified) { return $RequestedMode }
+    return 'Network'
+}
+
 function Get-HttpsRecoveryAction($State) {
     if ($null -eq $State) { return 'Start' }
     # Automatic recovery must never replace an operator's developer preview.

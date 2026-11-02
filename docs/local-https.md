@@ -22,6 +22,7 @@ PowerShell 7 does not need to be on your terminal's PATH.
 
 | What you want | Command or location |
 | --- | --- |
+| Start the stopped DuckDNS app | `.\https.bat -Action Start` |
 | Rebuild and restart the DuckDNS app, including after code changes | `.\https.bat -Action Restart` |
 | Check the HTTPS server's status | `.\https.bat -Action Status` |
 | Find automatic startup | Task Scheduler → Task Scheduler Library → LiftTrax Home HTTPS |
@@ -35,6 +36,10 @@ in leaves the app running.
 not restart or update the DuckDNS HTTPS app.** For everyday home-app changes,
 use `https.bat -Action Restart`, refresh the browser, and sign in again if asked.
 The restart command checks database snapshots and resumes automatic recovery.
+
+`Start` and `Restart` default to `Network` mode. Developer preview mode is
+loopback-only and must be requested explicitly with `-Mode Preview`; a stale
+preview state never changes what a plain `Restart` starts.
 
 `https.bat -Action Stop` alone is temporary while automatic recovery is running:
 recovery starts HTTPS again. For an intentional shutdown, follow
@@ -91,7 +96,7 @@ with a registered hostname. Run normal server commands as the same Windows user.
    managed HTTPS pair with `https.bat -Action Stop` if one is running, then start:
 
    ```powershell
-   .\https.bat -Action Start -Mode Network
+   .\https.bat -Action Start
    .\https.bat -Action Status
    ```
 
