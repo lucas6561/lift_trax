@@ -28,4 +28,11 @@ $state.Proxy=$reused
 Require ((Get-HttpsRecoveryAction $state) -eq 'Restart') 'Stale reboot state would not recover.'
 $state.Mode='Preview'
 Require ((Get-HttpsRecoveryAction $state) -eq 'LeavePreview') 'Automatic recovery would replace a preview.'
+$script:startAttempts = 0
+function Start-ScheduledTask { $script:startAttempts++ }
+function Get-ScheduledTask {
+    [pscustomobject]@{State=$(if ($script:startAttempts -ge 2) { 'Running' } else { 'Ready' })}
+}
+Start-HttpsRecoveryTask 'Synthetic LiftTrax Task' 2 1 0
+Require ($script:startAttempts -eq 2) 'Recovery task start did not retry after a lost first start.'
 Write-Host 'HTTPS reboot, partial failure, process identity, and preview isolation checks passed.'

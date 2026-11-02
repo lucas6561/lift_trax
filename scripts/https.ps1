@@ -97,7 +97,7 @@ switch ($Action) {
             & $PSCommandPath -Action Start -Mode $Mode -SkipBuild:$SkipBuild -SkipDnsUpdate:$SkipDnsUpdate
         } finally {
             if ($restartLock) { $restartLock.Dispose() }
-            if ($task) { Start-ScheduledTask -TaskName $task.TaskName }
+            if ($task) { Start-HttpsRecoveryTask $task.TaskName }
         }
         return
     }

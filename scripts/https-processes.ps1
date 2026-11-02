@@ -21,6 +21,28 @@ function Get-HttpsRunMode([bool] $ModeWasSpecified, [string] $RequestedMode) {
     return 'Network'
 }
 
+function Start-HttpsRecoveryTask(
+    [string] $TaskName,
+    [int] $TimeoutSeconds = 15,
+    [int] $PollMilliseconds = 200,
+    [int] $StableMilliseconds = 1000
+) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $runningSince = $null
+    do {
+        $state = (Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop).State
+        if ($state -eq 'Running') {
+            if ($null -eq $runningSince) { $runningSince = [DateTime]::UtcNow }
+            if (([DateTime]::UtcNow - $runningSince).TotalMilliseconds -ge $StableMilliseconds) { return }
+        } else {
+            $runningSince = $null
+            Start-ScheduledTask -TaskName $TaskName
+        }
+        Start-Sleep -Milliseconds $PollMilliseconds
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "Automatic HTTPS recovery task did not remain running: $TaskName"
+}
+
 function Get-HttpsRecoveryAction($State) {
     if ($null -eq $State) { return 'Start' }
     # Automatic recovery must never replace an operator's developer preview.
