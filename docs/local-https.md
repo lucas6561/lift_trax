@@ -234,6 +234,15 @@ validation, validated before/after backups, and snapshot comparison still run.
 The PC must be awake, the user signed in, and clients on the home network.
 This is not a service that runs before Windows sign-in.
 
+Recovery uses Windows' headless console host so Windows Terminal does not leave
+an empty PowerShell window open. New installs use this launcher automatically;
+`https.bat -Action Restart` also upgrades an existing task. To upgrade only the
+watcher while keeping a healthy server running:
+
+```powershell
+pwsh -NoProfile -File scripts/https-startup.ps1 -Action Update
+```
+
 Before intentionally stopping HTTPS, remove automatic recovery first:
 
 ```powershell

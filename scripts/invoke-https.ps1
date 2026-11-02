@@ -2,6 +2,7 @@
 # Bootstrap through Windows' built-in shell; PowerShell 7 need not be on PATH.
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'https-processes.ps1')
 $runtimePath = Join-Path $repo 'data/https/powershell-path.txt'
 $candidates = @()
 $command = Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -14,10 +15,7 @@ if (Test-Path -LiteralPath $runtimePath) {
 # accept the task if it invokes this checkout's own startup script.
 try {
     $task = Get-ScheduledTask -TaskName 'LiftTrax Home HTTPS' -ErrorAction Stop
-    $expected = '-File "' + (Join-Path $PSScriptRoot 'https-startup.ps1') + '" -Action Run'
-    if (@($task.Actions).Count -eq 1 -and $task.Actions[0].Arguments.EndsWith($expected)) {
-        $candidates += $task.Actions[0].Execute
-    }
+    $candidates += Get-HttpsRecoveryPowerShell $task (Join-Path $PSScriptRoot 'https-startup.ps1')
 } catch { }
 $executable = $candidates | Where-Object {
     $_ -and [System.IO.Path]::IsPathRooted($_) -and

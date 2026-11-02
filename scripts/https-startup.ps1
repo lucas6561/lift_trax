@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 [CmdletBinding()]
 param(
-    [ValidateSet('Install', 'Uninstall', 'Status', 'Run', 'Once')]
+    [ValidateSet('Install', 'Update', 'Uninstall', 'Status', 'Run', 'Once')]
     [string] $Action = 'Status'
 )
 $ErrorActionPreference = 'Stop'
@@ -21,8 +21,7 @@ if ($Action -eq 'Install') {
     $pwsh = Join-Path $PSHOME 'pwsh.exe'
     New-Item -ItemType Directory -Path $runtime -Force | Out-Null
     Set-Content -LiteralPath (Join-Path $runtime 'powershell-path.txt') -Value $pwsh
-    $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -File "' + $PSCommandPath + '" -Action Run'
-    $taskAction = New-ScheduledTaskAction -Execute $pwsh -Argument $arguments -WorkingDirectory $repo
+    $taskAction = New-HttpsRecoveryTaskAction $pwsh $PSCommandPath
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew `
@@ -35,6 +34,15 @@ if ($Action -eq 'Install') {
     Write-Host 'Home HTTPS will start automatically after Windows sign-in; recovery is running now.'
     return
 }
+if ($Action -eq 'Update') {
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+    Set-HttpsRecoveryTaskLauncher $task $PSCommandPath
+    # Restart only the watcher; a healthy backend/proxy pair stays running.
+    try { Stop-ScheduledTask -TaskName $taskName -ErrorAction Stop }
+    finally { Start-HttpsRecoveryTask $taskName }
+    Write-Host 'Home HTTPS recovery now runs without a console window.'
+    return
+}
 if ($Action -eq 'Status') {
     Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue |
         Select-Object TaskName, State, Principal, Triggers, Actions
@@ -45,8 +53,7 @@ if ($Action -eq 'Uninstall') {
     $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     if ($task) {
         # Refuse to remove an unrelated task that happens to have the same name.
-        $expected = '-File "' + $PSCommandPath + '" -Action Run'
-        if (@($task.Actions).Count -ne 1 -or -not $task.Actions[0].Arguments.EndsWith($expected)) {
+        if (-not (Get-HttpsRecoveryPowerShell $task $PSCommandPath)) {
             throw 'Task does not belong to this checkout; no task was changed.'
         }
         Stop-ScheduledTask -TaskName $taskName

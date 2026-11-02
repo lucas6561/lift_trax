@@ -7,6 +7,7 @@ $fixture = Join-Path $repo ('build/https launcher test ' + [Guid]::NewGuid().ToS
 New-Item -ItemType Directory -Path (Join-Path $fixture 'scripts'), (Join-Path $fixture 'data/https') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repo 'https.bat') -Destination $fixture
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'invoke-https.ps1') -Destination (Join-Path $fixture 'scripts')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'https-processes.ps1') -Destination (Join-Path $fixture 'scripts')
 Set-Content -LiteralPath (Join-Path $fixture 'data/https/powershell-path.txt') -Value (Join-Path $PSHOME 'pwsh.exe')
 Set-Content -LiteralPath (Join-Path $fixture 'scripts/https.ps1') -Value @'
 #Requires -Version 7.0

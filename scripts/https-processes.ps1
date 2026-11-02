@@ -21,6 +21,41 @@ function Get-HttpsRunMode([bool] $ModeWasSpecified, [string] $RequestedMode) {
     return 'Network'
 }
 
+# Accept only this checkout's exact legacy or headless recovery command. Keep
+# runtime discovery usable from the Windows PowerShell 5 batch bootstrap too.
+function Get-HttpsRecoveryPowerShell($Task, [string] $StartupScript) {
+    if (@($Task.Actions).Count -ne 1) { return $null }
+    $action = $Task.Actions[0]
+    $expected = '-NoProfile -NonInteractive -WindowStyle Hidden -File "' + $StartupScript + '" -Action Run'
+    $executable = $action.Execute
+    if ($executable -ieq (Join-Path $env:SystemRoot 'System32/conhost.exe')) {
+        $match = [regex]::Match($action.Arguments, '^--headless "([^"]+)" (.*)$')
+        if (-not $match.Success -or $match.Groups[2].Value -ine $expected) { return $null }
+        $executable = $match.Groups[1].Value
+    } elseif ($action.Arguments -ine $expected) {
+        return $null
+    }
+    if (-not [System.IO.Path]::IsPathRooted($executable) -or
+        [System.IO.Path]::GetFileName($executable) -ine 'pwsh.exe') { return $null }
+    return $executable
+}
+
+function New-HttpsRecoveryTaskAction([string] $PowerShellPath, [string] $StartupScript) {
+    # Unlike pwsh's WindowStyle, headless conhost never opens a Terminal window.
+    $arguments = '--headless "' + $PowerShellPath + '" -NoProfile -NonInteractive -WindowStyle Hidden -File "' + $StartupScript + '" -Action Run'
+    return New-ScheduledTaskAction -Execute (Join-Path $env:SystemRoot 'System32/conhost.exe') `
+        -Argument $arguments -WorkingDirectory (Split-Path -Parent (Split-Path -Parent $StartupScript))
+}
+
+function Set-HttpsRecoveryTaskLauncher($Task, [string] $StartupScript) {
+    $powerShellPath = Get-HttpsRecoveryPowerShell $Task $StartupScript
+    if (-not $powerShellPath) { throw 'The startup task belongs to another checkout; no task or processes were changed.' }
+    $action = New-HttpsRecoveryTaskAction $powerShellPath $StartupScript
+    if ($Task.Actions[0].Execute -ine $action.Execute -or $Task.Actions[0].Arguments -cne $action.Arguments) {
+        Set-ScheduledTask -TaskName $Task.TaskName -Action $action -ErrorAction Stop | Out-Null
+    }
+}
+
 function Start-HttpsRecoveryTask(
     [string] $TaskName,
     [int] $TimeoutSeconds = 15,

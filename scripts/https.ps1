@@ -78,10 +78,7 @@ switch ($Action) {
     'Restart' {
         $task = Get-ScheduledTask -TaskName 'LiftTrax Home HTTPS' -ErrorAction SilentlyContinue
         if ($task) {
-            $expected = '-File "' + (Join-Path $PSScriptRoot 'https-startup.ps1') + '" -Action Run'
-            if (@($task.Actions).Count -ne 1 -or -not $task.Actions[0].Arguments.EndsWith($expected)) {
-                throw 'The startup task belongs to another checkout; no processes were stopped.'
-            }
+            Set-HttpsRecoveryTaskLauncher $task (Join-Path $PSScriptRoot 'https-startup.ps1')
             Stop-ScheduledTask -TaskName $task.TaskName
         }
         $restartLock = $null

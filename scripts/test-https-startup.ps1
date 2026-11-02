@@ -35,4 +35,44 @@ function Get-ScheduledTask {
 }
 Start-HttpsRecoveryTask 'Synthetic LiftTrax Task' 2 1 0
 Require ($script:startAttempts -eq 2) 'Recovery task start did not retry after a lost first start.'
-Write-Host 'HTTPS reboot, partial failure, process identity, and preview isolation checks passed.'
+
+function New-ScheduledTaskAction {
+    param($Execute, $Argument, $WorkingDirectory)
+    [pscustomobject]@{Execute=$Execute;Arguments=$Argument;WorkingDirectory=$WorkingDirectory}
+}
+$script:taskUpdates = 0
+function Set-ScheduledTask {
+    param($TaskName, $Action, $ErrorAction)
+    $script:taskUpdates++
+    $script:updatedAction = $Action
+}
+$startupScript = 'C:\checkout with spaces\scripts\https-startup.ps1'
+$powerShellPath = 'C:\PowerShell with spaces\pwsh.exe'
+$legacyAction = [pscustomobject]@{
+    Execute=$powerShellPath
+    Arguments='-NoProfile -NonInteractive -WindowStyle Hidden -File "' + $startupScript + '" -Action Run'
+}
+$task = [pscustomobject]@{TaskName='Synthetic LiftTrax Task';Actions=@($legacyAction)}
+Require ((Get-HttpsRecoveryPowerShell $task $startupScript) -eq $powerShellPath) 'Legacy runtime discovery failed.'
+Set-HttpsRecoveryTaskLauncher $task $startupScript
+Require ($taskUpdates -eq 1) 'Legacy task was not upgraded.'
+Require ($updatedAction.Execute -eq (Join-Path $env:SystemRoot 'System32/conhost.exe')) 'Recovery does not use the system console host.'
+Require ($updatedAction.Arguments.StartsWith('--headless "' + $powerShellPath + '" ')) 'Recovery could create a visible console or lose a runtime path with spaces.'
+Require ($updatedAction.WorkingDirectory -eq 'C:\checkout with spaces') 'Task working directory changed.'
+$task.Actions = @($updatedAction)
+Require ((Get-HttpsRecoveryPowerShell $task $startupScript) -eq $powerShellPath) 'Headless runtime discovery failed.'
+Set-HttpsRecoveryTaskLauncher $task $startupScript
+Require ($taskUpdates -eq 1) 'An already upgraded task was rewritten.'
+Require ($null -eq (Get-HttpsRecoveryPowerShell $task 'C:\other checkout\scripts\https-startup.ps1')) 'Another checkout was accepted.'
+try {
+    Set-HttpsRecoveryTaskLauncher $task 'C:\other checkout\scripts\https-startup.ps1'
+    throw 'An unrelated task was upgraded.'
+} catch {
+    Require ($_.Exception.Message.Contains('belongs to another checkout')) 'Unrelated task failure was not actionable.'
+}
+Require ($taskUpdates -eq 1) 'An unrelated task was modified.'
+$task.Actions[0].Arguments += ' -ExtraCommand'
+Require ($null -eq (Get-HttpsRecoveryPowerShell $task $startupScript)) 'Unexpected command arguments were accepted.'
+$task.Actions = @($legacyAction, $legacyAction)
+Require ($null -eq (Get-HttpsRecoveryPowerShell $task $startupScript)) 'Multiple task actions were accepted.'
+Write-Host 'HTTPS recovery, process identity, preview isolation, and headless task migration checks passed.'
