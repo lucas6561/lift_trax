@@ -124,8 +124,7 @@ final class ExecutionListHtml {
         .append(renderLiftMainOptions(lift.main()))
         .append("</select></label><label>Muscles")
         .append("<select multiple size='6' ")
-        .append(
-            "onchange=\"this.nextElementSibling.value=Array.from(this.selectedOptions).map(o=>o.value).join(',')\">")
+        .append("class='js-catalog-muscles'>")
         .append(renderLiftMuscleOptions(lift))
         .append("</select><input type='hidden' name='muscles' value='")
         .append(
@@ -141,7 +140,7 @@ final class ExecutionListHtml {
     html.append(
             "<form method='post' action='/delete-lift' class='query-form compact-actions' style='margin:8px 0;' ")
         .append(
-            "onsubmit=\"return window.confirm('Delete this catalog lift? Completed executions and sets will be retained in history.');\">")
+            "data-confirm='Delete this catalog lift? Completed executions and sets will be retained in history.'>")
         .append("<input type='hidden' name='tab' value='")
         .append(WebHtml.escapeHtml(returnTab))
         .append("'/><input type='hidden' name='lift' value='")

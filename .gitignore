@@ -12,3 +12,5 @@ rust/wave.md
 build/
 .idea
 config/lifttrax-hosted.properties
+
+node_modules/

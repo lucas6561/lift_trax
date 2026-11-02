@@ -55,7 +55,7 @@ final class PlannedWorkoutPrintHtml {
             """
                 .formatted(WebHtml.escapeHtml(workoutFile.metadata().name())))
         .append(
-            "<div class='print-actions'><button type='button' onclick='window.print()'>Print</button>")
+            "<div class='print-actions'><button type='button' class='js-print-page'>Print</button>")
         .append("<a href='/?tab=import-workout'>Back to LiftTrax</a></div>")
         .append("<header><h1>")
         .append(WebHtml.escapeHtml(workoutFile.metadata().name()))
@@ -78,7 +78,7 @@ final class PlannedWorkoutPrintHtml {
       }
       html.append("</section>");
     }
-    return html.append("</body></html>").toString();
+    return html.append(ClasspathText.script("page-actions")).append("</body></html>").toString();
   }
 
   private static void appendDay(

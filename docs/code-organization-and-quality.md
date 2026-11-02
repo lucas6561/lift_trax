@@ -87,6 +87,12 @@ Tests should assert behavior rather than implementation trivia. Production code
 is subject to the repository-wide 90% instruction-coverage gate; new code is
 expected to bring its own coverage instead of relying on unrelated tests.
 
+## JavaScript verification
+
+`qualityGate` also runs browser JavaScript syntax, DOM behavior, and coverage
+checks. See [JavaScript testing](javascript-testing.md) for setup, the maintained
+script inventory, coverage ratchet, and Chromium acceptance commands.
+
 ## Required checks
 
 Run `./gradlew.bat qualityGate` on Windows or `./gradlew qualityGate` elsewhere.

@@ -24,8 +24,20 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Scan JavaScript test dependencies
+        run: pnpm audit --audit-level=high
       - name: Run the same quality gate used locally
         run: ./gradlew qualityGate
+      - name: Desktop and phone Chromium acceptance
+        run: ./gradlew browserAcceptance
       - name: Preserve quality reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -36,3 +48,5 @@ jobs:
             build/reports/tests/
             build/reports/pmd/
             build/reports/jacoco/
+            build/reports/javascript/
+            build/browser-shell-check/

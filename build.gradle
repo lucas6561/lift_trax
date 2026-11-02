@@ -131,6 +131,38 @@ tasks.register('qualityGate') {
     dependsOn tasks.named('staticAnalysis')
     dependsOn tasks.named('test')
     dependsOn tasks.named('jacocoTestCoverageVerification')
+    dependsOn 'javascriptTest'
+}
+
+tasks.register('javascriptFixtures', JavaExec) {
+    group = 'verification'
+    description = 'Renders disposable production HTML for JavaScript behavior tests.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.lifttrax.cli.ApplicationShellBrowserFixture'
+    args '--export-fixtures', layout.buildDirectory.dir('javascript-fixtures').get().asFile.path
+    inputs.files(sourceSets.main.allSource, sourceSets.test.allSource)
+    outputs.dir(layout.buildDirectory.dir('javascript-fixtures'))
+}
+
+tasks.register('javascriptTest', Exec) {
+    group = 'verification'
+    description = 'Runs Node JavaScript syntax, DOM behavior, and coverage checks.'
+    dependsOn 'javascriptFixtures'
+    commandLine 'node', 'scripts/javascript-test.mjs'
+}
+
+tasks.register('browserAcceptance', Exec) {
+    group = 'verification'
+    description = 'Runs isolated desktop/mobile Chromium acceptance scenarios.'
+    dependsOn 'testClasses'
+    commandLine 'node', 'scripts/browser-acceptance.mjs'
+    if (providers.gradleProperty('browserSuite').isPresent()) {
+        args providers.gradleProperty('browserSuite').get()
+    }
+    doFirst {
+        environment 'LIFTTRAX_BROWSER_CLASSPATH', sourceSets.test.runtimeClasspath.asPath
+        environment 'LIFTTRAX_JAVA', new File(System.getProperty('java.home'), 'bin/java').path
+    }
 }
 
 tasks.named('jacocoTestReport') {

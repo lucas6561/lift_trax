@@ -2,6 +2,10 @@
 
 This repository now uses a **root-level Java/Gradle project layout**.
 
+JavaScript behavior tests run as part of `qualityGate`. See
+[JavaScript testing](docs/javascript-testing.md) for pinned setup, focused tests,
+desktop/phone Chromium acceptance, coverage, and diagnostics.
+
 ## Everyday home app use on Windows
 
 After home HTTPS setup, open your configured DuckDNS address on home Wi-Fi.

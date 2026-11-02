@@ -34,7 +34,7 @@ final class SavedWorkoutHtml {
                   <button type='submit' class='secondary compact-btn'>Rename</button>
                 </form>
                 <form method='post' action='/delete-saved-workout'
-                    onsubmit='return confirm("Delete this saved workout? Your logged training results will be kept.")'>
+                    data-confirm='Delete this saved workout? Your logged training results will be kept.'>
                   <input type='hidden' name='savedWorkoutId' value='%s'/>
                   <p class='muted'>Deleting a saved workout keeps your logged training results.</p>
                   <button type='submit' class='danger compact-btn'>Delete Workout</button>

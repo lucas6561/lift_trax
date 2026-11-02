@@ -22,13 +22,7 @@ final class WebHtml {
             <main class='container'>
             %s
             </main>
-            <script>
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-              });
-            }
-            </script>
+            %s
             </body>
             </html>
             """;
@@ -381,7 +375,11 @@ final class WebHtml {
 
   /** Wraps page body markup in a shared themed layout shell. */
   static String wrapPage(String title, String body) {
-    return PAGE_TEMPLATE.formatted(escapeHtml(title), BASE_STYLES, body);
+    return PAGE_TEMPLATE.formatted(
+        escapeHtml(title),
+        BASE_STYLES,
+        body,
+        ClasspathText.script("page-actions") + ClasspathText.script("service-worker-registration"));
   }
 
   /** Escapes unsafe HTML characters for safe interpolation into attributes and text nodes. */

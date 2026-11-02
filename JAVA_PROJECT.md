@@ -126,7 +126,9 @@ From repository root, run:
 
 This single command checks Java formatting, runs PMD static analysis of
 production and test sources, runs the test suite, and verifies the JaCoCo
-coverage threshold.
+coverage threshold. It also runs JavaScript syntax, DOM behavior, and line/branch
+coverage checks. Install the pinned Node/pnpm tools and dependencies described in
+[JavaScript testing](docs/javascript-testing.md) before running the gate.
 
 Static scanning uses the PMD ruleset in `config/pmd/ruleset.xml`. The policy
 includes broad correctness/security/best-practice checks plus stricter rules for

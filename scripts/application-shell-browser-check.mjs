@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,8 +8,8 @@ if (!baseUrl || !sessionCookie) {
   throw new Error("Usage: node scripts/application-shell-browser-check.mjs <base-url> <session-cookie> [preview-weeks]");
 }
 
-const chromePath = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
-const debuggingPort = 19222;
+const chromePath = process.env.CHROME_PATH || (process.platform === 'win32'
+  ? "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" : 'google-chrome');
 const profile = await mkdtemp(join(tmpdir(), "lifttrax-browser-check-"));
 const output = join(process.cwd(), "build", "browser-shell-check");
 await mkdir(output, { recursive: true });
@@ -21,7 +21,7 @@ const chrome = spawn(
     "--disable-gpu",
     "--no-first-run",
     "--no-default-browser-check",
-    `--remote-debugging-port=${debuggingPort}`,
+    '--remote-debugging-port=0',
     `--user-data-dir=${profile}`,
     "about:blank",
   ],
@@ -33,6 +33,11 @@ let nextId = 1;
 const pending = new Map();
 const eventWaiters = new Map();
 const runtimeExceptions = [];
+const diagnostics = [];
+let scenario = suite || 'shell';
+let currentPage = 'about:blank';
+chrome.on('error', error => diagnostics.push({ scenario, page: currentPage, type: 'launch', message: error.message }));
+chrome.stderr.on('data', chunk => diagnostics.push({ type: 'chromium', message: String(chunk) }));
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -54,7 +59,8 @@ async function waitForJson(url, attempts = 80) {
 function send(method, params = {}) {
   return new Promise((resolve, reject) => {
     const id = nextId++;
-    pending.set(id, { resolve, reject });
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${scenario} ${currentPage}: ${method} timed out`)); }, 15000);
+    pending.set(id, { resolve: value => { clearTimeout(timer); resolve(value); }, reject: error => { clearTimeout(timer); reject(error); } });
     socket.send(JSON.stringify({ id, method, params }));
   });
 }
@@ -69,7 +75,7 @@ function once(method, timeoutMs = 10000) {
     const timer = setTimeout(() => {
       const index = waiters.indexOf(waiter);
       if (index >= 0) waiters.splice(index, 1);
-      reject(new Error(`Timed out waiting for ${method}`));
+      reject(new Error(`${scenario} ${currentPage}: timed out waiting for ${method}`));
     }, timeoutMs);
     waiters.push(waiter);
     eventWaiters.set(method, waiters);
@@ -108,7 +114,12 @@ async function waitForReady(expectedSection) {
 }
 
 async function navigate(path, expectedSection) {
-  const loaded = once("Page.loadEventFired").catch(() => null);
+  const target = new URL(path, baseUrl);
+  const current = new URL(await evaluate('location.href'));
+  const sameDocument = target.origin === current.origin && target.pathname === current.pathname
+    && target.search === current.search && target.hash !== current.hash;
+  currentPage = target.href;
+  const loaded = sameDocument ? Promise.resolve() : once("Page.loadEventFired");
   await send("Page.navigate", { url: new URL(path, baseUrl).href });
   await loaded;
   await waitForReady(expectedSection);
@@ -116,7 +127,8 @@ async function navigate(path, expectedSection) {
 }
 
 async function clickAndWait(selector, expectedSection) {
-  const loaded = once("Page.loadEventFired").catch(() => null);
+  scenario = `${suite || 'shell'}: ${selector}`;
+  const loaded = once("Page.loadEventFired");
   const clicked = await evaluate(`(() => {
     const target = document.querySelector(${JSON.stringify(selector)});
     if (!target) return false;
@@ -207,6 +219,12 @@ async function keyboardTrail() {
 }
 
 try {
+  let debuggingPort;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    try { debuggingPort = Number((await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]); break; } catch {}
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert(debuggingPort, `Could not launch Chromium at ${chromePath}`);
   await waitForJson(`http://127.0.0.1:${debuggingPort}/json/version`);
   const page = await fetch(
     `http://127.0.0.1:${debuggingPort}/json/new?${encodeURIComponent("about:blank")}`,
@@ -216,6 +234,10 @@ try {
   await new Promise((resolve, reject) => {
     socket.addEventListener("open", resolve, { once: true });
     socket.addEventListener("error", reject, { once: true });
+  });
+  socket.addEventListener('close', () => {
+    for (const request of pending.values()) request.reject(new Error(`${scenario} ${currentPage}: Chromium connection closed`));
+    pending.clear();
   });
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
@@ -230,18 +252,34 @@ try {
     if (message.method === "Runtime.exceptionThrown") {
       const details = message.params?.exceptionDetails || {};
       runtimeExceptions.push({
+        scenario,
+        page: currentPage,
         text: details.exception?.description || details.text || "Uncaught browser exception",
         url: details.url || "",
         line: details.lineNumber,
         column: details.columnNumber,
       });
     }
+    const params = message.params || {};
+    if (message.method === 'Runtime.consoleAPICalled' && params.type === 'error') {
+      runtimeExceptions.push({ scenario, page: currentPage, type: 'console.error', args: params.args });
+    }
+    if (message.method === 'Log.entryAdded' && params.entry.level === 'error') {
+      runtimeExceptions.push({ scenario, page: currentPage, type: 'browser-log', entry: params.entry });
+    }
+    if (message.method === 'Network.loadingFailed' && !params.canceled) {
+      runtimeExceptions.push({ scenario, page: currentPage, type: 'resource-failure', ...params });
+    }
+    if (message.method === 'Network.responseReceived' && params.response.status >= 400) {
+      runtimeExceptions.push({ scenario, page: currentPage, type: 'http-error', status: params.response.status, url: params.response.url });
+    }
+    if (message.method === 'Page.frameNavigated' && !params.frame.parentId) currentPage = params.frame.url;
     const waiters = eventWaiters.get(message.method) || [];
     const waiter = waiters.shift();
     if (waiter) waiter(message.params || {});
   });
 
-  await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Network.enable")]);
+  await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Network.enable"), send('Log.enable')]);
   await send("Network.setCookie", {
     name: "lt_session",
     value: sessionCookie,
@@ -251,9 +289,38 @@ try {
   });
 
   await setViewport(1280, 900, false);
-  if (suite === "preview-weeks") {
+  if (suite === 'harness-probes') {
+    await navigate('/?tab=dashboard', 'today');
+    assert(runtimeExceptions.length === 0, 'Application failed before harness probes');
+    const probes = [];
+    for (const [name, expression] of [
+      ['syntax', "{ const script = document.createElement('script'); script.textContent = 'const LT120_PROBE_SYNTAX = ;'; document.body.append(script); }"],
+      ['exception', "setTimeout(() => { throw new Error('LT120_PROBE_EXCEPTION'); }, 0)"],
+      ['rejection', "Promise.reject(new Error('LT120_PROBE_REJECTION')); undefined"],
+      ['console', "console.error('LT120_PROBE_CONSOLE')"],
+      ['resource', "{ const script = document.createElement('script'); script.src = '/LT120_PROBE_MISSING.js'; document.head.append(script); }"],
+    ]) {
+      scenario = `harness-probes: ${name}`;
+      await evaluate(expression);
+      for (let i = 0; i < 100 && runtimeExceptions.length === 0; i++) await new Promise(resolve => setTimeout(resolve, 20));
+      assert(runtimeExceptions.length > 0, `${scenario}: expected failure was not detected`);
+      if (name === 'syntax') assert(runtimeExceptions.some(error => error.text?.includes('SyntaxError')), 'Syntax probe did not produce a real parse error');
+      probes.push({ name, detected: runtimeExceptions.map(error => error.type || error.text) });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      runtimeExceptions.length = 0;
+    }
+    scenario = 'harness-probes: timeout';
+    let timedOut = false;
+    try { await once('LiftTrax.neverEmitted', 50); } catch (error) { timedOut = error.message.includes(scenario) && error.message.includes(currentPage); }
+    assert(timedOut, 'Timeout diagnostics did not identify the page and scenario');
+    await writeFile(join(output, 'harness-probes.json'), JSON.stringify({ probes, actionableTimeout: timedOut }, null, 2));
+    console.log(JSON.stringify({ harnessProbes: probes.map(probe => probe.name), actionableTimeout: timedOut }));
+  } else if (suite === "preview-weeks") {
     const { checkPreviewWeeks } = await import("./preview-week-browser-check.mjs");
     await checkPreviewWeeks({ send, evaluate, navigate, waitForReady, once, setViewport, screenshot, socket, assert });
+  } else if (suite === 'workout-recovery') {
+    const { checkWorkoutRecovery } = await import('./workout-recovery-browser-check.mjs');
+    await checkWorkoutRecovery({ send, evaluate, navigate, waitForReady, once, setViewport, screenshot, assert });
   } else {
     const desktopSections = [];
     desktopSections.push(await navigate("/?tab=dashboard", "today"));
@@ -444,20 +511,32 @@ try {
       ),
     );
   }
+  assert(runtimeExceptions.length === 0, `${scenario} ${currentPage}: browser errors: ${JSON.stringify(runtimeExceptions)}`);
+} catch (error) {
+  try { await screenshot(`${suite || 'shell'}-failure.png`); } catch {}
+  await writeFile(join(output, `${suite || 'shell'}-failure.json`), JSON.stringify({ scenario, page: currentPage, error: error.stack, runtimeExceptions, diagnostics }, null, 2));
+  throw error;
 } finally {
+  console.log(JSON.stringify({ suite: suite || 'shell', stage: 'browser-shutdown' }));
   try {
+    if (socket?.readyState === WebSocket.OPEN) {
+      try { await send('Browser.close'); } catch {}
+    }
     if (socket?.readyState === WebSocket.OPEN) socket.close();
   } finally {
     chrome.kill();
+    chrome.stderr.destroy();
     await Promise.race([
       new Promise((resolve) => chrome.once("exit", resolve)),
       new Promise((resolve) => setTimeout(resolve, 2000)),
     ]);
     try {
+      console.log(JSON.stringify({ suite: suite || 'shell', stage: 'profile-cleanup' }));
       await rm(profile, { recursive: true, force: true, maxRetries: 4, retryDelay: 200 });
     } catch (error) {
       if (error.code !== "EBUSY") throw error;
     }
+    console.log(JSON.stringify({ suite: suite || 'shell', stage: 'complete' }));
   }
 }
 

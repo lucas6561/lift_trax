@@ -67,6 +67,6 @@ final class AddExecutionHtml {
   }
 
   private static String addExecutionSetLogFallbackScript() {
-    return ClasspathText.read("add-execution-fallback-script.html");
+    return ClasspathText.script("add-execution");
   }
 }

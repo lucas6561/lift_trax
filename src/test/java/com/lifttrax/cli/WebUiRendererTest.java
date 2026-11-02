@@ -598,7 +598,7 @@ class WebUiRendererTest {
 
     String html = PlannedWorkoutPrintHtml.renderPage(workoutFile, null);
 
-    assertTrue(html.contains("onclick='window.print()'"));
+    assertTrue(html.contains("class='js-print-page'"));
     assertTrue(html.contains("@media print"));
     assertTrue(html.contains("@page { size: auto; margin: 0.45in; }"));
     assertTrue(html.contains("background: #fff"));

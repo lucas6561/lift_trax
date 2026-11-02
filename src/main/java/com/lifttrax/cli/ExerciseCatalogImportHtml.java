@@ -19,7 +19,7 @@ final class ExerciseCatalogImportHtml {
     body.append(
             "<form method='post' action='/import-exercise-catalog'><input type='hidden' name='action' value='preview'/>")
         .append(
-            "<label>Catalog file <input type='file' accept='.json,application/json' onchange=\"this.files[0]?.text().then(text => document.getElementById('catalog-json').value = text)\"/></label>")
+            "<label>Catalog file <input type='file' class='js-catalog-file' accept='.json,application/json'/></label>")
         .append(
             "<label>Catalog JSON <textarea id='catalog-json' name='catalogJson' rows='14' required>")
         .append(WebHtml.escapeHtml(document))

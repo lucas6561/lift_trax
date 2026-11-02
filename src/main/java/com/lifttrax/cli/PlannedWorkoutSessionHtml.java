@@ -245,9 +245,10 @@ final class PlannedWorkoutSessionHtml {
     html.append("<p><a class='compact-btn' href='/?tab=dashboard'>Back to Dashboard</a> ")
         .append(
             "<a class='compact-btn secondary' href='/?tab=import-workout'>Import Another Workout</a></p>");
-    html.append("<script>localStorage.removeItem('")
+    html.append("<div class='js-saved-session' data-draft-key='")
         .append(WebHtml.escapeHtml(draftKey(workoutFile, weekNumber, dayOfWeek, ownerUserId)))
-        .append("');</script>");
+        .append("'></div>")
+        .append(ClasspathText.script("saved-session"));
     return html.toString();
   }
 
@@ -574,7 +575,7 @@ final class PlannedWorkoutSessionHtml {
   }
 
   private static void appendScript(StringBuilder html) {
-    html.append(ClasspathText.read("planned-workout-session-script.html"));
+    html.append(ClasspathText.script("planned-session"));
   }
 
   private record MetricSeed(

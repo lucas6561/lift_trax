@@ -49,8 +49,9 @@ final class ApplicationShellBrowserFixture {
             "Browser fixture set"));
     String workoutJson =
         Files.readString(Path.of("shared/workouts/examples/conjugate-wave-v2.json"));
-    owner.saveWorkout("Browser Fixture Workout", workoutJson);
-    var source = PlannedWorkoutJson.readString(workoutJson);
+    var source =
+        BrowserScriptFixtures.withAssistanceBlock(PlannedWorkoutJson.readString(workoutJson));
+    owner.saveWorkout("Browser Fixture Workout", PlannedWorkoutJson.writeString(source));
     var previewWeeks =
         new PlannedWorkoutFile(
             source.schemaVersion(),
@@ -66,6 +67,11 @@ final class ApplicationShellBrowserFixture {
             source.completedWorkouts());
     owner.saveWorkout("Preview Weeks Fixture", PlannedWorkoutJson.writeString(previewWeeks));
 
+    if (args.length == 2 && "--export-fixtures".equals(args[0])) {
+      BrowserScriptFixtures.write(owner, previewWeeks, Path.of(args[1]));
+      return;
+    }
+
     var coach = provider.createLocalAccount("fixture-coach", "coach@example.test", "coach-pass");
     var coachStore = provider.forUser(coach.authUserId());
     coachStore.addLift(
@@ -80,7 +86,8 @@ final class ApplicationShellBrowserFixture {
         args.length == 1 && "--hosted-smoke".equals(args[0])
             ? WebAuth.supabaseForTest(Clock.systemUTC())
             : WebAuth.localDevelopment(Clock.systemUTC(), false);
-    try (var server = WebServerCli.start(18091, provider, auth)) {
+    int port = args.length == 1 && "--ephemeral".equals(args[0]) ? 0 : 18091;
+    try (var server = WebServerCli.start(port, provider, auth)) {
       System.out.println("BROWSER_FIXTURE_URL=http://127.0.0.1:" + server.port());
       System.out.println("BROWSER_FIXTURE_LOGIN=browser-check / browser-pass");
       System.out.println(

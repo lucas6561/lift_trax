@@ -8,6 +8,10 @@ import java.nio.charset.StandardCharsets;
 final class ClasspathText {
   private ClasspathText() {}
 
+  static String script(String name) {
+    return "<script>\n" + read("browser/" + name + ".js") + "</script>";
+  }
+
   static String read(String resourceName) {
     try (InputStream input = ClasspathText.class.getResourceAsStream(resourceName)) {
       if (input == null) {

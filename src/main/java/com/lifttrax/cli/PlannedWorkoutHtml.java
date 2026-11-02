@@ -11,7 +11,8 @@ final class PlannedWorkoutHtml {
   private PlannedWorkoutHtml() {}
 
   static String renderImportPanel() {
-    return ClasspathText.read("/planned-workout-import.html").formatted(renderOutputButtons(true));
+    return ClasspathText.read("/planned-workout-import.html").formatted(renderOutputButtons(true))
+        + ClasspathText.script("workout-import");
   }
 
   static String renderPage(PlannedWorkoutFile workoutFile) {
@@ -84,44 +85,18 @@ final class PlannedWorkoutHtml {
         .append(WebHtml.escapeHtml(writeWorkoutJson(workoutFile)))
         .append("'/>");
     appendWorkAlongSelectors(html, workoutFile);
-    html.append("<input type='hidden' name='dayOfWeek' class='js-workalong-day'/>")
+    html.append("<noscript><label>Training day <select name='dayOfWeek' required>");
+    workoutFile.weeks().stream()
+        .flatMap(week -> week.days().stream())
+        .map(PlannedWorkoutFile.PlannedWorkoutDay::dayOfWeek)
+        .distinct()
+        .forEach(
+            day -> html.append("<option>").append(WebHtml.escapeHtml(day)).append("</option>"));
+    html.append("</select></label></noscript>")
+        .append("<input type='hidden' name='dayOfWeek' class='js-workalong-day' disabled/>")
         .append("<button type='submit' class='save-workout-session-btn'>Start Workout</button>")
         .append("</form>")
-        .append(
-            """
-            <script>
-              (function () {
-                const form = document.querySelector('.planned-workalong-form');
-                if (!form) {
-                  return;
-                }
-                const weekSelect = form.querySelector('.js-workalong-week');
-                const dayChoice = form.querySelector('.js-workalong-day-choice');
-                const dayInput = form.querySelector('.js-workalong-day');
-
-                function syncDays() {
-                  const week = weekSelect.value;
-                  let first = null;
-                  Array.from(dayChoice.options).forEach((option) => {
-                    const visible = option.dataset.week === week;
-                    option.hidden = !visible;
-                    option.disabled = !visible;
-                    if (visible && first === null) {
-                      first = option;
-                    }
-                  });
-                  if (!dayChoice.selectedOptions.length || dayChoice.selectedOptions[0].dataset.week !== week) {
-                    dayChoice.value = first ? first.value : '';
-                  }
-                  dayInput.value = dayChoice.selectedOptions.length ? dayChoice.selectedOptions[0].dataset.day : '';
-                }
-
-                weekSelect.addEventListener('change', syncDays);
-                dayChoice.addEventListener('change', syncDays);
-                syncDays();
-              })();
-            </script>
-            """);
+        .append(ClasspathText.script("work-along"));
     return html.toString();
   }
 

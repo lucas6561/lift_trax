@@ -1,0 +1,188 @@
+(function () {
+  const form = document.querySelector("form.add-execution-form");
+  if (!form) {
+    return;
+  }
+
+  const detailedSets = [];
+  try {
+    const hidden = form.querySelector('.js-detailed-sets');
+    const initialSets = JSON.parse((hidden && hidden.value) || '[]');
+    if (Array.isArray(initialSets)) {
+      detailedSets.push(...initialSets);
+    }
+  } catch (error) {
+    detailedSets.splice(0, detailedSets.length);
+  }
+
+  function checkedValue(name, fallback) {
+    const checked = form.querySelector(`input[name='${name}']:checked`);
+    return checked ? checked.value : fallback;
+  }
+
+  function fieldValue(name) {
+    return (form.querySelector(`[name='${name}']`) || {}).value || '';
+  }
+
+  function checkedValues(name) {
+    return Array.from(form.querySelectorAll(`input[name='${name}']:checked`)).map((item) => item.value);
+  }
+
+  function computeWeight() {
+    const mode = checkedValue('weightMode', 'weight');
+    if (mode === 'none') {
+      return 'none';
+    }
+    if (mode === 'custom') {
+      return fieldValue('customWeight');
+    }
+    if (mode === 'lr') {
+      return `${fieldValue('weightLeft')}${fieldValue('weightUnitLr') || 'lb'}|${fieldValue('weightRight')}${fieldValue('weightUnitLr') || 'lb'}`;
+    }
+    if (mode === 'bands') {
+      return checkedValues('weightBandColors').join('+');
+    }
+    if (mode === 'accom') {
+      const bar = fieldValue('accomBar');
+      const unit = fieldValue('accomUnit') || 'lb';
+      if ((fieldValue('accomMode') || 'chains') === 'bands') {
+        return `${bar} ${unit}+${checkedValues('accomBandColors').join('+')}`;
+      }
+      return `${bar} ${unit}+${fieldValue('accomChain')}c`;
+    }
+    const value = fieldValue('weightValue');
+    const unit = fieldValue('weightUnit') || 'lb';
+    return value ? `${value} ${unit}` : '';
+  }
+
+  function metricPayload() {
+    const metricType = checkedValue('metricType', 'reps');
+    if (metricType === 'reps-lr') {
+      return {
+        metricType,
+        metricLeft: fieldValue('metricLeft'),
+        metricRight: fieldValue('metricRight')
+      };
+    }
+    return {
+      metricType,
+      metricValue: fieldValue('metricValue')
+    };
+  }
+
+  function metricLabel(item) {
+    if (item.metricType === 'reps-lr') {
+      return `${item.metricLeft || '?'}L/${item.metricRight || '?'}R reps`;
+    }
+    if (item.metricType === 'time') {
+      return `${item.metricValue || '?'} sec`;
+    }
+    if (item.metricType === 'distance') {
+      return `${item.metricValue || '?'} ft`;
+    }
+    return `${item.metricValue || '?'} reps`;
+  }
+
+  function updateStatus() {
+    const status = form.querySelector('.js-set-log-status');
+    if (!status) {
+      return;
+    }
+    if (detailedSets.length === 0) {
+      status.textContent = 'No sets in log';
+      return;
+    }
+    status.textContent = detailedSets.length === 1 ? '1 set in log' : `${detailedSets.length} sets in log`;
+  }
+
+  function renderSetList() {
+    const list = form.querySelector('.js-set-list');
+    const hidden = form.querySelector('.js-detailed-sets');
+    if (!list || !hidden) {
+      return;
+    }
+    list.innerHTML = '';
+    detailedSets.forEach((item, index) => {
+      const li = document.createElement('li');
+      const rpeText = item.rpe ? `, rpe ${item.rpe}` : '';
+      li.textContent = `${metricLabel(item)} @ ${item.weight || 'none'}${rpeText}${item.missed ? ' — Missed target' : ''}`;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'secondary';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', (event) => {
+        event.preventDefault();
+        detailedSets.splice(index, 1);
+        renderSetList();
+      });
+      li.appendChild(document.createTextNode(' '));
+      li.appendChild(remove);
+      list.appendChild(li);
+    });
+    hidden.value = JSON.stringify(detailedSets);
+    updateStatus();
+    form.dispatchEvent(new CustomEvent('execution-set-log-change', {detail: detailedSets.map((item) => ({...item}))}));
+  }
+
+  function selectIndividualMode() {
+    const input = form.querySelector("input[name='setEntryMode'][value='individual']");
+    const details = form.querySelector('.individual-sets-details');
+    const multipleControls = form.querySelector('.entry-mode-multiple');
+    if (input) {
+      input.checked = true;
+    }
+    if (details) {
+      details.open = true;
+      details.classList.remove('is-hidden');
+    }
+    if (multipleControls) {
+      multipleControls.classList.add('is-hidden');
+    }
+  }
+
+  function addCurrentSet() {
+    selectIndividualMode();
+    const savedSets = form.querySelector('.js-detailed-sets');
+    try {
+      const current = JSON.parse((savedSets && savedSets.value) || '[]');
+      if (Array.isArray(current)) {
+        detailedSets.splice(0, detailedSets.length, ...current);
+      }
+    } catch (error) {
+      // Keep the current set log if the hidden value is unavailable.
+    }
+    const copies = Math.max(1, parseInt(fieldValue('setCopies') || '1', 10) || 1);
+    const payload = {
+      ...metricPayload(),
+      weight: computeWeight(),
+      rpe: fieldValue('rpe'),
+      missed: (form.querySelector("input[name='missed']") || {}).checked || false
+    };
+    for (let i = 0; i < copies; i++) {
+      detailedSets.push({...payload});
+    }
+    const missed = form.querySelector("input[name='missed']");
+    if (missed) {
+      missed.checked = false;
+    }
+    renderSetList();
+  }
+
+  form.addEventListener('click', (event) => {
+    const addButton = event.target.closest('.js-add-set');
+    if (addButton) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      addCurrentSet();
+      return;
+    }
+
+    const clearButton = event.target.closest('.js-clear-sets');
+    if (clearButton) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      detailedSets.splice(0, detailedSets.length);
+      renderSetList();
+    }
+  }, true);
+})();
