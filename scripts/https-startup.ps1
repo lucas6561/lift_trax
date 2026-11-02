@@ -30,7 +30,7 @@ if ($Action -eq 'Install') {
     Register-ScheduledTask -TaskName $taskName -Action $taskAction -Trigger $trigger `
         -Principal $principal -Settings $settings `
         -Description 'Starts and recovers existing home-only LiftTrax HTTPS after Windows sign-in. No password stored.' | Out-Null
-    Start-ScheduledTask -TaskName $taskName
+    Start-HttpsRecoveryTask $taskName
     Write-Host 'Home HTTPS will start automatically after Windows sign-in; recovery is running now.'
     return
 }
@@ -38,8 +38,8 @@ if ($Action -eq 'Update') {
     $task = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
     Set-HttpsRecoveryTaskLauncher $task $PSCommandPath
     # Restart only the watcher; a healthy backend/proxy pair stays running.
-    try { Stop-ScheduledTask -TaskName $taskName -ErrorAction Stop }
-    finally { Start-HttpsRecoveryTask $taskName }
+    Stop-HttpsRecoveryTask $task $PSCommandPath
+    Start-HttpsRecoveryTask $taskName
     Write-Host 'Home HTTPS recovery now runs without a console window.'
     return
 }
@@ -56,7 +56,7 @@ if ($Action -eq 'Uninstall') {
         if (-not (Get-HttpsRecoveryPowerShell $task $PSCommandPath)) {
             throw 'Task does not belong to this checkout; no task was changed.'
         }
-        Stop-ScheduledTask -TaskName $taskName
+        Stop-HttpsRecoveryTask $task $PSCommandPath
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
     }
     Write-Host 'Automatic recovery removed. Use https.bat -Action Stop to stop HTTPS. Data and certificates retained.'

@@ -79,7 +79,7 @@ switch ($Action) {
         $task = Get-ScheduledTask -TaskName 'LiftTrax Home HTTPS' -ErrorAction SilentlyContinue
         if ($task) {
             Set-HttpsRecoveryTaskLauncher $task (Join-Path $PSScriptRoot 'https-startup.ps1')
-            Stop-ScheduledTask -TaskName $task.TaskName
+            Stop-HttpsRecoveryTask $task (Join-Path $PSScriptRoot 'https-startup.ps1')
         }
         $restartLock = $null
         try {

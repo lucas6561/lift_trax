@@ -56,6 +56,46 @@ function Set-HttpsRecoveryTaskLauncher($Task, [string] $StartupScript) {
     }
 }
 
+function Test-HttpsRecoveryCommand($Process, [string] $PowerShellPath, [string] $StartupScript) {
+    if ($Process.ExecutablePath -ine $PowerShellPath) { return $false }
+    # Start-Process/Windows may omit quotes around paths without spaces. Accept
+    # only the complete watcher command, never a substring in another shell.
+    $patterns = @($PowerShellPath, $StartupScript) | ForEach-Object {
+        $literal = [regex]::Escape($_)
+        if ($_ -match '\s') { '"' + $literal + '"' }
+        else { '(?:"' + $literal + '"|' + $literal + ')' }
+    }
+    return $Process.CommandLine -imatch ('^' + $patterns[0] +
+        ' -NoProfile -NonInteractive -WindowStyle Hidden -File ' + $patterns[1] + ' -Action Run$')
+}
+
+function Stop-HttpsRecoveryTask($Task, [string] $StartupScript) {
+    $powerShellPath = Get-HttpsRecoveryPowerShell $Task $StartupScript
+    if (-not $powerShellPath) { throw 'The startup task belongs to another checkout; no task or processes were changed.' }
+    Stop-ScheduledTask -TaskName $Task.TaskName -ErrorAction Stop
+    $deadline = [DateTime]::UtcNow.AddSeconds(15)
+    while ((Get-ScheduledTask -TaskName $Task.TaskName -ErrorAction Stop).State -eq 'Running') {
+        if ([DateTime]::UtcNow -ge $deadline) { throw 'Automatic recovery task did not stop; no server processes were changed.' }
+        Start-Sleep -Milliseconds 200
+    }
+    # Stopping headless conhost can leave its PowerShell child alive. Capture
+    # identities BEFORE reading command lines, then recheck before each stop:
+    # PID reuse during discovery must not authorize stopping another process.
+    $records = @{}
+    Get-Process -Name pwsh -ErrorAction SilentlyContinue | Where-Object { $_.Path -ieq $powerShellPath } |
+        ForEach-Object { $records[$_.Id] = Get-ProcessRecord $_ }
+    foreach ($candidate in @(Get-CimInstance Win32_Process -Filter "Name = 'pwsh.exe'" -ErrorAction Stop)) {
+        if ($records.ContainsKey([int]$candidate.ProcessId) -and
+            (Test-HttpsRecoveryCommand $candidate $powerShellPath $StartupScript)) {
+            $process = Get-ManagedProcess ([pscustomobject]$records[[int]$candidate.ProcessId])
+            if ($process) {
+                Stop-Process -InputObject $process -ErrorAction Stop
+                if (-not $process.WaitForExit(10000)) { throw 'Automatic recovery watcher did not stop.' }
+            }
+        }
+    }
+}
+
 function Start-HttpsRecoveryTask(
     [string] $TaskName,
     [int] $TimeoutSeconds = 15,

@@ -243,6 +243,12 @@ watcher while keeping a healthy server running:
 pwsh -NoProfile -File scripts/https-startup.ps1 -Action Update
 ```
 
+Restart, Update, and Uninstall also stop a detached watcher left behind when
+Windows stops its headless console host. Cleanup checks the exact executable,
+checkout command, PID, and start time before stopping it. This releases the
+recovery lock before starting another watcher and prevents the misleading
+"Automatic HTTPS recovery task did not remain running" error on repeated restarts.
+
 Before intentionally stopping HTTPS, remove automatic recovery first:
 
 ```powershell

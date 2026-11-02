@@ -75,4 +75,59 @@ $task.Actions[0].Arguments += ' -ExtraCommand'
 Require ($null -eq (Get-HttpsRecoveryPowerShell $task $startupScript)) 'Unexpected command arguments were accepted.'
 $task.Actions = @($legacyAction, $legacyAction)
 Require ($null -eq (Get-HttpsRecoveryPowerShell $task $startupScript)) 'Multiple task actions were accepted.'
-Write-Host 'HTTPS recovery, process identity, preview isolation, and headless task migration checks passed.'
+
+# Reproduce a Ready task whose old PowerShell child survived conhost stopping.
+$task.Actions = @($legacyAction)
+$watcher = [pscustomobject]@{
+    ProcessId=12345; ExecutablePath=$powerShellPath
+    CommandLine='"' + $powerShellPath + '" -NoProfile -NonInteractive -WindowStyle Hidden -File "' + $startupScript + '" -Action Run'
+}
+Require (Test-HttpsRecoveryCommand $watcher $powerShellPath $startupScript) 'Quoted watcher command was rejected.'
+$unquoted = [pscustomobject]@{
+    ExecutablePath='C:\runtime\pwsh.exe'
+    CommandLine='C:\runtime\pwsh.exe -NoProfile -NonInteractive -WindowStyle Hidden -File C:\checkout\scripts\https-startup.ps1 -Action Run'
+}
+Require (Test-HttpsRecoveryCommand $unquoted $unquoted.ExecutablePath 'C:\checkout\scripts\https-startup.ps1') 'Unquoted paths without spaces were rejected.'
+$unrelatedCommands = @(
+    ($watcher.CommandLine + ' -ExtraCommand')
+    $watcher.CommandLine.Replace('-Action Run', '-Action Once')
+    $watcher.CommandLine.Replace($startupScript, 'C:\other\scripts\https-startup.ps1')
+    ('-Command "' + $watcher.CommandLine + '"')
+)
+foreach ($command in $unrelatedCommands) {
+    $unrelated = [pscustomobject]@{ExecutablePath=$powerShellPath;CommandLine=$command}
+    Require (-not (Test-HttpsRecoveryCommand $unrelated $powerShellPath $startupScript)) 'An unrelated shell command was accepted.'
+}
+$unrelated = [pscustomobject]@{ExecutablePath='C:\other\pwsh.exe';CommandLine=$watcher.CommandLine}
+Require (-not (Test-HttpsRecoveryCommand $unrelated $powerShellPath $startupScript)) 'An unrelated runtime was accepted.'
+$script:fakeProcess = [pscustomobject]@{Id=12345;Path=$powerShellPath;StartTime=[DateTime]::Now}
+$fakeProcess | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($timeout) return $true }
+$script:stopAttempts = 0
+$script:taskStops = 0
+$script:reusePid = $false
+function Get-ScheduledTask { [pscustomobject]@{State='Ready'} }
+function Stop-ScheduledTask { param($TaskName, $ErrorAction) $script:taskStops++ }
+function Get-Process { param($Name, $Id, $ErrorAction) return $script:fakeProcess }
+function Get-CimInstance {
+    param($ClassName, $Filter, $ErrorAction)
+    if ($script:reusePid) { $script:fakeProcess.StartTime = $script:fakeProcess.StartTime.AddSeconds(1) }
+    return $watcher
+}
+function Stop-Process { param($InputObject, $ErrorAction) $script:stopAttempts++ }
+Stop-HttpsRecoveryTask $task $startupScript
+Require ($taskStops -eq 1 -and $stopAttempts -eq 1) 'A detached watcher was not stopped when its task was Ready.'
+$watcher.CommandLine += ' -ExtraCommand'
+Stop-HttpsRecoveryTask $task $startupScript
+Require ($taskStops -eq 2 -and $stopAttempts -eq 1) 'An unrelated command was stopped by watcher cleanup.'
+$watcher.CommandLine = $watcher.CommandLine.Replace(' -ExtraCommand', '')
+$script:reusePid = $true
+Stop-HttpsRecoveryTask $task $startupScript
+Require ($taskStops -eq 3 -and $stopAttempts -eq 1) 'A reused PID was stopped during watcher discovery.'
+try {
+    Stop-HttpsRecoveryTask $task 'C:\other\scripts\https-startup.ps1'
+    throw 'An unrelated checkout was stopped.'
+} catch {
+    Require ($_.Exception.Message.Contains('belongs to another checkout')) 'Unrelated checkout failure was not actionable.'
+}
+Require ($taskStops -eq 3 -and $stopAttempts -eq 1) 'An unrelated task or process was stopped.'
+Write-Host 'HTTPS recovery, detached watcher cleanup, process identity, preview isolation, and headless task migration checks passed.'
