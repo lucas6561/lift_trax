@@ -36,8 +36,21 @@ jobs:
           node-version: '24.22.1'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Verify
+      - name: Scan JavaScript tool dependencies
+        run: pnpm audit --audit-level=high
+      - name: Verify Java and JavaScript quality gate
         run: ./gradlew qualityGate installDist
+      - name: Preserve quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-quality-reports
+          if-no-files-found: warn
+          path: |
+            build/reports/tests/
+            build/reports/pmd/
+            build/reports/jacoco/
+            build/reports/javascript/
 
   deploy:
     name: Render Deploy

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="lift-trax-browser-javascript-analysis"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://pmd.sourceforge.net/ruleset/2.0.0
+            https://pmd.github.io/pmd-7.0.0/ruleset_xml_schema.xsd">
+
+    <description>
+        Individually reviewed PMD 7.13.0 ECMAScript rules for maintained
+        LiftTrax browser resources. ESLint supplies modern-syntax coverage and
+        the size and complexity policy that Rhino cannot enforce reliably.
+    </description>
+
+    <!-- These best-practice rules prevent ambiguous scope, accidental globals,
+         and radix-dependent parsing. ConsistentReturn is left to ESLint because
+         PMD's Rhino rule does not model modern callbacks and async functions. -->
+    <rule ref="category/ecmascript/bestpractices.xml/AvoidWithStatement"/>
+    <rule ref="category/ecmascript/bestpractices.xml/GlobalVariable"/>
+    <rule ref="category/ecmascript/bestpractices.xml/ScopeForInVariable"/>
+    <rule ref="category/ecmascript/bestpractices.xml/UseBaseWithParseInt"/>
+
+    <!-- Correctness-oriented control-flow rules. NoElseReturn,
+         UnnecessaryBlock, and UnnecessaryParentheses are intentionally omitted:
+         they are style preferences with poor value for the server-embedded IIFEs. -->
+    <rule ref="category/ecmascript/codestyle.xml/AssignmentInOperand"/>
+    <rule ref="category/ecmascript/codestyle.xml/ForLoopsMustUseBraces"/>
+    <rule ref="category/ecmascript/codestyle.xml/IfElseStmtsMustUseBraces"/>
+    <rule ref="category/ecmascript/codestyle.xml/IfStmtsMustUseBraces"/>
+    <rule ref="category/ecmascript/codestyle.xml/UnreachableCode"/>
+    <rule ref="category/ecmascript/codestyle.xml/WhileLoopsMustUseBraces"/>
+
+    <!-- Strict comparisons and representable numeric literals prevent coercion
+         and precision bugs. Trailing commas are valid in LiftTrax's supported
+         browsers, so the obsolete portability rule is not selected. -->
+    <rule ref="category/ecmascript/errorprone.xml/EqualComparison"/>
+    <rule ref="category/ecmascript/errorprone.xml/InaccurateNumericLiteral"/>
+
+    <!-- Console calls can expose account or workout data in production. -->
+    <rule ref="category/ecmascript/performance.xml/AvoidConsoleStatements"/>
+
+    <rule name="NoDynamicCodeExecution"
+          language="ecmascript"
+          message="Do not execute dynamically constructed JavaScript."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Project rule rejecting eval and Function construction. ESLint's
+            no-eval, no-implied-eval, and no-new-func rules provide the complete
+            modern-syntax enforcement of the same policy.
+        </description>
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+                    //FunctionCall[Name[@Identifier = 'eval']]
+                    |
+                    //NewExpression[Name[@Identifier = 'Function']]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="ExcessivePhysicalFunctionLength"
+          language="ecmascript"
+          message="JavaScript function spans more than 160 physical lines."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Project size ratchet for syntax that Rhino can parse. ESLint applies
+            the authoritative equivalent to every maintained modern script.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+                    //FunctionNode[
+                        pmd:endLine(.) - pmd:startLine(.) + 1 > 160
+                    ]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
+</ruleset>

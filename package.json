@@ -6,7 +6,11 @@
   "scripts": {
     "test": "node scripts/javascript-test.mjs",
     "test:browser": "node scripts/browser-acceptance.mjs",
+    "analyze": "node scripts/javascript-static-analysis.mjs",
     "audit:dependencies": "pnpm audit --audit-level=high"
   },
-  "devDependencies": { "jsdom": "26.1.0" }
+  "devDependencies": {
+    "eslint": "10.14.0",
+    "jsdom": "26.1.0"
+  }
 }

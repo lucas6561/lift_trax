@@ -12,7 +12,7 @@ export async function checkPreviewWeeks({ send, evaluate, navigate, waitForReady
   const scriptErrors = [];
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
-    if (message.method === 'Runtime.exceptionThrown') scriptErrors.push(message.params);
+    if (message.method === 'Runtime.exceptionThrown') {scriptErrors.push(message.params);}
     if (message.method === 'Network.requestWillBeSent' && message.params.type === 'Document') {
       documentRequests.push(message.params.request.url);
     }
@@ -48,7 +48,7 @@ export async function checkPreviewWeeks({ send, evaluate, navigate, waitForReady
           weeksVisible: [...document.querySelectorAll('.planned-week')].every(week => !week.hidden && getComputedStyle(week).display !== 'none')
         };
       })()`);
-      if (state.current === 'location' && (!focus || state.focus === `preview-week-${number}`)) break;
+      if (state.current === 'location' && (!focus || state.focus === `preview-week-${number}`)) {break;}
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     assert(state.current === 'location', `Wrong current week: ${JSON.stringify(state)}`);

@@ -89,20 +89,23 @@ expected to bring its own coverage instead of relying on unrelated tests.
 
 ## JavaScript verification
 
-`qualityGate` also runs browser JavaScript syntax, DOM behavior, and coverage
-checks. See [JavaScript testing](javascript-testing.md) for setup, the maintained
-script inventory, coverage ratchet, and Chromium acceptance commands.
+`qualityGate` also runs browser JavaScript syntax, DOM behavior, coverage,
+static-analysis, size/complexity, and duplicate-code checks. See
+[JavaScript testing](javascript-testing.md) for behavior and coverage setup and
+[JavaScript static analysis](javascript-static-analysis.md) for source-set,
+rules, threshold, compatibility, suppression, and report policy.
 
 ## Required checks
 
 Run `./gradlew.bat qualityGate` on Windows or `./gradlew qualityGate` elsewhere.
 The gate checks Google Java Format through Spotless, strict PMD analysis of
-production and test sources, JUnit, and repository-wide JaCoCo instruction
-coverage. Source-size, NCSS, cyclomatic, NPath, and method-count thresholds,
+production and test Java, pinned ESLint and PMD CPD analysis of maintained
+JavaScript, JUnit, and repository-wide JaCoCo instruction coverage. Source-size,
+NCSS, cyclomatic, NPath, and method-count thresholds,
 their measured baseline, and the zero-exception ratchet are documented
 in [source size and complexity ratchet](source-size-and-complexity.md). GitHub
 Actions runs the same command for every pull request and push to `main`, and
-preserves the test, PMD, and JaCoCo reports.
+preserves the test, PMD, ESLint/CPD, JavaScript coverage, and JaCoCo reports.
 
 Run `./gradlew.bat pitest` when changing mutation-tested workout-file or active
 workout-save behavior. Review survivors in `build/reports/pitest/`; do not lower

@@ -7,6 +7,7 @@ the tools and jsdom; `pnpm-lock.yaml` locks transitive dependencies. CI runs
 
 ```powershell
 .\gradlew.bat javascriptTest
+.\gradlew.bat javascriptStaticAnalysis
 .\gradlew.bat qualityGate
 .\gradlew.bat browserAcceptance
 ```
@@ -16,6 +17,9 @@ HTML using production renderers against disposable H2 data, checks every
 browser script's syntax, and runs Node's built-in test runner with jsdom.
 Neither fixture generation nor acceptance reads local configuration or the
 user's Postgres database. All generated files stay under ignored `build/` paths.
+The same gate also enforces risky-language, global, size/complexity, and
+duplicate-code policy across production and harness sources; see
+[JavaScript static analysis](javascript-static-analysis.md).
 
 After generating fixtures, run a single test without aggregate coverage:
 
@@ -58,8 +62,8 @@ tests, an inventory entry, and a measured entry in the coverage report.
 
 ## Coverage ratchet
 
-The initial verified LT-0120 baseline is **85.31% lines**, **69.47% branches**,
-and **84.77% functions** across all 13 scripts, with **96 focused tests**.
+The current verified baseline is **85.31% lines**, **69.47% branches**,
+and **84.77% functions** across all 13 scripts, with **97 focused tests**.
 The enforced floors are **84% lines** and **69% branches**.
 
 The runner emits line, branch, and function coverage to the console and LCOV to

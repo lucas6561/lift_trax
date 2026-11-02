@@ -12,7 +12,7 @@ function worker({ online = true, cached = true } = {}) {
       skipWaiting: () => calls.push('skip'), clients: { claim: async () => calls.push('claim') } },
     caches: { open: async name => ({ addAll: async urls => { contents.set(name, [...urls]); } }),
       match: async request => { calls.push(['match', request]); return cached ? 'cached' : undefined; } },
-    fetch: async request => { calls.push(['fetch', request]); if (!online) throw new Error('offline'); return 'network'; },
+    fetch: async request => { calls.push(['fetch', request]); if (!online) {throw new Error('offline');} return 'network'; },
   });
   const filename = resolve('src/main/resources/com/lifttrax/cli/browser/service-worker.js');
   new Script(readFileSync(filename, 'utf8'), { filename }).runInContext(context);
@@ -64,8 +64,8 @@ for (const request of [
 for (const succeeds of [true, false]) {
   test(`shell registration ${succeeds ? 'succeeds' : 'failure is contained'}`, async t => {
     let calls = 0;
-    const p = page(t, 'saved', { before(w) { Object.defineProperty(w.navigator, 'serviceWorker', { value: {
-      register: async path => { assert.equal(path, '/service-worker.js'); calls++; if (!succeeds) throw new Error('unavailable'); return response(); },
+    page(t, 'saved', { before(w) { Object.defineProperty(w.navigator, 'serviceWorker', { value: {
+      register: async path => { assert.equal(path, '/service-worker.js'); calls++; if (!succeeds) {throw new Error('unavailable');} return response(); },
     } }); } });
     await until(() => calls > 0);
     assert.equal(calls, 1);

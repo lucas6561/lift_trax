@@ -40,14 +40,14 @@ chrome.on('error', error => diagnostics.push({ scenario, page: currentPage, type
 chrome.stderr.on('data', chunk => diagnostics.push({ type: 'chromium', message: String(chunk) }));
 
 function assert(condition, message) {
-  if (!condition) throw new Error(message);
+  if (!condition) {throw new Error(message);}
 }
 
 async function waitForJson(url, attempts = 80) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(url);
-      if (response.ok) return await response.json();
+      if (response.ok) {return await response.json();}
     } catch {
       // Chrome or the fixture is still starting.
     }
@@ -74,7 +74,7 @@ function once(method, timeoutMs = 10000) {
     };
     const timer = setTimeout(() => {
       const index = waiters.indexOf(waiter);
-      if (index >= 0) waiters.splice(index, 1);
+      if (index >= 0) {waiters.splice(index, 1);}
       reject(new Error(`${scenario} ${currentPage}: timed out waiting for ${method}`));
     }, timeoutMs);
     waiters.push(waiter);
@@ -221,7 +221,9 @@ async function keyboardTrail() {
 try {
   let debuggingPort;
   for (let attempt = 0; attempt < 100; attempt++) {
-    try { debuggingPort = Number((await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]); break; } catch {}
+    try { debuggingPort = Number((await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]); break; } catch {
+      // Chromium writes the port asynchronously; retry until the launch deadline.
+    }
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   assert(debuggingPort, `Could not launch Chromium at ${chromePath}`);
@@ -236,17 +238,17 @@ try {
     socket.addEventListener("error", reject, { once: true });
   });
   socket.addEventListener('close', () => {
-    for (const request of pending.values()) request.reject(new Error(`${scenario} ${currentPage}: Chromium connection closed`));
+    for (const request of pending.values()) {request.reject(new Error(`${scenario} ${currentPage}: Chromium connection closed`));}
     pending.clear();
   });
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.id) {
       const request = pending.get(message.id);
-      if (!request) return;
+      if (!request) {return;}
       pending.delete(message.id);
-      if (message.error) request.reject(new Error(message.error.message));
-      else request.resolve(message.result || {});
+      if (message.error) {request.reject(new Error(message.error.message));}
+      else {request.resolve(message.result || {});}
       return;
     }
     if (message.method === "Runtime.exceptionThrown") {
@@ -273,10 +275,10 @@ try {
     if (message.method === 'Network.responseReceived' && params.response.status >= 400) {
       runtimeExceptions.push({ scenario, page: currentPage, type: 'http-error', status: params.response.status, url: params.response.url });
     }
-    if (message.method === 'Page.frameNavigated' && !params.frame.parentId) currentPage = params.frame.url;
+    if (message.method === 'Page.frameNavigated' && !params.frame.parentId) {currentPage = params.frame.url;}
     const waiters = eventWaiters.get(message.method) || [];
     const waiter = waiters.shift();
-    if (waiter) waiter(message.params || {});
+    if (waiter) {waiter(message.params || {});}
   });
 
   await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Network.enable"), send('Log.enable')]);
@@ -302,9 +304,9 @@ try {
     ]) {
       scenario = `harness-probes: ${name}`;
       await evaluate(expression);
-      for (let i = 0; i < 100 && runtimeExceptions.length === 0; i++) await new Promise(resolve => setTimeout(resolve, 20));
+      for (let i = 0; i < 100 && runtimeExceptions.length === 0; i++) {await new Promise(resolve => setTimeout(resolve, 20));}
       assert(runtimeExceptions.length > 0, `${scenario}: expected failure was not detected`);
-      if (name === 'syntax') assert(runtimeExceptions.some(error => error.text?.includes('SyntaxError')), 'Syntax probe did not produce a real parse error');
+      if (name === 'syntax') {assert(runtimeExceptions.some(error => error.text?.includes('SyntaxError')), 'Syntax probe did not produce a real parse error');}
       probes.push({ name, detected: runtimeExceptions.map(error => error.type || error.text) });
       await new Promise(resolve => setTimeout(resolve, 100));
       runtimeExceptions.length = 0;
@@ -445,7 +447,7 @@ try {
         navVisible: getComputedStyle(document.querySelector('.mobile-primary-navigation')).display !== 'none'
       })`);
       assert(layout.overflow <= 1 && layout.navVisible, `Mobile ${section} layout failed`);
-      if (section === "train") await screenshot("mobile-train.png");
+      if (section === "train") {await screenshot("mobile-train.png");}
     }
 
     await navigate("/?tab=import-workout", "workouts");
@@ -513,16 +515,20 @@ try {
   }
   assert(runtimeExceptions.length === 0, `${scenario} ${currentPage}: browser errors: ${JSON.stringify(runtimeExceptions)}`);
 } catch (error) {
-  try { await screenshot(`${suite || 'shell'}-failure.png`); } catch {}
+  try { await screenshot(`${suite || 'shell'}-failure.png`); } catch {
+    // Preserve the original acceptance failure when Chromium cannot take a screenshot.
+  }
   await writeFile(join(output, `${suite || 'shell'}-failure.json`), JSON.stringify({ scenario, page: currentPage, error: error.stack, runtimeExceptions, diagnostics }, null, 2));
   throw error;
 } finally {
   console.log(JSON.stringify({ suite: suite || 'shell', stage: 'browser-shutdown' }));
   try {
     if (socket?.readyState === WebSocket.OPEN) {
-      try { await send('Browser.close'); } catch {}
+      try { await send('Browser.close'); } catch {
+        // The process-level cleanup below is the fallback when CDP is already unavailable.
+      }
     }
-    if (socket?.readyState === WebSocket.OPEN) socket.close();
+    if (socket?.readyState === WebSocket.OPEN) {socket.close();}
   } finally {
     chrome.kill();
     chrome.stderr.destroy();
@@ -534,7 +540,10 @@ try {
       console.log(JSON.stringify({ suite: suite || 'shell', stage: 'profile-cleanup' }));
       await rm(profile, { recursive: true, force: true, maxRetries: 4, retryDelay: 200 });
     } catch (error) {
-      if (error.code !== "EBUSY") throw error;
+      if (error.code !== "EBUSY") {
+        console.error(`Could not remove temporary Chromium profile: ${error.message}`);
+        process.exitCode = 1;
+      }
     }
     console.log(JSON.stringify({ suite: suite || 'shell', stage: 'complete' }));
   }

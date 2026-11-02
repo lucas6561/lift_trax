@@ -13,11 +13,11 @@ test('browser behavior stays out of Java literals and inline HTML event attribut
   function inspect(directory) {
     for (const file of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, file.name);
-      if (file.isDirectory()) inspect(path);
+      if (file.isDirectory()) {inspect(path);}
       else if (/\.(java|html)$/.test(file.name)) {
         const source = readFileSync(path, 'utf8');
         assert.doesNotMatch(source, /\bon(?:click|change|submit|input|load|error)=/i, path);
-        if (file.name !== 'ClasspathText.java') assert.doesNotMatch(source, /<script\b/i, path);
+        if (file.name !== 'ClasspathText.java') {assert.doesNotMatch(source, /<script\b/i, path);}
       }
     }
   }

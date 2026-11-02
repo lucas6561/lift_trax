@@ -122,7 +122,7 @@
     };
 
     try {
-      if (FILTER_STORAGE_PREFIX) localStorage.setItem(FILTER_STORAGE_PREFIX + panel.dataset.panel, JSON.stringify(state));
+      if (FILTER_STORAGE_PREFIX) {localStorage.setItem(FILTER_STORAGE_PREFIX + panel.dataset.panel, JSON.stringify(state));}
     } catch (error) {
       // Ignore storage issues and continue with in-memory filters.
     }
@@ -654,7 +654,7 @@
   }
 
   function loadAddExecutionDraft(form) {
-    if (!ADD_EXECUTION_DRAFT_KEY) return;
+    if (!ADD_EXECUTION_DRAFT_KEY) {return;}
     try {
       if (shouldClearAddExecutionDraft()) {
         localStorage.removeItem(ADD_EXECUTION_DRAFT_KEY);

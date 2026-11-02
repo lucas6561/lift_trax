@@ -5,7 +5,7 @@
   const previous = navigation?.querySelector('.preview-week-previous');
   const next = navigation?.querySelector('.preview-week-next');
   const header = document.querySelector('.app-header');
-  if (headings.length === 0) return;
+  if (headings.length === 0) {return;}
 
   function updateOffsets() {
     const headerHeight = header ? header.getBoundingClientRect().height : 0;
@@ -18,8 +18,8 @@
     const index = headings.findIndex((heading) => '#' + heading.id === location.hash);
     const current = index < 0 ? 0 : index;
     headings.forEach((heading, position) => {
-      if (position === current) heading.setAttribute('aria-current', 'location');
-      else heading.removeAttribute('aria-current');
+      if (position === current) {heading.setAttribute('aria-current', 'location');}
+      else {heading.removeAttribute('aria-current');}
     });
     if (select) {
       select.selectedIndex = current;
@@ -37,9 +37,9 @@
 
   function goToWeek(index) {
     const target = headings[index];
-    if (!target) return;
-    if (location.hash === '#' + target.id) syncWeek(true);
-    else location.hash = target.id;
+    if (!target) {return;}
+    if (location.hash === '#' + target.id) {syncWeek(true);}
+    else {location.hash = target.id;}
   }
 
   if (navigation) {
@@ -51,8 +51,8 @@
     next.addEventListener('click', () => goToWeek(select.selectedIndex + 1));
   }
   const observer = new ResizeObserver(updateOffsets);
-  if (header) observer.observe(header);
-  if (navigation) observer.observe(navigation);
+  if (header) {observer.observe(header);}
+  if (navigation) {observer.observe(navigation);}
   window.addEventListener('hashchange', () => syncWeek(true));
   window.addEventListener('pageshow', () => syncWeek(Boolean(location.hash)));
   syncWeek(Boolean(location.hash));

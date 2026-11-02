@@ -19,7 +19,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) {return;}
   if (STATIC_ASSETS.includes(url.pathname)) {
     event.respondWith(
       caches.match(event.request).then((cached) => cached || fetch(event.request))

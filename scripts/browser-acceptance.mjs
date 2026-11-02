@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-if (!process.env.LIFTTRAX_BROWSER_CLASSPATH) throw new Error('Run ./gradlew.bat browserAcceptance (./gradlew on Linux)');
+if (!process.env.LIFTTRAX_BROWSER_CLASSPATH) {throw new Error('Run ./gradlew.bat browserAcceptance (./gradlew on Linux)');}
 await mkdir('build/browser-shell-check', { recursive: true });
 const fixture = spawn(process.env.LIFTTRAX_JAVA, ['-cp', process.env.LIFTTRAX_BROWSER_CLASSPATH,
   'com.lifttrax.cli.ApplicationShellBrowserFixture', '--ephemeral'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -34,7 +34,7 @@ try {
       child.once('exit', code => { clearTimeout(timer); resolve(code); });
     });
     await writeFile(join('build/browser-shell-check', `${suite}.log`), suiteLog);
-    if (code !== 0) throw new Error(`${suite}: Chromium acceptance exited ${code}; see build/browser-shell-check`);
+    if (code !== 0) {throw new Error(`${suite}: Chromium acceptance exited ${code}; see build/browser-shell-check`);}
   }
 } finally {
   child?.kill(); fixture.kill();

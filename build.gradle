@@ -23,6 +23,10 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    javascriptCpdTool
+}
+
 sourceSets {
     main {
         resources {
@@ -42,7 +46,19 @@ dependencies {
     testImplementation 'com.h2database:h2:2.3.232'
     testImplementation 'com.tngtech.archunit:archunit:1.5.0'
     testImplementation 'net.sourceforge.pmd:pmd-java:7.13.0'
+    testImplementation 'net.sourceforge.pmd:pmd-javascript:7.13.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.0'
+
+    // Gradle stops adding its default PMD dependency when a module is declared here,
+    // so keep both language implementations explicit and on the same pinned version.
+    pmd 'net.sourceforge.pmd:pmd-ant:7.13.0'
+    pmd 'net.sourceforge.pmd:pmd-java:7.13.0'
+    pmd 'net.sourceforge.pmd:pmd-javascript:7.13.0'
+
+    javascriptCpdTool 'net.sourceforge.pmd:pmd-ant:7.13.0'
+    javascriptCpdTool 'net.sourceforge.pmd:pmd-cli:7.13.0'
+    javascriptCpdTool 'net.sourceforge.pmd:pmd-javascript:7.13.0'
+    javascriptCpdTool 'org.slf4j:slf4j-simple:1.7.36'
 }
 
 tasks.named('test') {
@@ -92,6 +108,129 @@ tasks.withType(Pmd).configureEach {
     }
 }
 
+tasks.register('pmdJavascriptCompatibility', JavaExec) {
+    group = 'verification'
+    description = 'Records PMD/Rhino compatibility evidence for every maintained browser script.'
+    classpath = configurations.javascriptCpdTool
+    mainClass = 'net.sourceforge.pmd.cli.PmdCli'
+    def report = layout.buildDirectory.file('reports/pmd/javascriptCompatibility.xml')
+    def diagnostics = layout.buildDirectory.file('reports/javascript/static-analysis/pmd-compatibility-diagnostics.log')
+    inputs.files(fileTree('src/main/resources/com/lifttrax/cli/browser') {
+        include '**/*.js'
+    })
+    inputs.file('config/pmd/ruleset-javascript.xml')
+    outputs.files(report, diagnostics)
+    args 'check',
+        '--dir', file('src/main/resources/com/lifttrax/cli/browser').path,
+        '--rulesets', file('config/pmd/ruleset-javascript.xml').path,
+        '--format', 'xml',
+        '--report-file', report.get().asFile.path,
+        '--relativize-paths-with', projectDir.path,
+        '--no-fail-on-violation',
+        '--no-fail-on-error'
+    def diagnosticStream = null
+    doFirst {
+        report.get().asFile.parentFile.mkdirs()
+        diagnostics.get().asFile.parentFile.mkdirs()
+        diagnosticStream = new FileOutputStream(diagnostics.get().asFile)
+        standardOutput = diagnosticStream
+        errorOutput = diagnosticStream
+    }
+    doLast {
+        diagnosticStream.close()
+    }
+}
+
+tasks.register('javascriptPmdCompatibilitySummary', Exec) {
+    group = 'verification'
+    description = 'Validates and summarizes PMD/Rhino modern-JavaScript compatibility evidence.'
+    dependsOn 'pmdJavascriptCompatibility'
+    commandLine 'node', 'scripts/javascript-pmd-compatibility.mjs'
+}
+
+tasks.register('javascriptLint', Exec) {
+    group = 'verification'
+    description = 'Runs pinned ESLint policies over production and test/harness JavaScript.'
+    def requestedFiles = providers.gradleProperty('javascriptAnalysisFiles')
+    def reportDirectory = providers.gradleProperty('javascriptAnalysisReportDirectory')
+        .orElse('build/reports/javascript/static-analysis')
+    commandLine 'node', 'scripts/javascript-static-analysis.mjs'
+    if (requestedFiles.isPresent()) {
+        args requestedFiles.get().split(';')
+    }
+    environment 'LIFTTRAX_JAVASCRIPT_ANALYSIS_REPORT_DIRECTORY', reportDirectory.get()
+}
+
+tasks.register('javascriptCpd') {
+    group = 'verification'
+    description = 'Detects maintained JavaScript duplication with PMD CPD.'
+    def productionSources = fileTree('src/main/resources/com/lifttrax/cli/browser') {
+        include '**/*.js'
+    }
+    def infrastructureSources = fileTree('scripts') {
+        include '**/*.mjs'
+    }
+    def reportDirectory = layout.buildDirectory.dir('reports/javascript/static-analysis')
+    inputs.files(productionSources, infrastructureSources)
+    outputs.files(
+        reportDirectory.map { it.file('cpd.xml') },
+        reportDirectory.map { it.file('cpd.txt') }
+    )
+    doLast {
+        def output = reportDirectory.get().asFile
+        output.mkdirs()
+        ant.taskdef(
+            name: 'javascriptCpd',
+            classname: 'net.sourceforge.pmd.ant.CPDTask',
+            classpath: configurations.javascriptCpdTool.asPath
+        )
+        ['xml', 'text'].each { format ->
+            ant.javascriptCpd(
+                minimumTokenCount: 100,
+                language: 'ecmascript',
+                encoding: 'UTF-8',
+                format: format,
+                outputFile: new File(output, "cpd.${format == 'text' ? 'txt' : format}"),
+                failOnError: true
+            ) {
+                fileset(dir: 'src/main/resources/com/lifttrax/cli/browser') {
+                    include(name: '**/*.js')
+                }
+                fileset(dir: 'scripts') {
+                    include(name: '**/*.mjs')
+                }
+            }
+        }
+        def report = new File(output, 'cpd.xml').getText('UTF-8')
+        if (report.contains('<duplication ')) {
+            throw new GradleException("JavaScript CPD found a duplicate of at least 100 tokens; see ${new File(output, 'cpd.txt')}")
+        }
+        def textReport = new File(output, 'cpd.txt')
+        if (textReport.length() == 0) {
+            textReport.setText('No maintained JavaScript duplicates of at least 100 tokens found.\n', 'UTF-8')
+        }
+    }
+}
+
+tasks.register('javascriptStaticAnalysis') {
+    group = 'verification'
+    description = 'Runs JavaScript compatibility, lint, size/complexity, and duplicate-code policies.'
+    dependsOn 'javascriptPmdCompatibilitySummary'
+    dependsOn 'javascriptLint'
+    dependsOn 'javascriptCpd'
+    dependsOn 'javascriptStaticAnalysisProbes'
+}
+
+tasks.register('javascriptStaticAnalysisProbes', Exec) {
+    group = 'verification'
+    description = 'Proves representative JavaScript analysis failures have actionable diagnostics.'
+    commandLine 'node', 'scripts/javascript-static-analysis-probes.mjs'
+    doFirst {
+        environment 'LIFTTRAX_JAVA', new File(System.getProperty('java.home'), 'bin/java').path
+        environment 'LIFTTRAX_CPD_CLASSPATH', configurations.javascriptCpdTool.asPath
+    }
+}
+
 pitest {
     targetClasses = [
         'com.lifttrax.workout.ConjugateWorkoutBuilder',
@@ -132,6 +271,7 @@ tasks.register('qualityGate') {
     dependsOn tasks.named('test')
     dependsOn tasks.named('jacocoTestCoverageVerification')
     dependsOn 'javascriptTest'
+    dependsOn 'javascriptStaticAnalysis'
 }
 
 tasks.register('javascriptFixtures', JavaExec) {

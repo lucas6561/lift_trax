@@ -1,6 +1,6 @@
 document.querySelectorAll('form[data-confirm]').forEach(form => {
   form.addEventListener('submit', event => {
-    if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+    if (!window.confirm(form.dataset.confirm)) {event.preventDefault();}
   });
 });
 document.querySelectorAll('.js-catalog-muscles').forEach(select => {
@@ -14,7 +14,7 @@ document.querySelectorAll('.js-print-page').forEach(button => {
 document.querySelectorAll('.js-catalog-file').forEach(input => {
   input.addEventListener('change', async () => {
     const file = input.files[0];
-    if (!file) return;
+    if (!file) {return;}
     try {
       document.getElementById('catalog-json').value = await file.text();
     } catch {

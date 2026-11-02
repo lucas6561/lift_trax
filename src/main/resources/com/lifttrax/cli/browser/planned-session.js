@@ -1027,7 +1027,7 @@
   }
 
   function skipCurrentBlock() {
-    if (blockSyncRunning || finalSyncRunning) return;
+    if (blockSyncRunning || finalSyncRunning) {return;}
     const index = currentBlockIndex;
     if (savedBlockIndexes.has(index)) {
       setBlockSaveStatus('Block already submitted to history.', false);
@@ -1049,7 +1049,7 @@
   }
 
   previousBlock.addEventListener('click', () => {
-    if (!blockSyncRunning && !finalSyncRunning) showBlock(currentBlockIndex - 1);
+    if (!blockSyncRunning && !finalSyncRunning) {showBlock(currentBlockIndex - 1);}
   });
   skipBlock.addEventListener('click', skipCurrentBlock);
   nextBlock.addEventListener('click', async () => {

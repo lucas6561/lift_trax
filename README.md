@@ -4,7 +4,9 @@ This repository now uses a **root-level Java/Gradle project layout**.
 
 JavaScript behavior tests run as part of `qualityGate`. See
 [JavaScript testing](docs/javascript-testing.md) for pinned setup, focused tests,
-desktop/phone Chromium acceptance, coverage, and diagnostics.
+desktop/phone Chromium acceptance, coverage, and diagnostics, and
+[JavaScript static analysis](docs/javascript-static-analysis.md) for the lint,
+complexity, global, risky-construct, and duplicate-code policy.
 
 ## Everyday home app use on Windows
 
@@ -234,10 +236,11 @@ the repository root:
 ./gradlew qualityGate
 ```
 
-This checks Java formatting, runs PMD static analysis, runs the test suite, and
-verifies at least 90% instruction coverage across all production Java code.
+This checks Java formatting, runs Java PMD plus maintained-JavaScript
+static/duplicate analysis, runs the test suite, and verifies at least 90%
+instruction coverage across all production Java code.
 GitHub Actions runs the same command for every pull request and push to `main`
-and preserves the test, PMD, and JaCoCo reports.
+and preserves the test, PMD, ESLint/CPD, JavaScript coverage, and JaCoCo reports.
 
 PMD scans production Java for correctness, security, best-practice, style,
 maintainability, concurrency, and selected file/string performance risks. It

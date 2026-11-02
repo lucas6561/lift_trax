@@ -33,8 +33,8 @@ test('quick log server prefill takes priority over device draft', t => {
 for (const storage of ['malformed', 'unavailable']) {
   test(`quick log remains editable with ${storage} storage`, t => {
     const p = page(t, 'add-execution', { before(w) {
-      if (storage === 'malformed') w.localStorage.setItem(key, '{');
-      else Object.defineProperty(w, 'localStorage', { get() { throw new Error('blocked'); } });
+      if (storage === 'malformed') {w.localStorage.setItem(key, '{');}
+      else {Object.defineProperty(w, 'localStorage', { get() { throw new Error('blocked'); } });}
     } });
     p.change('[name="weightValue"]', '185', 'input');
     assert.equal(p.$('[name="weightValue"]').value, '185');

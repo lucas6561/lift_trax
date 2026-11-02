@@ -46,8 +46,8 @@ export function page(t, name, { html = fixture(name), url = 'http://localhost/',
     change(selector, value, event = 'change') {
       const control = w.document.querySelector(selector);
       assert.ok(control, `${name}: missing ${selector}`);
-      if (control.type === 'radio' || control.type === 'checkbox') control.checked = value;
-      else control.value = value;
+      if (control.type === 'radio' || control.type === 'checkbox') {control.checked = value;}
+      else {control.value = value;}
       control.dispatchEvent(new w.Event(event, { bubbles: true }));
     },
     click(selector) { const control = w.document.querySelector(selector); assert.ok(control, `${name}: missing ${selector}`); control.click(); },
@@ -57,7 +57,7 @@ export function page(t, name, { html = fixture(name), url = 'http://localhost/',
 
 export async function until(predicate, message = 'state change') {
   for (let attempt = 0; attempt < 100; attempt++) {
-    if (predicate()) return;
+    if (predicate()) {return;}
     await new Promise(resolve => setTimeout(resolve, 5));
   }
   assert.fail(`Timed out waiting for ${message}`);

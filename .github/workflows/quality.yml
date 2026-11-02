@@ -34,7 +34,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Scan JavaScript test dependencies
         run: pnpm audit --audit-level=high
-      - name: Run the same quality gate used locally
+      - name: Run Java and JavaScript quality gate
         run: ./gradlew qualityGate
       - name: Desktop and phone Chromium acceptance
         run: ./gradlew browserAcceptance

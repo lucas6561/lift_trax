@@ -126,9 +126,12 @@ From repository root, run:
 
 This single command checks Java formatting, runs PMD static analysis of
 production and test sources, runs the test suite, and verifies the JaCoCo
-coverage threshold. It also runs JavaScript syntax, DOM behavior, and line/branch
-coverage checks. Install the pinned Node/pnpm tools and dependencies described in
-[JavaScript testing](docs/javascript-testing.md) before running the gate.
+coverage threshold. It also runs JavaScript syntax, DOM behavior, line/branch
+coverage, risky-language/global, size/complexity, and duplicate-code checks.
+Install the pinned Node/pnpm tools and dependencies described in
+[JavaScript testing](docs/javascript-testing.md) before running the gate; the
+analyzer decision, thresholds, and reports are documented in
+[JavaScript static analysis](docs/javascript-static-analysis.md).
 
 Static scanning uses the PMD ruleset in `config/pmd/ruleset.xml`. The policy
 includes broad correctness/security/best-practice checks plus stricter rules for
@@ -147,8 +150,8 @@ there is no hand-maintained coverage allowlist. See
 expectations, and the boundary for architecture decisions.
 
 The GitHub `Quality` workflow runs this same gate for every pull request and
-push to `main`, and uploads the JUnit, PMD, and JaCoCo reports even when the gate
-fails.
+push to `main`, and uploads the JUnit, PMD, ESLint/CPD, JavaScript coverage, and
+JaCoCo reports even when the gate fails.
 
 ## Mutation testing workflow
 

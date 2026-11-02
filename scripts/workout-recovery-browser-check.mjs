@@ -1,7 +1,7 @@
 export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForReady, once, setViewport, screenshot, assert }) {
   async function waitFor(expression, label) {
     for (let i = 0; i < 100; i++) {
-      if (await evaluate(expression)) return;
+      if (await evaluate(expression)) {return;}
       await new Promise(resolve => setTimeout(resolve, 75));
     }
     throw new Error(`workout-recovery: timed out at ${label}`);
