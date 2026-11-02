@@ -31,6 +31,15 @@ test('preview synchronizes direct fragments, history and pageshow', async t => {
   assert.equal(p.document.activeElement.id, 'preview-week-9');
 });
 
+test('preview refreshes sticky offsets after populating current-week status', t => {
+  const p = page(t, 'preview', { before(w) {
+    const navigation = w.document.querySelector('.preview-week-navigation');
+    const status = navigation.querySelector('.preview-week-current');
+    navigation.getBoundingClientRect = () => ({ height: status.textContent ? 90 : 74 });
+  } });
+  assert.equal(p.document.documentElement.style.getPropertyValue('--preview-navigation-height'), '90px');
+});
+
 test('unknown preview fragment retains first week without stealing focus', t => {
   const p = page(t, 'preview', { url: 'http://localhost/#missing' });
   assert.equal(p.$('select').value, 'preview-week-5');

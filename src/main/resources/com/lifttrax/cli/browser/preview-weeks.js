@@ -28,6 +28,7 @@
       navigation.querySelector('.preview-week-current').textContent =
         `Current: ${headings[current].textContent} (${current + 1} of ${headings.length})`;
     }
+    updateOffsets();
     if (moveFocus && (index >= 0 || !location.hash) && headings[current]) {
       headings[current].focus({ preventScroll: true });
       headings[current].scrollIntoView({ block: 'start' });
@@ -49,7 +50,6 @@
     previous.addEventListener('click', () => goToWeek(select.selectedIndex - 1));
     next.addEventListener('click', () => goToWeek(select.selectedIndex + 1));
   }
-  updateOffsets();
   const observer = new ResizeObserver(updateOffsets);
   if (header) observer.observe(header);
   if (navigation) observer.observe(navigation);
