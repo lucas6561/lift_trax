@@ -1,7 +1,7 @@
 ---
 id: LT-0099
 title: Add HTTPS for network access without losing existing data
-status: doing
+status: done
 track: platform
 priority: high
 effort: medium
@@ -84,7 +84,7 @@ certificate profile, client application, or per-device hostname configuration.
 - [x] A rollback procedure restores the previous launch/access configuration
       against the same database without dropping HTTPS-era writes. Explain how
       to resume or preserve drafts created at the HTTPS origin before rollback.
-- [ ] Verify desktop and physical-phone access, including certificate trust,
+- [x] Verify desktop and physical-phone access, including certificate trust,
       redirects, login, and a planned-workout save. If no physical phone is
       available, obtain explicit approval for substitute coverage and record the
       waiver; emulation alone does not verify phone certificate trust.
@@ -319,3 +319,14 @@ certificate profile, client application, or per-device hostname configuration.
 - Publication retains the home-only scope and the LT-0100 remote-access backlog
   item. Physical-phone sign-in/history are confirmed; planned-workout save on
   that phone remains unverified, so this card stays in `doing`.
+
+2026-10-30 physical-phone completion verification:
+
+- The user confirmed that a planned workout can be saved successfully from the
+  physical phone through the trusted DuckDNS HTTPS address on home Wi-Fi.
+- Together with the previously verified certificate trust, sign-in, existing
+  history, redirects, desktop/browser offline behavior, secure proxy tests, and
+  data-preserving snapshot comparisons, this completes the remaining acceptance
+  criterion.
+- LT-0100 remains a separately scoped future card for access away from home; no
+  router exposure or remote-access behavior was added here.
