@@ -3,10 +3,10 @@ id: LT-0044
 title: Add configurable rest timer
 status: ready
 track: interface
-priority: high
+priority: low
 effort: medium
 created: 2026-05-30
-updated: 2026-10-27
+updated: 2026-11-03
 owner: unassigned
 depends_on: [LT-0025]
 ---
