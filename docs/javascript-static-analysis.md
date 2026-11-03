@@ -16,8 +16,8 @@ the ESLint portion directly, and `pnpm analyze` is its package-script alias.
 
 The production policy automatically includes every `.js` file below
 `src/main/resources/com/lifttrax/cli/browser/`; the verified baseline contains
-13 files. The test/harness policy automatically includes every `.mjs` file
-below `scripts/`; the baseline contains 17 files. Generated fixtures, build
+14 files. The test/harness policy automatically includes every `.mjs` file
+below `scripts/`; the baseline contains 20 files. Generated fixtures, build
 output, `node_modules`, and HTML fixture output are outside those maintained
 source roots. A new maintained file therefore joins its policy without an
 inventory allowlist or a manual Gradle edit.
@@ -39,7 +39,7 @@ the pinned Java PMD version, and the individually reviewed ECMAScript ruleset is
 as Rhino-based and capable of PMD and CPD analysis. Version 7.13.0 resolves
 Rhino **1.7.15**.
 
-The compatibility task submits all 13 production scripts without exclusions
+The compatibility task submits all 14 production scripts without exclusions
 and inventories `const`/`let`, arrow and async functions, template literals,
 object/array spread, optional chaining, and modern browser/service-worker APIs.
 Rhino does not build a trustworthy AST for this source:

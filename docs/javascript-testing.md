@@ -47,6 +47,7 @@ tests, an inventory entry, and a measured entry in the coverage report.
 | Script | Fast behavior coverage | Real-browser coverage and reason |
 | --- | --- | --- |
 | `planned-session.js` | `session.test.mjs`: block progression/locking, sets, metrics, validation, serialization, owner scopes, reload, legacy migration, malformed/blocked/dropped storage, load-last success/account check/edit race, duplicate submission, bounded wake/finish retries, cleanup | `shell`, `workout-recovery`: desktop/phone edit, skip, reload, resume, block HTTP save and finish; both layers protect durable work |
+| `session-guidance.js` | `session-guidance.test.mjs`: native pane defaults, every bar/plate, minimum counts checked against a full search, decimal-safe exact/nearest loads, unsupported modes, bands, live edits/Load last/lift swaps, navigation/draft/account isolation, execution payload isolation | `workout-recovery`: native Enter/Space and mouse/touch disclosure use, phone/desktop layout, live results, refresh/resume preferences, and actual no-script Work Along submission |
 | `add-execution.js` | `quick-log.test.mjs`: capture-handler integration, set copies/removal/clear, metric and loading variants | `workout-recovery`: native quick-log submit without JavaScript; both layers protect form fallback |
 | `tabbed-layout.js` | `quick-log.test.mjs`, `history.test.mjs`: account-scoped quick-log storage/prefill/cleanup, filters, focus, wave controls, new-lift muscles, lazy history/account check, set-row edit/cancel/validation | `shell`: primary/secondary links, deep links, keyboard, history, responsive layout; native navigation/layout require Chromium |
 | `preview-weeks.js` | `navigation.test.mjs`: file order, boundaries, direct/unknown fragments, history/pageshow, focus, single week | `preview-weeks`: Enter/Space/select keys, back/forward/reload, visible focus, no-script links at desktop/phone sizes; native focus/scroll need both layers |
@@ -62,8 +63,8 @@ tests, an inventory entry, and a measured entry in the coverage report.
 
 ## Coverage ratchet
 
-The current verified baseline is **85.31% lines**, **69.47% branches**,
-and **84.77% functions** across all 13 scripts, with **97 focused tests**.
+The current verified baseline is **86.79% lines**, **73.39% branches**,
+and **86.67% functions** across all 14 scripts, with **108 focused tests**.
 The enforced floors are **84% lines** and **69% branches**.
 
 The runner emits line, branch, and function coverage to the console and LCOV to

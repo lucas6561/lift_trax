@@ -30,7 +30,6 @@
   let sessionId = '';
   const savedBlockIndexes = new Set();
   const skippedBlockIndexes = new Set();
-
   function setBlockSaveStatus(message, isError) {
     if (!blockSaveStatus) {
       return;
@@ -38,7 +37,6 @@
     blockSaveStatus.textContent = message || '';
     blockSaveStatus.classList.toggle('error', Boolean(isError));
   }
-
   function setSyncStatus(message, isError, showRetry) {
     if (syncStatus) {
       syncStatus.textContent = message || '';
@@ -138,7 +136,6 @@
 
   const widgetSets = new WeakMap();
   const widgetRadioState = new WeakMap();
-
   function radioValue(widget, name, fallback) {
     const state = widgetRadioState.get(widget) || {};
     if (state[name]) {
@@ -493,6 +490,7 @@
     syncAccomMode(widget);
     syncSetEntryMode(widget);
     renderSetList(widget);
+    window.LiftTraxSessionGuidance.sync(widget.closest('.session-exercise'));
   }
 
   function collectExerciseDraft(card) {
@@ -556,7 +554,7 @@
   }
 
   function persistDraft() {
-    if (initializingForm || restoringDraft || !draftKey) {
+    if (initializingForm || restoringDraft || !draftKey || !form.isConnected) {
       return false;
     }
     try {
@@ -581,6 +579,7 @@
         savedSessionSkippedExercises: hiddenValue('.js-session-saved-skipped-exercises'),
         savedSessionSkippedSets: hiddenValue('.js-session-saved-skipped-sets'),
         sessionDate: (form.querySelector("input[name='sessionDate']") || {}).value || '',
+        guidance: window.LiftTraxSessionGuidance.collect(form),
         exercises: blocks.flatMap((block, index) => {
           return blockHandled(index)
             ? []
@@ -638,6 +637,7 @@
     form.querySelectorAll('.session-exercise').forEach((card) => {
       applyExerciseDraft(card, byKey.get(card.dataset.exerciseKey));
     });
+    window.LiftTraxSessionGuidance.restore(form, draft.guidance);
     if (Number.isInteger(draft.currentBlockIndex)) {
       showBlock(draft.currentBlockIndex);
     }
@@ -1094,6 +1094,7 @@
     updateLiftHistory(card);
     toggleExercise(card);
   });
+  window.LiftTraxSessionGuidance.bind(form, persistDraft);
   initializingForm = false;
   restoreDraft();
   if (persistDraft()) {

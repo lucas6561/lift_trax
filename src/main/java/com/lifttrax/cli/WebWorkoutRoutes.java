@@ -299,6 +299,11 @@ final class WebWorkoutRoutes {
           parseNonNegativeInt(form.getOrDefault("savedSessionSkippedExercises", "0"));
       int previouslySkippedSets =
           parseNonNegativeInt(form.getOrDefault("savedSessionSkippedSets", "0"));
+      String results =
+          "true".equals(form.get("nativeSession"))
+              ? PlannedWorkoutNativeSession.results(
+                  PlannedWorkoutSessionService.findDay(workoutFile, weekNumber, dayOfWeek), form)
+              : form.getOrDefault("sessionResultsJson", "[]");
       PlannedWorkoutSessionService.SaveSummary summary =
           PlannedWorkoutSessionService.saveSubmittedResults(
               db,
@@ -306,7 +311,7 @@ final class WebWorkoutRoutes {
               weekNumber,
               dayOfWeek,
               date,
-              form.getOrDefault("sessionResultsJson", "[]"),
+              results,
               false,
               form.getOrDefault("submissionId", ""));
       sendHtml(

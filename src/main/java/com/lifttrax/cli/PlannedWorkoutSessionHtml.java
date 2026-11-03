@@ -130,6 +130,7 @@ final class PlannedWorkoutSessionHtml {
         .append(WebHtml.escapeHtml(date.toString()))
         .append("' required/></label>");
     appendBlockNavigation(html, day.blocks());
+    html.append(ClasspathText.read("session-no-script.html"));
     Set<String> localLiftNames = new LinkedHashSet<>();
     Map<String, String> localLiftNotes = new HashMap<>();
     for (Lift lift : localLifts) {
@@ -149,6 +150,7 @@ final class PlannedWorkoutSessionHtml {
           warmups);
     }
     appendBlockActions(html, day.blocks().size());
+    html.append("<noscript><button type='submit' formnovalidate>Save Workout</button></noscript>");
     html.append(
             "<button type='button' class='secondary js-session-sync-retry is-hidden'>Retry Finish</button>")
         .append(
@@ -402,6 +404,7 @@ final class PlannedWorkoutSessionHtml {
     }
     appendHistory(html, liftHistory.get(exercise.name()));
     PlannedWorkoutWarmupHtml.append(html, warmup);
+    html.append(ClasspathText.read("session-plate-calculator.html"));
     List<PlannedWorkoutFile.PlannedSetTarget> plannedSets = exercise.plannedSets();
     appendTargets(html, plannedSets, exercise.name(), history);
     MetricSeed seed = firstMetricSeed(plannedSets, exercise.name(), history);
@@ -413,7 +416,10 @@ final class PlannedWorkoutSessionHtml {
         .append(
             ExecutionInputWidgetHtml.renderWorkAlong(
                 prefill(block, exercise, seed, plannedSets, date), key))
-        .append("</div></article>");
+        .append("</div>");
+    PlannedWorkoutNativeSession.append(
+        html, key, localLiftNames, prefill(block, exercise, seed, plannedSets, date));
+    html.append("</article>");
   }
 
   private static WebUiRenderer.AddExecutionPrefill prefill(
@@ -452,11 +458,11 @@ final class PlannedWorkoutSessionHtml {
       List<PlannedWorkoutFile.PlannedSetTarget> plannedSets,
       String liftName,
       PlannedWorkoutHistory.Snapshot history) {
+    html.append(
+        "<details class='session-targets session-guidance' data-pane='targets' open><summary>Planned Targets</summary><ol>");
     if (plannedSets.isEmpty()) {
-      html.append("<p class='muted'>Target: Enter completed work</p>");
-      return;
+      html.append("<li>Target: Enter completed work</li>");
     }
-    html.append("<details class='session-targets' open><summary>Planned targets</summary><ol>");
     for (PlannedWorkoutFile.PlannedSetTarget target : plannedSets) {
       html.append("<li>Target: ")
           .append(WebHtml.escapeHtml(PlannedWorkoutText.plannedSet(target)))
@@ -493,6 +499,13 @@ final class PlannedWorkoutSessionHtml {
   }
 
   private static void appendHistory(StringBuilder html, PlannedWorkoutHistory.Summary summary) {
+    html.append("<details class='session-guidance' data-pane='history'><summary>History</summary>");
+    appendHistoryContent(html, summary);
+    html.append("</details>");
+  }
+
+  private static void appendHistoryContent(
+      StringBuilder html, PlannedWorkoutHistory.Summary summary) {
     html.append("<div class='session-history' aria-label='Exercise history' aria-live='polite'>");
     if (summary.unavailable()) {
       html.append("History unavailable.</div>");
@@ -575,7 +588,8 @@ final class PlannedWorkoutSessionHtml {
   }
 
   private static void appendScript(StringBuilder html) {
-    html.append(ClasspathText.script("planned-session"));
+    html.append(ClasspathText.script("session-guidance"))
+        .append(ClasspathText.script("planned-session"));
   }
 
   private record MetricSeed(

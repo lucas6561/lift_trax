@@ -243,6 +243,31 @@ final class WebHtml {
                 .session-lift-note { border-left: 3px solid #22c55e; padding: 0.32rem 0.5rem; margin: 0.35rem 0 0.45rem; background: rgba(20, 83, 45, 0.18); color: #dcfce7; overflow-wrap: anywhere; }
                 .session-history { display: flex; flex-wrap: wrap; gap: 0.32rem 0.75rem; border: 1px solid rgba(250, 204, 21, 0.36); border-radius: 0.45rem; padding: 0.36rem 0.46rem; margin: 0.35rem 0 0.45rem; background: rgba(113, 63, 18, 0.18); color: #fde68a; }
                 .session-history span { overflow-wrap: anywhere; }
+                .session-guidance { border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 0.45rem; margin: 0.35rem 0; padding: 0 0.5rem; }
+                .session-guidance > summary { min-height: 44px; display: list-item; align-content: center; margin: 0; padding: 0.55rem 0; font-weight: 600; cursor: pointer; }
+                .session-guidance > summary:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+                .session-guidance[open] { padding-bottom: 0.45rem; }
+                .session-guidance > ol { margin-bottom: 0; }
+                .session-plates { overflow-wrap: anywhere; }
+                .session-plates select { min-height: 44px; width: 100%; }
+                .session-plates p:last-child { margin-bottom: 0; }
+                .session-plates-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+                .session-plates-visual { border: 1px solid #347b80; border-radius: 0.5rem; padding: 0.7rem 0.55rem; background: #0a2029; margin: 0.5rem 0; }
+                .session-plates-heading { color: #a7f3d0; font-size: 1.15rem; font-weight: 800; margin-bottom: 0.2rem; }
+                .session-plates-instruction { color: #cbd5e1; margin-bottom: 0.4rem; }
+                .session-plates-load-status { font-weight: 600; margin-bottom: 0.6rem; }
+                .session-plate-stack { position: relative; display: flex; align-items: center; gap: 3px; min-height: 164px; padding-right: 14px; isolation: isolate; }
+                .session-plate-stack::before { content: ''; position: absolute; height: 16px; left: 0; right: 0; top: calc(50% - 8px); background: linear-gradient(#dce5ef, #718096 50%, #cbd5e1); border-radius: 3px; z-index: -1; }
+                .session-plate-bar { font-size: 0.65rem; font-weight: 800; color: #071826; width: 27px; flex: 0 0 27px; text-align: center; }
+                .session-plate-shoulder { width: 7px; flex: 0 0 7px; height: 52px; border-radius: 2px; background: linear-gradient(90deg, #64748b, #e2e8f0, #64748b); margin-right: 3px; }
+                .session-plate-disc { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 1 40px; min-width: 23px; height: var(--plate-height); border: 2px solid #94a3b8; border-radius: 7px; background: linear-gradient(90deg, #243447, #3c5169 45%, #1c2d3f); box-shadow: 2px 2px 0 #020617; color: #fff; }
+                .session-plate-disc strong { font-size: 0.95rem; color: #fff; line-height: 1.2; }
+                .session-plate-unit { font-size: 0.65rem; line-height: 1.2; }
+                .session-plate-count { position: absolute; bottom: -23px; font-size: 0.75rem; font-weight: 700; color: #a7f3d0; max-width: 100%; overflow-wrap: anywhere; }
+                .session-plates-recipe { font-size: 1rem; font-weight: 700; color: #f8fafc; margin: 0.35rem 0 0.2rem; }
+                .session-plates-direction { color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.65rem; }
+                .session-plates-verification { border-top: 1px solid #347b80; padding-top: 0.55rem; color: #cbd5e1; font-size: 0.85rem; }
+                .session-plates-assumptions { font-size: 0.8rem; }
                 .session-warmup { border: 1px solid rgba(56, 189, 248, 0.48); border-left: 4px solid #38bdf8; border-radius: 0.5rem; padding: 0.48rem 0.55rem; margin: 0.4rem 0 0.5rem; background: rgba(8, 47, 73, 0.28); }
                 .session-warmup h4 { margin-bottom: 0.22rem; }
                 .session-warmup p { margin-bottom: 0.3rem; }

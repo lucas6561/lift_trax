@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const expected = ['add-execution', 'lift-import', 'page-actions', 'planned-session', 'preview-weeks',
-  'resume', 'resume-panel', 'saved-session', 'service-worker', 'service-worker-registration', 'tabbed-layout', 'work-along', 'workout-import'];
+  'resume', 'resume-panel', 'saved-session', 'service-worker', 'service-worker-registration', 'session-guidance', 'tabbed-layout', 'work-along', 'workout-import'];
 test('every maintained browser script belongs to the documented coverage inventory', () => {
   const actual = readdirSync('src/main/resources/com/lifttrax/cli/browser').map(name => name.replace(/\.js$/, '')).sort();
   assert.deepEqual(actual, expected.sort(), 'Add new behavior tests and update docs/javascript-testing.md when adding a script');

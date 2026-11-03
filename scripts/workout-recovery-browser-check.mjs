@@ -1,3 +1,5 @@
+import { checkSessionGuidance } from './session-guidance-browser-check.mjs';
+
 export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForReady, once, setViewport, screenshot, assert }) {
   async function waitFor(expression, label) {
     for (let i = 0; i < 100; i++) {
@@ -14,6 +16,7 @@ export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForRe
     const loaded = once('Page.loadEventFired');
     await evaluate(`document.querySelector('.planned-workalong-form button[type=submit]').click()`);
     await loaded; await waitForReady('train');
+    await checkSessionGuidance({ send, evaluate, screenshot, assert }, mobile);
     const draftKey = await evaluate(`(() => {
       const form = document.querySelector('.planned-session-form');
       const field = form.querySelector('[name=weightValue]'); field.value = '205';
@@ -23,6 +26,8 @@ export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForRe
     assert(draftKey, 'workout-recovery: missing account-scoped draft key');
     const reloaded = once('Page.loadEventFired'); await send('Page.reload'); await reloaded;
     await waitFor(`document.querySelector('.planned-session-form [name=weightValue]')?.value === '205'`, 'reload restoration');
+    assert(await evaluate(`document.querySelector('.js-session-bar').value === '35' && document.querySelector('[data-pane=plates]').open && !document.querySelector('[data-pane=targets]').open`), 'Guidance choices were not restored');
+    assert(await evaluate(`document.querySelector('.js-session-plates-result').textContent.includes('Exact: 205 lb')`), 'Calculator did not restore its target');
     await evaluate(`(() => {
       const block = document.querySelector('.session-block.is-current');
       block.querySelectorAll('[name=metricValue], [name=metricLeft], [name=metricRight]').forEach(input => input.value = '5');
@@ -62,6 +67,20 @@ export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForRe
   await evaluate(`document.querySelector('.planned-workalong-form button[type=submit]').click()`);
   await start; await waitForReady('train');
   assert(await evaluate(`Boolean(document.querySelector('.planned-session-form'))`), 'No-script work-along form failed');
+  await evaluate(`document.querySelector('[data-pane=plates]').open = true`);
+  assert(await evaluate(`document.querySelector('.js-session-plates-result').textContent.includes('requires JavaScript')`), 'No-script calculator fallback missing');
+  await evaluate(`(() => {
+    const card = document.querySelector('.session-native-entry');
+    card.querySelector('[name$="-state"]').value = 'complete';
+    card.querySelector('[name$="-lift"]').value = 'Browser Squat';
+    card.querySelector('[name$="-weight"]').value = '185 lb';
+    card.querySelector('[name$="-metricValue"]').value = '5';
+  })()`);
+  await screenshot('mobile-session-no-script.png');
+  const nativeSaved = once('Page.loadEventFired');
+  await evaluate(`document.querySelector('button[formnovalidate]').click()`);
+  await nativeSaved; await waitForReady('train');
+  assert(await evaluate(`document.querySelector('h1').textContent === 'Workout Saved' && document.body.textContent.includes('1 execution logged')`), 'Native Work Along did not save actual work');
   await navigate('/?tab=add-execution', 'train');
   await evaluate(`(() => {
     const form = document.querySelector('form.add-execution-form');

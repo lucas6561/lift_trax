@@ -8,7 +8,8 @@ final class PlannedWorkoutWarmupHtml {
     if (warmup == null) {
       return;
     }
-    html.append("<aside class='session-warmup' aria-label='Warm-up ramp'><h4>")
+    html.append(
+            "<details class='session-guidance' data-pane='warmups'><summary>Warm-ups</summary><aside class='session-warmup' aria-label='Warm-up ramp'><h4>")
         .append(WebHtml.escapeHtml(warmup.title()))
         .append(
             "</h4><p class='muted'>Do these before the first programmed work set. Warm-ups do not count as work sets. All percentages are of the planned working weight.</p>");
@@ -37,7 +38,7 @@ final class PlannedWorkoutWarmupHtml {
           .append("</p>");
     }
     html.append(
-        "<p class='session-warmup-caution'>The final warm-up should generally feel like RPE 6-6.5 or lower. If it is unexpectedly slow, technique deteriorates, you feel pain, or effort reaches RPE 7 or higher, adjust the working weight instead of adding more heavy warm-up reps.</p></aside>");
+        "<p class='session-warmup-caution'>The final warm-up should generally feel like RPE 6-6.5 or lower. If it is unexpectedly slow, technique deteriorates, you feel pain, or effort reaches RPE 7 or higher, adjust the working weight instead of adding more heavy warm-up reps.</p></aside></details>");
   }
 
   private static void appendSets(StringBuilder html, PlannedWorkoutWarmups.WarmupPlan warmup) {

@@ -236,7 +236,8 @@ class PlannedWorkoutSessionHtmlTest {
     assertTrue(html.contains("Could not back up this workout on this phone."));
     assertTrue(html.contains("restoreDraft();"));
     assertTrue(html.contains("let initializingForm = true;"));
-    assertTrue(html.contains("if (initializingForm || restoringDraft || !draftKey)"));
+    assertTrue(
+        html.contains("if (initializingForm || restoringDraft || !draftKey || !form.isConnected)"));
     assertTrue(html.indexOf("initializingForm = false;") < html.lastIndexOf("restoreDraft();"));
     assertTrue(html.contains("serialized = localStorage.getItem(legacyDraftKey);"));
     assertTrue(html.contains("localStorage.removeItem(restoredLegacyDraftKey);"));
