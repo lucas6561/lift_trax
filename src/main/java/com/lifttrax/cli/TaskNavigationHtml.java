@@ -11,25 +11,30 @@ final class TaskNavigationHtml {
     return "<header class='page-heading'><div><h1>"
         + section.label()
         + "</h1><p class='muted'>"
-        + sectionDescription(section)
+        + sectionDescription(section, activeTab)
         + "</p></div><div class='compact-actions'>"
-        + sectionAction(section)
+        + sectionAction(section, activeTab)
         + "</div></header>"
         + renderSecondaryNavigation(activeTab, section);
   }
 
-  private static String sectionDescription(ApplicationShellHtml.Section section) {
+  private static String sectionDescription(ApplicationShellHtml.Section section, String activeTab) {
+    if (section == ApplicationShellHtml.Section.HISTORY && "exercises".equals(activeTab)) {
+      return "Manage the exercise catalog, details, sharing, and imports.";
+    }
     return switch (section) {
       case TODAY -> "Drafts, recent activity, and a useful next step.";
       case TRAIN -> "Quickly log training or continue a planned workout.";
       case WORKOUTS -> "Use saved workouts, import a plan, or generate a wave.";
       case HISTORY -> "Review executions, date ranges, queries, and lift trends.";
-      case EXERCISES -> "Manage the exercise catalog, details, sharing, and imports.";
       case ACCOUNT -> "Manage your LiftTrax account.";
     };
   }
 
-  private static String sectionAction(ApplicationShellHtml.Section section) {
+  private static String sectionAction(ApplicationShellHtml.Section section, String activeTab) {
+    if (section == ApplicationShellHtml.Section.HISTORY && "exercises".equals(activeTab)) {
+      return "<a class='compact-btn' href='#new-exercise'>Add exercise</a>";
+    }
     return switch (section) {
       case TODAY -> "<a class='compact-btn' href='/?tab=add-execution'>Log training</a>";
       case TRAIN ->
@@ -37,7 +42,6 @@ final class TaskNavigationHtml {
       case WORKOUTS ->
           "<a class='compact-btn' href='/?tab=import-workout#workout-upload'>Import workout</a>";
       case HISTORY -> "<a class='compact-btn secondary' href='/?tab=last-week'>View this week</a>";
-      case EXERCISES -> "<a class='compact-btn' href='#new-exercise'>Add exercise</a>";
       case ACCOUNT -> "";
     };
   }
@@ -114,6 +118,7 @@ final class TaskNavigationHtml {
           + secondaryLink("/?tab=executions", "Executions", "executions".equals(activeTab))
           + secondaryLink("/?tab=last-week", "Weekly", "last-week".equals(activeTab))
           + secondaryLink("/?tab=query", "Query", "query".equals(activeTab))
+          + secondaryLink("/?tab=exercises", "Exercise Catalog", "exercises".equals(activeTab))
           + "</ul></nav>";
     }
     return "";

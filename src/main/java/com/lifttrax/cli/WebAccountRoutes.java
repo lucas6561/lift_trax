@@ -159,7 +159,9 @@ final class WebAccountRoutes {
           exchange,
           ApplicationShellHtml.wrapPage(
               "Import Lifts",
-              ApplicationShellHtml.Section.EXERCISES,
+              ApplicationShellHtml.Section.HISTORY,
+              "Exercise Catalog",
+              "/?tab=exercises",
               "<h1>Import Lifts</h1><p class='status error'>Could not import lifts. Please try again.</p>"
                   + "<p><a href='/import-lifts'>Back to import</a></p>"));
     }

@@ -144,8 +144,8 @@ final class WebUiRenderer {
             : deferredTabContent("Import Workout");
     String exerciseContent =
         "exercises".equals(normalizedTab)
-            ? renderExecutionList(db, lifts, search, "Exercise catalog:", "exercises")
-            : deferredTabContent("Exercises");
+            ? ExecutionListHtml.renderCatalogList(db, lifts, search, "Exercise catalog:")
+            : deferredTabContent("Exercise Catalog");
     return renderTabbedLayout(
         lifts,
         search,
@@ -251,7 +251,8 @@ final class WebUiRenderer {
       String resumePanel) {
     String filterControls =
         switch (activeTab) {
-          case "add-execution", "executions", "query" -> renderFilterControls(lifts, search);
+          case "add-execution", "executions", "query", "exercises" ->
+              renderFilterControls(lifts, search);
           default -> "";
         };
     String addExecutionContent =
@@ -401,11 +402,6 @@ final class WebUiRenderer {
   static String renderExecutionList(
       TrainingDataStore db, List<Lift> lifts, String search, String label) {
     return ExecutionListHtml.renderExecutionList(db, lifts, search, label);
-  }
-
-  private static String renderExecutionList(
-      TrainingDataStore db, List<Lift> lifts, String search, String label, String returnTab) {
-    return ExecutionListHtml.renderExecutionList(db, lifts, search, label, returnTab);
   }
 
   static String renderExecutionRows(TrainingDataStore db, String liftName) {

@@ -27,8 +27,10 @@ final class LiftDetailResponse {
           exchange,
           ApplicationShellHtml.wrapPage(
               "Missing lift",
-              ApplicationShellHtml.Section.EXERCISES,
-              "<h1>Missing lift name</h1><p><a href='/?tab=exercises'>Back to Exercises</a></p>"));
+              ApplicationShellHtml.Section.HISTORY,
+              "Exercise Catalog",
+              "/?tab=exercises",
+              "<h1>Missing lift name</h1><p><a href='/?tab=exercises'>Back to Exercise Catalog</a></p>"));
       return;
     }
 
@@ -104,8 +106,8 @@ final class LiftDetailResponse {
     appendExecutions(body, detail.performed());
     return ApplicationShellHtml.wrapPage(
         lift.name(),
-        ApplicationShellHtml.Section.EXERCISES,
-        "Exercises",
+        ApplicationShellHtml.Section.HISTORY,
+        "Exercise Catalog",
         "/?tab=exercises",
         body.toString());
   }
@@ -136,10 +138,12 @@ final class LiftDetailResponse {
   private static String errorPage(Exception error) {
     return ApplicationShellHtml.wrapPage(
         "Error",
-        ApplicationShellHtml.Section.EXERCISES,
+        ApplicationShellHtml.Section.HISTORY,
+        "Exercise Catalog",
+        "/?tab=exercises",
         "<h1>Error loading lift</h1><pre>"
             + WebHtml.escapeHtml(error.getMessage())
-            + "</pre><p><a href='/?tab=exercises'>Back to Exercises</a></p>");
+            + "</pre><p><a href='/?tab=exercises'>Back to Exercise Catalog</a></p>");
   }
 
   private record LiftDetail(Lift lift, List<com.lifttrax.db.LiftExecutionRow> performed) {}

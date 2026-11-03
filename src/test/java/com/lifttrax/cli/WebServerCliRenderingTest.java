@@ -235,7 +235,7 @@ class WebServerCliRenderingTest {
       db.setLiftEnabled("Back Squat", false);
       List<Lift> lifts = db.listLifts();
 
-      String html = WebUiRenderer.renderExecutionList(db, lifts, "", "Recorded lifts:");
+      String html = ExecutionListHtml.renderCatalogList(db, lifts, "", "Exercise catalog:");
 
       assertTrue(html.contains("action='/set-lift-enabled'"));
       assertTrue(html.contains("Enable for wave"));

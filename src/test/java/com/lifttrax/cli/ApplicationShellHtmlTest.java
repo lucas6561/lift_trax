@@ -27,6 +27,8 @@ class ApplicationShellHtmlTest {
     assertTrue(html.contains("aria-label='Breadcrumb'"));
     assertTrue(html.contains("id='main-content' tabindex='-1'"));
     assertFalse(html.contains("data-section='account'"));
+    assertFalse(html.contains("data-section='exercises'"));
+    assertEquals(8, occurrences(html, "data-section='"));
   }
 
   @Test
@@ -78,7 +80,7 @@ class ApplicationShellHtmlTest {
     assertEquals(
         ApplicationShellHtml.Section.HISTORY, ApplicationShellHtml.Section.forTab("last-week"));
     assertEquals(
-        ApplicationShellHtml.Section.EXERCISES, ApplicationShellHtml.Section.forTab("exercises"));
+        ApplicationShellHtml.Section.HISTORY, ApplicationShellHtml.Section.forTab("exercises"));
     assertEquals(
         ApplicationShellHtml.Section.TODAY, ApplicationShellHtml.Section.forTab("unknown"));
   }

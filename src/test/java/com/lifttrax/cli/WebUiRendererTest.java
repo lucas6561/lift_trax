@@ -195,25 +195,67 @@ class WebUiRendererTest {
   }
 
   @Test
-  void executionListIncludesDeleteLiftForm() throws Exception {
+  void executionAndCatalogListsKeepTheirControlsSeparate() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-exec-delete-lift", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {
       db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
       List<Lift> lifts = db.listLifts();
 
-      String html = WebUiRenderer.renderExecutionList(db, lifts, "", "all lifts");
+      String executions = WebUiRenderer.renderExecutionList(db, lifts, "", "Recorded lifts:");
+      String catalog = ExecutionListHtml.renderCatalogList(db, lifts, "", "Exercise catalog:");
 
-      assertTrue(html.contains("action='/delete-lift'"));
-      assertTrue(html.contains("action='/update-lift'"));
-      assertTrue(html.contains("href='/lift?name=Back+Squat'"));
-      assertTrue(html.contains("name='currentName' value='Back Squat'"));
-      assertTrue(html.contains("Save lift"));
-      assertTrue(html.contains("name='tab' value='executions'"));
-      assertTrue(html.contains("name='lift' value='Back Squat'"));
-      assertTrue(html.contains("Delete lift"));
+      assertTrue(executions.contains("href='/lift?name=Back+Squat'"));
+      assertTrue(executions.contains("Expand to load executions..."));
+      assertFalse(executions.contains("action='/set-lift-enabled'"));
+      assertFalse(executions.contains("action='/update-lift'"));
+      assertFalse(executions.contains("action='/delete-lift'"));
+
+      assertTrue(catalog.contains("action='/set-lift-enabled'"));
+      assertTrue(catalog.contains("action='/update-lift'"));
+      assertTrue(catalog.contains("action='/delete-lift'"));
+      assertTrue(catalog.contains("href='/lift?name=Back+Squat'"));
+      assertTrue(catalog.contains("name='currentName' value='Back Squat'"));
+      assertTrue(catalog.contains("Save lift"));
+      assertTrue(catalog.contains("name='tab' value='exercises'"));
+      assertTrue(catalog.contains("name='lift' value='Back Squat'"));
+      assertTrue(catalog.contains("Delete lift"));
+      assertFalse(catalog.contains("Expand to load executions..."));
       assertTrue(
-          html.contains(
+          catalog.contains(
               "Delete this catalog lift? Completed executions and sets will be retained in history."));
+    }
+  }
+
+  @Test
+  void legacyExercisesTabRendersTheHistoryCatalogView() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-history-catalog", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
+
+      String html =
+          WebUiRenderer.renderIndexBody(
+              db,
+              db.listLifts(),
+              "",
+              "",
+              "exercises",
+              "",
+              "",
+              WebUiRenderer.AddExecutionPrefill.empty(),
+              LocalDate.parse("2026-01-01"),
+              LocalDate.parse("2026-01-07"),
+              1,
+              Map.of());
+
+      assertTrue(html.contains("<h1>History</h1>"));
+      assertTrue(html.contains("href='/?tab=exercises' aria-current='page'>Exercise Catalog</a>"));
+      assertTrue(html.contains("<h2>Exercise Catalog</h2>"));
+      assertTrue(html.contains("action='/add-lift'"));
+      assertTrue(html.contains("href='/import-exercise-catalog'"));
+      assertTrue(html.contains("href='/import-lifts'"));
+      assertTrue(html.contains("href='/account#lift-sharing'"));
+      assertTrue(html.contains("href='/lift?name=Back+Squat'"));
+      assertFalse(html.contains("Expand to load executions..."));
     }
   }
 

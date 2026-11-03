@@ -50,7 +50,7 @@ final class AccountPageHtml {
               <p class='muted'>3-30 letters, numbers, underscores, or hyphens. Usernames are stored in lowercase.</p>
               <button type='submit'>Save Username</button>
             </form>
-            <h2>Lift sharing</h2>
+            <h2 id='lift-sharing'>Lift sharing</h2>
             <p>Let other signed-in users copy your enabled lifts, including their names, regions, types, muscles, and lift notes. Workout history stays private. Copies already imported remain in the other user's list when sharing is turned off.</p>
             <form method='post' action='/account' class='query-form' style='display:block;'>
               <input type='hidden' name='action' value='lift-sharing'>

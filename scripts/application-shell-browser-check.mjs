@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { checkDesktopHistoryCatalog, checkMobileHistoryCatalog } from "./history-catalog-browser-check.mjs";
 
 const [baseUrl, sessionCookie, suite] = process.argv.slice(2);
 if (!baseUrl || !sessionCookie) {
@@ -342,7 +343,6 @@ try {
       ["train", "add-execution"],
       ["workouts", "import-workout"],
       ["history", "executions"],
-      ["exercises", "exercises"],
       ["today", "dashboard"],
     ]) {
       desktopSections.push(
@@ -351,19 +351,7 @@ try {
       assert(locationFromState(desktopSections.at(-1)).includes(`tab=${tabName}`), `Primary link did not preserve ${tabName}`);
     }
 
-    await navigate("/?tab=executions", "history");
-    await clickAndWait(".secondary-navigation a[href='/?tab=last-week']", "history");
-    assert((await evaluate("document.body.textContent")).includes("Previous Week"), "Weekly History is not reachable");
-    await clickAndWait(".secondary-navigation a[href='/?tab=query']", "history");
-    assert((await evaluate("document.body.textContent")).includes("Run Query"), "History Query is not reachable");
-
-    await navigate("/?tab=exercises", "exercises");
-    await clickAndWait("a[href^='/lift?name=']", "exercises");
-    assert((await evaluate("document.querySelector('h1')?.textContent")).includes("Browser Squat"), "Lift detail did not load");
-    await navigate("/import-exercise-catalog", "exercises");
-    assert(await evaluate("Boolean(document.querySelector('input[type=file]'))"), "Catalog import is not reachable");
-    await navigate("/import-lifts", "exercises");
-    assert((await evaluate("document.body.textContent")).includes("fixture-coach"), "Shared-lift import is not reachable");
+    await checkDesktopHistoryCatalog({ assert, clickAndWait, evaluate, navigate, once, screenshot, send, waitForReady });
 
     await navigate("/?tab=import-workout", "workouts");
     await clickAndWait(".saved-workout a[href*='view=work-along']", "workouts");
@@ -438,7 +426,7 @@ try {
     assert(mobileLayout.overflow <= 1, `Mobile page overflows by ${mobileLayout.overflow}px`);
     await screenshot("mobile-today.png");
 
-    for (const section of ["train", "workouts", "history", "exercises", "today"]) {
+    for (const section of ["train", "workouts", "history", "today"]) {
       mobileSections.push(
         await clickAndWait(`.mobile-primary-navigation [data-section="${section}"]`, section),
       );
@@ -449,6 +437,8 @@ try {
       assert(layout.overflow <= 1 && layout.navVisible, `Mobile ${section} layout failed`);
       if (section === "train") {await screenshot("mobile-train.png");}
     }
+
+    await checkMobileHistoryCatalog({ assert, evaluate, navigate, screenshot });
 
     await navigate("/?tab=import-workout", "workouts");
     await clickAndWait(".saved-workout a[href*='view=work-along']", "workouts");
@@ -478,13 +468,14 @@ try {
         {
           desktopViewport: "1280x900",
           mobileViewport: "390x844",
-          primaryDestinations: ["Today", "Train", "Workouts", "History", "Exercises"],
+          primaryDestinations: ["Today", "Train", "Workouts", "History"],
           desktopPagesChecked: desktopSections.length,
           mobilePagesChecked: mobileSections.length,
           keyboardFocusTrail: focusTrail,
           deepLinks: [
             "weekly history",
             "history query",
+            "exercise catalog",
             "lift detail",
             "catalog import",
             "shared-lift import",
@@ -503,8 +494,10 @@ try {
           screenshots: [
             "build/browser-shell-check/desktop-today.png",
             "build/browser-shell-check/desktop-work-along.png",
+            "build/browser-shell-check/desktop-history-catalog.png",
             "build/browser-shell-check/mobile-today.png",
             "build/browser-shell-check/mobile-train.png",
+            "build/browser-shell-check/mobile-history-catalog.png",
             "build/browser-shell-check/mobile-work-along.png",
           ],
         },

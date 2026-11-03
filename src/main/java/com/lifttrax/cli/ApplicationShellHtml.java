@@ -7,7 +7,6 @@ final class ApplicationShellHtml {
     TRAIN("train", "Train", "/?tab=add-execution"),
     WORKOUTS("workouts", "Workouts", "/?tab=import-workout"),
     HISTORY("history", "History", "/?tab=executions"),
-    EXERCISES("exercises", "Exercises", "/?tab=exercises"),
     ACCOUNT("account", "Account", "/account");
 
     private final String sectionKey;
@@ -36,15 +35,14 @@ final class ApplicationShellHtml {
       return switch (WebUiRenderer.normalizeTab(tab)) {
         case "add-execution" -> TRAIN;
         case "waves", "import-workout" -> WORKOUTS;
-        case "executions", "query", "last-week" -> HISTORY;
-        case "exercises" -> EXERCISES;
+        case "executions", "query", "last-week", "exercises" -> HISTORY;
         default -> TODAY;
       };
     }
   }
 
   private static final Section[] PRIMARY_SECTIONS = {
-    Section.TODAY, Section.TRAIN, Section.WORKOUTS, Section.HISTORY, Section.EXERCISES
+    Section.TODAY, Section.TRAIN, Section.WORKOUTS, Section.HISTORY
   };
 
   private ApplicationShellHtml() {}
@@ -133,7 +131,6 @@ final class ApplicationShellHtml {
       case TRAIN -> "+";
       case WORKOUTS -> "▤";
       case HISTORY -> "↗";
-      case EXERCISES -> "◇";
       case ACCOUNT -> "";
     };
   }

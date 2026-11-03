@@ -72,6 +72,7 @@ class WebUiLayoutRenderingTest {
         "Executions",
         "Query",
         "Weekly",
+        "Exercise Catalog",
         "data-initial-tab='query'");
     assertFalse(html.contains("role='tablist'"));
   }

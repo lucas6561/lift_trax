@@ -25,11 +25,16 @@ final class ExecutionListHtml {
 
   static String renderExecutionList(
       TrainingDataStore db, List<Lift> lifts, String search, String label) {
-    return renderExecutionList(db, lifts, search, label, "executions");
+    return renderLiftList(db, lifts, search, label, View.EXECUTIONS);
   }
 
-  static String renderExecutionList(
-      TrainingDataStore db, List<Lift> lifts, String search, String label, String returnTab) {
+  static String renderCatalogList(
+      TrainingDataStore db, List<Lift> lifts, String search, String label) {
+    return renderLiftList(db, lifts, search, label, View.CATALOG);
+  }
+
+  private static String renderLiftList(
+      TrainingDataStore db, List<Lift> lifts, String search, String label, View view) {
     StringBuilder html = new StringBuilder();
     html.append("<p>").append(WebHtml.escapeHtml(label)).append("</p>");
 
@@ -42,7 +47,7 @@ final class ExecutionListHtml {
 
     List<Lift> visibleLifts = lifts.stream().filter(lift -> matchesSearch(lift, search)).toList();
     for (Lift lift : visibleLifts) {
-      appendLift(html, lift, enabledStatuses.getOrDefault(lift.name(), true), returnTab);
+      appendLift(html, lift, enabledStatuses.getOrDefault(lift.name(), true), view);
     }
     if (visibleLifts.isEmpty()) {
       html.append("<p>No lifts found for current filters.</p>");
@@ -54,7 +59,7 @@ final class ExecutionListHtml {
     return search.isEmpty() || lift.name().toLowerCase(Locale.ROOT).contains(search);
   }
 
-  private static void appendLift(StringBuilder html, Lift lift, boolean enabled, String returnTab) {
+  private static void appendLift(StringBuilder html, Lift lift, boolean enabled, View view) {
     html.append("<details class='execution-lift-group' data-filter-item data-name='")
         .append(WebHtml.escapeHtml(lift.name()))
         .append("' data-region='")
@@ -66,46 +71,57 @@ final class ExecutionListHtml {
             WebHtml.escapeHtml(
                 lift.muscles().stream().map(Muscle::name).collect(Collectors.joining(","))))
         .append("'>");
-    appendLiftSummary(html, lift, enabled);
-    appendLiftActions(html, lift, enabled, returnTab);
-    appendLiftEditor(html, lift, returnTab);
-    appendLiftDelete(html, lift, returnTab);
-    html.append("<div class='js-exec-body' data-lift='")
-        .append(WebHtml.escapeHtml(lift.name()))
-        .append("' data-loaded='false'><p>Expand to load executions...</p></div>")
-        .append("</details>");
+    appendLiftSummary(html, lift, view == View.CATALOG && !enabled);
+    appendDetailsLink(html, lift);
+    if (view == View.CATALOG) {
+      appendCatalogActions(html, lift, enabled);
+      appendLiftEditor(html, lift, "exercises");
+      appendLiftDelete(html, lift, "exercises");
+    } else {
+      html.append("<div class='js-exec-body' data-lift='")
+          .append(WebHtml.escapeHtml(lift.name()))
+          .append("' data-loaded='false'><p>Expand to load executions...</p></div>");
+    }
+    html.append("</details>");
   }
 
-  private static void appendLiftSummary(StringBuilder html, Lift lift, boolean enabled) {
+  private static void appendLiftSummary(StringBuilder html, Lift lift, boolean disabled) {
     html.append("<summary class='execution-lift-toggle'>")
         .append(WebHtml.escapeHtml(lift.name()))
         .append(" - ")
         .append(WebHtml.escapeHtml(lift.region().toString()))
         .append(" / ")
         .append(WebHtml.escapeHtml(formatMainType(lift)));
-    if (!enabled) {
+    if (disabled) {
       html.append(" <span class='status error' style='margin-left:8px;'>Disabled</span>");
     }
     html.append("</summary>");
   }
 
-  private static void appendLiftActions(
-      StringBuilder html, Lift lift, boolean enabled, String returnTab) {
+  private static void appendDetailsLink(StringBuilder html, Lift lift) {
     html.append("<div class='compact-actions' style='margin:8px 0;'>")
         .append("<a class='compact-btn secondary' href='/lift?name=")
         .append(urlEncode(lift.name()))
-        .append("'>Details</a></div>")
-        .append(
+        .append("'>Details</a></div>");
+  }
+
+  private static void appendCatalogActions(StringBuilder html, Lift lift, boolean enabled) {
+    html.append(
             "<form method='post' action='/set-lift-enabled' class='query-form compact-actions' style='margin:8px 0;'>")
         .append("<input type='hidden' name='lift' value='")
         .append(WebHtml.escapeHtml(lift.name()))
         .append("'/><input type='hidden' name='enabled' value='")
         .append(enabled ? "0" : "1")
         .append("'/><input type='hidden' name='tab' value='")
-        .append(WebHtml.escapeHtml(returnTab))
+        .append("exercises")
         .append("'/><button type='submit' class='compact-btn'>")
         .append(enabled ? "Disable for wave" : "Enable for wave")
         .append("</button></form>");
+  }
+
+  private enum View {
+    EXECUTIONS,
+    CATALOG
   }
 
   private static void appendLiftEditor(StringBuilder html, Lift lift, String returnTab) {

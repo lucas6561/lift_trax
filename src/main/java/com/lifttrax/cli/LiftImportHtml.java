@@ -60,8 +60,8 @@ final class LiftImportHtml {
     }
     return ApplicationShellHtml.wrapPage(
         "Import shared lifts",
-        ApplicationShellHtml.Section.EXERCISES,
-        "Exercises",
+        ApplicationShellHtml.Section.HISTORY,
+        "Exercise Catalog",
         "/?tab=exercises",
         body.toString());
   }

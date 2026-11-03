@@ -51,16 +51,16 @@ class ApplicationShellWebTest {
       primaryRoutes.put("/?tab=executions", "history");
       primaryRoutes.put("/?tab=last-week", "history");
       primaryRoutes.put("/?tab=query&queryLift=Shell%20Squat", "history");
-      primaryRoutes.put("/?tab=exercises", "exercises");
+      primaryRoutes.put("/?tab=exercises", "history");
       for (Map.Entry<String, String> route : primaryRoutes.entrySet()) {
         assertShell(get(server, route.getKey()), route.getValue());
       }
 
       assertShell(get(server, "/account"), "account");
       assertTrue(get(server, "/account").body().contains("aria-current='page'>Signed in as"));
-      assertShell(get(server, "/import-exercise-catalog"), "exercises");
-      assertShell(get(server, "/import-lifts"), "exercises");
-      assertShell(get(server, "/lift?name=Shell%20Squat"), "exercises");
+      assertCatalogShell(get(server, "/import-exercise-catalog"));
+      assertCatalogShell(get(server, "/import-lifts"));
+      assertCatalogShell(get(server, "/lift?name=Shell%20Squat"));
       assertShell(get(server, "/saved-workout?id=" + savedWorkoutId), "workouts");
       assertShell(
           get(server, "/saved-workout?id=" + savedWorkoutId + "&view=work-along"), "workouts");
@@ -110,6 +110,14 @@ class ApplicationShellWebTest {
     assertTrue(html.contains("name='csrfToken'"));
     assertTrue(html.contains("name='accountScope'"));
     assertFalse(html.contains("data-profile-slot"));
+  }
+
+  private void assertCatalogShell(HttpResponse<String> response) {
+    assertShell(response, "history");
+    String html = response.body();
+    assertTrue(html.contains("href='/?tab=exercises'>Exercise Catalog</a>"));
+    assertTrue(html.contains("data-section='history' class='is-current' aria-current='page'"));
+    assertFalse(html.contains("data-section='exercises'"));
   }
 
   private HttpResponse<String> get(WebServerCli.RunningServer server, String path)

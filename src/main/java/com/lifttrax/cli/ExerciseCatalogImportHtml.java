@@ -54,8 +54,8 @@ final class ExerciseCatalogImportHtml {
     }
     return ApplicationShellHtml.wrapPage(
         "Import exercise catalog",
-        ApplicationShellHtml.Section.EXERCISES,
-        "Exercises",
+        ApplicationShellHtml.Section.HISTORY,
+        "Exercise Catalog",
         "/?tab=exercises",
         body.toString());
   }
