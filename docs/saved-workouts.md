@@ -18,7 +18,7 @@ continues to describe the original plan.
 
 The optional calculator follows the weight in the logging fields, including
 planned/history suggestions, manual edits, Load last, and recovered drafts.
-Choose a 15, 35, 40, 45 (default), or 65 lb bar. It assumes unlimited matched
+Choose a 5, 15, 35, 40, 45 (default), or 65 lb bar. It assumes unlimited matched
 pairs of 45, 25, 10, 5, 2.5, and 0.5 lb plates and excludes collars. Results give
 the minimum plate count **per side**, followed by the bar-plus-both-sides total.
 The bar-end diagram says **Load this on EACH SIDE** and shows each labeled plate

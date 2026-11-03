@@ -1,5 +1,5 @@
 (function () {
-  const bars = ['15', '35', '40', '45', '65'];
+  const bars = ['5', '15', '35', '40', '45', '65'];
   // Half-pound units per side. Equal solutions prefer larger denominations.
   const coins = [90, 50, 20, 10, 5, 1];
   const minimum = [0];

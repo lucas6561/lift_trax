@@ -55,7 +55,7 @@ for each side without changing the performed weight or submitted workout data.
 - [x] Warm-up guidance becomes collapsible without changing any generated
       warm-up sets, working-weight explanation, loading warning, rest guidance,
       intent, caution, or back-off note.
-- [x] The Plate Calculator pane offers these unique bar weights: 15, 35, 40, 45,
+- [x] The Plate Calculator pane offers these unique bar weights: 5, 15, 35, 40, 45,
       and 65 pounds. The 45-pound option is visibly labeled as the default and is
       selected initially unless a session-restored selection exists.
 - [x] Available plates are 45, 25, 10, 5, 2.5, and 0.5 pounds. Calculations use
@@ -159,3 +159,7 @@ New module coverage is 100% lines / 95.92% branches. Desktop and 390×844 phone
 browser checks pass for individual eight-plate stacks and grouped large loads
 without horizontal overflow; reviewed both generated diagram screenshots.
 The full `qualityGate` also passes after the visual follow-up.
+
+Added a 5 lb bar option on 2026-11-03 at the user's request. The 45 lb default
+remains selected for new sessions. The existing denomination calculation and
+draft-recovery checks now cover the 5 lb selection as well.

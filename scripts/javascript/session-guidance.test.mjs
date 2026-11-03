@@ -20,7 +20,7 @@ test('guidance starts with only planned targets open and unique default bar choi
   const p = page(t, 'session');
   assert.deepEqual(p.all('.session-block.is-current [data-pane]').map(x => [x.dataset.pane, x.open]),
     [['history', false], ['warmups', false], ['plates', false], ['targets', true]]);
-  assert.deepEqual([...p.$(bar).options].map(x => x.value), ['15', '35', '40', '45', '65']);
+  assert.deepEqual([...p.$(bar).options].map(x => x.value), ['5', '15', '35', '40', '45', '65']);
   assert.equal(p.$(bar).value, '45');
   assert.match(p.$(bar).selectedOptions[0].textContent, /default/);
   assert.equal(p.$('.js-session-plates-result').getAttribute('aria-live'), 'polite');
@@ -29,7 +29,7 @@ test('guidance starts with only planned targets open and unique default bar choi
 
 test('every bar and plate uses matched pairs with explicit counts per side and verification', t => {
   const p = page(t, 'session');
-  for (const selected of [15, 35, 40, 45, 65]) {
+  for (const selected of [5, 15, 35, 40, 45, 65]) {
     p.change(bar, String(selected));
     for (const plate of [45, 25, 10, 5, 2.5, 0.5]) {
       p.change(weight, String(selected + plate * 2), 'input');
@@ -141,13 +141,13 @@ test('unsupported measurements and loading modes never produce plate lists', t =
 });
 
 test('bar and independent pane preferences survive block navigation, reload and account isolation', t => {
-  const p = page(t, 'session'); p.change(weight, '225'); p.change(bar, '35');
+  const p = page(t, 'session'); p.change(weight, '225'); p.change(bar, '5');
   pane(p, 'targets', false); pane(p, 'plates', true); pane(p, 'history', true);
   const draft = p.draft();
   p.click('.js-session-skip-block'); p.change(bar, '65'); p.click('.js-session-previous-block');
-  assert.equal(p.$(bar).value, '35');
+  assert.equal(p.$(bar).value, '5');
   const restored = page(t, 'session', { before: w => seed(w, p.draft()) });
-  assert.equal(restored.$(bar).value, '35');
+  assert.equal(restored.$(bar).value, '5');
   assert.equal(restored.$('[data-pane=targets]').open, false);
   assert.equal(restored.$('[data-pane=history]').open, true);
   assert.equal(restored.$('[data-pane=plates]').open, true);
