@@ -124,6 +124,9 @@ public final class PlannedWorkoutHistory {
 
     public WeightResolution resolveWeight(
         String liftName, PlannedWorkoutFile.PlannedSetTarget target) {
+      if (target.weight() != null) {
+        return WeightResolution.weight(target.weight());
+      }
       if (unavailable) {
         return WeightResolution.empty();
       }

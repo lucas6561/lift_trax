@@ -109,17 +109,25 @@ final class ExecutionInputWidgetHtml {
 
   static String renderWorkAlong(
       WebUiRenderer.AddExecutionPrefill prefillInput, String radioNameSuffix) {
+    return renderWorkAlong(prefillInput, List.of(), radioNameSuffix);
+  }
+
+  static String renderWorkAlong(
+      WebUiRenderer.AddExecutionPrefill prefillInput,
+      List<ExecutionSetFormValues> initialSets,
+      String radioNameSuffix) {
     WebUiRenderer.AddExecutionPrefill prefill = defaultPrefill(prefillInput);
     WeightInputParser.WeightPrefill weightPrefill =
         WeightInputParser.parseWeightPrefill(prefill.weight());
-    return formatWorkAlongWidget(prefill, weightPrefill, radioNameSuffix);
+    return formatWorkAlongWidget(prefill, safeSets(initialSets), weightPrefill, radioNameSuffix);
   }
 
   private static String formatWorkAlongWidget(
       WebUiRenderer.AddExecutionPrefill prefill,
+      List<ExecutionSetFormValues> initialSets,
       WeightInputParser.WeightPrefill weight,
       String radioNameSuffix) {
-    SetEntryModeState setEntryMode = SetEntryModeState.from(List.of(), false);
+    SetEntryModeState setEntryMode = SetEntryModeState.from(initialSets, false);
     String weightMode = radioName("weightMode", radioNameSuffix);
     String setEntryModeName = radioName("setEntryMode", radioNameSuffix);
     String metricType = radioName("metricType", radioNameSuffix);
@@ -136,6 +144,7 @@ final class ExecutionInputWidgetHtml {
     return ClasspathText.read("execution-work-along-widget.html")
         .formatted(
             WebHtml.escapeHtml(prefill.weight()),
+            WebHtml.escapeHtml(executionSetValuesToJson(initialSets)),
             WebHtml.escapeHtml(weight.weightValue()),
             selected("lb".equals(weight.weightUnit())),
             selected("kg".equals(weight.weightUnit())),

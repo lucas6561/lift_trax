@@ -1,4 +1,15 @@
 import { checkSessionGuidance } from './session-guidance-browser-check.mjs';
+import { readFile } from 'node:fs/promises';
+
+const weightedWorkout = JSON.parse(
+  await readFile('shared/workouts/examples/conjugate-wave-v7.json', 'utf8'));
+const weightedSets = weightedWorkout.weeks[0].days[0].blocks[0].exercises[0].plannedSets;
+delete weightedSets[0].percent;
+delete weightedSets[0].percentOf;
+delete weightedSets[0].rpeCap;
+weightedSets[0].weight = '225 lb';
+weightedSets.splice(1);
+const weightedWorkoutJson = JSON.stringify(weightedWorkout);
 
 export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForReady, once, setViewport, screenshot, assert }) {
   async function waitFor(expression, label) {
@@ -11,6 +22,42 @@ export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForRe
   for (const [width, height, mobile] of [[1280, 900, false], [390, 844, true]]) {
     await setViewport(width, height, mobile);
     await navigate('/?tab=import-workout', 'workouts');
+    await evaluate(`(() => {
+      const input = document.querySelector('#plannedWorkoutFile');
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([${JSON.stringify(weightedWorkoutJson)}], 'weighted-workout-v7.json', {type: 'application/json'}));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', {bubbles: true}));
+    })()`);
+    await waitFor(`document.querySelector('.js-planned-file-status')?.textContent.includes('Example Conjugate Planned Wave')`, 'weighted workout authoring import');
+    const previewLoaded = once('Page.loadEventFired');
+    await evaluate(`document.querySelector("button[formaction='/planned-workout-preview']").click()`);
+    await previewLoaded; await waitForReady('workouts');
+    assert(await evaluate(`document.body.textContent.includes('4 reps @ 225 lb')`), 'Preview omitted prescribed weight');
+    const chooseDayLoaded = once('Page.loadEventFired');
+    await evaluate(`document.querySelector("button[formaction='/planned-workout-work-along']").click()`);
+    await chooseDayLoaded; await waitForReady('train');
+    const weightedSessionLoaded = once('Page.loadEventFired');
+    await evaluate(`document.querySelector('.planned-workalong-form button[type=submit]').click()`);
+    await weightedSessionLoaded; await waitForReady('train');
+    assert(await evaluate(`document.querySelector('[name=weightValue]')?.value === '225'`), 'Work Along did not prefill prescribed weight');
+    assert(await evaluate(`document.body.textContent.includes('Prescribed: 225 lb')`), 'Work Along did not label prescribed weight');
+    await evaluate(`(() => {
+      const field = document.querySelector('[name=weightValue]');
+      field.focus();
+      field.select();
+    })()`);
+    await send('Input.insertText', {text: '230'});
+    const weightDistinction = await evaluate(`(() => ({
+      performed: document.querySelector('[name=weightValue]').value,
+      planned: document.querySelector("input[name=plannedWorkoutJson]").value.includes('225 lb')
+    }))()`);
+    assert(weightDistinction.performed === '230', `Keyboard did not edit performed weight: ${JSON.stringify(weightDistinction)}`);
+    assert(weightDistinction.planned, `Performed weight edit changed the saved plan: ${JSON.stringify(weightDistinction)}`);
+    await screenshot(`${mobile ? 'mobile' : 'desktop'}-planned-weight.png`);
+    const weightedDraftKey = await evaluate(`document.querySelector('.planned-session-form').dataset.draftKey`);
+    await navigate('/?tab=import-workout', 'workouts');
+    await evaluate(`localStorage.removeItem(${JSON.stringify(weightedDraftKey)})`);
     const chooser = await evaluate(`document.querySelector('.saved-workout a[href*="view=work-along"]').getAttribute('href')`);
     await navigate(chooser, 'workouts');
     const loaded = once('Page.loadEventFired');

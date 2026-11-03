@@ -415,7 +415,9 @@ final class PlannedWorkoutSessionHtml {
                 + "<span class='muted js-session-load-last-status' role='status'></span></div>")
         .append(
             ExecutionInputWidgetHtml.renderWorkAlong(
-                prefill(block, exercise, seed, plannedSets, date), key))
+                prefill(block, exercise, seed, plannedSets, date),
+                plannedSetDefaults(plannedSets, exercise.name(), history),
+                key))
         .append("</div>");
     PlannedWorkoutNativeSession.append(
         html, key, localLiftNames, prefill(block, exercise, seed, plannedSets, date));
@@ -451,6 +453,28 @@ final class PlannedWorkoutSessionHtml {
       return String.valueOf(block.rounds());
     }
     return String.valueOf(Math.max(1, plannedSets.size()));
+  }
+
+  private static List<ExecutionSetFormValues> plannedSetDefaults(
+      List<PlannedWorkoutFile.PlannedSetTarget> plannedSets,
+      String liftName,
+      PlannedWorkoutHistory.Snapshot history) {
+    if (plannedSets.stream().noneMatch(target -> target.weight() != null)) {
+      return List.of();
+    }
+    return plannedSets.stream()
+        .map(
+            target -> {
+              MetricSeed seed = MetricSeed.from(target, liftName, history);
+              return new ExecutionSetFormValues(
+                  seed.metricType(),
+                  seed.metricValue(),
+                  seed.metricLeft(),
+                  seed.metricRight(),
+                  seed.weight(),
+                  "");
+            })
+        .toList();
   }
 
   private static void appendTargets(
@@ -495,7 +519,12 @@ final class PlannedWorkoutSessionHtml {
     if (resolution.weight().isBlank()) {
       return "";
     }
-    return " <span class='muted'>Suggested: " + WebHtml.escapeHtml(resolution.weight()) + "</span>";
+    String label = target.weight() == null ? "Suggested" : "Prescribed";
+    return " <span class='muted'>"
+        + label
+        + ": "
+        + WebHtml.escapeHtml(resolution.weight())
+        + "</span>";
   }
 
   private static void appendHistory(StringBuilder html, PlannedWorkoutHistory.Summary summary) {

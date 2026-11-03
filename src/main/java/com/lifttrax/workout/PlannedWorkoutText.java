@@ -105,7 +105,7 @@ public final class PlannedWorkoutText {
         count++;
       }
       String suggested = suggestion.apply(target);
-      if (!suggested.isBlank()) {
+      if (target.weight() == null && !suggested.isBlank()) {
         groups.add(count > 1 ? count + "x " + suggested : suggested);
       }
       index += count;
@@ -116,6 +116,9 @@ public final class PlannedWorkoutText {
   public static String plannedSet(PlannedWorkoutFile.PlannedSetTarget target) {
     List<String> parts = new ArrayList<>();
     parts.add(plannedMetric(target));
+    if (target.weight() != null) {
+      parts.add("@ " + target.weight());
+    }
     addPercent(parts, target);
     addDecimal(parts, "RPE ", target.rpe());
     addDecimal(parts, "RPE cap ", target.rpeCap());
@@ -186,6 +189,7 @@ public final class PlannedWorkoutText {
         && Objects.equals(first.rpeCap(), second.rpeCap())
         && Objects.equals(first.accommodatingResistance(), second.accommodatingResistance())
         && Objects.equals(first.rest(), second.rest())
+        && Objects.equals(first.weight(), second.weight())
         && first.deload() == second.deload();
   }
 

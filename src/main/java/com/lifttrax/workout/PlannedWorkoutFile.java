@@ -29,6 +29,7 @@ public record PlannedWorkoutFile(
     validateRestRangeVersion(schemaVersion, weeks);
     validateLoadGuidanceVersion(schemaVersion, weeks);
     validateLoadReference(schemaVersion, weeks);
+    validatePlannedWeight(schemaVersion, weeks);
   }
 
   public record PlannedWorkoutMetadata(
@@ -134,6 +135,7 @@ public record PlannedWorkoutFile(
       @JsonInclude(JsonInclude.Include.NON_NULL) Float rpeCap,
       String accommodatingResistance,
       @JsonInclude(JsonInclude.Include.NON_NULL) RestRange rest,
+      @JsonInclude(JsonInclude.Include.NON_NULL) String weight,
       boolean deload) {
     public PlannedSetTarget(
         Integer setNumber,
@@ -164,6 +166,7 @@ public record PlannedWorkoutFile(
           rpe,
           null,
           accommodatingResistance,
+          null,
           null,
           deload);
     }
@@ -199,6 +202,46 @@ public record PlannedWorkoutFile(
           null,
           accommodatingResistance,
           rest,
+          null,
+          deload);
+    }
+
+    /** Preserves the published v5/v6 Java constructor while v7 adds the weight component. */
+    @SuppressWarnings("PMD.ExcessiveParameterList")
+    public PlannedSetTarget(
+        Integer setNumber,
+        String metricType,
+        Integer reps,
+        Integer repsLeft,
+        Integer repsRight,
+        Integer repsMin,
+        Integer repsMax,
+        Integer seconds,
+        Integer distanceFeet,
+        Integer percent,
+        String percentOf,
+        Float rpe,
+        Float rpeCap,
+        String accommodatingResistance,
+        RestRange rest,
+        boolean deload) {
+      this(
+          setNumber,
+          metricType,
+          reps,
+          repsLeft,
+          repsRight,
+          repsMin,
+          repsMax,
+          seconds,
+          distanceFeet,
+          percent,
+          percentOf,
+          rpe,
+          rpeCap,
+          accommodatingResistance,
+          rest,
+          null,
           deload);
     }
 
@@ -213,6 +256,10 @@ public record PlannedWorkoutFile(
       }
       if (rpeCap != null && (rpeCap < 0.0f || rpeCap > 10.0f)) {
         throw new IllegalArgumentException("plannedSet.rpeCap must be between 0 and 10");
+      }
+      if (weight != null && (weight.isBlank() || "none".equalsIgnoreCase(weight.trim()))) {
+        throw new IllegalArgumentException(
+            "plannedSet.weight must be a non-empty logged weight such as 225 lb or 100 kg");
       }
     }
 
@@ -396,6 +443,32 @@ public record PlannedWorkoutFile(
           }
         }
       }
+    }
+  }
+
+  static void validatePlannedWeight(int schemaVersion, List<PlannedWorkoutWeek> weeks) {
+    weeks.stream()
+        .flatMap(week -> week.days().stream())
+        .flatMap(day -> day.blocks().stream())
+        .flatMap(block -> block.exercises().stream())
+        .flatMap(exercise -> exercise.plannedSets().stream())
+        .forEach(set -> validatePlannedWeight(schemaVersion, set));
+  }
+
+  private static void validatePlannedWeight(int schemaVersion, PlannedSetTarget set) {
+    if (set.weight() == null) {
+      return;
+    }
+    if (schemaVersion < 7) {
+      throw new IllegalArgumentException(
+          "plannedSet.weight requires workout schemaVersion 7 or later");
+    }
+    if (set.percent() != null || set.percentOf() != null) {
+      throw new IllegalArgumentException(
+          "plannedSet.weight cannot be combined with percent or percentOf");
+    }
+    if (set.rpe() != null || set.rpeCap() != null) {
+      throw new IllegalArgumentException("plannedSet.weight cannot be combined with rpe or rpeCap");
     }
   }
 }

@@ -8,7 +8,7 @@ new versions ship. New files should always use the latest schema snapshot.
 | Contract | Latest version | Supported versions |
 | --- | --- | --- |
 | Program schema | `3` | `1`, `2`, `3` |
-| Planned workout format | `6` | `1`, `2`, `3`, `4`, `5`, `6` |
+| Planned workout format | `7` | `1`, `2`, `3`, `4`, `5`, `6`, `7` |
 | Exercise catalog import | `1` | `1` |
 | Account export | `2` | Frozen v1 and v2 schemas; new exports use v2 |
 
@@ -33,6 +33,12 @@ Planned-workout version `6` makes the `percentOf` relationship explicit in the
 contract: a non-null value must be a nonblank lift name and must accompany
 `percent`. Null or omitted `percentOf` continues to mean the exercise being
 performed. Versions `1` through `5` remain loadable unchanged.
+
+Planned-workout version `7` adds optional exact `weight` prescriptions to
+planned sets. A weight uses the same text syntax as execution logging and is
+mutually exclusive with `percent`, `percentOf`, `rpe`, and `rpeCap`. This keeps
+one unambiguous load mode while preserving the exact value and unit. Versions
+`1` through `6` remain loadable unchanged.
 
 Program schema version `3` adds the same optional `percentOf` field to fixed set
 schemes and progression steps. It may accompany `percent`, `percentMin`, or

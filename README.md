@@ -133,9 +133,9 @@ The Workout Waves and Import Workout tabs share the same planned-workout output
 options: app preview, print view, Markdown download, and workout JSON download.
 The print view uses a compact white layout with print-friendly page breaks.
 After previewing an imported file, choose `Start This Day` for the workout you
-want to train.
-The follow-along screen seeds the planned set counts, accepts completed reps,
-left/right reps, seconds, distance, weight, and RPE, and saves completed work
+want to train. The follow-along screen seeds planned set counts and exact
+planned weights, accepts completed reps, left/right reps, seconds, distance,
+weight, and RPE, and saves completed work
 into normal execution history. Planned-set rest ranges appear in preview,
 print, Markdown, and follow-along targets. Workout-file swap choices are
 available when the matching lifts exist locally.

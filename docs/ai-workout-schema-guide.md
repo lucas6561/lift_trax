@@ -64,6 +64,10 @@ Workout requirements:
 - Use either percent or rpe as the primary intensity prescription for a planned
   set, not both. Older files written against prior numbered schemas may contain
   both and remain readable for compatibility.
+- When an exact load is already prescribed, add `weight` using the same text as
+  workout logging, such as `225 lb`, `100 kg`, `45|45 lb`, `red+blue`, or
+  `225 lb+40c`. Do not combine `weight` with `percent`, `percentOf`, `rpe`, or
+  `rpeCap` on the same planned set.
 - An rpeCap may accompany percent. It means to start with the percentage-based
   load, never exceed the cap, and reduce the load when necessary. Do not replace
   an RPE-prescribed set's rpe with rpeCap.
@@ -94,15 +98,17 @@ Sanity-check the generated file before training from it:
    positive `reps` value, timed work uses `time_seconds` and `seconds`, distance
    work uses `distance_feet` and `distanceFeet`, and rep ranges use
    `reps_range`, `repsMin`, and `repsMax`.
-6. Check each optional `rpeCap` is between 0 and 10. A set may use `percent`
+6. Check each optional `weight` is a real prescribed load, not blank or `none`,
+   and that the same set has no percentage or RPE load target.
+7. Check each optional `rpeCap` is between 0 and 10. A set may use `percent`
    with `rpeCap`, but it must not use `percent` with `rpe`.
-7. Check each `percentOf` value names the intended load-reference exercise and
+8. Check each `percentOf` value names the intended load-reference exercise and
    is used only to clarify a percentage target.
-8. Check each optional rest range uses non-negative integer seconds and has
+9. Check each optional rest range uses non-negative integer seconds and has
    `maximumSeconds` greater than or equal to `minimumSeconds`.
-9. If you use a JSON Schema validator, validate the file against the raw schema
+10. If you use a JSON Schema validator, validate the file against the raw schema
    URL above.
-10. In LiftTrax, open the web UI, go to the Import Workout tab, select the JSON
+11. In LiftTrax, open the web UI, go to the Import Workout tab, select the JSON
    file, and use App Preview first. The preview should show readable weeks,
    days, blocks, exercise names, and set targets before you choose Work Along.
 
@@ -113,7 +119,7 @@ same schema instead of manually editing large sections by hand.
 
 A valid planned-workout example lives at:
 
-- `shared/workouts/examples/conjugate-wave-v6.json`
+- `shared/workouts/examples/conjugate-wave-v7.json`
 
 That example shows the same importable planned-workout shape: metadata, source,
 weeks, days, blocks, exercise details, planned set targets with percentage
@@ -133,3 +139,17 @@ main-work target is equivalent to:
 
 This means to start with 70% of the Conventional Deadlift max and reduce the
 load if necessary rather than exceeding RPE 8.
+
+The same example also contains an exact-weight set equivalent to:
+
+```json
+{
+  "metricType": "reps",
+  "reps": 4,
+  "weight": "225 lb",
+  "deload": false
+}
+```
+
+LiftTrax displays this as a prescribed load and pre-fills `225 lb` in Work
+Along. The lifter may still record a different performed weight.

@@ -95,7 +95,13 @@ public final class WorkoutHistoryFormatter {
 
   public static String suggestedWeight(
       Database db, String liftName, PlannedWorkoutFile.PlannedSetTarget target) throws Exception {
-    if (db == null || target == null) {
+    if (target == null) {
+      return null;
+    }
+    if (target.weight() != null) {
+      return target.weight();
+    }
+    if (db == null) {
       return null;
     }
     if (targetPercent(target) == null) {
@@ -108,6 +114,9 @@ public final class WorkoutHistoryFormatter {
       List<LiftExecution> executions, PlannedWorkoutFile.PlannedSetTarget target) {
     if (target == null) {
       return null;
+    }
+    if (target.weight() != null) {
+      return target.weight();
     }
     Double targetPercent = targetPercent(target);
     if (targetPercent == null) {

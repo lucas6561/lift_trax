@@ -328,6 +328,79 @@ class PlannedWorkoutFileTest {
   }
 
   @Test
+  void plannedWorkoutV7PreservesExactWeightsWithoutHistorySuggestions() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v7.json"));
+    PlannedWorkoutFile.PlannedSetTarget weighted =
+        workoutFile
+            .weeks()
+            .get(0)
+            .days()
+            .get(0)
+            .blocks()
+            .get(0)
+            .exercises()
+            .get(0)
+            .plannedSets()
+            .get(1);
+
+    assertEquals("225 lb", weighted.weight());
+    assertEquals("4 reps @ 225 lb rest 3-5 min", PlannedWorkoutText.plannedSet(weighted));
+    assertEquals("225 lb", WorkoutHistoryFormatter.suggestedWeight(List.of(), weighted));
+    assertEquals(
+        workoutFile, PlannedWorkoutJson.readString(PlannedWorkoutJson.writeString(workoutFile)));
+    assertTrue(PlannedWorkoutJson.writeString(workoutFile).contains("\"weight\" : \"225 lb\""));
+  }
+
+  @Test
+  void plannedWorkoutV7RejectsInvalidOrAmbiguousExactWeights() throws Exception {
+    ObjectNode root =
+        (ObjectNode)
+            JSON.readTree(
+                Path.of("shared", "workouts", "examples", "conjugate-wave-v7.json").toFile());
+    ObjectNode weighted =
+        (ObjectNode)
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets")
+                .get(1);
+
+    weighted.put("weight", "none");
+    JsonProcessingException none =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(none.getOriginalMessage().contains("must be a non-empty logged weight"));
+
+    weighted.put("weight", "100 kg");
+    weighted.put("percent", 75);
+    JsonProcessingException percentage =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(percentage.getOriginalMessage().contains("cannot be combined with percent"));
+
+    weighted.remove("percent");
+    weighted.put("rpe", 8);
+    JsonProcessingException rpe =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(rpe.getOriginalMessage().contains("cannot be combined with rpe"));
+
+    weighted.remove("rpe");
+    ((ObjectNode) root).put("schemaVersion", 6);
+    JsonProcessingException olderVersion =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(olderVersion.getOriginalMessage().contains("requires workout schemaVersion 7"));
+  }
+
+  @Test
   void plannedWorkoutV5GuidanceRejectsInvalidCapsAndOlderVersions() throws Exception {
     JsonNode root =
         JSON.readTree(Path.of("shared", "workouts", "examples", "conjugate-wave-v5.json").toFile());
@@ -485,7 +558,7 @@ class PlannedWorkoutFileTest {
         exception
             .getOriginalMessage()
             .contains(
-                "Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4, 5, 6]."));
+                "Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4, 5, 6, 7]."));
   }
 
   @Test
@@ -555,6 +628,25 @@ class PlannedWorkoutFileTest {
                 .get(0);
         assertEquals("Conventional Deadlift", plannedSet.path("percentOf").asText());
         assertEquals(8, plannedSet.path("rpeCap").asInt());
+      }
+      if (schemaVersion >= 7) {
+        JsonNode plannedSetProperties =
+            JSON.readTree(schema.toFile()).path("$defs").path("plannedSet").path("properties");
+        assertEquals("string", plannedSetProperties.path("weight").path("type").get(0).asText());
+        assertEquals(
+            "225 lb",
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets")
+                .get(1)
+                .path("weight")
+                .asText());
       }
     }
   }
