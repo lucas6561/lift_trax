@@ -68,7 +68,9 @@ Key tasks:
 - `LT-0026`: Add exercise swap rules.
 - `LT-0027`: Persist planned versus completed workout data.
 - `LT-0030`: Add exercise equipment requirements.
-- `LT-0044`: Add configurable rest timer.
+- `LT-0124`: Manage equipment inventory and exercise setups.
+- `LT-0125`: Resolve equipment conflicts within workout blocks.
+- `LT-0058`: Add equipment-based substitutions.
 
 Loading, previewing, printing, saving, following, and device-resuming planned
 workouts are delivered. The LT-0076 through LT-0080 and LT-0093 sequence is also
@@ -147,6 +149,8 @@ See `tasks/milestones/` for the working sequence.
 3. `M3-followable-workouts`: Load a generated workout and log it while training.
 4. `M4-coach-authoring`: Enable program creation through files first, then editor workflows.
 5. `M5-multi-user-distribution`: Add user ownership, packaging, release, and deployment foundations.
+6. `M6-equipment-aware-training`: Persist equipment, manage exercise setups,
+   and resolve same-block equipment conflicts.
 
 ## Near-term sequence
 
@@ -156,9 +160,10 @@ See `tasks/milestones/` for the working sequence.
    history-safe (`LT-0079`), and prove recovery with `LT-0080`.
 3. Make the generic schema-to-wave path normal (`LT-0020`, `LT-0021`) before
    expanding coach authoring (`LT-0022`).
-4. Finish the workout loop with swaps, planned-versus-completed data,
-   equipment-aware choices, and the configurable rest timer (`LT-0026`,
-   `LT-0027`, `LT-0030`, `LT-0044`).
+4. Build the equipment-aware training sequence: persist alternative equipment
+   setups, add inventory and exercise-setup pages, resolve simultaneous-block
+   conflicts, and use the result for substitutions (`LT-0030`, `LT-0124`,
+   `LT-0125`, `LT-0026`, `LT-0058`).
 5. Add planned-workout visual regression coverage and finish the mutation
    ratchet (`LT-0063`, `LT-0073`, `LT-0075`).
 6. Define release/update policy (`LT-0017`) and build catalog-file import on the
