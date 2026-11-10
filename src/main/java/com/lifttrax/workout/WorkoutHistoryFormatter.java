@@ -137,7 +137,7 @@ public final class WorkoutHistoryFormatter {
         continue;
       }
       for (ExecutionSet set : exec.sets()) {
-        if (!isCompletedOneRepSet(set)) {
+        if (!isCompletedScalarOneRepSet(set)) {
           continue;
         }
         double weightLbs = WeightText.toPounds(set.weight());
@@ -150,12 +150,13 @@ public final class WorkoutHistoryFormatter {
     return bestWeight == null ? null : new BestOneRepMax(bestWeightLbs);
   }
 
-  private static boolean isCompletedOneRepSet(ExecutionSet set) {
+  private static boolean isCompletedScalarOneRepSet(ExecutionSet set) {
     return !set.missed()
         && set.metric() instanceof SetMetric.Reps reps
         && reps.reps() == 1
         && set.weight() != null
-        && !"none".equalsIgnoreCase(set.weight());
+        && !"none".equalsIgnoreCase(set.weight())
+        && isScalarWeight(set.weight());
   }
 
   private static BestOneRepMax trainingMaxValue(List<LiftExecution> executions) {
@@ -195,7 +196,8 @@ public final class WorkoutHistoryFormatter {
         || !(set.metric() instanceof SetMetric.Reps reps)
         || reps.reps() < 1
         || set.weight() == null
-        || "none".equalsIgnoreCase(set.weight())) {
+        || "none".equalsIgnoreCase(set.weight())
+        || !isScalarWeight(set.weight())) {
       return null;
     }
     double weightLbs = WeightText.toPounds(set.weight());
@@ -220,26 +222,13 @@ public final class WorkoutHistoryFormatter {
   }
 
   static Double targetPercent(PlannedWorkoutFile.PlannedSetTarget target) {
-    if (target.percent() != null) {
-      return target.percent().doubleValue();
-    }
-    if (target.rpe() == null) {
-      return null;
-    }
-    Integer reps = targetReps(target);
-    return reps == null ? null : rpePercent(reps, target.rpe());
+    // RPE is an athlete-selected effort target, not an implicit percentage prescription.
+    return target.percent() == null ? null : target.percent().doubleValue();
   }
 
-  private static Integer targetReps(PlannedWorkoutFile.PlannedSetTarget target) {
-    return switch (target.metricType()) {
-      case "reps" -> target.reps();
-      case "reps_range" -> target.repsMax() == null ? target.repsMin() : target.repsMax();
-      case "reps_lr" ->
-          target.repsLeft() == null || target.repsRight() == null
-              ? null
-              : Math.max(target.repsLeft(), target.repsRight());
-      default -> null;
-    };
+  private static boolean isScalarWeight(String weight) {
+    // Keep valid L/R history intact, but never collapse its two independent sides into one load.
+    return !weight.contains("|");
   }
 
   private static Double rpePercent(int reps, float rpe) {
