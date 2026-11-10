@@ -23,7 +23,7 @@ class PlannedWeightSessionHtmlTest {
         (ObjectNode)
             new ObjectMapper()
                 .readTree(
-                    Path.of("shared", "workouts", "examples", "conjugate-wave-v7.json").toFile());
+                    Path.of("shared", "workouts", "examples", "conjugate-wave-v8.json").toFile());
     ArrayNode sets =
         (ArrayNode)
             root.path("weeks")
@@ -35,10 +35,7 @@ class PlannedWeightSessionHtmlTest {
                 .path("exercises")
                 .get(0)
                 .path("plannedSets");
-    ObjectNode target = (ObjectNode) sets.get(0);
-    target.remove(List.of("percent", "percentOf", "rpeCap"));
-    target.put("weight", "225 lb");
-    sets.remove(1);
+    sets.remove(0);
     PlannedWorkoutFile plan = PlannedWorkoutJson.readString(root.toString());
 
     String html =
@@ -51,11 +48,12 @@ class PlannedWeightSessionHtmlTest {
                     "1\" Paused Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of(), "")),
             LocalDate.parse("2026-11-03"));
 
-    assertTrue(html.contains("Target: 4 reps @ 225 lb rest 3-5 min"));
+    assertTrue(html.contains("Target: 4 reps @ 225 lb · cap RPE 8 · rest 3-5 min"));
     assertTrue(html.contains("Prescribed: 225 lb"));
     assertTrue(html.contains("class='js-weight-hidden' value='225 lb'"));
     assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='225'"));
     assertTrue(html.contains("&quot;weight&quot;:&quot;225 lb&quot;"));
+    assertTrue(html.contains("&quot;rpeCap&quot;"));
     assertEquals(
         "225 lb",
         plan.weeks()
@@ -69,5 +67,18 @@ class PlannedWeightSessionHtmlTest {
             .plannedSets()
             .get(0)
             .weight());
+    assertEquals(
+        8.0f,
+        plan.weeks()
+            .get(0)
+            .days()
+            .get(0)
+            .blocks()
+            .get(0)
+            .exercises()
+            .get(0)
+            .plannedSets()
+            .get(0)
+            .rpeCap());
   }
 }

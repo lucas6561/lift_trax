@@ -66,11 +66,11 @@ Workout requirements:
   both and remain readable for compatibility.
 - When an exact load is already prescribed, add `weight` using the same text as
   workout logging, such as `225 lb`, `100 kg`, `45|45 lb`, `red+blue`, or
-  `225 lb+40c`. Do not combine `weight` with `percent`, `percentOf`, `rpe`, or
-  `rpeCap` on the same planned set.
-- An rpeCap may accompany percent. It means to start with the percentage-based
-  load, never exceed the cap, and reduce the load when necessary. Do not replace
-  an RPE-prescribed set's rpe with rpeCap.
+  `225 lb+40c`. Do not combine `weight` with `percent`, `percentOf`, or `rpe` on
+  the same planned set.
+- An `rpeCap` may accompany either `percent` or `weight`. It means to start with
+  the prescribed load, never exceed the cap, and reduce the load on the day when
+  necessary. Do not replace an RPE-selected set's `rpe` with `rpeCap`.
 - When percent should use another exercise's max or history, set percentOf to
   that exercise's exact LiftTrax name. Omit percentOf when the planned
   exercise itself is the percentage reference.
@@ -99,7 +99,8 @@ Sanity-check the generated file before training from it:
    work uses `distance_feet` and `distanceFeet`, and rep ranges use
    `reps_range`, `repsMin`, and `repsMax`.
 6. Check each optional `weight` is a real prescribed load, not blank or `none`,
-   and that the same set has no percentage or RPE load target.
+   and that the same set has no percentage or `rpe` load target. A structured
+   `rpeCap` may accompany it.
 7. Check each optional `rpeCap` is between 0 and 10. A set may use `percent`
    with `rpeCap`, but it must not use `percent` with `rpe`.
 8. Check each `percentOf` value names the intended load-reference exercise and
@@ -119,7 +120,7 @@ same schema instead of manually editing large sections by hand.
 
 A valid planned-workout example lives at:
 
-- `shared/workouts/examples/conjugate-wave-v7.json`
+- `shared/workouts/examples/conjugate-wave-v8.json`
 
 That example shows the same importable planned-workout shape: metadata, source,
 weeks, days, blocks, exercise details, planned set targets with percentage
@@ -140,16 +141,19 @@ main-work target is equivalent to:
 This means to start with 70% of the Conventional Deadlift max and reduce the
 load if necessary rather than exceeding RPE 8.
 
-The same example also contains an exact-weight set equivalent to:
+The same example also contains an exact-weight set with an effort ceiling:
 
 ```json
 {
   "metricType": "reps",
   "reps": 4,
   "weight": "225 lb",
+  "rpeCap": 8,
   "deload": false
 }
 ```
 
-LiftTrax displays this as a prescribed load and pre-fills `225 lb` in Work
-Along. The lifter may still record a different performed weight.
+LiftTrax displays the exact load and cap together, and pre-fills `225 lb` in
+Work Along. The lifter should start from the prescribed load but may reduce it
+when necessary to remain at or below RPE 8; the performed weight remains
+independently editable.

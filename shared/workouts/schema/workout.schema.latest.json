@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lifttrax.local/schemas/workout.schema.v7.json",
-  "title": "LiftTrax Planned Workout Schema v7",
+  "$id": "https://lifttrax.local/schemas/workout.schema.v8.json",
+  "title": "LiftTrax Planned Workout Schema v8",
   "description": "A versioned contract for generated planned workouts that can be loaded without rerunning the original generator.",
   "type": "object",
   "additionalProperties": false,
@@ -14,7 +14,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 7
+      "const": 8
     },
     "metadata": {
       "$ref": "#/$defs/metadata"
@@ -354,22 +354,6 @@
           }
         },
         {
-          "not": {
-            "required": [
-              "weight",
-              "rpeCap"
-            ],
-            "properties": {
-              "weight": {
-                "type": "string"
-              },
-              "rpeCap": {
-                "type": "number"
-              }
-            }
-          }
-        },
-        {
           "if": {
             "properties": {
               "metricType": {
@@ -623,7 +607,7 @@
           ],
           "minLength": 1,
           "pattern": "^(?!\\s*$)(?!\\s*[Nn][Oo][Nn][Ee]\\s*$).+",
-          "description": "Optional exact prescribed load using the same text stored for logged weights, such as 225 lb, 100 kg, 45|45 lb, red+blue, or 225 lb+40c. It cannot be combined with percent, percentOf, rpe, or rpeCap."
+          "description": "Optional exact prescribed starting load using the same text stored for logged weights, such as 225 lb, 100 kg, 45|45 lb, red+blue, or 225 lb+40c. It cannot be combined with percent, percentOf, or rpe. It may be combined with rpeCap so the lifter can reduce the load when necessary to remain under the effort cap."
         },
         "accommodatingResistance": {
           "type": [

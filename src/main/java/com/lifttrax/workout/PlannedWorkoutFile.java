@@ -28,8 +28,8 @@ public record PlannedWorkoutFile(
     }
     validateRestRangeVersion(schemaVersion, weeks);
     validateLoadGuidanceVersion(schemaVersion, weeks);
-    validateLoadReference(schemaVersion, weeks);
     validatePlannedWeight(schemaVersion, weeks);
+    validateLoadReference(schemaVersion, weeks);
   }
 
   public record PlannedWorkoutMetadata(
@@ -467,8 +467,12 @@ public record PlannedWorkoutFile(
       throw new IllegalArgumentException(
           "plannedSet.weight cannot be combined with percent or percentOf");
     }
-    if (set.rpe() != null || set.rpeCap() != null) {
-      throw new IllegalArgumentException("plannedSet.weight cannot be combined with rpe or rpeCap");
+    if (set.rpe() != null) {
+      throw new IllegalArgumentException("plannedSet.weight cannot be combined with rpe");
+    }
+    if (set.rpeCap() != null && schemaVersion < 8) {
+      throw new IllegalArgumentException(
+          "plannedSet.weight with rpeCap requires workout schemaVersion 8 or later");
     }
   }
 }

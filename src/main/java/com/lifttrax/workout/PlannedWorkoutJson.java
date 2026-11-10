@@ -24,7 +24,8 @@ public final class PlannedWorkoutJson {
           4, PlannedWorkoutJson::readCompatibleShape,
           5, PlannedWorkoutJson::readCompatibleShape,
           6, PlannedWorkoutJson::readCompatibleShape,
-          7, PlannedWorkoutJson::readCompatibleShape);
+          7, PlannedWorkoutJson::readCompatibleShape,
+          8, PlannedWorkoutJson::readCompatibleShape);
 
   private PlannedWorkoutJson() {}
 

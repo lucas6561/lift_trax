@@ -44,11 +44,12 @@ Set targets can represent:
 - deload flags
 
 The latest version supports `percentOf` when a percentage should use another
-exercise as its load reference, plus `rpeCap` when the percentage is the
-objective starting point but the load should be reduced to stay below an RPE
-ceiling. It also supports a machine-readable `rest` range on each planned set,
-using inclusive `minimumSeconds` and `maximumSeconds` values; equal values
-represent an exact rest duration. Version `1` remains unchanged and loadable.
+exercise as its load reference, plus `rpeCap` when either a percentage or an
+exact weight is the objective starting point but the load should be reduced to
+stay below an RPE ceiling. It also supports a machine-readable `rest` range on
+each planned set, using inclusive `minimumSeconds` and `maximumSeconds` values;
+equal values represent an exact rest duration. Version `1` remains unchanged
+and loadable.
 When `percentOf` is null or omitted, the performed exercise remains the load
 reference. A named reference is never replaced with the performed exercise if
 the named lift is missing or lacks a usable max/reference weight; the UI shows
@@ -57,7 +58,9 @@ an actionable load error instead.
 The latest version also supports an exact `weight` on a planned set. It uses
 the same stored syntax as logged weights, is displayed with the set target, and
 takes precedence over history-derived suggestions. Exact weight is a distinct
-load mode, so it cannot be combined with percentage or RPE fields on that set.
+load mode, so it cannot be combined with percentage fields or the load-selecting
+`rpe` field on that set. It may be paired with `rpeCap`; Work Along pre-fills the
+exact weight while displaying the cap as the effort ceiling.
 
 ## Import Boundary
 
@@ -84,10 +87,10 @@ From the preview, `Start This Day` opens the follow-along logging screen for one
 week and day. Planned set counts seed editable result fields for reps,
 left/right reps, time, distance, and any exact prescribed weight. Plans with
 different exact weights across sets seed the individual-set log so each default
-stays with its target. Current generated planned sets use percent
-or RPE as the primary intensity target, not both; a percent target may also use
-an RPE cap. Older imports with both percent and prescribed RPE remain readable
-for compatibility. Completed sets can add weights and RPE,
+stays with its target. Current generated planned sets use percent, exact weight,
+or RPE as the primary intensity target; percentage and exact-weight targets may
+also use an RPE cap. Older imports with both percent and prescribed RPE remain
+readable for compatibility. Completed sets can add weights and RPE,
 planned work can be skipped, and exercises can use substitution options already
 declared in the workout file when those lifts exist locally. Saved work enters
 the regular execution history. Durable planned-versus-completed storage is a

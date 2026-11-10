@@ -174,7 +174,7 @@ class PlannedWorkoutSessionHtmlTest {
   }
 
   private static void assertSessionSetEntry(String html) {
-    assertTrue(html.contains("Target: 5 reps @ 80% rest 2-3 min"));
+    assertTrue(html.contains("Target: 5 reps @ 80% · rest 2-3 min"));
     assertTrue(html.contains("session-execution-widget js-session-execution-input"));
     assertTrue(html.contains("class='session-entry-primary' aria-label='Completed set entry'"));
     assertTrue(html.contains("class='session-entry-weight weight-weight'>Weight"));
@@ -574,7 +574,7 @@ class PlannedWorkoutSessionHtmlTest {
   }
 
   @Test
-  void sessionPageUsesRpeTableWithHistoricalFallbackWhenPercentIsMissing() throws Exception {
+  void sessionPageKeepsRpeOnlyTargetsUnweightedWhenHistoryExists() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-follow-session-rpe-seed", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {
       db.addLift("Back Squat", LiftRegion.LOWER, LiftType.SQUAT, List.of(), "");
@@ -597,10 +597,10 @@ class PlannedWorkoutSessionHtmlTest {
               LocalDate.parse("2026-05-31"),
               db);
 
-      assertTrue(html.contains("Target: 5 reps RPE 6.5"));
-      assertTrue(html.contains("Suggested: 265 lb"));
-      assertTrue(html.contains("class='js-weight-hidden' value='265 lb'"));
-      assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='265'"));
+      assertTrue(html.contains("Target: 5 reps @ RPE 6.5"));
+      assertFalse(html.contains("Suggested: 265 lb"));
+      assertTrue(html.contains("class='js-weight-hidden' value=''"));
+      assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value=''"));
       assertTrue(html.contains("name='rpe' value=''"));
     }
   }
@@ -625,7 +625,7 @@ class PlannedWorkoutSessionHtmlTest {
               LocalDate.parse("2026-05-31"),
               db);
 
-      assertTrue(html.contains("Target: 3 reps @ 97% of Overhead Press RPE cap 8.0"));
+      assertTrue(html.contains("Target: 3 reps @ 97% of Overhead Press · cap RPE 8"));
       assertTrue(html.contains("Suggested: 175 lb"));
       assertTrue(html.contains("Planned working weight: <strong>175 lb</strong>"));
       assertTrue(html.contains("class='js-weight-hidden' value='175 lb'"));

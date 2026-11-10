@@ -390,7 +390,7 @@ class WebUiRendererTest {
     assertTrue(html.contains("Week 1"));
     assertTrue(html.contains("Monday"));
     assertTrue(html.contains("Backoff Sets"));
-    assertTrue(html.contains("2x 5 reps @ 80% CHAINS rest 2-3 min"));
+    assertTrue(html.contains("2×5 @ 80% · CHAINS · rest 2-3 min"));
     assertTrue(html.contains("Swap options: Front Squat"));
     assertFalse(html.contains("action='/planned-workout-session'"));
     assertFalse(html.contains("Start This Day"));
@@ -541,7 +541,7 @@ class WebUiRendererTest {
 
     String html = PlannedWorkoutHtml.renderPage(workoutFile);
 
-    assertTrue(html.contains("2x 8-10 reps @ 65%"));
+    assertTrue(html.contains("2×8-10 reps @ 65%"));
     assertFalse(html.contains("null reps"));
   }
 
@@ -651,6 +651,23 @@ class WebUiRendererTest {
     assertTrue(html.contains("class='print-week'"));
     assertTrue(html.contains("class='print-target'"));
     assertFalse(html.contains("data-theme='dark'"));
+  }
+
+  @Test
+  void plannedWorkoutPreviewAndPrintRenderExactWeightWithRpeCapProminently() throws Exception {
+    PlannedWorkoutFile workoutFile =
+        com.lifttrax.workout.PlannedWorkoutJson.readPath(
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v8.json"));
+    String expected = "4 reps @ 225 lb · cap RPE 8 · rest 3-5 min";
+
+    String preview = PlannedWorkoutHtml.renderPage(workoutFile);
+    String print = PlannedWorkoutPrintHtml.renderPage(workoutFile, null);
+
+    assertTrue(preview.contains(expected));
+    assertTrue(print.contains("class='print-target'"));
+    assertTrue(print.contains(expected));
+    assertFalse(preview.contains("Notes: cap RPE"));
+    assertFalse(print.contains("<strong>Program notes:</strong> cap RPE"));
   }
 
   @Test

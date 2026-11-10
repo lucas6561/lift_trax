@@ -251,7 +251,7 @@ class PlannedWorkoutFileTest {
 
     assertEquals(180, target.rest().minimumSeconds());
     assertEquals(300, target.rest().maximumSeconds());
-    assertEquals("1 reps rest 3-5 min", PlannedWorkoutText.plannedSet(target));
+    assertEquals("1 reps · rest 3-5 min", PlannedWorkoutText.plannedSet(target));
     assertEquals(
         workoutFile, PlannedWorkoutJson.readString(PlannedWorkoutJson.writeString(workoutFile)));
 
@@ -288,8 +288,8 @@ class PlannedWorkoutFileTest {
             new PlannedWorkoutFile.RestRange(120, 120),
             false);
 
-    assertEquals("5 reps rest 90-120 sec", PlannedWorkoutText.plannedSet(secondsRange));
-    assertEquals("5 reps rest 2 min", PlannedWorkoutText.plannedSet(exactRest));
+    assertEquals("5 reps · rest 90-120 sec", PlannedWorkoutText.plannedSet(secondsRange));
+    assertEquals("5 reps · rest 2 min", PlannedWorkoutText.plannedSet(exactRest));
   }
 
   @Test
@@ -305,7 +305,7 @@ class PlannedWorkoutFileTest {
     assertEquals("Conventional Deadlift", target.percentOf());
     assertEquals(8.0f, target.rpeCap());
     assertEquals(
-        "4 reps @ 70% of Conventional Deadlift RPE cap 8.0 rest 3-5 min",
+        "4 reps @ 70% of Conventional Deadlift · cap RPE 8 · rest 3-5 min",
         PlannedWorkoutText.plannedSet(target));
     assertEquals(
         workoutFile, PlannedWorkoutJson.readString(PlannedWorkoutJson.writeString(workoutFile)));
@@ -328,10 +328,10 @@ class PlannedWorkoutFileTest {
   }
 
   @Test
-  void plannedWorkoutV7PreservesExactWeightsWithoutHistorySuggestions() throws Exception {
+  void plannedWorkoutV8PreservesExactWeightsAndRpeCapsWithoutHistorySuggestions() throws Exception {
     PlannedWorkoutFile workoutFile =
         PlannedWorkoutJson.readPath(
-            Path.of("shared", "workouts", "examples", "conjugate-wave-v7.json"));
+            Path.of("shared", "workouts", "examples", "conjugate-wave-v8.json"));
     PlannedWorkoutFile.PlannedSetTarget weighted =
         workoutFile
             .weeks()
@@ -346,7 +346,12 @@ class PlannedWorkoutFileTest {
             .get(1);
 
     assertEquals("225 lb", weighted.weight());
-    assertEquals("4 reps @ 225 lb rest 3-5 min", PlannedWorkoutText.plannedSet(weighted));
+    assertEquals(8.0f, weighted.rpeCap());
+    assertEquals(
+        "4 reps @ 225 lb · cap RPE 8 · rest 3-5 min", PlannedWorkoutText.plannedSet(weighted));
+    assertEquals(
+        "3×4 @ 225 lb · cap RPE 8 · rest 3-5 min",
+        PlannedWorkoutText.plannedSets(List.of(weighted, weighted, weighted)));
     assertEquals("225 lb", WorkoutHistoryFormatter.suggestedWeight(List.of(), weighted));
     assertEquals(
         workoutFile, PlannedWorkoutJson.readString(PlannedWorkoutJson.writeString(workoutFile)));
@@ -354,11 +359,11 @@ class PlannedWorkoutFileTest {
   }
 
   @Test
-  void plannedWorkoutV7RejectsInvalidOrAmbiguousExactWeights() throws Exception {
+  void plannedWorkoutV8RejectsInvalidOrAmbiguousExactWeights() throws Exception {
     ObjectNode root =
         (ObjectNode)
             JSON.readTree(
-                Path.of("shared", "workouts", "examples", "conjugate-wave-v7.json").toFile());
+                Path.of("shared", "workouts", "examples", "conjugate-wave-v8.json").toFile());
     ObjectNode weighted =
         (ObjectNode)
             root.path("weeks")
@@ -386,6 +391,13 @@ class PlannedWorkoutFileTest {
     assertTrue(percentage.getOriginalMessage().contains("cannot be combined with percent"));
 
     weighted.remove("percent");
+    weighted.put("percentOf", "Conventional Deadlift");
+    JsonProcessingException percentageReference =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(percentageReference.getOriginalMessage().contains("percent or percentOf"));
+
+    weighted.remove("percentOf");
     weighted.put("rpe", 8);
     JsonProcessingException rpe =
         assertThrows(
@@ -393,6 +405,14 @@ class PlannedWorkoutFileTest {
     assertTrue(rpe.getOriginalMessage().contains("cannot be combined with rpe"));
 
     weighted.remove("rpe");
+    weighted.put("rpeCap", 8);
+    ((ObjectNode) root).put("schemaVersion", 7);
+    JsonProcessingException v7Cap =
+        assertThrows(
+            JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
+    assertTrue(v7Cap.getOriginalMessage().contains("requires workout schemaVersion 8"));
+
+    weighted.remove("rpeCap");
     ((ObjectNode) root).put("schemaVersion", 6);
     JsonProcessingException olderVersion =
         assertThrows(
@@ -558,7 +578,7 @@ class PlannedWorkoutFileTest {
         exception
             .getOriginalMessage()
             .contains(
-                "Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4, 5, 6, 7]."));
+                "Unsupported workout schemaVersion 99; supported versions: [1, 2, 3, 4, 5, 6, 7, 8]."));
   }
 
   @Test
@@ -582,7 +602,8 @@ class PlannedWorkoutFileTest {
 
       assertTrue(Files.isRegularFile(schema));
       assertTrue(Files.isRegularFile(example));
-      assertFalse(JSON.readTree(schema.toFile()).isMissingNode());
+      JsonNode schemaRoot = JSON.readTree(schema.toFile());
+      assertFalse(schemaRoot.isMissingNode());
 
       JsonNode root = JSON.readTree(example.toFile());
       assertEquals(schemaVersion, root.path("schemaVersion").asInt());
@@ -606,11 +627,11 @@ class PlannedWorkoutFileTest {
                 .path("rest");
         assertEquals(180, rest.path("minimumSeconds").asInt());
         assertEquals(300, rest.path("maximumSeconds").asInt());
-        assertTrue(JSON.readTree(schema.toFile()).path("$defs").has("restRange"));
+        assertTrue(schemaRoot.path("$defs").has("restRange"));
       }
       if (schemaVersion >= 5) {
         JsonNode plannedSetProperties =
-            JSON.readTree(schema.toFile()).path("$defs").path("plannedSet").path("properties");
+            schemaRoot.path("$defs").path("plannedSet").path("properties");
         assertEquals(0, plannedSetProperties.path("rpeCap").path("minimum").asInt());
         assertEquals(10, plannedSetProperties.path("rpeCap").path("maximum").asInt());
         assertTrue(plannedSetProperties.path("percentOf").path("type").isArray());
@@ -629,25 +650,35 @@ class PlannedWorkoutFileTest {
         assertEquals("Conventional Deadlift", plannedSet.path("percentOf").asText());
         assertEquals(8, plannedSet.path("rpeCap").asInt());
       }
-      if (schemaVersion >= 7) {
-        JsonNode plannedSetProperties =
-            JSON.readTree(schema.toFile()).path("$defs").path("plannedSet").path("properties");
-        assertEquals("string", plannedSetProperties.path("weight").path("type").get(0).asText());
-        assertEquals(
-            "225 lb",
-            root.path("weeks")
-                .get(0)
-                .path("days")
-                .get(0)
-                .path("blocks")
-                .get(0)
-                .path("exercises")
-                .get(0)
-                .path("plannedSets")
-                .get(1)
-                .path("weight")
-                .asText());
-      }
+      assertWeightSchema(schemaVersion, schemaRoot, root);
+    }
+  }
+
+  private static void assertWeightSchema(int schemaVersion, JsonNode schemaRoot, JsonNode example) {
+    if (schemaVersion < 7) {
+      return;
+    }
+    JsonNode plannedSetProperties = schemaRoot.path("$defs").path("plannedSet").path("properties");
+    JsonNode weightedSet =
+        example
+            .path("weeks")
+            .get(0)
+            .path("days")
+            .get(0)
+            .path("blocks")
+            .get(0)
+            .path("exercises")
+            .get(0)
+            .path("plannedSets")
+            .get(1);
+    assertEquals("string", plannedSetProperties.path("weight").path("type").get(0).asText());
+    assertEquals("225 lb", weightedSet.path("weight").asText());
+    assertTrue(schemaForbidsCombination(schemaRoot, "weight", "percent"));
+    assertTrue(schemaForbidsCombination(schemaRoot, "weight", "percentOf"));
+    assertTrue(schemaForbidsCombination(schemaRoot, "weight", "rpe"));
+    assertEquals(schemaVersion == 7, schemaForbidsCombination(schemaRoot, "weight", "rpeCap"));
+    if (schemaVersion >= 8) {
+      assertEquals(8, weightedSet.path("rpeCap").asInt());
     }
   }
 
@@ -714,5 +745,28 @@ class PlannedWorkoutFileTest {
         assertThrows(
             JsonProcessingException.class, () -> PlannedWorkoutJson.readString(root.toString()));
     assertTrue(unpaired.getOriginalMessage().contains("percentOf requires plannedSet.percent"));
+  }
+
+  private static boolean schemaForbidsCombination(
+      JsonNode schemaRoot, String firstProperty, String secondProperty) {
+    for (JsonNode clause : schemaRoot.path("$defs").path("plannedSet").path("allOf")) {
+      JsonNode required = clause.path("not").path("required");
+      if (required.isArray()
+          && required.size() == 2
+          && containsText(required, firstProperty)
+          && containsText(required, secondProperty)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean containsText(JsonNode values, String expected) {
+    for (JsonNode value : values) {
+      if (expected.equals(value.asText())) {
+        return true;
+      }
+    }
+    return false;
   }
 }

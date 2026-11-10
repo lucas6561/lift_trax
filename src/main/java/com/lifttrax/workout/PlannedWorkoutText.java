@@ -51,8 +51,7 @@ public final class PlannedWorkoutText {
       while (index + count < sets.size() && samePlannedTarget(target, sets.get(index + count))) {
         count++;
       }
-      String formatted = plannedSet(target);
-      groups.add(count > 1 ? count + "x " + formatted : formatted);
+      groups.add(plannedSet(target, count));
       index += count;
     }
     return join(groups);
@@ -114,34 +113,61 @@ public final class PlannedWorkoutText {
   }
 
   public static String plannedSet(PlannedWorkoutFile.PlannedSetTarget target) {
+    return plannedSet(target, 1);
+  }
+
+  private static String plannedSet(
+      PlannedWorkoutFile.PlannedSetTarget target, int identicalSetCount) {
     List<String> parts = new ArrayList<>();
-    parts.add(plannedMetric(target));
+    StringBuilder prescription = new StringBuilder(plannedMetric(target, identicalSetCount));
     if (target.weight() != null) {
-      parts.add("@ " + target.weight());
+      prescription.append(" @ ").append(target.weight());
     }
-    addPercent(parts, target);
-    addDecimal(parts, "RPE ", target.rpe());
-    addDecimal(parts, "RPE cap ", target.rpeCap());
+    addPercent(prescription, target);
+    addRpe(prescription, parts, target);
+    parts.add(0, prescription.toString());
+    addDecimal(parts, "cap RPE ", target.rpeCap());
     addResistance(parts, target.accommodatingResistance());
     addRest(parts, target.rest());
     addDeload(parts, target.deload());
-    return String.join(" ", parts);
+    return String.join(" · ", parts);
   }
 
-  private static void addPercent(List<String> parts, PlannedWorkoutFile.PlannedSetTarget target) {
+  private static void addPercent(
+      StringBuilder prescription, PlannedWorkoutFile.PlannedSetTarget target) {
     if (target.percent() != null) {
       String percentOf =
           target.percentOf() == null || target.percentOf().isBlank()
               ? ""
               : " of " + target.percentOf();
-      parts.add("@ " + target.percent() + "%" + percentOf);
+      prescription.append(" @ ").append(target.percent()).append('%').append(percentOf);
+    }
+  }
+
+  private static void addRpe(
+      StringBuilder prescription, List<String> parts, PlannedWorkoutFile.PlannedSetTarget target) {
+    if (target.rpe() == null) {
+      return;
+    }
+    String rpe = "RPE " + decimal(target.rpe());
+    if (target.weight() == null && target.percent() == null) {
+      prescription.append(" @ ").append(rpe);
+    } else {
+      parts.add(rpe);
     }
   }
 
   private static void addDecimal(List<String> parts, String label, Float value) {
     if (value != null) {
-      parts.add(label + String.format(Locale.ROOT, "%.1f", value));
+      parts.add(label + decimal(value));
     }
+  }
+
+  private static String decimal(Float value) {
+    if (value == Math.rint(value)) {
+      return String.format(Locale.ROOT, "%.0f", value);
+    }
+    return String.format(Locale.ROOT, "%.1f", value);
   }
 
   private static void addResistance(List<String> parts, String resistance) {
@@ -191,6 +217,22 @@ public final class PlannedWorkoutText {
         && Objects.equals(first.rest(), second.rest())
         && Objects.equals(first.weight(), second.weight())
         && first.deload() == second.deload();
+  }
+
+  private static String plannedMetric(
+      PlannedWorkoutFile.PlannedSetTarget target, int identicalSetCount) {
+    if (identicalSetCount == 1) {
+      return plannedMetric(target);
+    }
+    String prefix = identicalSetCount + "×";
+    return switch (target.metricType()) {
+      case "reps" -> target.reps() == null ? prefix + repRange(target) : prefix + target.reps();
+      case "reps_lr" -> prefix + target.repsLeft() + "L/" + target.repsRight() + "R reps";
+      case "reps_range" -> prefix + repRange(target);
+      case "time_seconds" -> prefix + target.seconds() + " sec";
+      case "distance_feet" -> prefix + target.distanceFeet() + " ft";
+      default -> prefix + "planned work";
+    };
   }
 
   private static String plannedMetric(PlannedWorkoutFile.PlannedSetTarget target) {

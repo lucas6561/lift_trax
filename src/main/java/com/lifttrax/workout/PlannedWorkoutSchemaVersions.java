@@ -18,7 +18,8 @@ public final class PlannedWorkoutSchemaVersions {
               4, "/workouts/schema/workout.schema.v4.json",
               5, "/workouts/schema/workout.schema.v5.json",
               6, "/workouts/schema/workout.schema.v6.json",
-              7, "/workouts/schema/workout.schema.v7.json"));
+              7, "/workouts/schema/workout.schema.v7.json",
+              8, "/workouts/schema/workout.schema.v8.json"));
 
   private PlannedWorkoutSchemaVersions() {}
 
