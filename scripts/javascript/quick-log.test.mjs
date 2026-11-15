@@ -13,6 +13,18 @@ test('quick log preserves edits through reload in account-scoped storage', t => 
   assert.equal(q.$('form.add-execution-form [name="notes"]').value, 'steady');
 });
 
+test('quick log restores matching mode unless an individual set log has data', t => {
+  const empty = page(t, 'add-execution', { before(w) {
+    w.localStorage.setItem(key, JSON.stringify({ setEntryMode: 'individual', detailedSets: [] }));
+  } });
+  assert.equal(empty.$('[name="setEntryMode"][value="multiple"]').checked, true);
+
+  const populated = page(t, 'add-execution', { before(w) {
+    w.localStorage.setItem(key, JSON.stringify({ setEntryMode: 'multiple', detailedSets: [{ metricType: 'reps', metricValue: '5', weight: '225 lb' }] }));
+  } });
+  assert.equal(populated.$('[name="setEntryMode"][value="individual"]').checked, true);
+});
+
 test('quick log ignores another account draft', t => {
   const p = page(t, 'add-execution', { before(w) { w.localStorage.setItem('lifttrax.addExecutionDraft.v2.other', JSON.stringify({ weightValue: '999' })); } });
   assert.notEqual(p.$('[name="weightValue"]').value, '999');
@@ -50,6 +62,7 @@ test('quick log add uses one capture handler, removes sets and clears the list',
   assert.equal(JSON.parse(p.$('.js-detailed-sets').value)[0].weight, '185 lb');
   p.click('.js-set-list button'); assert.equal(p.$('.js-set-list').children.length, 1);
   p.click('.js-clear-sets'); assert.equal(p.$('.js-set-list').children.length, 0);
+  assert.equal(p.$('[name="setEntryMode"][value="multiple"]').checked, true);
 });
 
 for (const [mode, field, value, expected] of [

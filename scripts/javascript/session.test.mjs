@@ -42,6 +42,15 @@ test('session set editing uses real click, keyboard and remove events', t => {
   assert.equal(p.$('.js-set-list').children.length, 1);
   p.click('.session-block.is-current .js-clear-sets');
   assert.equal(p.draft().exercises[0].widget.detailedSets.length, 0);
+  assert.equal(p.$('.session-block.is-current [data-control-name="setEntryMode"][value="multiple"]').checked, true);
+});
+
+test('session restores matching mode for an empty individual-set draft', t => {
+  const p = page(t, 'session', { before(w) {
+    const exerciseKey = w.document.querySelector('.session-exercise').dataset.exerciseKey;
+    seed(w, { exercises: [{ exerciseKey, widget: { setEntryMode: 'individual', detailedSets: [] } }] });
+  } });
+  assert.equal(p.$('.session-block.is-current [data-control-name="setEntryMode"][value="multiple"]').checked, true);
 });
 
 for (const raw of ['{broken', 'null', '[]', '{"exercises":42}', '{"exercises":[null]}']) {

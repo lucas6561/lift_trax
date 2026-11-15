@@ -42,6 +42,7 @@ export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForRe
     await weightedSessionLoaded; await waitForReady('train');
     assert(await evaluate(`document.querySelector('[name=weightValue]')?.value === '225'`), 'Work Along did not prefill prescribed weight');
     assert(await evaluate(`document.body.textContent.includes('Prescribed: 225 lb')`), 'Work Along did not label prescribed weight');
+    assert(await evaluate(`document.querySelector("input[data-control-name='setEntryMode'][value='multiple']")?.checked === true`), 'Work Along did not default a single prescribed target to matching sets');
     await evaluate(`(() => {
       const field = document.querySelector('[name=weightValue]');
       field.focus();

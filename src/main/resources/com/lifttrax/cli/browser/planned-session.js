@@ -356,6 +356,7 @@
       li.appendChild(remove);
       list.appendChild(li);
     });
+    selectSetEntryMode(widget, detailedSets.length > 0 ? 'individual' : 'multiple');
     hidden.value = JSON.stringify(detailedSets);
     updateSetLogStatus(widget, detailedSets.length);
     persistDraft();
@@ -444,7 +445,6 @@
       return;
     }
     selectRadio(widget, 'weightMode', draft.weightMode || 'weight');
-    selectSetEntryMode(widget, draft.setEntryMode || 'multiple');
     selectRadio(widget, 'metricType', draft.metricType || 'reps');
     [
       'weightValue',

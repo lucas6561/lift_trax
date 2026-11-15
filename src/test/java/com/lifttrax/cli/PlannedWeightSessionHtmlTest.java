@@ -1,6 +1,7 @@
 package com.lifttrax.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,7 +36,13 @@ class PlannedWeightSessionHtmlTest {
                 .path("exercises")
                 .get(0)
                 .path("plannedSets");
-    sets.remove(0);
+    ObjectNode firstSet = sets.get(1).deepCopy();
+    firstSet.put("setNumber", 1);
+    ObjectNode secondSet = firstSet.deepCopy();
+    secondSet.put("setNumber", 2);
+    sets.removeAll();
+    sets.add(firstSet);
+    sets.add(secondSet);
     PlannedWorkoutFile plan = PlannedWorkoutJson.readString(root.toString());
 
     String html =
@@ -52,7 +59,14 @@ class PlannedWeightSessionHtmlTest {
     assertTrue(html.contains("Prescribed: 225 lb"));
     assertTrue(html.contains("class='js-weight-hidden' value='225 lb'"));
     assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='225'"));
-    assertTrue(html.contains("&quot;weight&quot;:&quot;225 lb&quot;"));
+    assertTrue(html.contains("name='setCount' value='2'"));
+    assertTrue(
+        html.contains(
+            "name='setEntryMode-1-0' value='multiple' checked data-control-name='setEntryMode'"));
+    assertTrue(html.contains("class='js-detailed-sets' value='[]'"));
+    assertFalse(
+        html.contains(
+            "name='setEntryMode-1-0' value='individual' checked data-control-name='setEntryMode'"));
     assertTrue(html.contains("&quot;rpeCap&quot;"));
     assertEquals(
         "225 lb",
@@ -80,5 +94,49 @@ class PlannedWeightSessionHtmlTest {
             .plannedSets()
             .get(0)
             .rpeCap());
+  }
+
+  @Test
+  void workAlongUsesIndividualModeWhenPrescribedSetsActuallyDiffer() throws Exception {
+    ObjectNode root =
+        (ObjectNode)
+            new ObjectMapper()
+                .readTree(
+                    Path.of("shared", "workouts", "examples", "conjugate-wave-v8.json").toFile());
+    ArrayNode sets =
+        (ArrayNode)
+            root.path("weeks")
+                .get(0)
+                .path("days")
+                .get(0)
+                .path("blocks")
+                .get(0)
+                .path("exercises")
+                .get(0)
+                .path("plannedSets");
+    ObjectNode firstSet = sets.get(1).deepCopy();
+    ObjectNode secondSet = firstSet.deepCopy();
+    secondSet.put("setNumber", 2);
+    secondSet.put("weight", "235 lb");
+    sets.removeAll();
+    sets.add(firstSet);
+    sets.add(secondSet);
+    PlannedWorkoutFile plan = PlannedWorkoutJson.readString(root.toString());
+
+    String html =
+        PlannedWorkoutSessionHtml.renderPage(
+            plan,
+            1,
+            "MONDAY",
+            List.of(
+                new Lift(
+                    "1\" Paused Deadlift", LiftRegion.LOWER, LiftType.DEADLIFT, List.of(), "")),
+            LocalDate.parse("2026-11-03"));
+
+    assertTrue(
+        html.contains(
+            "name='setEntryMode-1-0' value='individual' checked data-control-name='setEntryMode'"));
+    assertTrue(html.contains("&quot;weight&quot;:&quot;225 lb&quot;"));
+    assertTrue(html.contains("&quot;weight&quot;:&quot;235 lb&quot;"));
   }
 }

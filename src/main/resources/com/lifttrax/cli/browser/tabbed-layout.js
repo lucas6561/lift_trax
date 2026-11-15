@@ -639,12 +639,12 @@
       deload.checked = Boolean(draft.deload);
     }
     selectRadio('weightMode', draft.weightMode || 'weight');
-    setSetEntryMode(draft.setEntryMode || 'multiple');
     selectRadio('metricType', draft.metricType || 'reps');
     detailedSets.splice(
       0,
       detailedSets.length,
       ...(Array.isArray(draft.detailedSets) ? draft.detailedSets.map((item) => ({...item})) : []));
+    setSetEntryMode(detailedSets.length > 0 ? 'individual' : 'multiple');
     syncMetricInputs();
     syncWeightMode();
     syncAccomMode();
@@ -688,6 +688,7 @@
     loadAddExecutionDraft(addExecutionForm);
     addExecutionForm.addEventListener('execution-set-log-change', (event) => {
       detailedSets.splice(0, detailedSets.length, ...event.detail);
+      setSetEntryMode(detailedSets.length > 0 ? 'individual' : 'multiple');
       saveAddExecutionDraft(addExecutionForm);
     });
     addExecutionForm.addEventListener('change', () => saveAddExecutionDraft(addExecutionForm));

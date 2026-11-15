@@ -462,19 +462,21 @@ final class PlannedWorkoutSessionHtml {
     if (plannedSets.stream().noneMatch(target -> target.weight() != null)) {
       return List.of();
     }
-    return plannedSets.stream()
-        .map(
-            target -> {
-              MetricSeed seed = MetricSeed.from(target, liftName, history);
-              return new ExecutionSetFormValues(
-                  seed.metricType(),
-                  seed.metricValue(),
-                  seed.metricLeft(),
-                  seed.metricRight(),
-                  seed.weight(),
-                  "");
-            })
-        .toList();
+    List<ExecutionSetFormValues> defaults =
+        plannedSets.stream()
+            .map(
+                target -> {
+                  MetricSeed seed = MetricSeed.from(target, liftName, history);
+                  return new ExecutionSetFormValues(
+                      seed.metricType(),
+                      seed.metricValue(),
+                      seed.metricLeft(),
+                      seed.metricRight(),
+                      seed.weight(),
+                      "");
+                })
+            .toList();
+    return defaults.stream().distinct().count() > 1 ? defaults : List.of();
   }
 
   private static void appendTargets(
