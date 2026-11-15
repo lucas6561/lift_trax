@@ -34,7 +34,7 @@ When automatic startup is installed, HTTPS starts after your Windows account
 appear in Task Manager's Startup apps list. Keep the PC awake and clients on the
 home network.
 
-**`gradlew.bat runWeb` starts the separate HTTP server on port 8080. It does not
+**`gradlew.bat runWeb` starts a loopback-only HTTP server on port 8080. It does not
 restart or update the DuckDNS HTTPS app.** Use `https.bat -Action Restart` for
 normal home-app updates. That command rebuilds, checks database snapshots,
 restarts HTTPS, and resumes automatic recovery. Refresh the browser afterward;
@@ -71,8 +71,9 @@ configuration file. Do not commit a file containing credentials.
 ## Web UI
 
 For the normal DuckDNS home app, use `https.bat -Action Restart` as described
-above. The command below runs the independent HTTP development/fallback server
-on port 8080; changes served there do not update an already-running HTTPS app.
+above. The command below runs an HTTP development server on port 8080 that is
+reachable only from the same PC; changes served there do not update an
+already-running HTTPS app.
 
 From the repository root:
 
@@ -81,7 +82,11 @@ From the repository root:
 ```
 
 - Arg 1: port (defaults to `8080`)
-- Server bind address: `0.0.0.0`
+- Server bind address: `127.0.0.1`
+
+Non-loopback binds are rejected unless a hosted edge deployment explicitly sets
+`lifttrax.web.allowNonLoopback=true`. Do not use that opt-in for home-network
+access; the supported LAN entry point is Caddy HTTPS on ports 443/80.
 
 The hosted command has the same Postgres-only runtime behavior but selects the
 ignored hosted configuration file:
@@ -197,8 +202,9 @@ configured Postgres database. See
 For HTTPS on home Wi-Fi, use the [local HTTPS setup](docs/local-https.md).
 It uses a DuckDNS hostname and public certificates with automatic renewal, so
 phones need no certificate installation. Restart it with
-`https.bat -Action Restart` after source changes. The independent HTTP app on
-port 8080 can remain available against the same database.
+`https.bat -Action Restart` after source changes. A loopback-only HTTP app on
+port 8080 can remain available on the PC against the same database, but phones
+and other LAN clients use only the HTTPS address.
 Away-from-home access is future work in LT-0100.
 
 ### Export account data

@@ -16,6 +16,33 @@ Require ($null -eq (Get-ManagedProcess $wrongPath)) 'An unrelated executable was
 Require ((Get-HttpsRunMode $false $null) -eq 'Network') 'Omitted mode did not select DuckDNS network HTTPS.'
 Require ((Get-HttpsRunMode $true 'Network') -eq 'Network') 'Explicit network mode changed.'
 Require ((Get-HttpsRunMode $true 'Preview') -eq 'Preview') 'Explicit preview mode changed.'
+Require (Test-LoopbackListenerAddress '127.0.0.1') 'IPv4 loopback was rejected.'
+Require (Test-LoopbackListenerAddress '::1') 'IPv6 loopback was rejected.'
+Require (-not (Test-LoopbackListenerAddress '0.0.0.0')) 'IPv4 wildcard was accepted as loopback.'
+Require (-not (Test-LoopbackListenerAddress '192.168.1.42')) 'A LAN address was accepted as loopback.'
+$script:listeners = @()
+function Get-NetTCPConnection {
+    param($State, $LocalPort, $ErrorAction)
+    return @($script:listeners | Where-Object { $_.LocalPort -eq $LocalPort })
+}
+Assert-NoLanListener 8080 'Synthetic HTTP'
+$script:listeners = @([pscustomobject]@{LocalAddress='0.0.0.0';LocalPort=8080;OwningProcess=100})
+try {
+    Assert-NoLanListener 8080 'Synthetic HTTP'
+    throw 'A LAN-facing listener was accepted.'
+} catch {
+    Require ($_.Exception.Message.Contains('LAN-facing listener')) 'LAN-listener failure was not actionable.'
+}
+$syntheticProcess = [pscustomobject]@{Id=100}
+$script:listeners = @([pscustomobject]@{LocalAddress='127.0.0.1';LocalPort=18080;OwningProcess=100})
+Assert-ProcessListener $syntheticProcess 18080 'Loopback' 'Synthetic backend'
+try {
+    Assert-ProcessListener $syntheticProcess 18080 'Network' 'Synthetic proxy'
+    throw 'A loopback proxy was accepted as network-facing.'
+} catch {
+    Require ($_.Exception.Message.Contains('not reachable')) 'Proxy-listener failure was not actionable.'
+}
+$script:listeners = @()
 Require ((Get-HttpsRecoveryAction $null) -eq 'Start') 'First startup would not recover.'
 $state = [pscustomobject]@{Mode='Network';Proxy=$current;Backend=$current}
 Require ((Get-HttpsRecoveryAction $state) -eq 'KeepRunning') 'Healthy processes would be restarted.'

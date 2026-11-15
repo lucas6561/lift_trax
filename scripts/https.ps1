@@ -150,6 +150,7 @@ $proxyPorts = @($httpsPort, $httpPort)
 if ($isLocalListener) { $proxyPorts += $legacyPort }
 foreach ($port in $proxyPorts) { Assert-PortFree $port }
 if ($Action -eq 'Start') { Assert-PortFree $backendPort }
+if ($Mode -eq 'Network') { Assert-NoLanListener 8080 'Direct HTTP' }
 $javaCandidate = (Get-Command java -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 # Oracle's PATH entry can be a short-lived launcher. Start the actual JVM so its
 # recorded PID owns the backend for the full lifetime, including Stop/rollback.
@@ -191,6 +192,7 @@ try {
         } catch { Start-Sleep -Milliseconds 300 }
     } while ([DateTime]::UtcNow -lt $deadline)
       if ([DateTime]::UtcNow -ge $deadline) { throw 'Backend readiness timed out.' }
+      Assert-ProcessListener $backendProcess $backendPort 'Loopback' 'Java backend'
     }
     $values = @{
         LIFTTRAX_TLS_STORAGE = (Join-Path $runtime $(if ($isPublic) { 'public-pki' } else { 'pki' })).Replace('\', '/')
@@ -222,6 +224,10 @@ try {
         Start-Sleep -Seconds 1
     } while ([DateTime]::UtcNow -lt $deadline)
     if ([DateTime]::UtcNow -ge $deadline) { throw 'HTTPS readiness timed out.' }
+    $expectedProxyExposure = if ($isLocalListener) { 'Loopback' } else { 'Network' }
+    foreach ($port in $proxyPorts) {
+        Assert-ProcessListener $proxyProcess $port $expectedProxyExposure 'Caddy proxy'
+    }
     if ($Action -eq 'Provision') {
         Write-Host "Public certificate issued and validated for $siteHost using normal Windows trust. No client enrollment required."
         return
@@ -235,7 +241,7 @@ try {
         BeforeSnapshot = $before; AfterSnapshot = $after
     } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $statePath
     Write-Host "HTTPS ready: https://${siteHost}:$httpsPort"
-    if ($Mode -eq 'Network') { Write-Host 'The existing HTTP server on port 8080 is independent and remains available.' }
+    if ($Mode -eq 'Network') { Write-Host 'Direct HTTP port 8080 is not exposed to the home network.' }
     Write-Host $(if ($isPublic) { 'Open this address normally on client devices; no certificate installation is needed.' } else { 'Local developer preview only; client-device enrollment is not the network deployment path.' })
 } catch {
     foreach ($process in @($proxyProcess, $backendProcess)) {

@@ -11,9 +11,10 @@ Do not configure router port forwarding. The hostname works at home; this setup
 does not provide remote access from mobile data or another network.
 Away-from-home access is separate future work in LT-0100.
 
-The original HTTP app on port 8080 stays independent during setup and phone
-verification. HTTPS uses ports 443/80 and its own private backend on 18080;
-starting or stopping the HTTPS pair does not stop or reserve the original server.
+HTTPS is the only supported LAN entry point. Caddy listens on ports 443/80 and
+proxies to a Java backend on loopback port 18080. The optional development HTTP
+server on port 8080 is also loopback-only, so it remains usable on the PC without
+exposing login, session, or training traffic to another device.
 
 ## Everyday use after setup
 
@@ -32,7 +33,7 @@ boot before sign-in. Allow about a minute, then open the configured DuckDNS
 address on home Wi-Fi. The PC must remain awake. Locking Windows after signing
 in leaves the app running.
 
-**`gradlew.bat runWeb` starts the independent HTTP server on port 8080; it does
+**`gradlew.bat runWeb` starts a loopback-only HTTP server on port 8080; it does
 not restart or update the DuckDNS HTTPS app.** For everyday home-app changes,
 use `https.bat -Action Restart`, refresh the browser, and sign in again if asked.
 The restart command checks database snapshots and resumes automatic recovery.
@@ -92,27 +93,32 @@ with a registered hostname. Run normal server commands as the same Windows user.
    backend is running: certificate validation still succeeds. The temporary
    process is stopped after verification; certificates remain for network mode.
    Allow up to ten minutes for DNS propagation and issuance.
-5. Keep the existing HTTP app running normally on port 8080. Stop only an old
-   managed HTTPS pair with `https.bat -Action Stop` if one is running, then start:
+5. Stop any Java server that was started with the old wildcard/LAN bind. A current
+   `gradlew.bat runWeb` process may remain running only after listener inspection
+   confirms that port 8080 is bound to loopback. Stop an old managed HTTPS pair
+   with `https.bat -Action Stop` if one is running, then start:
 
    ```powershell
    .\https.bat -Action Start
    .\https.bat -Action Status
    ```
 
-   The launcher refuses occupied HTTPS/backend ports; port 8080 is deliberately
-   left to the normal app. Use the normal app throughout testing. Finish old-origin
-   drafts before moving your workout logging to the new origin, not merely to
-   start this parallel verification server.
+   The launcher refuses occupied HTTPS/backend ports and refuses to start while
+   port 8080 has a LAN-facing listener. It verifies that its Java backend owns a
+   loopback-only listener and that Caddy owns the expected proxy listeners before
+   reporting readiness. Finish or preserve any old HTTP-origin drafts before
+   switching workout logging; HTTP and HTTPS browser storage are separate.
 6. In an **administrator PowerShell 7** window, allow the installed Caddy binary
-   through the Windows firewall once:
+   through the Windows firewall and block direct Java HTTP once:
 
    ```powershell
    .\scripts\enable-https-firewall.ps1
    ```
 
-   The rule allows Caddy TCP 443/80 from the local subnet on **Private**
-   networks. It does not open Java port 18080 or add a Public-network rule. If
+   The allow rule permits Caddy TCP 443/80 from the local subnet on **Private**
+   networks. A separate block rule denies inbound access to this Java runtime on
+   TCP 8080/18080 across every profile; loopback access still works. No
+   Public-network allow rule is added. If
    Windows labels the sole current trusted home connection Public, explicitly
    opt in to reclassifying it with:
 
@@ -126,12 +132,13 @@ with a registered hostname. Run normal server commands as the same Windows user.
    The helper saves the previous rules for this exact Caddy executable, disables
    conflicting Private-network blocks left by Windows app prompts, and disables
    broader duplicate Caddy allows. Explicit blocks otherwise override the scoped
-   allow rule. It leaves other applications' firewall rules unchanged.
+   allow rule. It leaves other applications' firewall rules unchanged and saves
+   the prior matching Caddy/Java rule metadata under ignored `data/https/`.
 7. On the PC and a phone connected to home Wi-Fi, open `https://<Hostname>` and
    verify normal sign-in without certificate warnings. Update bookmarks to this
    address only after phone checks pass. HTTP requests on port 80 redirect to
-   the configured HTTPS name with the same path/query. The original port 8080
-   continues serving the normal app; it does not redirect to the experimental URL.
+   the configured HTTPS name with the same path/query. Confirm separately that
+   `http://<PC-LAN-address>:8080` is unreachable from the phone.
 
 ## Name resolution and client access
 
@@ -209,7 +216,8 @@ Restart the HTTPS application from an ordinary Windows terminal with:
 
 Restart pauses automatic recovery, rebuilds the installed application, restarts
 the managed backend/proxy with the same mode, validates database snapshots, then
-resumes automatic recovery even if startup fails. It does not stop port 8080.
+resumes automatic recovery even if startup fails. It does not stop a loopback
+development server on port 8080, but refuses an exposed one.
 Use `-SkipBuild -SkipDnsUpdate` to restart the current build and DNS mapping.
 The batch launcher uses Windows PowerShell to locate PowerShell 7 through PATH,
 the standard installation directory, the saved runtime path, or this checkout's
@@ -266,7 +274,7 @@ Then stop/start manually as needed:
 
 Stop checks recorded process identities before stopping anything. After a reboot,
 it removes the stale record while retaining the database, snapshots, and
-certificates. It does not stop the independent HTTP server on port 8080.
+certificates. It does not stop a loopback development server on port 8080.
 Once startup succeeds, refresh any browser tab still showing LiftTrax Offline.
 The offline page stays visible until navigation or reload; do not clear site
 storage, which may contain unfinished workout drafts. Sign in again if prompted.
@@ -296,12 +304,13 @@ deployment. Local-password mode does not use OAuth. Render continues terminating
 HTTPS at its own edge and does not need this local launcher.
 
 To roll back access, first finish and confirm submission of drafts at the **new
-HTTPS origin** on every device/profile. Stop the managed pair and restart the
-previous reviewed launch/config against the **same Postgres database**. Do not
+HTTPS origin** on every device/profile. Stop the managed pair and use the
+loopback-only local launch/config against the **same Postgres database**. Do not
 restore an older snapshot for a transport rollback: that would discard valid
 HTTPS-era writes. Sign in again and verify recent history. Keep the new origin
-available until any unfinished new-origin work is safely resolved. No HSTS header
-is set by this local proxy to deliberately obstruct access rollback.
+available until any unfinished new-origin work is safely resolved. Rollback must
+not restore a wildcard bind or remove the direct-Java firewall block. No HSTS
+header is set by this local proxy to deliberately obstruct access rollback.
 
 ## Private developer preview and earlier local CA
 
@@ -323,6 +332,7 @@ draft requirements are satisfied; do not remove unrelated trusted roots.
 ```powershell
 .\scripts\test-https-settings.ps1
 .\scripts\test-https-config.ps1
+.\scripts\test-https-startup.ps1
 .\gradlew.bat qualityGate
 ```
 

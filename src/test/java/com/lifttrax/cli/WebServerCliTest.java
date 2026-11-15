@@ -3,6 +3,7 @@ package com.lifttrax.cli;
 import static com.lifttrax.cli.WebServerCliTestSupport.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -36,6 +37,27 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class WebServerCliTest {
+  @Test
+  void webBindDefaultsToLoopbackAndRejectsImplicitLanExposure() {
+    String priorBind = System.getProperty("lifttrax.web.bind");
+    String priorAllow = System.getProperty("lifttrax.web.allowNonLoopback");
+    try {
+      assertEquals("127.0.0.1", WebServerCli.defaultBindAddress());
+
+      System.setProperty("lifttrax.web.bind", "0.0.0.0");
+      System.clearProperty("lifttrax.web.allowNonLoopback");
+      IllegalStateException rejected =
+          assertThrows(IllegalStateException.class, WebServerCli::configuredBindAddress);
+      assertTrue(rejected.getMessage().contains("supported HTTPS launcher"));
+
+      System.setProperty("lifttrax.web.allowNonLoopback", "true");
+      assertEquals("0.0.0.0", WebServerCli.configuredBindAddress());
+    } finally {
+      restoreProperty("lifttrax.web.bind", priorBind);
+      restoreProperty("lifttrax.web.allowNonLoopback", priorAllow);
+    }
+  }
+
   @Test
   void historicalDetailFollowsExecutionIdentityWhenADeletedNameIsReused() throws Exception {
     var config =
@@ -228,6 +250,14 @@ class WebServerCliTest {
   void escapeHtmlEscapesSpecialCharacters() {
     String escaped = WebHtml.escapeHtml("<tag>'\"&");
     assertEquals("&lt;tag&gt;&#39;&quot;&amp;", escaped);
+  }
+
+  private static void restoreProperty(String name, String value) {
+    if (value == null) {
+      System.clearProperty(name);
+    } else {
+      System.setProperty(name, value);
+    }
   }
 
   @SuppressWarnings("unchecked")

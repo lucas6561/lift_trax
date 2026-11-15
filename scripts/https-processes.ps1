@@ -21,6 +21,47 @@ function Get-HttpsRunMode([bool] $ModeWasSpecified, [string] $RequestedMode) {
     return 'Network'
 }
 
+function Test-LoopbackListenerAddress([string] $Address) {
+    try {
+        $parsed = [System.Net.IPAddress]::Parse($Address)
+        if ($parsed.IsIPv4MappedToIPv6) { $parsed = $parsed.MapToIPv4() }
+        return [System.Net.IPAddress]::IsLoopback($parsed)
+    } catch {
+        return $false
+    }
+}
+
+function Get-PortListeners([int] $Port) {
+    return @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
+}
+
+function Assert-NoLanListener([int] $Port, [string] $Label) {
+    $exposed = @(Get-PortListeners $Port | Where-Object {
+        -not (Test-LoopbackListenerAddress $_.LocalAddress)
+    })
+    if ($exposed.Count -gt 0) {
+        throw "$Label has a LAN-facing listener on port $Port. Stop it or restart it with the loopback-only LiftTrax configuration before starting HTTPS."
+    }
+}
+
+function Assert-ProcessListener(
+    $Process,
+    [int] $Port,
+    [ValidateSet('Loopback', 'Network')]
+    [string] $Exposure,
+    [string] $Label
+) {
+    $listeners = @(Get-PortListeners $Port | Where-Object { $_.OwningProcess -eq $Process.Id })
+    if ($listeners.Count -eq 0) { throw "$Label does not own the expected port $Port listener." }
+    $loopback = @($listeners | Where-Object { Test-LoopbackListenerAddress $_.LocalAddress })
+    if ($Exposure -eq 'Loopback' -and $loopback.Count -ne $listeners.Count) {
+        throw "$Label port $Port is not loopback-only. HTTPS startup aborted."
+    }
+    if ($Exposure -eq 'Network' -and $loopback.Count -eq $listeners.Count) {
+        throw "$Label port $Port is not reachable from the home network. HTTPS startup aborted."
+    }
+}
+
 # Accept only this checkout's exact legacy or headless recovery command. Keep
 # runtime discovery usable from the Windows PowerShell 5 batch bootstrap too.
 function Get-HttpsRecoveryPowerShell($Task, [string] $StartupScript) {

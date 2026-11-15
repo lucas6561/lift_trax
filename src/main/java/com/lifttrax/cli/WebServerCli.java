@@ -10,8 +10,10 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Locale;
@@ -88,19 +90,12 @@ public final class WebServerCli {
         "readiness",
         "ready address=" + running.server.getAddress().getHostString() + " port=" + running.port());
     System.out.println("LiftTrax web UI started.");
-    System.out.printf(
-        Locale.ROOT,
-        "Open http://localhost:%d or http://<your-ip>:%d from any device on your network.%n",
-        running.port(),
-        running.port());
+    System.out.printf(Locale.ROOT, "Open http://localhost:%d on this computer.%n", running.port());
   }
 
   static RunningServer start(int port, TrainingDataStoreProvider db, WebAuth auth)
       throws IOException {
-    String bindAddress = LiftTraxConfig.setting("lifttrax.web.bind", "LIFTTRAX_WEB_BIND", "");
-    if (bindAddress.isBlank()) {
-      bindAddress = defaultBindAddress();
-    }
+    String bindAddress = configuredBindAddress();
     HttpServer server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
     ExecutorService executor =
         Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
@@ -131,8 +126,43 @@ public final class WebServerCli {
     }
   }
 
-  private static String defaultBindAddress() {
-    return String.join(".", "0", "0", "0", "0");
+  static String configuredBindAddress() {
+    String bindAddress =
+        LiftTraxConfig.setting("lifttrax.web.bind", "LIFTTRAX_WEB_BIND", defaultBindAddress());
+    boolean allowNonLoopback =
+        Boolean.parseBoolean(
+            LiftTraxConfig.setting(
+                "lifttrax.web.allowNonLoopback", "LIFTTRAX_WEB_ALLOW_NON_LOOPBACK", "false"));
+    if (!allowNonLoopback && !isLoopbackAddress(bindAddress)) {
+      throw new IllegalStateException(
+          "Refusing non-loopback web bind "
+              + bindAddress
+              + ". Use the supported HTTPS launcher for LAN access. "
+              + "Hosted edge deployments must explicitly set "
+              + "lifttrax.web.allowNonLoopback=true.");
+    }
+    return bindAddress;
+  }
+
+  static String defaultBindAddress() {
+    return String.join(".", "127", "0", "0", "1");
+  }
+
+  private static boolean isLoopbackAddress(String bindAddress) {
+    try {
+      InetAddress[] addresses = InetAddress.getAllByName(bindAddress);
+      if (addresses.length == 0) {
+        return false;
+      }
+      for (InetAddress address : addresses) {
+        if (!address.isLoopbackAddress()) {
+          return false;
+        }
+      }
+      return true;
+    } catch (UnknownHostException failure) {
+      throw new IllegalStateException("Invalid web bind address: " + bindAddress, failure);
+    }
   }
 
   static TrainingDataStore databaseFor(HttpExchange exchange, TrainingDataStoreProvider db)

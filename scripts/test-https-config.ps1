@@ -29,7 +29,7 @@ try {
         if ($file -eq 'Caddyfile') {
             $listeners = @($adapted.apps.http.servers.PSObject.Properties | ForEach-Object { $_.Value.listen })
             if ($listeners | Where-Object { $_ -match ':8080$' }) {
-                throw 'Network HTTPS must not reserve the existing HTTP server port 8080.'
+                throw 'Network HTTPS must not create a direct Java-compatible listener on port 8080.'
             }
         }
         if ($file -eq 'Caddyfile.preview' -and $json -notmatch '"module"\s*:\s*"internal"') {
