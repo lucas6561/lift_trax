@@ -155,11 +155,16 @@ JaCoCo reports even when the gate fails.
 
 ## Mutation testing workflow
 
-PIT mutation testing covers workout planning plus the active-workout save/input
-boundary:
+PIT mutation testing covers workout planning, planned-workout files, and the
+active-workout save/input boundary:
 
 - `com.lifttrax.workout.ConjugateWorkoutBuilder`
 - `com.lifttrax.workout.WaveMarkdownWriter`
+- `com.lifttrax.workout.PlannedWorkoutJson`
+- `com.lifttrax.workout.PlannedWorkoutExporter`
+- `com.lifttrax.workout.PlannedWorkoutText`
+- `com.lifttrax.workout.PlannedWorkoutSchemaVersions`
+- `com.lifttrax.workout.SchemaVersionCatalog`
 - `com.lifttrax.cli.PlannedWorkoutSessionService`
 - `com.lifttrax.cli.WeightInputParser`
 - `com.lifttrax.cli.ExecutionSetFormValues`
@@ -167,14 +172,24 @@ boundary:
 Run the repeatable local command:
 
 ```bash
-./gradlew pitest
+./gradlew mutationGate
 ```
 
 Reports are written to `build/reports/pitest/` with stable paths because
 timestamped report folders are disabled. The HTML report is the easiest way to
 inspect surviving mutations; the XML report is available for later automation.
-The current threshold is modest by design and should be tightened as surviving
-mutations are either killed with stronger assertions or deliberately documented.
+The ratchet requires at least an 85 percent mutation score and 90 percent
+mutated-class line coverage. The 2026-11-19 baseline generated 445 mutations,
+killed 398 (89 percent), covered 91 percent of mutated-class lines, and reported
+94 percent test strength. By target slice, core generation killed 98 of 113
+mutants (87 percent), planned-workout files killed 194 of 216 (90 percent), and
+active-workout input/save killed 106 of 116 (91 percent). Raise thresholds only
+after survivors are killed or deliberately baselined; never lower them merely to
+make a change pass.
 Renderer-heavy classes such as `PlannedWorkoutSessionHtml` stay outside the PIT
 target because their HTML and embedded JavaScript produce high-noise mutations;
 focused renderer tests and browser checks protect those surfaces instead.
+The separate `Mutation Quality` workflow runs weekly and on manual dispatch,
+then publishes the stable PIT report as an artifact. The normal `qualityGate`
+does not depend on mutation testing because the focused suite is intentionally
+slower.

@@ -1,5 +1,11 @@
 # EPIC-001: Quality foundation
 
+## Status
+
+Complete as of 2026-11-19. The final planned-workout mutation expansion and
+ratchet are delivered through `LT-0073` and `LT-0075`; the normal quality gate
+and separate scheduled mutation gate both pass.
+
 ## Goal
 
 Make LiftTrax reliable to change by enforcing formatting, static analysis, tests, coverage, and documentation expectations before code can be considered shippable.

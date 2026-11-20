@@ -259,22 +259,23 @@ Package responsibilities, test expectations, and ADR guidance are documented in
 
 ## Mutation testing
 
-Core workout generation, planned-workout saving, and active-workout input
-helpers have focused PIT mutation-test targets. Run them locally from the
+Core workout generation, planned-workout files, and active-workout input helpers
+have focused PIT mutation-test targets. Run the ratcheted check locally from the
 repository root:
 
 ```bash
-./gradlew pitest
+./gradlew mutationGate
 ```
 
 The target set includes `ConjugateWorkoutBuilder`, `WaveMarkdownWriter`,
+the planned-workout JSON/export/text/schema-version boundary,
 `PlannedWorkoutSessionService`, `WeightInputParser`, and
 `ExecutionSetFormValues`. Renderer-heavy HTML classes remain outside PIT because
 their large string/JavaScript output creates noisy mutations better protected by
 focused renderer and browser tests. PIT writes repeatable HTML and XML reports
-to `build/reports/pitest/`; surviving mutations are the backlog for assertion
-tightening. The threshold is a floor, not a reason to ignore surviving
-mutations.
+to `build/reports/pitest/`. The ratchet requires at least an 85 percent mutation
+score and 90 percent mutated-class line coverage; surviving and uncovered
+mutations remain the backlog for assertion tightening.
 
 ## Dump execution history
 

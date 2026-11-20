@@ -23,14 +23,10 @@ Make it easy for a lifter or coach to answer four questions:
 
 LiftTrax should be readable, documented, tested, and safe to change. A build should fail if static analysis has warnings or errors, formatting is off, tests fail, or covered code drops below the agreed threshold.
 
-Key tasks:
-
-- `LT-0073`: Expand mutation testing to planned workout files.
-- `LT-0075`: Add mutation testing ratchet.
-
 The 90 percent whole-code coverage gate, CI quality command, core/active-workout
-mutation testing, package-boundary documentation, and first web-server
-decomposition are delivered foundations rather than open roadmap work.
+and planned-workout mutation testing, mutation ratchet with scheduled reporting,
+package-boundary documentation, and first web-server decomposition are delivered
+foundations rather than open roadmap work.
 
 ### 2. Cross-device application
 
@@ -164,7 +160,7 @@ See `tasks/milestones/` for the working sequence.
    setups, add inventory and exercise-setup pages, resolve simultaneous-block
    conflicts, and use the result for substitutions (`LT-0030`, `LT-0124`,
    `LT-0125`, `LT-0026`, `LT-0058`).
-5. Add planned-workout visual regression coverage and finish the mutation
-   ratchet (`LT-0063`, `LT-0073`, `LT-0075`).
+5. Add planned-workout visual regression coverage (`LT-0063`); the mutation
+   expansions and ratchet are complete.
 6. Define release/update policy (`LT-0017`) and build catalog-file import on the
    new provenance rules (`LT-0093`).

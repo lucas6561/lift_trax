@@ -22,6 +22,23 @@ class PlannedWorkoutFileTest {
   private static final ObjectMapper JSON = new ObjectMapper();
 
   @Test
+  void formatsBlockAndExerciseMetadataForDisplay() {
+    PlannedWorkoutFile.PlannedExercise exercise =
+        new PlannedWorkoutFile.PlannedExercise(
+            "Back Squat", "LOWER", "SQUAT", List.of("QUADS", "GLUTES"), List.of(), null, List.of());
+    PlannedWorkoutFile.PlannedExercise minimalExercise =
+        new PlannedWorkoutFile.PlannedExercise(
+            "Farmer Carry", "", null, List.of(), List.of(), null, List.of());
+    PlannedWorkoutFile.PlannedWorkoutBlock block =
+        new PlannedWorkoutFile.PlannedWorkoutBlock(
+            1, "Main work", "max_effort", 3, true, List.of(exercise), List.of());
+
+    assertEquals("max effort, 3 rounds, warm-up", PlannedWorkoutText.blockMeta(block));
+    assertEquals("LOWER, SQUAT, QUADS, GLUTES", PlannedWorkoutText.exerciseDetails(exercise));
+    assertEquals("", PlannedWorkoutText.exerciseDetails(minimalExercise));
+  }
+
+  @Test
   void exportsGeneratedWaveToPlannedWorkoutFile() throws Exception {
     ConjugateWorkoutBuilderTest.FakeDb db = ConjugateWorkoutBuilderTest.FakeDb.withSeedData();
     var wave = new ConjugateWorkoutBuilder().getWave(1, db);

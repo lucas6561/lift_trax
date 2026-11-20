@@ -235,6 +235,11 @@ pitest {
     targetClasses = [
         'com.lifttrax.workout.ConjugateWorkoutBuilder',
         'com.lifttrax.workout.WaveMarkdownWriter',
+        'com.lifttrax.workout.PlannedWorkoutJson',
+        'com.lifttrax.workout.PlannedWorkoutExporter',
+        'com.lifttrax.workout.PlannedWorkoutText',
+        'com.lifttrax.workout.PlannedWorkoutSchemaVersions',
+        'com.lifttrax.workout.SchemaVersionCatalog',
         'com.lifttrax.cli.PlannedWorkoutSessionService',
         'com.lifttrax.cli.WeightInputParser',
         'com.lifttrax.cli.ExecutionSetFormValues'
@@ -251,9 +256,15 @@ pitest {
     threads = 4
     outputFormats = ['XML', 'HTML']
     timestampedReports = false
-    mutationThreshold = 60
-    coverageThreshold = 80
+    mutationThreshold = 85
+    coverageThreshold = 90
     jvmArgs = ['-Djava.awt.headless=true']
+}
+
+tasks.register('mutationGate') {
+    group = 'verification'
+    description = 'Runs the ratcheted PIT mutation check for high-value training boundaries.'
+    dependsOn tasks.named('pitest')
 }
 
 tasks.register('staticAnalysis') {

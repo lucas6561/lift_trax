@@ -107,9 +107,12 @@ in [source size and complexity ratchet](source-size-and-complexity.md). GitHub
 Actions runs the same command for every pull request and push to `main`, and
 preserves the test, PMD, ESLint/CPD, JavaScript coverage, and JaCoCo reports.
 
-Run `./gradlew.bat pitest` when changing mutation-tested workout-file or active
-workout-save behavior. Review survivors in `build/reports/pitest/`; do not lower
-thresholds merely to make a change pass.
+Run `./gradlew.bat mutationGate` when changing mutation-tested workout-file,
+generation, or active-workout-save behavior. The separate check enforces an 85
+percent mutation-score floor and 90 percent mutated-class line-coverage floor.
+Review survivors in `build/reports/pitest/`; do not lower thresholds merely to
+make a change pass. A scheduled/manual GitHub Actions workflow publishes the
+same report without slowing the normal `qualityGate` workflow.
 
 ## Naming and change shape
 

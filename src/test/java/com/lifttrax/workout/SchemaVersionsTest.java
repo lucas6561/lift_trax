@@ -2,12 +2,15 @@ package com.lifttrax.workout;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SchemaVersionsTest {
@@ -27,6 +30,10 @@ class SchemaVersionsTest {
   void plannedWorkoutCatalogKeepsEveryPublishedSnapshotAvailable() {
     assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8), PlannedWorkoutSchemaVersions.supported());
     assertEquals(8, PlannedWorkoutSchemaVersions.latest());
+    assertTrue(PlannedWorkoutSchemaVersions.supports(1));
+    assertTrue(PlannedWorkoutSchemaVersions.supports(8));
+    assertFalse(PlannedWorkoutSchemaVersions.supports(0));
+    assertFalse(PlannedWorkoutSchemaVersions.supports(99));
 
     for (int schemaVersion : PlannedWorkoutSchemaVersions.supported()) {
       assertNotNull(
@@ -41,6 +48,14 @@ class SchemaVersionsTest {
         IllegalArgumentException.class, () -> ProgramSchemaVersions.schemaResourcePath(99));
     assertThrows(
         IllegalArgumentException.class, () -> PlannedWorkoutSchemaVersions.schemaResourcePath(99));
+  }
+
+  @Test
+  void schemaCatalogRequiresAtLeastOnePositiveVersion() {
+    assertThrows(IllegalArgumentException.class, () -> new SchemaVersionCatalog(Map.of()));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new SchemaVersionCatalog(Map.of(0, "/schema.invalid.json")));
   }
 
   @Test
