@@ -367,8 +367,25 @@ class PlannedWorkoutFileTest {
     assertEquals(
         "4 reps @ 225 lb · cap RPE 8 · rest 3-5 min", PlannedWorkoutText.plannedSet(weighted));
     assertEquals(
-        "3×4 @ 225 lb · cap RPE 8 · rest 3-5 min",
+        "3×4 reps @ 225 lb · cap RPE 8 · rest 3-5 min",
         PlannedWorkoutText.plannedSets(List.of(weighted, weighted, weighted)));
+    PlannedWorkoutFile.PlannedSetTarget weightedWithoutCap =
+        PlannedWorkoutJson.readPath(
+                Path.of("shared", "workouts", "examples", "conjugate-wave-v7.json"))
+            .weeks()
+            .get(0)
+            .days()
+            .get(0)
+            .blocks()
+            .get(0)
+            .exercises()
+            .get(0)
+            .plannedSets()
+            .get(1);
+    assertEquals(
+        "3×4 reps @ 225 lb · rest 3-5 min",
+        PlannedWorkoutText.plannedSets(
+            List.of(weightedWithoutCap, weightedWithoutCap, weightedWithoutCap)));
     assertEquals("225 lb", WorkoutHistoryFormatter.suggestedWeight(List.of(), weighted));
     assertEquals(
         workoutFile, PlannedWorkoutJson.readString(PlannedWorkoutJson.writeString(workoutFile)));

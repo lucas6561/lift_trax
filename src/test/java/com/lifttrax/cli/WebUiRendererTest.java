@@ -383,14 +383,17 @@ class WebUiRendererTest {
 
   @Test
   void plannedWorkoutPageRendersWeeksBlocksAndGroupedTargets() {
-    String html = PlannedWorkoutHtml.renderPage(groupedTargetWorkout());
+    PlannedWorkoutFile workout = groupedTargetWorkout();
+    String html = PlannedWorkoutHtml.renderPage(workout);
+    String print = PlannedWorkoutPrintHtml.renderPage(workout, null);
 
     assertTrue(html.contains("Imported Wave"));
     assertTrue(html.contains("Back to Workouts"));
     assertTrue(html.contains("Week 1"));
     assertTrue(html.contains("Monday"));
     assertTrue(html.contains("Backoff Sets"));
-    assertTrue(html.contains("2×5 @ 80% · CHAINS · rest 2-3 min"));
+    assertTrue(html.contains("2×5 reps @ 80% · CHAINS · rest 2-3 min"));
+    assertTrue(print.contains("2×5 reps @ 80% · CHAINS · rest 2-3 min"));
     assertTrue(html.contains("Swap options: Front Squat"));
     assertFalse(html.contains("action='/planned-workout-session'"));
     assertFalse(html.contains("Start This Day"));

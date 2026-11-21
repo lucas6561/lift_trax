@@ -226,7 +226,8 @@ public final class PlannedWorkoutText {
     }
     String prefix = identicalSetCount + "×";
     return switch (target.metricType()) {
-      case "reps" -> target.reps() == null ? prefix + repRange(target) : prefix + target.reps();
+      case "reps" ->
+          target.reps() == null ? prefix + repRange(target) : prefix + target.reps() + " reps";
       case "reps_lr" -> prefix + target.repsLeft() + "L/" + target.repsRight() + "R reps";
       case "reps_range" -> prefix + repRange(target);
       case "time_seconds" -> prefix + target.seconds() + " sec";
