@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkDesktopHistoryCatalog, checkMobileHistoryCatalog } from "./history-catalog-browser-check.mjs";
+import { waitForChromePort } from './browser-startup.mjs';
 
 const [baseUrl, sessionCookie, suite] = process.argv.slice(2);
 if (!baseUrl || !sessionCookie) {
@@ -38,6 +39,7 @@ const diagnostics = [];
 let scenario = suite || 'shell';
 let currentPage = 'about:blank';
 chrome.on('error', error => diagnostics.push({ scenario, page: currentPage, type: 'launch', message: error.message }));
+chrome.on('exit', (code, signal) => diagnostics.push({ type: 'chromium-exit', code, signal }));
 chrome.stderr.on('data', chunk => diagnostics.push({ type: 'chromium', message: String(chunk) }));
 
 function assert(condition, message) {
@@ -220,14 +222,7 @@ async function keyboardTrail() {
 }
 
 try {
-  let debuggingPort;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    try { debuggingPort = Number((await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]); break; } catch {
-      // Chromium writes the port asynchronously; retry until the launch deadline.
-    }
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  assert(debuggingPort, `Could not launch Chromium at ${chromePath}`);
+  const debuggingPort = await waitForChromePort(profile);
   await waitForJson(`http://127.0.0.1:${debuggingPort}/json/version`);
   const page = await fetch(
     `http://127.0.0.1:${debuggingPort}/json/new?${encodeURIComponent("about:blank")}`,
@@ -508,6 +503,7 @@ try {
   }
   assert(runtimeExceptions.length === 0, `${scenario} ${currentPage}: browser errors: ${JSON.stringify(runtimeExceptions)}`);
 } catch (error) {
+  if (!socket) {console.error(JSON.stringify({ chromePath, diagnostics }, null, 2));}
   try { await screenshot(`${suite || 'shell'}-failure.png`); } catch {
     // Preserve the original acceptance failure when Chromium cannot take a screenshot.
   }

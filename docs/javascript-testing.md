@@ -79,6 +79,10 @@ blanket exclusions to pass a change.
 
 Chrome must be installed. The default is the standard Windows Chrome path or
 `google-chrome` on Linux; set `CHROME_PATH` for another installation.
+Startup waits up to ten seconds for a complete, valid port in Chrome's
+`DevToolsActivePort` file. Fast tests cover missing, empty, partially written,
+and invalid port files. Startup failures print Chrome diagnostics in the job
+log and retain them in the failure report.
 `browserAcceptance` starts an authenticated H2 fixture on an ephemeral port and
 a fresh browser profile per suite, then closes both. It runs `shell`,
 `preview-weeks`, `workout-recovery`, and `harness-probes`. The probes deliberately
