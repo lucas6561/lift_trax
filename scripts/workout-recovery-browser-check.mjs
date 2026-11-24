@@ -65,6 +65,29 @@ export async function checkWorkoutRecovery({ send, evaluate, navigate, waitForRe
     await evaluate(`document.querySelector('.planned-workalong-form button[type=submit]').click()`);
     await loaded; await waitForReady('train');
     await checkSessionGuidance({ send, evaluate, screenshot, assert }, mobile);
+    const peekResult = await evaluate(`(() => {
+      const form = document.querySelector('.planned-session-form');
+      const before = localStorage.getItem(form.dataset.draftKey);
+      const activeBefore = document.querySelector('.session-block.is-current').dataset.sessionBlockIndex;
+      document.querySelector('.js-session-peek-next').click();
+      const dialog = document.querySelector('.js-session-block-peek');
+      return {
+        open: dialog.open,
+        title: dialog.querySelector('.js-session-block-peek-title').textContent,
+        previewText: dialog.querySelector('[data-session-block-peek-index]:not(.is-hidden)').textContent,
+        activeBefore,
+        activeAfter: document.querySelector('.session-block.is-current').dataset.sessionBlockIndex,
+        draftUnchanged: before === localStorage.getItem(form.dataset.draftKey)
+      };
+    })()`);
+    assert(peekResult.open, `Block preview did not open: ${JSON.stringify(peekResult)}`);
+    assert(peekResult.title === 'Assistance', `Block preview showed the wrong block: ${JSON.stringify(peekResult)}`);
+    assert(peekResult.previewText.includes('Target:'), `Block preview omitted planned targets: ${JSON.stringify(peekResult)}`);
+    assert(peekResult.activeBefore === '0' && peekResult.activeAfter === '0', `Block preview changed active progress: ${JSON.stringify(peekResult)}`);
+    assert(peekResult.draftUnchanged, `Block preview changed the device draft: ${JSON.stringify(peekResult)}`);
+    await screenshot(`${mobile ? 'mobile' : 'desktop'}-workout-block-peek.png`);
+    await evaluate(`document.querySelector('.js-session-block-peek-close').click()`);
+    assert(await evaluate(`!document.querySelector('.js-session-block-peek').open && document.querySelector('.session-block.is-current').dataset.sessionBlockIndex === '0'`), 'Closing block preview did not return to the active block');
     const draftKey = await evaluate(`(() => {
       const form = document.querySelector('.planned-session-form');
       const field = form.querySelector('[name=weightValue]'); field.value = '205';

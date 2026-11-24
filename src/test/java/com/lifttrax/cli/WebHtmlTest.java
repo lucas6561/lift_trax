@@ -25,6 +25,8 @@ class WebHtmlTest {
         html.contains(
             ".save-execution-btn { position: sticky; bottom: max(0.35rem, env(safe-area-inset-bottom)); width: 100%"));
     assertTrue(html.contains(".session-block-nav { grid-template-columns: 1fr; }"));
+    assertTrue(html.contains(".session-block-peek { width: 100%; max-width: 100%;"));
+    assertTrue(html.contains(".session-block-peek-actions { grid-template-columns: repeat(2"));
     assertTrue(html.contains(".session-block-nav .js-session-skip-block { width: 100%; }"));
     assertTrue(
         html.contains(".session-block-actions { display: grid; grid-template-columns: 1fr; }"));

@@ -129,7 +129,7 @@ final class PlannedWorkoutSessionHtml {
             "<label class='session-date'>Training date <input type='date' name='sessionDate' value='")
         .append(WebHtml.escapeHtml(date.toString()))
         .append("' required/></label>");
-    appendBlockNavigation(html, day.blocks());
+    PlannedWorkoutSessionNavigationHtml.appendNavigation(html, day.blocks());
     html.append(ClasspathText.read("session-no-script.html"));
     Set<String> localLiftNames = new LinkedHashSet<>();
     Map<String, String> localLiftNotes = new HashMap<>();
@@ -149,7 +149,7 @@ final class PlannedWorkoutSessionHtml {
           history,
           warmups);
     }
-    appendBlockActions(html, day.blocks().size());
+    PlannedWorkoutSessionNavigationHtml.appendActions(html, day.blocks().size());
     html.append("<noscript><button type='submit' formnovalidate>Save Workout</button></noscript>");
     html.append(
             "<button type='button' class='secondary js-session-sync-retry is-hidden'>Retry Finish</button>")
@@ -160,6 +160,7 @@ final class PlannedWorkoutSessionHtml {
         .append(
             "<p class='status muted js-session-sync-status' role='status'>Not yet submitted to hosted history.</p>")
         .append("</form>");
+    PlannedWorkoutSessionNavigationHtml.appendPeekDialog(html, day.blocks(), history, warmups);
   }
 
   static String renderSavedPage(
@@ -282,32 +283,6 @@ final class PlannedWorkoutSessionHtml {
         + Integer.toHexString(
             (workoutFile.metadata().name() + "|" + sourceTime + "|" + weekNumber + "|" + dayOfWeek)
                 .hashCode());
-  }
-
-  private static void appendBlockNavigation(
-      StringBuilder html, List<PlannedWorkoutFile.PlannedWorkoutBlock> blocks) {
-    if (blocks.isEmpty()) {
-      return;
-    }
-    html.append("<nav class='session-block-nav' aria-label='Workout block navigation'>")
-        .append(
-            "<div class='session-block-summary'><strong class='js-session-block-position'>Block 1 of ")
-        .append(blocks.size())
-        .append("</strong><span class='muted js-session-block-title'>")
-        .append(WebHtml.escapeHtml(blocks.get(0).title()))
-        .append("</span></div><progress class='js-session-block-progress' value='1' max='")
-        .append(blocks.size())
-        .append(
-            "'></progress><button type='button' class='secondary js-session-skip-block'>Skip block</button><span class='muted js-session-block-save-status'></span></nav>");
-  }
-
-  private static void appendBlockActions(StringBuilder html, int blockCount) {
-    html.append("<div class='session-block-actions' aria-label='Current block actions'>")
-        .append(
-            "<button type='button' class='secondary js-session-previous-block' disabled>Previous block</button>")
-        .append("<button type='button' class='js-session-next-block'>")
-        .append(blockCount == 1 ? "Submit Final Block" : "Submit Block &amp; Next")
-        .append("</button></div>");
   }
 
   private static void appendBlock(
@@ -479,7 +454,7 @@ final class PlannedWorkoutSessionHtml {
     return defaults.stream().distinct().count() > 1 ? defaults : List.of();
   }
 
-  private static void appendTargets(
+  static void appendTargets(
       StringBuilder html,
       List<PlannedWorkoutFile.PlannedSetTarget> plannedSets,
       String liftName,
@@ -599,7 +574,7 @@ final class PlannedWorkoutSessionHtml {
         .append("</span></p>");
   }
 
-  private static void appendNotes(StringBuilder html, List<String> notes) {
+  static void appendNotes(StringBuilder html, List<String> notes) {
     if (notes.isEmpty()) {
       return;
     }
@@ -620,6 +595,7 @@ final class PlannedWorkoutSessionHtml {
 
   private static void appendScript(StringBuilder html) {
     html.append(ClasspathText.script("session-guidance"))
+        .append(ClasspathText.script("session-block-peek"))
         .append(ClasspathText.script("planned-session"));
   }
 

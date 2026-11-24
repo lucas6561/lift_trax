@@ -28,6 +28,34 @@ test('session serializes edited fields and restores the same block and session a
   assert.equal(q.$('.session-block input').disabled, true);
 });
 
+test('block preview browses the plan without changing active work or the draft', t => {
+  const p = page(t, 'session');
+  p.change(weight, '225', 'input');
+  const draftBefore = p.w.localStorage.getItem(p.$('form').dataset.draftKey);
+  const opener = p.$('.js-session-peek-next');
+  p.click('.js-session-peek-next');
+
+  assert.equal(p.$('.js-session-block-peek').open, true);
+  assert.equal(p.$('.js-session-block-peek-title').textContent, 'Assistance');
+  assert.match(p.$('[data-session-block-peek-index="1"]').textContent, /Back Squat/);
+  assert.match(p.$('[data-session-block-peek-index="1"]').textContent, /Target:/);
+  assert.equal(p.$('.session-block.is-current').dataset.sessionBlockIndex, '0');
+  assert.equal(p.$(weight).value, '225');
+  assert.equal(p.w.localStorage.getItem(p.$('form').dataset.draftKey), draftBefore);
+
+  p.click('.js-session-block-peek-previous');
+  assert.equal(p.$('.js-session-block-peek-title').textContent, 'Max Effort Single');
+  assert.equal(p.$('.session-block.is-current').dataset.sessionBlockIndex, '0');
+  assert.equal(p.w.localStorage.getItem(p.$('form').dataset.draftKey), draftBefore);
+
+  p.click('.js-session-block-peek-next');
+  p.click('.js-session-block-peek-close');
+  assert.equal(p.$('.js-session-block-peek').open, false);
+  assert.equal(p.document.activeElement, opener);
+  assert.equal(p.$('.session-block.is-current').dataset.sessionBlockIndex, '0');
+  assert.equal(p.w.localStorage.getItem(p.$('form').dataset.draftKey), draftBefore);
+});
+
 test('session set editing uses real click, keyboard and remove events', t => {
   const p = page(t, 'session');
   p.change(weight, '185', 'input');
