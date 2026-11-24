@@ -14,3 +14,5 @@ build/
 config/lifttrax-hosted.properties
 
 node_modules/
+
+*executions.json
