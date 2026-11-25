@@ -46,9 +46,13 @@ public record WarmupLoading(
   }
 
   public static WarmupLoading barbell() {
+    return barbell(45);
+  }
+
+  public static WarmupLoading barbell(double barWeight) {
     return new WarmupLoading(
         LoadingSystem.BARBELL,
-        45,
+        barWeight,
         5,
         List.of(45.0, 25.0, 10.0, 5.0),
         List.of(2.5),
@@ -86,7 +90,7 @@ public record WarmupLoading(
     return loads.stream().distinct().sorted(Comparator.reverseOrder()).toList();
   }
 
-  Candidate choose(double workingWeight, double percent, double minimumBridge, Candidate previous) {
+  Candidate choose(double workingWeight, double percent, double minimumBridge) {
     double target = workingWeight / 100 * percent;
     if (system == LoadingSystem.FREEFORM) {
       return chooseFreeform(workingWeight, target, minimumBridge);
@@ -94,7 +98,7 @@ public record WarmupLoading(
     if (system == LoadingSystem.FIXED_INCREMENT && fixedIncrements.isEmpty()) {
       return chooseRoundedIncrement(workingWeight, target, minimumBridge);
     }
-    List<Candidate> all = candidates(workingWeight, percent, previous);
+    List<Candidate> all = candidates(workingWeight);
     if (all.isEmpty()) {
       return null;
     }
@@ -106,17 +110,39 @@ public record WarmupLoading(
     if (nearby.isEmpty()) {
       return eligible.stream().min(accuracy(target)).orElseThrow();
     }
-    if (percent <= 60) {
-      return chooseEarlyWarmup(nearby, previous, target);
-    }
-    nearby = practicalMidrange(nearby, target, percent);
     return nearby.stream()
         .min(
-            Comparator.comparingDouble((Candidate candidate) -> Math.abs(candidate.load() - target))
-                .thenComparing(Candidate::precision)
-                .thenComparingDouble(candidate -> candidate.changeCost(previous))
+            Comparator.comparingInt(Candidate::easeTier)
+                .thenComparingInt(Candidate::pairs)
+                .thenComparingDouble(candidate -> Math.abs(candidate.load() - target))
                 .thenComparingDouble(Candidate::load))
         .orElseThrow();
+  }
+
+  Candidate chooseBridge(
+      double workingWeight,
+      double previousLoad,
+      double nextLoad,
+      double lateThreshold,
+      double maximumJump) {
+    List<Candidate> candidates = candidates(workingWeight);
+    return candidates.stream()
+        .filter(candidate -> candidate.load() > previousLoad && candidate.load() < nextLoad)
+        .filter(candidate -> nextLoad - candidate.load() <= maximumJump + 1e-9)
+        .filter(
+            candidate ->
+                candidate.load() < lateThreshold
+                    || candidate.load() - previousLoad <= maximumJump + 1e-9)
+        .min(
+            Comparator.comparingInt(Candidate::easeTier)
+                .thenComparingDouble(
+                    candidate ->
+                        Math.max(candidate.load() - previousLoad, nextLoad - candidate.load()))
+                .thenComparingInt(Candidate::pairs)
+                .thenComparingDouble(
+                    candidate -> Math.abs(candidate.load() - (previousLoad + nextLoad) / 2.0))
+                .thenComparingDouble(Candidate::load))
+        .orElse(null);
   }
 
   private static List<Candidate> eligibleCandidates(
@@ -142,9 +168,25 @@ public record WarmupLoading(
     return load > 0 && load < workingWeight ? new Candidate(load, Map.of(), false) : null;
   }
 
-  private List<Candidate> candidates(double workingWeight, double percent, Candidate previous) {
+  private List<Candidate> candidates(double workingWeight) {
     if (system == LoadingSystem.BARBELL) {
-      return plateCandidates(workingWeight, percent, previous);
+      return plateCandidates(workingWeight);
+    }
+    if (system == LoadingSystem.FIXED_INCREMENT && fixedIncrements.isEmpty()) {
+      List<Candidate> candidates = new ArrayList<>();
+      double first = Math.max(increment, Math.ceil(implementWeight / increment) * increment);
+      for (double load = first; load < workingWeight; load += increment) {
+        candidates.add(new Candidate(load, Map.of(), false));
+      }
+      return candidates;
+    }
+    if (system == LoadingSystem.FREEFORM) {
+      List<Candidate> candidates = new ArrayList<>();
+      double first = Math.max(5, Math.ceil(implementWeight / 5) * 5);
+      for (double load = first; load < workingWeight; load += 5) {
+        candidates.add(new Candidate(load, Map.of(), false));
+      }
+      return candidates;
     }
     return fixedIncrements.stream()
         .filter(load -> load >= implementWeight && load < workingWeight)
@@ -153,10 +195,22 @@ public record WarmupLoading(
   }
 
   private static double tolerance(double workingWeight, double percent) {
-    if (percent <= 60) {
-      return Math.max(10, workingWeight * 0.05);
+    double[] percents = {40, 60, 75, 80, 85, 92};
+    double[] rates = {.075, .05, .035, .03, .02, .01};
+    double rate = rates[rates.length - 1];
+    if (percent <= percents[0]) {
+      rate = rates[0];
+    } else {
+      for (int index = 1; index < percents.length; index++) {
+        if (percent <= percents[index]) {
+          double progress =
+              (percent - percents[index - 1]) / (percents[index] - percents[index - 1]);
+          rate = rates[index - 1] + progress * (rates[index] - rates[index - 1]);
+          break;
+        }
+      }
     }
-    return percent <= 80 ? Math.max(5, workingWeight * 0.03) : Math.max(5, workingWeight * 0.02);
+    return Math.max(2.5, workingWeight * rate);
   }
 
   private static List<Candidate> nearby(
@@ -166,43 +220,12 @@ public record WarmupLoading(
         .toList();
   }
 
-  private static Candidate chooseEarlyWarmup(
-      List<Candidate> nearby, Candidate previous, double target) {
-    List<Candidate> simple = nearby.stream().filter(candidate -> !candidate.precision()).toList();
-    List<Candidate> choices = simple.isEmpty() ? nearby : simple;
-    return choices.stream()
-        .min(
-            Comparator.comparingInt((Candidate candidate) -> candidate.removedPairs(previous))
-                .thenComparingInt(Candidate::pairs)
-                .thenComparing(accuracy(target)))
-        .orElseThrow();
-  }
-
-  private static List<Candidate> practicalMidrange(
-      List<Candidate> nearby, double target, double percent) {
-    List<Candidate> simple = nearby.stream().filter(candidate -> !candidate.precision()).toList();
-    if (percent > 80 || simple.isEmpty()) {
-      return nearby;
-    }
-    double bestError =
-        nearby.stream()
-            .mapToDouble(candidate -> Math.abs(candidate.load() - target))
-            .min()
-            .orElseThrow();
-    List<Candidate> practical =
-        simple.stream()
-            .filter(candidate -> Math.abs(candidate.load() - target) <= bestError + 5 + 1e-9)
-            .toList();
-    return practical.isEmpty() ? nearby : practical;
-  }
-
   private static Comparator<Candidate> accuracy(double target) {
     return Comparator.comparingDouble((Candidate candidate) -> Math.abs(candidate.load() - target))
         .thenComparingDouble(Candidate::load);
   }
 
-  private List<Candidate> plateCandidates(
-      double workingWeight, double percent, Candidate previous) {
+  private List<Candidate> plateCandidates(double workingWeight) {
     if (implementWeight >= workingWeight) {
       return List.of();
     }
@@ -210,7 +233,7 @@ public record WarmupLoading(
     precisionPlates.stream().filter(plate -> !plates.contains(plate)).forEach(plates::add);
     Map<Double, Candidate> configurations = new LinkedHashMap<>();
     configurations.put(implementWeight, new Candidate(implementWeight, Map.of(), false));
-    Comparator<Candidate> configurationOrder = configurationOrder(percent, previous);
+    Comparator<Candidate> configurationOrder = configurationOrder();
     for (double plate : plates) {
       Map<Double, Candidate> next = new LinkedHashMap<>();
       for (Candidate base : configurations.values()) {
@@ -245,16 +268,8 @@ public record WarmupLoading(
     return List.copyOf(configurations.values());
   }
 
-  private static Comparator<Candidate> configurationOrder(double percent, Candidate previous) {
-    Comparator<Candidate> order = Comparator.comparing(Candidate::precision);
-    if (percent <= 60) {
-      return order
-          .thenComparingInt(candidate -> candidate.removedPairs(previous))
-          .thenComparingInt(Candidate::pairs);
-    }
-    return order
-        .thenComparingDouble(candidate -> candidate.changeCost(previous))
-        .thenComparingInt(Candidate::pairs);
+  private static Comparator<Candidate> configurationOrder() {
+    return Comparator.comparingInt(Candidate::easeTier).thenComparingInt(Candidate::pairs);
   }
 
   record Candidate(double load, Map<Double, Integer> plates, boolean precision) {
@@ -262,24 +277,15 @@ public record WarmupLoading(
       plates = Map.copyOf(plates);
     }
 
-    static Candidate empty() {
-      return new Candidate(0, Map.of(), false);
-    }
-
     int pairs() {
       return plates.values().stream().mapToInt(Integer::intValue).sum();
     }
 
-    int removedPairs(Candidate previous) {
-      return previous.plates().entrySet().stream()
-          .mapToInt(entry -> Math.max(0, entry.getValue() - plates.getOrDefault(entry.getKey(), 0)))
-          .sum();
-    }
-
-    double changeCost(Candidate previous) {
-      int removed = removedPairs(previous);
-      int added = pairs() - previous.pairs() + removed;
-      return added + 1.5 * removed;
+    int easeTier() {
+      if (plates.keySet().stream().allMatch(plate -> plate == 45 || plate == 25)) {
+        return 0;
+      }
+      return precision ? 2 : 1;
     }
   }
 }

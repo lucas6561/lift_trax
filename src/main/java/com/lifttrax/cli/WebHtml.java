@@ -262,6 +262,7 @@ final class WebHtml {
                 .session-guidance > summary:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
                 .session-guidance[open] { padding-bottom: 0.45rem; }
                 .session-guidance > ol { margin-bottom: 0; }
+                .session-warmup select { min-height: 44px; width: 100%; }
                 .session-plates { overflow-wrap: anywhere; }
                 .session-plates select { min-height: 44px; width: 100%; }
                 .session-plates p:last-child { margin-bottom: 0; }

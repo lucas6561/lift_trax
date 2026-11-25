@@ -3,12 +3,7 @@
   <div class='session-plates'>
     <label>Bar weight
       <select class='js-session-bar'>
-        <option value='5'>5 lb</option>
-        <option value='15'>15 lb</option>
-        <option value='35'>35 lb</option>
-        <option value='40'>40 lb</option>
-        <option value='45' selected>45 lb (default)</option>
-        <option value='65'>65 lb</option>
+        {{SESSION_BAR_WEIGHT_OPTIONS}}
       </select>
     </label>
     <p class='js-session-plates-result' role='status' aria-live='polite' aria-atomic='true'>Live plate calculation requires JavaScript.</p>

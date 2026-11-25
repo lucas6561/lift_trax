@@ -72,25 +72,29 @@ final class PlannedWorkoutWarmups {
     double pounds = WeightText.toPounds(workingWeight);
     boolean shortened = alreadyWarm && Double.isFinite(pounds) && pounds > 0;
     List<WarmupSet> sets;
+    Map<Integer, List<WarmupSet>> setsByBarWeight = Map.of();
+    Map<Integer, String> warningsByBarWeight = Map.of();
     String loadWarning = "";
     WarmupLoading loading = loadingFor(exercise.name());
     if (Double.isFinite(pounds) && pounds > 0) {
-      WorkingSetWarmups.Result generated =
-          WorkingSetWarmups.generate(pounds, reps, loading, shortened);
-      sets =
-          generated.sets().stream()
-              .map(
-                  set ->
-                      new WarmupSet(
-                          generatedLoadLabel(pounds, set),
-                          String.valueOf(set.reps()),
-                          formatPounds(set.load())))
-              .toList();
-      if (!generated.finalGapSatisfied()) {
-        loadWarning =
-            "The assumed equipment cannot meet the final warm-up gap while "
-                + "staying below working weight. Use a smaller available increment or a lighter implement "
-                + "or review the planned work weight before starting.";
+      if (loading.system() == WarmupLoading.LoadingSystem.BARBELL) {
+        Map<Integer, List<WarmupSet>> generatedSets = new LinkedHashMap<>();
+        Map<Integer, String> generatedWarnings = new LinkedHashMap<>();
+        for (int barWeight : SessionBarWeights.values()) {
+          WorkingSetWarmups.Result generated =
+              WorkingSetWarmups.generate(pounds, reps, WarmupLoading.barbell(barWeight), shortened);
+          generatedSets.put(barWeight, displayedSets(pounds, generated));
+          generatedWarnings.put(barWeight, loadWarning(generated));
+        }
+        setsByBarWeight = Map.copyOf(generatedSets);
+        warningsByBarWeight = Map.copyOf(generatedWarnings);
+        sets = setsByBarWeight.get(SessionBarWeights.DEFAULT);
+        loadWarning = warningsByBarWeight.get(SessionBarWeights.DEFAULT);
+      } else {
+        WorkingSetWarmups.Result generated =
+            WorkingSetWarmups.generate(pounds, reps, loading, shortened);
+        sets = displayedSets(pounds, generated);
+        loadWarning = loadWarning(generated);
       }
     } else {
       workingWeight = "";
@@ -110,6 +114,9 @@ final class PlannedWorkoutWarmups {
         "Warm-up ramp",
         target.loadReference(exercise.name()),
         sets,
+        setsByBarWeight,
+        warningsByBarWeight,
+        loading.system() == WarmupLoading.LoadingSystem.BARBELL,
         "Prepare for the first working set without fatigue. Subsequent work sets of this "
             + "exercise do not need another ramp."
             + (shortened ? " The ramp is shortened after a related loaded exercise." : ""),
@@ -119,8 +126,28 @@ final class PlannedWorkoutWarmups {
         resolution.error(),
         loadWarning,
         loading.system() == WarmupLoading.LoadingSystem.BARBELL
-            ? "Assumes a 45 lb bar with 45, 25, 10, 5 and 2.5 lb plates. Early loads favor simple plates; later loads prioritize the bridge target. Adjust for your equipment."
+            ? "Uses the selected bar with paired 45, 25, 10, 5 and 2.5 lb plates. Warm-ups are multiples of 5 lb; early loads favor 45s and 25s while later loads stay closer to their targets."
             : "Assumes available loads in 5 lb increments. Adjust for your equipment.");
+  }
+
+  private static List<WarmupSet> displayedSets(
+      double workingWeight, WorkingSetWarmups.Result generated) {
+    return generated.sets().stream()
+        .map(
+            set ->
+                new WarmupSet(
+                    generatedLoadLabel(workingWeight, set),
+                    String.valueOf(set.reps()),
+                    formatPounds(set.load())))
+        .toList();
+  }
+
+  private static String loadWarning(WorkingSetWarmups.Result generated) {
+    if (generated.finalGapSatisfied()) {
+      return "";
+    }
+    return "The selected equipment cannot produce the intended final warm-up or late-step spacing "
+        + "while staying below working weight. Choose another bar or review the planned work weight before starting.";
   }
 
   private static String percentageLabel(double percent) {
@@ -129,6 +156,9 @@ final class PlannedWorkoutWarmups {
   }
 
   private static String generatedLoadLabel(double workingWeight, WorkingSetWarmups.WarmupSet set) {
+    if (!Double.isFinite(set.percent())) {
+      return "Bridge";
+    }
     String label = percentageLabel(set.percent());
     double targetLoad = workingWeight * (set.percent() / 100.0);
     return Math.abs(targetLoad - set.load()) < 1e-9
@@ -264,6 +294,9 @@ final class PlannedWorkoutWarmups {
       String title,
       String reference,
       List<WarmupSet> sets,
+      Map<Integer, List<WarmupSet>> setsByBarWeight,
+      Map<Integer, String> warningsByBarWeight,
+      boolean selectableBar,
       String intent,
       String backoffNote,
       int workingReps,
@@ -273,6 +306,16 @@ final class PlannedWorkoutWarmups {
       String loadingNote) {
     WarmupPlan {
       sets = List.copyOf(sets);
+      setsByBarWeight =
+          setsByBarWeight.entrySet().stream()
+              .collect(
+                  java.util.stream.Collectors.toUnmodifiableMap(
+                      Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
+      warningsByBarWeight = Map.copyOf(warningsByBarWeight);
+    }
+
+    boolean hasSelectableBar() {
+      return selectableBar;
     }
   }
 

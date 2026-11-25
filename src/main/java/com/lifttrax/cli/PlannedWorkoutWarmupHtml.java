@@ -20,9 +20,13 @@ final class PlannedWorkoutWarmupHtml {
           .append(WebHtml.escapeHtml(warmup.loadingNote()))
           .append("</p>");
     }
-    appendSets(html, warmup);
+    if (warmup.hasSelectableBar()) {
+      appendSelectableBarSets(html, warmup);
+    } else {
+      appendSets(html, warmup.sets());
+    }
     appendMissingWorkingWeightGuidance(html, warmup);
-    if (!warmup.loadWarning().isBlank()) {
+    if (!warmup.hasSelectableBar() && !warmup.loadWarning().isBlank()) {
       html.append("<p class='session-warmup-load-warning'>")
           .append(WebHtml.escapeHtml(warmup.loadWarning()))
           .append("</p>");
@@ -41,13 +45,45 @@ final class PlannedWorkoutWarmupHtml {
         "<p class='session-warmup-caution'>The final warm-up should generally feel like RPE 6-6.5 or lower. If it is unexpectedly slow, technique deteriorates, you feel pain, or effort reaches RPE 7 or higher, adjust the working weight instead of adding more heavy warm-up reps.</p></aside></details>");
   }
 
-  private static void appendSets(StringBuilder html, PlannedWorkoutWarmups.WarmupPlan warmup) {
-    if (warmup.sets().isEmpty()) {
+  private static void appendSelectableBarSets(
+      StringBuilder html, PlannedWorkoutWarmups.WarmupPlan warmup) {
+    html.append("<label>Bar weight <select class='js-session-warmup-bar'>")
+        .append(SessionBarWeights.optionsHtml())
+        .append("</select></label>");
+    if (warmup.setsByBarWeight().isEmpty()) {
+      appendSets(html, warmup.sets());
+      return;
+    }
+    html.append("<div class='js-session-warmup-variants'>");
+    for (int barWeight : SessionBarWeights.values()) {
+      boolean selected = barWeight == SessionBarWeights.DEFAULT;
+      html.append("<div class='js-session-warmup-variant' data-warmup-bar-weight='")
+          .append(barWeight)
+          .append("'");
+      if (!selected) {
+        html.append(" hidden");
+      }
+      html.append(" aria-hidden='").append(!selected).append("'>");
+      appendSets(html, warmup.setsByBarWeight().getOrDefault(barWeight, java.util.List.of()));
+      String warning = warmup.warningsByBarWeight().getOrDefault(barWeight, "");
+      if (!warning.isBlank()) {
+        html.append("<p class='session-warmup-load-warning'>")
+            .append(WebHtml.escapeHtml(warning))
+            .append("</p>");
+      }
+      html.append("</div>");
+    }
+    html.append("</div>");
+  }
+
+  private static void appendSets(
+      StringBuilder html, java.util.List<PlannedWorkoutWarmups.WarmupSet> sets) {
+    if (sets.isEmpty()) {
       html.append("<p class='muted'>No loaded warm-up sets fit below this working weight.</p>");
       return;
     }
     html.append("<ol>");
-    for (PlannedWorkoutWarmups.WarmupSet set : warmup.sets()) {
+    for (PlannedWorkoutWarmups.WarmupSet set : sets) {
       html.append("<li>")
           .append(WebHtml.escapeHtml(set.load()))
           .append(" &times; ")

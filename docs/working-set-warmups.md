@@ -1,98 +1,89 @@
 # Working-set warmups
 
-The work-along view implements the supplied **LiftTrax Working-Set-Based Warm-Up
-Algorithm Specification v2.0**, replacing the previous template. These are coaching
-rules for practical gym use, not a universally validated formula.
+Work Along builds a practical warm-up ladder from the planned first working set. Its inputs are
+the working weight, working reps, selected bar weight, and whether the lifter is already warm.
+The working weight may be any positive whole-pound value; only warm-up weights are restricted to
+5 lb increments.
 
-Every percentage below means **percentage of the planned first working weight**.
+These are practical coaching rules rather than a universally validated prescription. Every
+percentage is based on the exact planned working weight.
 
-| Working reps | Target percentage × warmup reps | Minimum final bridge |
-| --- | --- | --- |
-| 1 | 35% × 5, 55% × 3, 70% × 2, 82% × 1, 92% × 1 | 90% |
-| 2 | 35% × 5, 55% × 3, 70% × 2, 87% × 1 | 84% |
-| 3 | 35% × 5, 55% × 3, 70% × 2, 85% × 2 | 82% |
-| 4–6 | 35% × 5, 55% × 4, 70% × 3, 80% × ceil(reps/2) | 77% |
-| 7–10 | 35% × 6, 55% × 5, 75% × ceil(reps/2) | 70% |
-| 11–15 | 35% × 8, 55% × 6, 70% × 5 | 65% |
-| 16–20 | 30% × 8, 50% × 6, 65% × 5 | 58% |
-| 21+ | 27.5% × 10, 47.5% × 6, 60% × 5 | 52% |
+| Working reps | Percentage and warm-up reps |
+| --- | --- |
+| 1 | 40% × 5, 60% × 3, 75% × 2, 85% × 1, 92% × 1 |
+| 2 | 40% × 5, 60% × 3, 75% × 2, 85% × 1, 92% × 1 |
+| 3 | 40% × 5, 60% × 3, 75% × 2, 85% × 1 |
+| 4 | 40% × 5, 60% × 3, 75% × 2, 85% × 1 |
+| 5+ | 40% × 5, 60% × 3, 80% × 2 |
 
-The 21+ template uses the deterministic values from the specification's pseudocode.
-A work single targets a 92% bridge and requires at least 90% after load selection:
-395 lb finishes at 365 lb; 405 lb finishes at 375 lb with the default barbell.
-Multi-rep bridges keep their prescribed reps even after merging or bridge repair.
+## Practical barbell loads
 
-## Loading and pruning
+The bar selector offers the same choices as the plate calculator: 5, 15, 35, 40, 45, and 65 lb.
+The default is 45 lb. One choice is shared by both panels and saved with the Work Along draft.
+With JavaScript disabled, the 45 lb ladder remains visible.
 
-`WorkingSetWarmups.generate` accepts weight, reps, `WarmupLoading`, and `alreadyWarm`.
-No max estimate is required. `WarmupLoading` supports:
+For every percentage target, the generator considers loadable 5 lb totals within the allowed
+deviation. A load must be at least the selected bar weight and remain below the working weight.
 
-- `BARBELL`: implement weight, preferred and precision plates, optional inventory.
-  Defaults are a 45 lb bar, preferred 45/25/10/5 lb plates and precision 2.5 lb plates.
-  Inventory counts individual plates; only pairs are loadable. If an inventory is
-  supplied, omitted sizes are unavailable; otherwise counts are unrestricted.
-- `FIXED_INCREMENT`: a regular increment and minimum, or a list of available loads
-  (the spec's `fixedIncrements`). Regular increments round halfway values up.
-- `FREEFORM`: exact target loads, subject to the implement minimum.
+| Target percentage | Allowed deviation from calculated load |
+| --- | --- |
+| 40% | ±7.5% of working weight |
+| 60% | ±5% of working weight |
+| 75% | ±3.5% of working weight |
+| 80% | ±3% of working weight |
+| 85% | ±2% of working weight |
+| 92% | ±1% of working weight |
 
-Barbell tolerances are ±max(10 lb, 5% of work) through 60%, ±max(5 lb, 3%) through
-80%, and ±max(5 lb, 2%) above 80%. Low stages exclude precision plates when a simple
-candidate is within tolerance, then minimize removals, plate pairs, and target error.
-Middle stages prefer a simple candidate whose error is within 5 lb of the best
-accuracy, then rank by error and plate-change cost. High stages prioritize accuracy,
-then simplicity on ties and plate-change cost. A change costs one per added pair
-and 1.5 per removed pair. Remaining ties choose the lower load.
+The deviation is never less than 2.5 lb. Values between listed percentages use linear
+interpolation. Within that window, candidates are ranked in this order:
 
-The final stage filters for its minimum bridge first. If no candidate is within
-tolerance, use the nearest available candidate satisfying that minimum. If the
-minimum is impossible, retain a below-work load and report `finalGapSatisfied=false`;
-the view asks the lifter to review equipment or working weight. No warmup reaches
-the working weight, and barbell loads never go below the implement. The old 95%
-ceiling and optional extra entry set are superseded by v2.0.
+1. Loads using only 45 and 25 lb plate pairs.
+2. Loads that do not require 2.5 lb plates (45, 25, 10, and 5 lb pairs).
+3. Fewer plate pairs.
+4. Closer to the calculated percentage.
+5. The lower load when still tied.
 
-Duplicate loads keep the later stage's reps. Jumps smaller than both 10 lb and
-5% of work are pruned by removing the earlier stage, preserving the final bridge
-and two distinct exposures when available. Extremely light loads may collapse to
-one exposure or none. `alreadyWarm` removes up to two stages at or below the 60%
-template target, retaining an intermediate exposure and the final bridge.
+This intentionally allows larger rounding at the beginning of a ladder and increasingly close
+rounding near the working set.
 
-## Work-along integration
+## Late-step spacing
 
-The adapter uses the same displayed working-weight suggestion as the planned set,
-including an explicit `percentOf` reference. Existing working-weight calculations
-are unchanged. The workout format has no equipment field, so the view explicitly
-states its assumptions:
+For working sets of one through four reps, the maximum-jump rule begins when the destination load
+is at least 70% of the working weight. The maximum allowed jump is 15% of working weight, rounded
+down to 5 lb, with a 20 lb minimum and 50 lb maximum.
 
-If that referenced lift is absent from the account or has no usable weighted-rep
-history, Work Along shows a specific working-weight error and does not substitute
-the performed exercise's max. Once the working weight resolves, every warm-up
-stage is still calculated from that resulting working weight, never directly
-from either lift's max.
+When a late jump is too large, the generator adds an easy-to-load bridge. If the bridge would be
+within 10 lb of an adjacent warm-up, it replaces that adjacent load instead of creating a nearly
+duplicate set. An inserted bridge uses the following stage's rep count. A replacement keeps the
+replaced stage's rep count. The 5+ template does not use late-jump repair.
 
-- Names containing `barbell`, or the exact standard names Bench Press, Back Squat,
-  Front Squat, Overhead Press, Deadlift, Conventional Deadlift, Sumo Deadlift,
-  Romanian Deadlift, and Paused Deadlift use the default barbell.
-- Names identifying dumbbells/DB, kettlebells/KB, machines, cables, Smith, trap bars,
-  axles, logs, continental lifts, or landmines use the 5 lb fallback instead.
-- Other names also use 5 lb increments without an assumed implement minimum.
+Duplicate loads keep the later stage's reps. Very small neighboring jumps are pruned while keeping
+the final exposure and, when possible, at least two distinct warm-ups. `alreadyWarm` removes up to
+two early stages at or below 60% while retaining an intermediate exposure and the final warm-up.
 
-Custom equipment and inventory are available through the generator API; there is
-currently no equipment editor in the workout view. Displayed percentages are
-labeled as targets when practical loads differ from the exact percentage.
-Without a working-weight suggestion, the full template is displayed for manual
-load selection. The app does not infer readiness without a known prior load.
+The final warm-up must normally reach at least 91% for one or two reps, 83% for three or four reps,
+or 77% for five or more reps. If the selected equipment cannot create the intended final exposure
+or late-step spacing, the view displays a warning.
 
-Only the first eligible working occurrence receives a ramp. Preparation, accessory,
-conditioning, and circuit blocks remain excluded. A variation immediately following
-a related exercise with a known planned load gets the shortened ramp when its
-explicit load reference matches that exercise or their shared reference. An
-intervening unrelated/excluded exercise prevents that inference. Generated warmups
-are informational and are not logged as work sets; subsequent sets and backoffs
-receive no second ramp. Rep ranges use their upper bound and unilateral targets
-the larger side.
+## Other equipment and Work Along behavior
 
-Rest guidance is 45–90 seconds early, 60–120 seconds in the middle, and 2–4 minutes
-before 1–3 rep work or 1.5–3 minutes before 4–10 rep work. Before higher-rep work,
-rest until ready without cooling down. The final warmup should normally feel about
-RPE 6–6.5 or lower. The view asks the lifter to review/reduce working weight for
-slowness, poor technique, pain, or RPE 7+, without adding heavy reps to prove readiness.
+Names containing `barbell`, or the standard barbell movements Bench Press, Back Squat, Front
+Squat, Overhead Press, Deadlift, Conventional Deadlift, Sumo Deadlift, Romanian Deadlift, and
+Paused Deadlift, use the selectable barbell ladder. Dumbbells, kettlebells, machines, cables,
+Smith machines, trap bars, axles, logs, continental lifts, and landmines use the existing 5 lb
+fixed-increment fallback. Other names also use 5 lb increments without an assumed implement
+minimum.
+
+The adapter uses the same displayed working-weight suggestion as the planned set, including an
+explicit `percentOf` reference. Existing working-weight calculations are unchanged. If the
+referenced lift is absent or has no usable weighted-rep history, Work Along reports that problem
+instead of substituting another exercise's max.
+
+Only the first eligible working occurrence receives a ramp. Preparation, accessory, conditioning,
+and circuit blocks remain excluded. Generated warm-ups are guidance and are not logged as work
+sets. Rep ranges use their upper bound and unilateral targets use the larger side.
+
+Rest guidance is 45–90 seconds early, 60–120 seconds in the middle, and 2–4 minutes before 1–3 rep
+work or 1.5–3 minutes before 4–10 rep work. Before higher-rep work, rest until ready without cooling
+down. The final warm-up should normally feel about RPE 6–6.5 or lower; the view asks the lifter to
+review the working weight for slowness, poor technique, pain, or RPE 7+.

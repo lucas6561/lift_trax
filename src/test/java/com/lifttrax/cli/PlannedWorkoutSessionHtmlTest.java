@@ -78,7 +78,8 @@ class PlannedWorkoutSessionHtmlTest {
         assertTrue(html.contains("Planned working weight: <strong>395 lb</strong>"));
         assertTrue(html.contains("Target 92% of working weight (practical load) &times; 1"));
         assertTrue(html.contains("&mdash; 365 lb"));
-        assertTrue(html.contains("Assumes a 45 lb bar"));
+        assertTrue(html.contains("Uses the selected bar"));
+        assertTrue(html.contains("class='js-session-warmup-bar'"));
         assertFalse(html.contains("session-warmup-load-warning"));
       } finally {
         request.disconnect();
@@ -407,18 +408,18 @@ class PlannedWorkoutSessionHtmlTest {
       assertTrue(html.contains("Target: 5 reps @ 80%"));
       assertTrue(html.contains("Suggested: 295 lb"));
       assertTrue(html.contains("class='session-warmup' aria-label='Warm-up ramp'"));
-      assertTrue(html.contains("35% of working weight"));
-      assertTrue(html.contains("&mdash; 95 lb"));
-      assertTrue(html.contains("55% of working weight"));
-      assertTrue(html.contains("&mdash; 165 lb"));
-      assertTrue(html.contains("70% of working weight"));
-      assertTrue(html.contains("&mdash; 205 lb"));
+      assertTrue(html.contains("40% of working weight"));
+      assertTrue(html.contains("&mdash; 135 lb"));
+      assertTrue(html.contains("60% of working weight"));
+      assertTrue(html.contains("&mdash; 185 lb"));
       assertTrue(html.contains("80% of working weight"));
       assertTrue(html.contains("&mdash; 235 lb"));
       assertTrue(html.contains("All percentages are of the planned working weight."));
       assertTrue(html.contains("Planned working weight: <strong>295 lb</strong>"));
-      assertTrue(html.contains("Assumes a 45 lb bar"));
-      assertTrue(html.contains("later loads prioritize the bridge target"));
+      assertTrue(html.contains("Uses the selected bar"));
+      assertTrue(html.contains("early loads favor 45s and 25s"));
+      assertTrue(html.contains("data-warmup-bar-weight='5'"));
+      assertTrue(html.contains("data-warmup-bar-weight='65'"));
       assertFalse(html.contains("A working weight could not be calculated"));
       assertTrue(html.contains("class='js-weight-hidden' value='295 lb'"));
       assertTrue(html.contains("name='weightValue' data-focus-target='add-weight' value='295'"));
@@ -441,13 +442,13 @@ class PlannedWorkoutSessionHtmlTest {
             List.of(lift("Back Squat", LiftType.SQUAT)),
             LocalDate.parse("2026-05-31"));
 
-    assertTrue(html.contains("35% of working weight"));
+    assertTrue(html.contains("40% of working weight"));
     assertTrue(html.contains("A working weight could not be calculated"));
     assertTrue(html.contains("Apply these percentages to the working weight you choose"));
     assertTrue(
         html.contains("check that each step increases while staying below the working weight"));
     assertFalse(html.contains("Planned working weight: <strong>"));
-    assertFalse(html.contains("Assumes a 45 lb bar"));
+    assertFalse(html.contains("Uses the selected bar"));
     assertTrue(html.contains("RPE 6-6.5 or lower"));
     assertTrue(html.contains("technique deteriorates, you feel pain"));
     assertTrue(html.contains("effort reaches RPE 7 or higher"));
@@ -506,11 +507,11 @@ class PlannedWorkoutSessionHtmlTest {
                 db);
 
         assertTrue(html.contains("class='session-warmup-load-warning'"));
-        assertTrue(html.contains("cannot meet the final warm-up gap"));
+        assertTrue(html.contains("cannot produce the intended final warm-up"));
         assertFalse(html.contains("A working weight could not be calculated"));
         assertTrue(html.contains("No loaded warm-up sets fit below this working weight."));
         assertFalse(html.contains("<ol></ol>"));
-        assertFalse(html.contains("<strong class='session-warmup-weight'>"));
+        assertFalse(html.contains("&mdash; " + pounds + " lb"));
       }
     }
   }

@@ -3,7 +3,7 @@ package com.lifttrax.workout;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Implements the v2.0 templates using percentages of the planned working weight, never 1RM. */
+/** Builds practical warm-up ladders from the planned working weight, never 1RM. */
 public final class WorkingSetWarmups {
   private WorkingSetWarmups() {}
 
@@ -22,41 +22,14 @@ public final class WorkingSetWarmups {
     if (workingReps < 1) {
       throw new IllegalArgumentException("Working repetitions must be positive.");
     }
-    return switch (repetitionBand(workingReps)) {
-      case 0 ->
-          List.of(
-              new Stage(35, 5),
-              new Stage(55, 3),
-              new Stage(70, 2),
-              new Stage(82, 1),
-              new Stage(92, 1));
-      case 1 ->
-          List.of(
-              new Stage(35, 5),
-              new Stage(55, 3),
-              new Stage(70, 2),
-              new Stage(workingReps == 2 ? 87 : 85, workingReps == 2 ? 1 : 2));
-      case 2 ->
-          List.of(
-              new Stage(35, 5),
-              new Stage(55, 4),
-              new Stage(70, 3),
-              new Stage(80, (workingReps + 1) / 2));
-      case 3 -> List.of(new Stage(35, 6), new Stage(55, 5), new Stage(75, (workingReps + 1) / 2));
-      case 4 -> List.of(new Stage(35, 8), new Stage(55, 6), new Stage(70, 5));
-      case 5 -> List.of(new Stage(30, 8), new Stage(50, 6), new Stage(65, 5));
-      default -> List.of(new Stage(27.5, 10), new Stage(47.5, 6), new Stage(60, 5));
-    };
-  }
-
-  private static int repetitionBand(int repetitions) {
-    int[] upperBounds = {1, 3, 6, 10, 15, 20};
-    for (int index = 0; index < upperBounds.length; index++) {
-      if (repetitions <= upperBounds[index]) {
-        return index;
-      }
+    if (workingReps <= 2) {
+      return List.of(
+          new Stage(40, 5), new Stage(60, 3), new Stage(75, 2), new Stage(85, 1), new Stage(92, 1));
     }
-    return upperBounds.length;
+    if (workingReps <= 4) {
+      return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(75, 2), new Stage(85, 1));
+    }
+    return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(80, 2));
   }
 
   public static Result generate(double workingWeight, int workingReps) {
@@ -86,28 +59,28 @@ public final class WorkingSetWarmups {
     List<WarmupSet> sets = buildSets(workingWeight, loading, stages, minimumFinalLoad);
     pruneSmallSteps(sets, workingWeight);
     removeEarlyWarmupsWhenAlreadyWarm(sets, alreadyWarm);
+    boolean jumpsSatisfied = repairLateJumps(sets, workingWeight, workingReps, loading);
     boolean satisfied =
-        !sets.isEmpty() && sets.get(sets.size() - 1).load() + 1e-9 >= minimumFinalLoad;
+        jumpsSatisfied
+            && !sets.isEmpty()
+            && sets.get(sets.size() - 1).load() + 1e-9 >= minimumFinalLoad;
     return new Result(sets, satisfied);
   }
 
   private static List<WarmupSet> buildSets(
       double workingWeight, WarmupLoading loading, List<Stage> stages, double minimumFinalLoad) {
     List<WarmupSet> sets = new ArrayList<>();
-    WarmupLoading.Candidate previous = WarmupLoading.Candidate.empty();
     for (int index = 0; index < stages.size(); index++) {
       Stage stage = stages.get(index);
       boolean finalStage = index == stages.size() - 1;
       WarmupLoading.Candidate chosen =
-          loading.choose(
-              workingWeight, stage.percent(), finalStage ? minimumFinalLoad : 0, previous);
+          loading.choose(workingWeight, stage.percent(), finalStage ? minimumFinalLoad : 0);
       if (chosen != null) {
         // Keep the later stage's reps, including multi-rep bridges when loads collapse.
         while (!sets.isEmpty() && sets.get(sets.size() - 1).load() >= chosen.load()) {
           sets.remove(sets.size() - 1);
         }
         sets.add(new WarmupSet(chosen.load(), stage.reps(), stage.percent()));
-        previous = chosen;
       }
     }
     return sets;
@@ -136,27 +109,70 @@ public final class WorkingSetWarmups {
     }
   }
 
-  private static double minimumFinalFraction(int reps) {
-    if (reps <= 3) {
-      return switch (reps) {
-        case 1 -> 0.90;
-        case 2 -> 0.84;
-        default -> 0.82;
-      };
+  private static boolean repairLateJumps(
+      List<WarmupSet> sets, double workingWeight, int workingReps, WarmupLoading loading) {
+    if (workingReps > 4 || sets.isEmpty()) {
+      return true;
     }
-    return higherRepMinimumFinalFraction(reps);
+    double threshold = workingWeight * .70;
+    double maximumJump = Math.max(20, Math.min(50, Math.floor(workingWeight * .15 / 5) * 5));
+    int index = 1;
+    while (index <= sets.size()) {
+      LateStep step = lateStepAt(sets, index, workingWeight, workingReps);
+      if (!needsBridge(step, threshold, maximumJump)) {
+        index++;
+        continue;
+      }
+      WarmupLoading.Candidate bridge =
+          chooseBridge(loading, workingWeight, threshold, maximumJump, step);
+      if (bridge == null) {
+        return false;
+      }
+      applyBridge(sets, index, step, bridge);
+    }
+    return true;
   }
 
-  private static double higherRepMinimumFinalFraction(int reps) {
-    if (reps <= 6) {
-      return 0.77;
-    }
-    if (reps <= 10) {
-      return 0.70;
-    }
-    if (reps <= 15) {
-      return 0.65;
-    }
-    return reps <= 20 ? 0.58 : 0.52;
+  private static LateStep lateStepAt(
+      List<WarmupSet> sets, int index, double workingWeight, int workingReps) {
+    boolean workSet = index == sets.size();
+    return new LateStep(
+        sets.get(index - 1),
+        workSet ? workingWeight : sets.get(index).load(),
+        workSet ? workingReps : sets.get(index).reps());
   }
+
+  private static boolean needsBridge(LateStep step, double threshold, double maximumJump) {
+    return step.nextLoad() + 1e-9 >= threshold
+        && step.nextLoad() - step.previous().load() > maximumJump + 1e-9;
+  }
+
+  private static WarmupLoading.Candidate chooseBridge(
+      WarmupLoading loading,
+      double workingWeight,
+      double threshold,
+      double maximumJump,
+      LateStep step) {
+    return loading.chooseBridge(
+        workingWeight, step.previous().load(), step.nextLoad(), threshold, maximumJump);
+  }
+
+  private static void applyBridge(
+      List<WarmupSet> sets, int index, LateStep step, WarmupLoading.Candidate bridge) {
+    if (bridge.load() - step.previous().load() <= 10 + 1e-9) {
+      sets.set(
+          index - 1,
+          new WarmupSet(bridge.load(), step.previous().reps(), step.previous().percent()));
+    } else if (index < sets.size() && step.nextLoad() - bridge.load() <= 10 + 1e-9) {
+      sets.set(index, new WarmupSet(bridge.load(), step.nextReps(), sets.get(index).percent()));
+    } else {
+      sets.add(index, new WarmupSet(bridge.load(), step.nextReps(), Double.NaN));
+    }
+  }
+
+  private static double minimumFinalFraction(int reps) {
+    return reps <= 2 ? .91 : reps <= 4 ? .83 : .77;
+  }
+
+  private record LateStep(WarmupSet previous, double nextLoad, int nextReps) {}
 }

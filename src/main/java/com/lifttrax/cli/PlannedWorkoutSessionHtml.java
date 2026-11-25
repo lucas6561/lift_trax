@@ -379,7 +379,7 @@ final class PlannedWorkoutSessionHtml {
     }
     appendHistory(html, liftHistory.get(exercise.name()));
     PlannedWorkoutWarmupHtml.append(html, warmup);
-    html.append(ClasspathText.read("session-plate-calculator.html"));
+    html.append(SessionBarWeights.plateCalculatorHtml());
     List<PlannedWorkoutFile.PlannedSetTarget> plannedSets = exercise.plannedSets();
     appendTargets(html, plannedSets, exercise.name(), history);
     MetricSeed seed = firstMetricSeed(plannedSets, exercise.name(), history);

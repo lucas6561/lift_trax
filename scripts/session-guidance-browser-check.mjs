@@ -39,6 +39,13 @@ export async function checkSessionGuidance({ send, evaluate, screenshot, assert 
   })()`);
   assert(await evaluate(`document.querySelector('.js-session-plates-result').textContent.includes('35 lb bar + 2 × 95 lb per side = 225 lb')`), 'Live calculator did not use the current bar and weight');
   assert(await evaluate(`(() => {
+    const card = document.querySelector('.session-block.is-current .session-exercise');
+    const control = card.querySelector('.js-session-warmup-bar');
+    const visible = [...card.querySelectorAll('.js-session-warmup-variant')].filter(x => !x.hidden);
+    return control.value === '35' && (visible.length === 0 ||
+      (visible.length === 1 && visible[0].dataset.warmupBarWeight === '35'));
+  })()`), 'Warm-up ladder did not share the selected bar');
+  assert(await evaluate(`(() => {
     const visual = document.querySelector('.js-session-plates-visual');
     return visual.textContent.includes('Load this on EACH SIDE') &&
       JSON.stringify([...visual.querySelectorAll('.session-plate-disc')].map(x => x.dataset.weight)) === JSON.stringify(['45', '45', '5']);
@@ -59,11 +66,14 @@ export async function checkSessionGuidance({ send, evaluate, screenshot, assert 
   const layout = await evaluate(`(() => {
     const card = document.querySelector('.session-block.is-current .session-exercise');
     const summaries = [...card.querySelectorAll('[data-pane] > summary')];
-    const bar = card.querySelector('.js-session-bar').getBoundingClientRect();
+    const bars = [...card.querySelectorAll('.js-session-bar, .js-session-warmup-bar')]
+      .map(control => control.getBoundingClientRect());
     return { overflow: document.documentElement.scrollWidth > innerWidth,
-      touchTargets: summaries.every(x => x.getBoundingClientRect().height >= 44), barHeight: bar.height };
+      touchTargets: summaries.every(x => x.getBoundingClientRect().height >= 44),
+      barHeights: bars.map(bar => bar.height) };
   })()`);
-  assert(!layout.overflow && layout.touchTargets && layout.barHeight >= 44, `Guidance layout failed: ${JSON.stringify(layout)}`);
+  assert(!layout.overflow && layout.touchTargets && layout.barHeights.every(height => height >= 44),
+    `Guidance layout failed: ${JSON.stringify(layout)}`);
   await evaluate(`document.querySelector('.session-plates-visual').scrollIntoView({ block: 'center' })`);
   await screenshot(`${mobile ? 'mobile' : 'desktop'}-session-plates.png`);
 }

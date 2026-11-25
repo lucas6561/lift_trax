@@ -99,6 +99,23 @@
       message: `${status} Each side: ${list || 'no plates (bar only)'}. Check: ${bar} lb bar + 2 × ${(total - bar) / 2} lb per side = ${total} lb.${note}` };
   }
 
+  function barControls(card) {
+    return Array.from(card.querySelectorAll('.js-session-bar, .js-session-warmup-bar'));
+  }
+
+  function selectBar(card, value) {
+    barControls(card).forEach(control => { control.value = value; });
+  }
+
+  function syncWarmups(card) {
+    const selected = card.querySelector('.js-session-bar')?.value || '45';
+    card.querySelectorAll('.js-session-warmup-variant').forEach(variant => {
+      const active = variant.dataset.warmupBarWeight === selected;
+      variant.hidden = !active;
+      variant.setAttribute('aria-hidden', String(!active));
+    });
+  }
+
   function element(tag, className, text = '') {
     const node = document.createElement(tag);
     node.className = className;
@@ -143,6 +160,7 @@
   }
 
   function sync(card) {
+    syncWarmups(card);
     const load = result(card);
     const status = card.querySelector('.js-session-plates-result');
     status.textContent = load.message;
@@ -165,7 +183,7 @@
       const state = byKey.get(card.dataset.exerciseKey);
       if (state) {
         if (bars.includes(state.bar)) {
-          card.querySelector('.js-session-bar').value = state.bar;
+          selectBar(card, state.bar);
         }
         card.querySelectorAll('[data-pane]').forEach(pane => {
           if (typeof state.panes?.[pane.dataset.pane] === 'boolean') {
@@ -179,7 +197,13 @@
 
   function bind(form, persist) {
     form.querySelectorAll('.session-exercise').forEach(card => {
-      ['input', 'change', 'click'].forEach(event => card.addEventListener(event, () => sync(card)));
+      card.addEventListener('change', event => {
+        if (event.target.matches('.js-session-bar, .js-session-warmup-bar')) {
+          selectBar(card, event.target.value);
+        }
+        sync(card);
+      });
+      ['input', 'click'].forEach(event => card.addEventListener(event, () => sync(card)));
       card.querySelectorAll('[data-pane]').forEach(pane => {
         let wasOpen = pane.open;
         pane.addEventListener('toggle', () => {

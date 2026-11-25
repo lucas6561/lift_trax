@@ -4,6 +4,7 @@ import { page, until, response } from './dom.mjs';
 
 const weight = '.session-block.is-current [name=weightValue]';
 const bar = '.session-block.is-current .js-session-bar';
+const warmupBar = '.session-block.is-current .js-session-warmup-bar';
 const output = '.session-block.is-current .js-session-plates-result';
 const text = p => p.$(output).textContent;
 function seed(w, draft) {
@@ -21,10 +22,25 @@ test('guidance starts with only planned targets open and unique default bar choi
   assert.deepEqual(p.all('.session-block.is-current [data-pane]').map(x => [x.dataset.pane, x.open]),
     [['history', false], ['warmups', false], ['plates', false], ['targets', true]]);
   assert.deepEqual([...p.$(bar).options].map(x => x.value), ['5', '15', '35', '40', '45', '65']);
+  assert.deepEqual([...p.$(warmupBar).options].map(x => x.value),
+    [...p.$(bar).options].map(x => x.value));
   assert.equal(p.$(bar).value, '45');
+  assert.equal(p.$(warmupBar).value, '45');
   assert.match(p.$(bar).selectedOptions[0].textContent, /default/);
   assert.equal(p.$('.js-session-plates-result').getAttribute('aria-live'), 'polite');
   assert.match(text(p), /Enter a valid/);
+});
+
+test('warm-up and plate panels share one persisted bar selection', t => {
+  const p = page(t, 'session');
+  p.change(warmupBar, '35');
+  assert.equal(p.$(bar).value, '35');
+  p.change(bar, '65');
+  assert.equal(p.$(warmupBar).value, '65');
+
+  const restored = page(t, 'session', { before: w => seed(w, p.draft()) });
+  assert.equal(restored.$(bar).value, '65');
+  assert.equal(restored.$(warmupBar).value, '65');
 });
 
 test('every bar and plate uses matched pairs with explicit counts per side and verification', t => {
@@ -148,6 +164,7 @@ test('bar and independent pane preferences survive block navigation, reload and 
   assert.equal(p.$(bar).value, '5');
   const restored = page(t, 'session', { before: w => seed(w, p.draft()) });
   assert.equal(restored.$(bar).value, '5');
+  assert.equal(restored.$(warmupBar).value, '5');
   assert.equal(restored.$('[data-pane=targets]').open, false);
   assert.equal(restored.$('[data-pane=history]').open, true);
   assert.equal(restored.$('[data-pane=plates]').open, true);
