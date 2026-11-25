@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class PlannedWorkoutWarmupsTest {
@@ -76,7 +77,7 @@ class PlannedWorkoutWarmupsTest {
           List.of("40% of working weight", "60% of working weight", "80% of working weight"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::load).toList());
       assertEquals(
-          List.of("5", "3", "2"),
+          List.of("5", "3", "3"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::reps).toList());
     }
   }
@@ -97,7 +98,7 @@ class PlannedWorkoutWarmupsTest {
           List.of("95 lb", "115 lb", "165 lb"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::suggestedWeight).toList());
       assertEquals(
-          List.of("5", "3", "2"),
+          List.of("5", "3", "3"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::reps).toList());
     }
   }
@@ -140,7 +141,7 @@ class PlannedWorkoutWarmupsTest {
       assertEquals(exercise.name(), plan.reference());
       assertEquals("200 lb", plan.workingWeight());
       assertEquals(
-          List.of("80 lb", "120 lb", "150 lb", "170 lb"),
+          List.of("95 lb", "115 lb", "145 lb", "170 lb"),
           plan.sets().stream().map(PlannedWorkoutWarmups.WarmupSet::suggestedWeight).toList());
     }
   }
@@ -263,7 +264,7 @@ class PlannedWorkoutWarmupsTest {
     assertTrue(plans.containsKey("1:0"));
     assertTrue(plans.containsKey("3:0"));
     assertEquals(
-        List.of("5", "3", "2"),
+        List.of("5", "3", "3"),
         plans.get("3:0").sets().stream().map(PlannedWorkoutWarmups.WarmupSet::reps).toList());
   }
 
@@ -365,16 +366,23 @@ class PlannedWorkoutWarmupsTest {
   }
 
   @Test
-  void equipmentAssumptionsReachTheDisplayedRamp() throws Exception {
+  void everyExerciseReceivesExplicitBarWeightVariants() throws Exception {
     Path dbPath = Files.createTempFile("lifttrax-warmup-equipment", ".db");
     try (SqliteDb db = new SqliteDb(dbPath.toString())) {
       for (String name :
           List.of(
               "Bench Press",
               "Barbell Row",
+              "Squat",
+              "Box Squat",
+              "Safety Bar Squat",
+              "SSB Squat",
               "Dumbbell Bench Press",
               "Cable Row",
               "Machine Press",
+              "Goblet Squat",
+              "Hack Squat",
+              "Belt Squat",
               "Unspecified Press")) {
         addOneRepMax(db, name, LiftType.BENCH_PRESS, 250);
         var day =
@@ -387,16 +395,36 @@ class PlannedWorkoutWarmupsTest {
                     exercise(name, "BENCH_PRESS", List.of(target(5, 100, null)))));
         var plan =
             PlannedWorkoutWarmups.forDay(day, PlannedWorkoutHistory.load(db, day)).get("1:0");
-        boolean barbell = name.equals("Bench Press") || name.equals("Barbell Row");
-        assertEquals(barbell ? "95 lb" : "100 lb", plan.sets().get(0).suggestedWeight());
-        assertTrue(plan.loadingNote().contains(barbell ? "selected bar" : "5 lb increments"));
-        assertEquals(
-            barbell ? "Target 40% of working weight (practical load)" : "40% of working weight",
-            plan.sets().get(0).load());
+        assertEquals("95 lb", plan.sets().get(0).suggestedWeight());
+        assertTrue(plan.loadingNote().contains("selected bar"));
+        assertEquals("Target 40% of working weight (practical load)", plan.sets().get(0).load());
         assertFalse(plan.sets().get(0).load().contains("Final bridge"));
-        assertEquals("2", plan.sets().get(plan.sets().size() - 1).reps());
-        assertEquals(barbell, plan.hasSelectableBar());
+        assertEquals("3", plan.sets().get(plan.sets().size() - 1).reps());
+        assertEquals(Set.copyOf(SessionBarWeights.values()), plan.setsByBarWeight().keySet());
       }
+    }
+  }
+
+  @Test
+  void genericSquatNameUsesTheSelectedBarForA305PoundSetOfFour() throws Exception {
+    Path dbPath = Files.createTempFile("lifttrax-warmup-squat", ".db");
+    try (SqliteDb db = new SqliteDb(dbPath.toString())) {
+      addOneRepMax(db, "Squat", LiftType.SQUAT, 305);
+      var day =
+          day(
+              block(
+                  1,
+                  "Main",
+                  "main",
+                  false,
+                  exercise("Squat", "SQUAT", List.of(target(4, 100, null)))));
+
+      var plan = PlannedWorkoutWarmups.forDay(day, PlannedWorkoutHistory.load(db, day)).get("1:0");
+
+      assertEquals("305 lb", plan.workingWeight());
+      assertEquals("135 lb", plan.sets().get(0).suggestedWeight());
+      assertEquals("2", plan.sets().get(plan.sets().size() - 1).reps());
+      assertEquals(Set.copyOf(SessionBarWeights.values()), plan.setsByBarWeight().keySet());
     }
   }
 

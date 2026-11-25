@@ -45,10 +45,6 @@ public record WarmupLoading(
     }
   }
 
-  public static WarmupLoading barbell() {
-    return barbell(45);
-  }
-
   public static WarmupLoading barbell(double barWeight) {
     return new WarmupLoading(
         LoadingSystem.BARBELL,

@@ -27,13 +27,14 @@ public final class WorkingSetWarmups {
           new Stage(40, 5), new Stage(60, 3), new Stage(75, 2), new Stage(85, 1), new Stage(92, 1));
     }
     if (workingReps <= 4) {
-      return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(75, 2), new Stage(85, 1));
+      return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(75, 2), new Stage(85, 2));
     }
-    return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(80, 2));
+    return List.of(new Stage(40, 5), new Stage(60, 3), new Stage(80, 3));
   }
 
-  public static Result generate(double workingWeight, int workingReps) {
-    return generate(workingWeight, workingReps, WarmupLoading.fixedIncrement(5, 0), false);
+  public static Result generate(
+      double workingWeight, int workingReps, double barWeight, boolean alreadyWarm) {
+    return generate(workingWeight, workingReps, WarmupLoading.barbell(barWeight), alreadyWarm);
   }
 
   public static Result generate(
@@ -118,7 +119,7 @@ public final class WorkingSetWarmups {
     double maximumJump = Math.max(20, Math.min(50, Math.floor(workingWeight * .15 / 5) * 5));
     int index = 1;
     while (index <= sets.size()) {
-      LateStep step = lateStepAt(sets, index, workingWeight, workingReps);
+      LateStep step = lateStepAt(sets, index, workingWeight);
       if (!needsBridge(step, threshold, maximumJump)) {
         index++;
         continue;
@@ -133,13 +134,12 @@ public final class WorkingSetWarmups {
     return true;
   }
 
-  private static LateStep lateStepAt(
-      List<WarmupSet> sets, int index, double workingWeight, int workingReps) {
+  private static LateStep lateStepAt(List<WarmupSet> sets, int index, double workingWeight) {
     boolean workSet = index == sets.size();
     return new LateStep(
         sets.get(index - 1),
         workSet ? workingWeight : sets.get(index).load(),
-        workSet ? workingReps : sets.get(index).reps());
+        workSet ? sets.get(index - 1).reps() : sets.get(index).reps());
   }
 
   private static boolean needsBridge(LateStep step, double threshold, double maximumJump) {

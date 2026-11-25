@@ -3,7 +3,6 @@ package com.lifttrax.cli;
 import com.lifttrax.models.WeightText;
 import com.lifttrax.workout.PlannedWorkoutFile;
 import com.lifttrax.workout.PlannedWorkoutHistory;
-import com.lifttrax.workout.WarmupLoading;
 import com.lifttrax.workout.WorkingSetWarmups;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -75,27 +74,19 @@ final class PlannedWorkoutWarmups {
     Map<Integer, List<WarmupSet>> setsByBarWeight = Map.of();
     Map<Integer, String> warningsByBarWeight = Map.of();
     String loadWarning = "";
-    WarmupLoading loading = loadingFor(exercise.name());
     if (Double.isFinite(pounds) && pounds > 0) {
-      if (loading.system() == WarmupLoading.LoadingSystem.BARBELL) {
-        Map<Integer, List<WarmupSet>> generatedSets = new LinkedHashMap<>();
-        Map<Integer, String> generatedWarnings = new LinkedHashMap<>();
-        for (int barWeight : SessionBarWeights.values()) {
-          WorkingSetWarmups.Result generated =
-              WorkingSetWarmups.generate(pounds, reps, WarmupLoading.barbell(barWeight), shortened);
-          generatedSets.put(barWeight, displayedSets(pounds, generated));
-          generatedWarnings.put(barWeight, loadWarning(generated));
-        }
-        setsByBarWeight = Map.copyOf(generatedSets);
-        warningsByBarWeight = Map.copyOf(generatedWarnings);
-        sets = setsByBarWeight.get(SessionBarWeights.DEFAULT);
-        loadWarning = warningsByBarWeight.get(SessionBarWeights.DEFAULT);
-      } else {
+      Map<Integer, List<WarmupSet>> generatedSets = new LinkedHashMap<>();
+      Map<Integer, String> generatedWarnings = new LinkedHashMap<>();
+      for (int barWeight : SessionBarWeights.values()) {
         WorkingSetWarmups.Result generated =
-            WorkingSetWarmups.generate(pounds, reps, loading, shortened);
-        sets = displayedSets(pounds, generated);
-        loadWarning = loadWarning(generated);
+            WorkingSetWarmups.generate(pounds, reps, barWeight, shortened);
+        generatedSets.put(barWeight, displayedSets(pounds, generated));
+        generatedWarnings.put(barWeight, loadWarning(generated));
       }
+      setsByBarWeight = Map.copyOf(generatedSets);
+      warningsByBarWeight = Map.copyOf(generatedWarnings);
+      sets = setsByBarWeight.get(SessionBarWeights.DEFAULT);
+      loadWarning = warningsByBarWeight.get(SessionBarWeights.DEFAULT);
     } else {
       workingWeight = "";
       sets =
@@ -116,7 +107,6 @@ final class PlannedWorkoutWarmups {
         sets,
         setsByBarWeight,
         warningsByBarWeight,
-        loading.system() == WarmupLoading.LoadingSystem.BARBELL,
         "Prepare for the first working set without fatigue. Subsequent work sets of this "
             + "exercise do not need another ramp."
             + (shortened ? " The ramp is shortened after a related loaded exercise." : ""),
@@ -125,9 +115,7 @@ final class PlannedWorkoutWarmups {
         workingWeight,
         resolution.error(),
         loadWarning,
-        loading.system() == WarmupLoading.LoadingSystem.BARBELL
-            ? "Uses the selected bar with paired 45, 25, 10, 5 and 2.5 lb plates. Warm-ups are multiples of 5 lb; early loads favor 45s and 25s while later loads stay closer to their targets."
-            : "Assumes available loads in 5 lb increments. Adjust for your equipment.");
+        "Uses the selected bar with paired 45, 25, 10, 5 and 2.5 lb plates. Warm-ups are multiples of 5 lb; early loads favor 45s and 25s while later loads stay closer to their targets.");
   }
 
   private static List<WarmupSet> displayedSets(
@@ -164,29 +152,6 @@ final class PlannedWorkoutWarmups {
     return Math.abs(targetLoad - set.load()) < 1e-9
         ? label
         : "Target " + label + " (practical load)";
-  }
-
-  private static WarmupLoading loadingFor(String name) {
-    String normalized = normalizeName(name);
-    boolean otherEquipment =
-        normalized.matches(
-            ".*\\b(dumbbell|dumbbells|db|kettlebell|kb|machine|cable|smith|trap|axle|log|continental|landmine)\\b.*");
-    boolean standardBarbell =
-        normalized.contains("barbell")
-            || Set.of(
-                    "bench press",
-                    "back squat",
-                    "front squat",
-                    "overhead press",
-                    "deadlift",
-                    "conventional deadlift",
-                    "sumo deadlift",
-                    "romanian deadlift",
-                    "paused deadlift")
-                .contains(normalized);
-    return !otherEquipment && standardBarbell
-        ? WarmupLoading.barbell()
-        : WarmupLoading.fixedIncrement(5, 0);
   }
 
   private static boolean relatedLoadedExercise(
@@ -296,7 +261,6 @@ final class PlannedWorkoutWarmups {
       List<WarmupSet> sets,
       Map<Integer, List<WarmupSet>> setsByBarWeight,
       Map<Integer, String> warningsByBarWeight,
-      boolean selectableBar,
       String intent,
       String backoffNote,
       int workingReps,
@@ -312,10 +276,6 @@ final class PlannedWorkoutWarmups {
                   java.util.stream.Collectors.toUnmodifiableMap(
                       Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
       warningsByBarWeight = Map.copyOf(warningsByBarWeight);
-    }
-
-    boolean hasSelectableBar() {
-      return selectableBar;
     }
   }
 

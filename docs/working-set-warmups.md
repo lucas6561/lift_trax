@@ -12,9 +12,12 @@ percentage is based on the exact planned working weight.
 | --- | --- |
 | 1 | 40% × 5, 60% × 3, 75% × 2, 85% × 1, 92% × 1 |
 | 2 | 40% × 5, 60% × 3, 75% × 2, 85% × 1, 92% × 1 |
-| 3 | 40% × 5, 60% × 3, 75% × 2, 85% × 1 |
-| 4 | 40% × 5, 60% × 3, 75% × 2, 85% × 1 |
-| 5+ | 40% × 5, 60% × 3, 80% × 2 |
+| 3 | 40% × 5, 60% × 3, 75% × 2, 85% × 2 |
+| 4 | 40% × 5, 60% × 3, 75% × 2, 85% × 2 |
+| 5+ | 40% × 5, 60% × 3, 80% × 3 |
+
+The final warm-up rehearses roughly half the working-set repetitions, capped at three; one- and
+two-rep working sets retain a final single to avoid unnecessary fatigue near the work weight.
 
 ## Practical barbell loads
 
@@ -65,14 +68,11 @@ The final warm-up must normally reach at least 91% for one or two reps, 83% for 
 or 77% for five or more reps. If the selected equipment cannot create the intended final exposure
 or late-step spacing, the view displays a warning.
 
-## Other equipment and Work Along behavior
+## Work Along behavior
 
-Names containing `barbell`, or the standard barbell movements Bench Press, Back Squat, Front
-Squat, Overhead Press, Deadlift, Conventional Deadlift, Sumo Deadlift, Romanian Deadlift, and
-Paused Deadlift, use the selectable barbell ladder. Dumbbells, kettlebells, machines, cables,
-Smith machines, trap bars, axles, logs, continental lifts, and landmines use the existing 5 lb
-fixed-increment fallback. Other names also use 5 lb increments without an assumed implement
-minimum.
+Every warm-up request includes an explicit bar weight. Work Along does not infer equipment from
+the exercise name. Every Warm-ups panel therefore displays the shared bar selector and defaults to
+45 lb; changing it regenerates the displayed ladder from the matching precomputed barbell result.
 
 The adapter uses the same displayed working-weight suggestion as the planned set, including an
 explicit `percentOf` reference. Existing working-weight calculations are unchanged. If the

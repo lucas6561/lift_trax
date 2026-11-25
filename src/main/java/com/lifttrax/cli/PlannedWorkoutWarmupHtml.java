@@ -20,17 +20,8 @@ final class PlannedWorkoutWarmupHtml {
           .append(WebHtml.escapeHtml(warmup.loadingNote()))
           .append("</p>");
     }
-    if (warmup.hasSelectableBar()) {
-      appendSelectableBarSets(html, warmup);
-    } else {
-      appendSets(html, warmup.sets());
-    }
+    appendSelectableBarSets(html, warmup);
     appendMissingWorkingWeightGuidance(html, warmup);
-    if (!warmup.hasSelectableBar() && !warmup.loadWarning().isBlank()) {
-      html.append("<p class='session-warmup-load-warning'>")
-          .append(WebHtml.escapeHtml(warmup.loadWarning()))
-          .append("</p>");
-    }
     html.append("<p class='muted'>")
         .append(warmupRest(warmup.workingReps()))
         .append("</p><p class='muted'>")

@@ -449,6 +449,7 @@ class PlannedWorkoutSessionHtmlTest {
         html.contains("check that each step increases while staying below the working weight"));
     assertFalse(html.contains("Planned working weight: <strong>"));
     assertFalse(html.contains("Uses the selected bar"));
+    assertTrue(html.contains("class='js-session-warmup-bar'"));
     assertTrue(html.contains("RPE 6-6.5 or lower"));
     assertTrue(html.contains("technique deteriorates, you feel pain"));
     assertTrue(html.contains("effort reaches RPE 7 or higher"));
